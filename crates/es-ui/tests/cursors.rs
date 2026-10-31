@@ -90,7 +90,13 @@ fn every_cursor_is_drawn_at_each_scale_inside_its_canvas() {
             let black = (0..b.side * b.side)
                 .filter(|i| b.opaque_black(i % b.side, i / b.side))
                 .count();
-            let halo = b.bgra.chunks_exact(4).filter(|p| p[0] >= 192).count();
+            let halo = b
+                .bgra
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .filter(|p| p[0] >= 192)
+                .count();
             assert!(
                 black as f32 > 20.0 * b.scale * b.scale,
                 "{name} at {}: only {black} black pixels",
@@ -114,7 +120,7 @@ fn every_cursor_is_drawn_at_each_scale_inside_its_canvas() {
                 "{name} at {} is clipped by its canvas",
                 b.scale
             );
-            for p in b.bgra.chunks_exact(4) {
+            for p in b.bgra.as_chunks::<4>().0 {
                 assert!(
                     p[0] <= p[3] && p[0] == p[1] && p[1] == p[2],
                     "{name}: {p:?} is not premultiplied grey"
