@@ -1,8 +1,8 @@
 use std::{path::PathBuf, rc::Rc};
 
 use gpui::{
-    AnyWindowHandle, ClipboardItem, CursorStyle, GraphicalEnvironment, PlatformDisplay,
-    PlatformKeyboardLayout, PlatformWindow, WindowParams, WindowingModes,
+    AnyWindowHandle, ClipboardItem, CursorImage, CursorStyle, CustomCursorId, GraphicalEnvironment,
+    PlatformDisplay, PlatformKeyboardLayout, PlatformWindow, WindowParams, WindowingModes,
 };
 
 #[cfg(feature = "wayland")]
@@ -156,6 +156,10 @@ impl DisplayConnection {
 
     pub(crate) fn set_cursor_style(&self, style: CursorStyle) {
         dispatch!(self, connection => connection.set_cursor_style(style), headless => ())
+    }
+
+    pub(crate) fn register_cursor_image(&self, id: CustomCursorId, image: CursorImage) {
+        dispatch!(self, connection => connection.register_cursor_image(id, image), headless => ())
     }
 
     pub(crate) fn hide_cursor_until_mouse_moves(&self) {

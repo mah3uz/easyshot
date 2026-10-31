@@ -59,11 +59,11 @@ use crate::linux::{
 use crate::linux::{LinuxCommon, LinuxKeyboardLayout, X11Window, modifiers_from_xinput_info};
 
 use gpui::{
-    AnyWindowHandle, Bounds, ClipboardItem, CursorStyle, FileDropEvent, FrameRequestSource,
-    Keystroke, Modifiers, ModifiersChangedEvent, MouseButton, Pixels, PlatformDisplay,
-    PlatformFrameSignal, PlatformInput, PlatformKeyboardLayout, PlatformWindow, Point,
-    RequestFrameOptions, ScrollDelta, Size, TouchPhase, WindowButtonLayout, WindowParams,
-    WindowVisibility, point, px,
+    AnyWindowHandle, Bounds, ClipboardItem, CursorImage, CursorStyle, CustomCursorId,
+    FileDropEvent, FrameRequestSource, Keystroke, Modifiers, ModifiersChangedEvent, MouseButton,
+    Pixels, PlatformDisplay, PlatformFrameSignal, PlatformInput, PlatformKeyboardLayout,
+    PlatformWindow, Point, RequestFrameOptions, ScrollDelta, Size, TouchPhase, WindowButtonLayout,
+    WindowParams, WindowVisibility, point, px,
 };
 use gpui_wgpu::{CompositorGpuHint, GpuContext};
 
@@ -1798,6 +1798,8 @@ impl X11Client {
         .log_err();
         state.xcb_connection.flush().log_err();
     }
+
+    pub(crate) fn register_cursor_image(&self, _id: CustomCursorId, _image: CursorImage) {}
 
     pub(crate) fn hide_cursor_until_mouse_moves(&self) {
         self.0.borrow_mut().hide_cursor_until_mouse_moves();

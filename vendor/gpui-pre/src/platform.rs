@@ -567,6 +567,9 @@ pub trait Platform: 'static {
 
     fn set_cursor_style(&self, style: CursorStyle);
 
+    /// Stores the bitmaps shown for [`CursorStyle::Custom`] with this id.
+    fn register_cursor_image(&self, _id: CustomCursorId, _image: CursorImage) {}
+
     /// Hides the mouse cursor until the user moves the mouse over one of
     /// this application's windows.
     fn hide_cursor_until_mouse_moves(&self);
@@ -3058,6 +3061,27 @@ pub enum CursorStyle {
     /// A cursor indicating that the operation will result in a context menu
     /// corresponds to the CSS cursor value `context-menu`
     ContextualMenu,
+
+    /// A cursor registered with [`App::register_cursor_image`].
+    /// Platforms without custom cursor support show the default arrow.
+    Custom(CustomCursorId),
+}
+
+/// Identifies a cursor image registered with [`App::register_cursor_image`].
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+pub struct CustomCursorId(pub u32);
+
+/// A cursor bitmap provided at one or more scale factors.
+#[derive(Clone, Debug)]
+pub struct CursorImage {
+    /// `(scale, pixels)` pairs. Each image is `round(size * scale)` pixels in
+    /// premultiplied BGRA, rows top to bottom. The platform shows the smallest
+    /// scale at or above the output's scale.
+    pub images: Vec<(f32, Arc<[u8]>)>,
+    /// The size in logical pixels.
+    pub size: Size<u32>,
+    /// The point that the pointer position maps to, in logical pixels.
+    pub hotspot: Point<u32>,
 }
 
 /// A clipboard item that should be copied to the clipboard

@@ -36,11 +36,12 @@ use crate::linux::{
     select_backend,
 };
 use gpui::{
-    Action, ActivityGuard, AnyWindowHandle, BackgroundExecutor, ClipboardItem, CursorStyle,
-    ForegroundExecutor, GraphicalEnvironment, Keymap, Menu, MenuItem, OwnedMenu, PathPromptOptions,
-    Platform, PlatformDisplay, PlatformKeyboardLayout, PlatformKeyboardMapper, PlatformTextSystem,
-    PlatformWindow, Result, RunnableVariant, Task, ThermalState, WindowAppearance,
-    WindowButtonLayout, WindowParams, WindowingModes, WindowingRequest,
+    Action, ActivityGuard, AnyWindowHandle, BackgroundExecutor, ClipboardItem, CursorImage,
+    CursorStyle, CustomCursorId, ForegroundExecutor, GraphicalEnvironment, Keymap, Menu, MenuItem,
+    OwnedMenu, PathPromptOptions, Platform, PlatformDisplay, PlatformKeyboardLayout,
+    PlatformKeyboardMapper, PlatformTextSystem, PlatformWindow, Result, RunnableVariant, Task,
+    ThermalState, WindowAppearance, WindowButtonLayout, WindowParams, WindowingModes,
+    WindowingRequest,
 };
 #[cfg(any(feature = "wayland", feature = "x11"))]
 use gpui::{Pixels, Point, px};
@@ -1024,6 +1025,10 @@ impl Platform for LinuxPlatform {
         self.connection.borrow().set_cursor_style(style)
     }
 
+    fn register_cursor_image(&self, id: CustomCursorId, image: CursorImage) {
+        self.connection.borrow().register_cursor_image(id, image)
+    }
+
     fn hide_cursor_until_mouse_moves(&self) {
         self.connection.borrow().hide_cursor_until_mouse_moves()
     }
@@ -1343,6 +1348,7 @@ pub(super) fn cursor_style_to_icon_names(style: CursorStyle) -> &'static [&'stat
         CursorStyle::DragLink => &["alias"],
         CursorStyle::DragCopy => &["copy"],
         CursorStyle::ContextualMenu => &["context-menu"],
+        CursorStyle::Custom(_) => &[DEFAULT_CURSOR_ICON_NAME],
     }
 }
 

@@ -99,13 +99,13 @@ use crate::linux::{
     xdg_desktop_portal::{Event as XDPEvent, XDPEventSource},
 };
 use gpui::{
-    AnyWindowHandle, Bounds, Capslock, CursorStyle, DevicePixels, ExternalDragPayload,
-    FileDragPaths, FileDropEvent, ForegroundExecutor, GraphicalEnvironment, KeyDownEvent,
-    KeyUpEvent, Keystroke, Modifiers, ModifiersChangedEvent, MouseButton, MouseDownEvent,
-    MouseExitEvent, MouseMoveEvent, MouseUpEvent, NavigationDirection, Pixels, PlatformDisplay,
-    PlatformFrameSignal, PlatformInput, PlatformKeyboardLayout, PlatformWindow, Point, ScrollDelta,
-    ScrollEvent, ScrollSource, SharedString, Size, TouchPhase, WindowButtonLayout, WindowKind,
-    WindowParams, point, px, size,
+    AnyWindowHandle, Bounds, Capslock, CursorImage, CursorStyle, CustomCursorId, DevicePixels,
+    ExternalDragPayload, FileDragPaths, FileDropEvent, ForegroundExecutor, GraphicalEnvironment,
+    KeyDownEvent, KeyUpEvent, Keystroke, Modifiers, ModifiersChangedEvent, MouseButton,
+    MouseDownEvent, MouseExitEvent, MouseMoveEvent, MouseUpEvent, NavigationDirection, Pixels,
+    PlatformDisplay, PlatformFrameSignal, PlatformInput, PlatformKeyboardLayout, PlatformWindow,
+    Point, ScrollDelta, ScrollEvent, ScrollSource, SharedString, Size, TouchPhase,
+    WindowButtonLayout, WindowKind, WindowParams, point, px, size,
 };
 use gpui_wgpu::{CompositorGpuHint, GpuContext};
 use wayland_protocols::wp::linux_dmabuf::zv1::client::{
@@ -834,6 +834,20 @@ impl WaylandClientState {
         self.cursor_hidden_window = Some(focused_window);
     }
 
+    // cursor-shape-v1 has no custom shapes, so Custom always goes through wl_pointer.set_cursor.
+    fn set_custom_cursor(&mut self, serial: u32, style: CursorStyle) -> bool {
+        let CursorStyle::Custom(id) = style else {
+            return false;
+        };
+        let (Some(window), Some(wl_pointer)) =
+            (self.mouse_focused_window.clone(), self.wl_pointer.clone())
+        else {
+            return false;
+        };
+        self.cursor
+            .set_custom(&wl_pointer, serial, id, window.scale_factor())
+    }
+
     fn restore_cursor_after_hide(&mut self) {
         if self.cursor_hidden_window.take().is_none() {
             return;
@@ -842,6 +856,9 @@ impl WaylandClientState {
             return;
         };
         let serial = self.serial_tracker.get(SerialKind::MouseEnter);
+        if self.set_custom_cursor(serial.as_raw(), style) {
+            return;
+        }
         if let Some(cursor_shape_device) = &self.cursor_shape_device {
             cursor_shape_device.set_shape(serial.as_raw(), to_shape(style));
             return;
@@ -1367,6 +1384,9 @@ impl WaylandConnection {
         }
 
         let serial = state.serial_tracker.get(SerialKind::MouseEnter);
+        if state.set_custom_cursor(serial.as_raw(), style) {
+            return;
+        }
         if let Some(cursor_shape_device) = &state.cursor_shape_device {
             cursor_shape_device.set_shape(serial.as_raw(), to_shape(style));
         } else if let Some(focused_window) = &state.mouse_focused_window {
@@ -1383,6 +1403,10 @@ impl WaylandConnection {
                 scale,
             );
         }
+    }
+
+    pub(crate) fn register_cursor_image(&self, id: CustomCursorId, image: CursorImage) {
+        self.0.borrow_mut().cursor.register_custom(id, image);
     }
 
     pub(crate) fn hide_cursor_until_mouse_moves(&self) {
@@ -2406,7 +2430,9 @@ impl Dispatch<wl_pointer::WlPointer, ()> for WaylandClientStatePtr {
                         state.enter_token = None;
                     }
                     state.restore_cursor_after_hide();
-                    if let Some(style) = state.cursor_style {
+                    if let Some(style) = state.cursor_style
+                        && !state.set_custom_cursor(serial, style)
+                    {
                         if let Some(cursor_shape_device) = &state.cursor_shape_device {
                             cursor_shape_device.set_shape(serial, to_shape(style));
                         } else {
