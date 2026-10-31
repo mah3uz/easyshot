@@ -1,0 +1,95 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: System libraries
+        run: sudo apt-get update && sudo apt-get install -y jq libwayland-dev libxkbcommon-dev libxkbcommon-x11-dev libxcb1-dev libfontconfig-dev libdbus-1-dev libvulkan-dev libasound2-dev
+      - run: rustup show
+      - run: rustup component add rustfmt clippy
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+      - run: cargo fmt --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: just layers
+      - run: just grep-guard
+      - run: just i18n-check
+      - run: just gpui-guard
+
+  # Headless-window tests render on Mesa lavapipe, the software Vulkan driver.
+  test:
+    runs-on: ubuntu-latest
+    env:
+      VK_DRIVER_FILES: /usr/share/vulkan/icd.d/lvp_icd.json:/usr/share/vulkan/icd.d/lvp_icd.x86_64.json
+    steps:
+      - uses: actions/checkout@v4
+      - name: System libraries
+        run: sudo apt-get update && sudo apt-get install -y jq libwayland-dev libxkbcommon-dev libxkbcommon-x11-dev libxcb1-dev libfontconfig-dev libdbus-1-dev libvulkan-dev libasound2-dev mesa-vulkan-drivers vulkan-tools
+      - run: rustup show
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+      - run: cargo nextest run --workspace
+      - run: cargo test --workspace --doc
+
+  # Benchmarks on shared CI hardware are noisy, so they warn and never fail the build.
+  bench:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      VK_DRIVER_FILES: /usr/share/vulkan/icd.d/lvp_icd.json:/usr/share/vulkan/icd.d/lvp_icd.x86_64.json
+    steps:
+      - uses: actions/checkout@v4
+      - name: System libraries
+        run: sudo apt-get update && sudo apt-get install -y jq libwayland-dev libxkbcommon-dev libxkbcommon-x11-dev libxcb1-dev libfontconfig-dev libdbus-1-dev libvulkan-dev libasound2-dev mesa-vulkan-drivers
+      - run: rustup show
+      - run: cargo bench --workspace
+
+  features:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        features: ["", "--no-default-features --features hyprland", "--no-default-features --features wlroots", "--no-default-features --features niri"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: System libraries
+        run: sudo apt-get update && sudo apt-get install -y jq libwayland-dev libxkbcommon-dev libxkbcommon-x11-dev libxcb1-dev libfontconfig-dev libdbus-1-dev libvulkan-dev libasound2-dev
+      - run: rustup show
+      - run: cargo build -p easyshot ${{ matrix.features }}
+
+  sway:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: System libraries
+        run: sudo apt-get update && sudo apt-get install -y jq sway dbus libwayland-dev libxkbcommon-dev libxkbcommon-x11-dev libxcb1-dev libfontconfig-dev libdbus-1-dev libvulkan-dev libasound2-dev mesa-vulkan-drivers
+      - run: rustup show
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+      - run: tests/harness/sway.sh platform
+
+  release-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: System libraries
+        run: sudo apt-get update && sudo apt-get install -y jq libwayland-dev libxkbcommon-dev libxkbcommon-x11-dev libxcb1-dev libfontconfig-dev libdbus-1-dev libvulkan-dev libasound2-dev
+      - run: rustup show
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+      - run: cargo build -p easyshot --release
+      - run: just release-check
