@@ -1,9 +1,9 @@
 use crate::{
     BackGestureEvent, Bounds, Capslock, Context, Empty, IntoElement, Keystroke, LongPressEvent,
-    Modifiers, Pixels, Point, Render, TouchDragEvent, Window, point, seal::Sealed,
+    Modifiers, Pixels, Point, Render, RenderImage, TouchDragEvent, Window, point, seal::Sealed,
 };
 use smallvec::SmallVec;
-use std::{any::Any, fmt::Debug, ops::Deref, path::PathBuf};
+use std::{any::Any, fmt::Debug, ops::Deref, path::PathBuf, sync::Arc};
 
 /// An event from a platform input source.
 pub trait InputEvent: Sealed + 'static {
@@ -729,20 +729,42 @@ pub enum ExternalDragPayload {
     Files(FileDragPaths),
 }
 
+impl ExternalDragPayload {
+    /// The image shown under the pointer during the native drag, if any.
+    pub fn icon(&self) -> Option<&Arc<RenderImage>> {
+        match self {
+            ExternalDragPayload::Files(paths) => paths.icon.as_ref(),
+        }
+    }
+}
+
 /// Paths handed to the platform for a native file drag. Directory metadata is
 /// provided by the caller to avoid querying it when the platform drag starts.
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
-pub struct FileDragPaths(SmallVec<[(PathBuf, bool); 2]>);
+pub struct FileDragPaths {
+    entries: SmallVec<[(PathBuf, bool); 2]>,
+    icon: Option<Arc<RenderImage>>,
+}
 
 impl FileDragPaths {
     /// Creates a native file-drag payload from paths paired with whether each path is a directory.
     pub fn new(entries: impl IntoIterator<Item = (PathBuf, bool)>) -> Self {
-        Self(entries.into_iter().collect())
+        Self {
+            entries: entries.into_iter().collect(),
+            icon: None,
+        }
+    }
+
+    /// Shows `icon` under the pointer while the drag is outside the window. Its
+    /// pixels map 1:1 to device pixels of the window the drag starts from.
+    pub fn with_icon(mut self, icon: Arc<RenderImage>) -> Self {
+        self.icon = Some(icon);
+        self
     }
 
     /// The dragged paths, each paired with whether it is a directory.
     pub fn entries(&self) -> &[(PathBuf, bool)] {
-        &self.0
+        &self.entries
     }
 }
 

@@ -91,7 +91,7 @@ use crate::linux::{
     open_uri_internal, read_fd_with_timeout, reveal_path_internal,
     wayland::{
         clipboard::{Clipboard, DataOffer, FILE_LIST_MIME_TYPE, TEXT_MIME_TYPES},
-        cursor::Cursor,
+        cursor::{Cursor, create_shm_buffer},
         serial::{Serial, SerialKind, SerialTracker},
         to_shape,
         window::WaylandWindow,
@@ -104,7 +104,7 @@ use gpui::{
     KeyDownEvent, KeyUpEvent, Keystroke, Modifiers, ModifiersChangedEvent, MouseButton,
     MouseDownEvent, MouseExitEvent, MouseMoveEvent, MouseUpEvent, NavigationDirection, Pixels,
     PlatformDisplay, PlatformFrameSignal, PlatformInput, PlatformKeyboardLayout, PlatformWindow,
-    Point, ScrollDelta, ScrollEvent, ScrollSource, SharedString, Size, TouchPhase,
+    Point, RenderImage, ScrollDelta, ScrollEvent, ScrollSource, SharedString, Size, TouchPhase,
     WindowButtonLayout, WindowKind, WindowParams, point, px, size,
 };
 use gpui_wgpu::{CompositorGpuHint, GpuContext};
@@ -517,6 +517,76 @@ pub(crate) struct ExternalDrag {
     source: wl_data_source::WlDataSource,
     bytes: Vec<u8>,
     window: WaylandWindowStatePtr,
+    _icon: Option<DragIcon>,
+}
+
+struct DragIcon {
+    surface: wl_surface::WlSurface,
+    viewport: Option<wp_viewport::WpViewport>,
+    buffer: wl_buffer::WlBuffer,
+}
+
+impl DragIcon {
+    fn new(globals: &Globals, icon: &RenderImage) -> Option<Self> {
+        let size = icon.size(0);
+        let (width, height) = (size.width.0, size.height.0);
+        let pixels = icon.as_bytes(0)?;
+        if width <= 0 || height <= 0 || pixels.len() != width as usize * height as usize * 4 {
+            return None;
+        }
+        // RenderImage holds straight alpha; wl_shm buffers are premultiplied.
+        let mut premultiplied = pixels.to_vec();
+        for pixel in premultiplied.chunks_exact_mut(4) {
+            let alpha = pixel[3] as u32;
+            for channel in &mut pixel[..3] {
+                *channel = ((*channel as u32 * alpha + 127) / 255) as u8;
+            }
+        }
+        let buffer = create_shm_buffer(&globals.shm, &globals.qh, width, height, &premultiplied)
+            .context("Wayland: Failed to create drag icon buffer")
+            .log_err()?;
+        let surface = globals.compositor.create_surface(&globals.qh, ());
+        let viewport = globals
+            .viewporter
+            .as_ref()
+            .map(|viewporter| viewporter.get_viewport(&surface, &globals.qh, ()));
+        Some(Self {
+            surface,
+            viewport,
+            buffer,
+        })
+    }
+
+    // Must follow start_drag: the surface only becomes a drag icon there.
+    fn show(&self, icon: &RenderImage, scale: f32) {
+        let size = icon.size(0);
+        let (mut width, mut height) = (size.width.0, size.height.0);
+        if let Some(viewport) = &self.viewport {
+            width = ((width as f32 / scale).round() as i32).max(1);
+            height = ((height as f32 / scale).round() as i32).max(1);
+            viewport.set_destination(width, height);
+        }
+        // The icon's top-left starts at the pointer; centre it under the pointer instead.
+        let (dx, dy) = (-width / 2, -height / 2);
+        if self.surface.version() >= wl_surface::REQ_OFFSET_SINCE {
+            self.surface.offset(dx, dy);
+            self.surface.attach(Some(&self.buffer), 0, 0);
+        } else {
+            self.surface.attach(Some(&self.buffer), dx, dy);
+        }
+        self.surface.damage(0, 0, width, height);
+        self.surface.commit();
+    }
+}
+
+impl Drop for DragIcon {
+    fn drop(&mut self) {
+        if let Some(viewport) = &self.viewport {
+            viewport.destroy();
+        }
+        self.surface.destroy();
+        self.buffer.destroy();
+    }
 }
 
 fn file_uri_list(paths: &FileDragPaths) -> String {
@@ -687,12 +757,24 @@ impl WaylandClientStatePtr {
             data_device_manager.create_data_source(&state.globals.qh, DataSourceKind::Drag);
         source.offer(FILE_LIST_MIME_TYPE.to_string());
         source.set_actions(DndAction::Copy | DndAction::Move);
-        data_device.start_drag(Some(&source), surface, None, serial.as_raw());
+        let icon = payload
+            .icon()
+            .and_then(|image| Some((image, DragIcon::new(&state.globals, image)?)));
+        data_device.start_drag(
+            Some(&source),
+            surface,
+            icon.as_ref().map(|(_, icon)| &icon.surface),
+            serial.as_raw(),
+        );
+        if let Some((image, icon)) = &icon {
+            icon.show(image, window.scale_factor());
+        }
 
         state.external_drag = Some(ExternalDrag {
             source,
             bytes: uri_list.into_bytes(),
             window,
+            _icon: icon.map(|(_, icon)| icon),
         });
         true
     }
