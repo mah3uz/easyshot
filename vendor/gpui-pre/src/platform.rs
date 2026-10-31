@@ -1362,6 +1362,7 @@ pub trait PlatformWindow: HasWindowHandle + HasDisplayHandle {
     }
     fn start_window_resize(&self, _edge: ResizeEdge) {}
     fn set_exclusive_zone(&self, _zone: Pixels) {}
+    fn set_layer_margin(&self, _margin: Edges<Pixels>) {}
     #[cfg(all(target_os = "linux", feature = "wayland"))]
     fn set_exclusive_edge(&self, _edge: layer_shell::Anchor) {}
     fn set_input_region(&self, _region: Option<&[Bounds<Pixels>]>) {}

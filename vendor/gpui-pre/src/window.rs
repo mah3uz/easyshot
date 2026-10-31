@@ -2505,6 +2505,13 @@ impl Window {
         self.platform_window.set_exclusive_zone(zone);
     }
 
+    /// Set the margins of a layer-shell surface, the distance from each anchored edge.
+    /// Margins on edges the surface is not anchored to are ignored. (Wayland layer-shell
+    /// windows only)
+    pub fn set_layer_margin(&self, margin: Edges<Pixels>) {
+        self.platform_window.set_layer_margin(margin);
+    }
+
     /// Set which anchored edge a layer-shell surface's exclusive zone applies to.
     /// This is only needed to disambiguate a corner-anchored surface; otherwise the
     /// edge is deduced from the anchor. The edge must be a single edge the surface

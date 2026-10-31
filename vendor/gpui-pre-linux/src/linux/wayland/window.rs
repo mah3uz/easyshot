@@ -34,7 +34,7 @@ use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_surface_v1;
 use crate::linux::wayland::{display::WaylandDisplay, serial::SerialKind};
 use crate::linux::{Globals, Output, WaylandClientStatePtr, get_window};
 use gpui::{
-    AnyWindowHandle, Bounds, Capslock, Decorations, DevicePixels, ExternalDragPayload,
+    AnyWindowHandle, Bounds, Capslock, Decorations, DevicePixels, Edges, ExternalDragPayload,
     FrameRequestSource, GpuSpecs, Modifiers, Pixels, PlatformAtlas, PlatformDisplay,
     PlatformFrameSignal, PlatformInput, PlatformInputHandler, PlatformWindow, Point, PromptButton,
     PromptLevel, RequestFrameOptions, ResizeEdge, Scene, Size, Tiling, WindowAppearance,
@@ -470,6 +470,22 @@ impl WaylandSurfaceState {
             self
         {
             layer_surface.set_exclusive_zone(zone);
+            true
+        } else {
+            false
+        }
+    }
+
+    fn set_layer_margin(&self, margin: Edges<Pixels>) -> bool {
+        if let WaylandSurfaceState::LayerShell(WaylandLayerSurfaceState { layer_surface, .. }) =
+            self
+        {
+            layer_surface.set_margin(
+                f32::from(margin.top) as i32,
+                f32::from(margin.right) as i32,
+                f32::from(margin.bottom) as i32,
+                f32::from(margin.left) as i32,
+            );
             true
         } else {
             false
@@ -2118,6 +2134,13 @@ impl PlatformWindow for WaylandWindow {
         {
             // Commit to apply it immediately, otherwise it only takes effect
             // on the next frame.
+            state.surface.commit();
+        }
+    }
+
+    fn set_layer_margin(&self, margin: Edges<Pixels>) {
+        let state = self.borrow();
+        if state.surface_state.set_layer_margin(margin) {
             state.surface.commit();
         }
     }
