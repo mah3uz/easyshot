@@ -14,8 +14,11 @@ use crate::niri;
 #[cfg(feature = "wlroots")]
 use crate::wlroots;
 
-pub static CAPTURE: &[Provider<dyn Capture>] =
-    &[wayland::EXT_IMAGE_COPY, wayland::WLR_SCREENCOPY, desktop::PORTAL_SCREENSHOT];
+pub static CAPTURE: &[Provider<dyn Capture>] = &[
+    wayland::EXT_IMAGE_COPY,
+    wayland::WLR_SCREENCOPY,
+    desktop::PORTAL_SCREENSHOT,
+];
 
 pub static WINDOWS: &[Provider<dyn WindowList>] = &[
     #[cfg(feature = "hyprland")]

@@ -9,10 +9,16 @@ fn hello_window_renders_its_stack() {
 
     let background = image.get_pixel(2, 2).0;
     let differing = image.pixels().filter(|p| p.0 != background).count();
-    assert!(differing > 4000, "frame is nearly uniform: {differing} pixels differ from the background");
+    assert!(
+        differing > 4000,
+        "frame is nearly uniform: {differing} pixels differ from the background"
+    );
 
     let names = app.cx.update(|cx| cx.text_system().all_font_names());
     for family in ["Inter", "Inter Tight", "Nunito"] {
-        assert!(names.iter().any(|n| n == family), "{family} is not registered");
+        assert!(
+            names.iter().any(|n| n == family),
+            "{family} is not registered"
+        );
     }
 }

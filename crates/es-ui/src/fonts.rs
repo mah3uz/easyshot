@@ -11,7 +11,10 @@ pub fn register(cx: &mut App) {
         }
     };
     let mut data = Vec::new();
-    for path in faces.iter().filter(|p| p.ends_with(".ttf") || p.ends_with(".otf")) {
+    for path in faces
+        .iter()
+        .filter(|p| p.ends_with(".ttf") || p.ends_with(".otf"))
+    {
         match Assets.load(path) {
             Ok(Some(bytes)) => data.push(bytes),
             Ok(None) => tracing::error!(%path, "bundled font missing"),

@@ -1,6 +1,9 @@
 use std::sync::LazyLock;
 
-use i18n_embed::{LanguageLoader, fluent::{FluentLanguageLoader, fluent_language_loader}};
+use i18n_embed::{
+    LanguageLoader,
+    fluent::{FluentLanguageLoader, fluent_language_loader},
+};
 use rust_embed::RustEmbed;
 
 #[derive(RustEmbed)]
@@ -10,7 +13,8 @@ struct Localizations;
 static LOADER: LazyLock<FluentLanguageLoader> = LazyLock::new(|| {
     let loader = fluent_language_loader!();
     loader.set_use_isolating(false);
-    if let Err(error) = loader.load_languages(&Localizations, &[loader.fallback_language().clone()]) {
+    if let Err(error) = loader.load_languages(&Localizations, &[loader.fallback_language().clone()])
+    {
         tracing::error!(%error, "cannot load es-ui strings");
     }
     loader

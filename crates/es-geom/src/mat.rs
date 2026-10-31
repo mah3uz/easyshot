@@ -27,7 +27,14 @@ impl Default for Mat {
 }
 
 impl Mat {
-    pub const IDENTITY: Mat = Mat { a: 1.0, b: 0.0, c: 0.0, d: 1.0, e: 0.0, f: 0.0 };
+    pub const IDENTITY: Mat = Mat {
+        a: 1.0,
+        b: 0.0,
+        c: 0.0,
+        d: 1.0,
+        e: 0.0,
+        f: 0.0,
+    };
 
     pub const fn new(a: f64, b: f64, c: f64, d: f64, e: f64, f: f64) -> Self {
         Self { a, b, c, d, e, f }
@@ -113,7 +120,13 @@ impl Mat {
                 rotation: FRAC_PI_2 + (c / s).acos() * if d > 0.0 { 1.0 } else { -1.0 },
             };
         }
-        Decomposed { x: e, y: f, scale_x: 0.0, scale_y: 0.0, rotation: 0.0 }
+        Decomposed {
+            x: e,
+            y: f,
+            scale_x: 0.0,
+            scale_y: 0.0,
+            rotation: 0.0,
+        }
     }
 
     pub fn rotation(self) -> f64 {
@@ -138,7 +151,10 @@ mod tests {
     #[test]
     fn compose_rotates_about_shape_origin_then_translates() {
         let m = Mat::compose(10.0, 20.0, FRAC_PI_2);
-        assert!(close(m.apply_to_point(PVec::new(1.0, 0.0)), PVec::new(10.0, 21.0)));
+        assert!(close(
+            m.apply_to_point(PVec::new(1.0, 0.0)),
+            PVec::new(10.0, 21.0)
+        ));
     }
 
     #[test]

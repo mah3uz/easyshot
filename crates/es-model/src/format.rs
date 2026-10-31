@@ -46,12 +46,17 @@ impl FormatKind {
 pub enum Migrated {
     Current(serde_json::Value),
     /// Written by a newer easyshot: open read-only, never write it back.
-    NewerReadOnly { version: u32 },
+    NewerReadOnly {
+        version: u32,
+    },
 }
 
 pub fn migrate(kind: FormatKind, version: u32, value: serde_json::Value) -> Result<Migrated> {
     match version {
-        0 => Err(Error::Protocol(format!("{}: invalid version 0", kind.name()))),
+        0 => Err(Error::Protocol(format!(
+            "{}: invalid version 0",
+            kind.name()
+        ))),
         CURRENT_VERSION => Ok(Migrated::Current(value)),
         v => Ok(Migrated::NewerReadOnly { version: v }),
     }
@@ -86,7 +91,11 @@ mod tests {
         struct Body {
             n: u32,
         }
-        let e = Envelope { format: "easyshot.state".into(), version: 1, body: Body { n: 7 } };
+        let e = Envelope {
+            format: "easyshot.state".into(),
+            version: 1,
+            body: Body { n: 7 },
+        };
         let v = serde_json::to_value(&e).unwrap();
         assert_eq!(v, json!({"format": "easyshot.state", "version": 1, "n": 7}));
         assert_eq!(serde_json::from_value::<Envelope<Body>>(v).unwrap(), e);

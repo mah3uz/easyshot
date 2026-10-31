@@ -15,10 +15,17 @@ pub enum Origin {
 
 #[derive(Debug, Clone)]
 pub enum PlatformEvent {
-    Command { route: Route, origin: Origin, job: JobId },
+    Command {
+        route: Route,
+        origin: Origin,
+        job: JobId,
+    },
     Tray(Route),
     Shortcut(Route),
-    NotificationAction { id: NotificationId, action: String },
+    NotificationAction {
+        id: NotificationId,
+        action: String,
+    },
     Appearance(AppearanceEvent),
     Outputs(OutputEvent),
     Windows(WindowEvent),

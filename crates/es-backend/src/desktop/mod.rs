@@ -1,11 +1,11 @@
 use crate::probe::Provider;
-use crate::traits::{Capture};
+use crate::traits::Capture;
 use es_desktop::Appearance;
 use es_desktop::FilePicker;
 use es_desktop::Notifier;
-use es_record::Recorder;
 use es_desktop::Shortcuts;
 use es_desktop::Tray;
+use es_record::Recorder;
 
 pub const PORTAL_SCREENSHOT: Provider<dyn Capture> = Provider {
     name: "portal-screenshot",

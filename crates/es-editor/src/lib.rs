@@ -31,7 +31,11 @@ pub enum Error {
     #[error("protocol error: {0}")]
     Protocol(String),
     #[error("parse error at line {line}, column {col}: {message}")]
-    Parse { line: usize, col: usize, message: String },
+    Parse {
+        line: usize,
+        col: usize,
+        message: String,
+    },
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

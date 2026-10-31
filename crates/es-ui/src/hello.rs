@@ -1,5 +1,11 @@
-use gpui::{App, AppContext, Context, Entity, IntoElement, ParentElement, Render, Styled, Window, WindowOptions, div, px};
-use gpui_component::{ActiveTheme, Icon, Root, button::{Button, ButtonVariants}};
+use gpui::{
+    App, AppContext, Context, Entity, IntoElement, ParentElement, Render, Styled, Window,
+    WindowOptions, div, px,
+};
+use gpui_component::{
+    ActiveTheme, Icon, Root,
+    button::{Button, ButtonVariants},
+};
 
 use crate::{fl, fonts, theme};
 
@@ -36,7 +42,11 @@ impl Render for HelloView {
             .p_6()
             .bg(theme.background)
             .text_color(theme.foreground)
-            .child(div().text_xl().child(fl!("ui-shortcut-help", title = "Hello easyshot", shortcut = "Ctrl+Shift+4")))
+            .child(div().text_xl().child(fl!(
+                "ui-shortcut-help",
+                title = "Hello easyshot",
+                shortcut = "Ctrl+Shift+4"
+            )))
             .child(
                 div()
                     .flex()
@@ -45,7 +55,17 @@ impl Render for HelloView {
                     .child(Icon::empty().path("icons/lucide/camera.svg").size(px(28.)))
                     .child(Button::new("hello").primary().label(fl!("ui-copy"))),
             )
-            .child(div().font_family("Inter").text_lg().child("Inter: Sphinx of black quartz"))
-            .child(div().font_family("Nunito").text_lg().child("Nunito: Sphinx of black quartz"))
+            .child(
+                div()
+                    .font_family("Inter")
+                    .text_lg()
+                    .child("Inter: Sphinx of black quartz"),
+            )
+            .child(
+                div()
+                    .font_family("Nunito")
+                    .text_lg()
+                    .child("Nunito: Sphinx of black quartz"),
+            )
     }
 }

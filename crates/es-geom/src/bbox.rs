@@ -132,13 +132,20 @@ mod tests {
 
     #[test]
     fn from_points_spans_extremes() {
-        let b = BBox::from_points(&[PVec::new(3.0, -1.0), PVec::new(-2.0, 4.0), PVec::new(0.0, 0.0)]);
+        let b = BBox::from_points(&[
+            PVec::new(3.0, -1.0),
+            PVec::new(-2.0, 4.0),
+            PVec::new(0.0, 0.0),
+        ]);
         assert_eq!(b, BBox::new(-2.0, -1.0, 5.0, 5.0));
     }
 
     #[test]
     fn common_is_the_union() {
-        let u = BBox::common(&[BBox::new(0.0, 0.0, 2.0, 2.0), BBox::new(5.0, -3.0, 1.0, 1.0)]);
+        let u = BBox::common(&[
+            BBox::new(0.0, 0.0, 2.0, 2.0),
+            BBox::new(5.0, -3.0, 1.0, 1.0),
+        ]);
         assert_eq!(u, BBox::new(0.0, -3.0, 6.0, 5.0));
     }
 
@@ -163,6 +170,9 @@ mod tests {
         assert_eq!(c[0], PVec::new(1.0, 2.0));
         assert_eq!(c[2], PVec::new(4.0, 6.0));
         assert!(BBox::new(0.0, 0.0, 9.0, 9.0).contains(BBox::new(1.0, 1.0, 2.0, 2.0)));
-        assert_eq!(BBox::new(0.0, 0.0, 2.0, 2.0).expand_by(1.0), BBox::new(-1.0, -1.0, 4.0, 4.0));
+        assert_eq!(
+            BBox::new(0.0, 0.0, 2.0, 2.0).expand_by(1.0),
+            BBox::new(-1.0, -1.0, 4.0, 4.0)
+        );
     }
 }

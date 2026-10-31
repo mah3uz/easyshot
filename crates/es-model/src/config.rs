@@ -143,7 +143,13 @@ pub struct AfterCaptureScreenshot {
 
 impl Default for AfterCaptureScreenshot {
     fn default() -> Self {
-        Self { show_preview: true, copy: false, save: true, open_editor: false, pin: false }
+        Self {
+            show_preview: true,
+            copy: false,
+            save: true,
+            open_editor: false,
+            pin: false,
+        }
     }
 }
 
@@ -194,7 +200,12 @@ pub struct DefaultLook {
 
 impl Default for DefaultLook {
     fn default() -> Self {
-        Self { style: String::new(), padding: 0.08, corner_radius: 0.018, shadow: 0.36 }
+        Self {
+            style: String::new(),
+            padding: 0.08,
+            corner_radius: 0.018,
+            shadow: 0.36,
+        }
     }
 }
 
@@ -207,7 +218,10 @@ pub struct Compositor {
 
 impl Default for Compositor {
     fn default() -> Self {
-        Self { install_rules: true, float_editor: true }
+        Self {
+            install_rules: true,
+            float_editor: true,
+        }
     }
 }
 
@@ -221,7 +235,11 @@ pub struct Editor {
 
 impl Default for Editor {
     fn default() -> Self {
-        Self { nudge_step: 1, nudge_step_shift: 10, zoom_anchor: "pointer".into() }
+        Self {
+            nudge_step: 1,
+            nudge_step_shift: 10,
+            zoom_anchor: "pointer".into(),
+        }
     }
 }
 
@@ -233,7 +251,9 @@ pub struct Ocr {
 
 impl Default for Ocr {
     fn default() -> Self {
-        Self { languages: vec!["eng".into()] }
+        Self {
+            languages: vec!["eng".into()],
+        }
     }
 }
 
@@ -277,7 +297,10 @@ mod tests {
 
     #[test]
     fn v1_fixture_loads_and_equals_defaults() {
-        let src = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/fixtures/formats/config/v1.toml"));
+        let src = include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../tests/fixtures/formats/config/v1.toml"
+        ));
         assert_eq!(toml::from_str::<Config>(src).unwrap(), Config::default());
     }
 }

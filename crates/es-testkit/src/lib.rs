@@ -61,12 +61,18 @@ impl<V: Render + 'static> Headless<V> {
     /// The exact frame, also written to `target/screenshots/<name>.png` on a side thread.
     pub fn screenshot(&mut self, name: &str) -> RgbaImage {
         self.settle();
-        let image = self.cx.capture_screenshot(self.window.into()).expect("capture screenshot");
+        let image = self
+            .cx
+            .capture_screenshot(self.window.into())
+            .expect("capture screenshot");
         let dir = screenshots_dir();
         std::fs::create_dir_all(&dir).expect("create screenshots dir");
         let (written, path) = (image.clone(), dir.join(format!("{name}.png")));
         let handle = thread::spawn(move || written.save(path).expect("write screenshot"));
-        WRITING.lock().unwrap_or_else(|e| e.into_inner()).push(handle);
+        WRITING
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(handle);
         image
     }
 }
@@ -75,13 +81,18 @@ impl<V: Render + 'static> Drop for Headless<V> {
     /// Ends the window before the app: the off-screen scheduler can lock up when a thread wakes the UI during shutdown.
     fn drop(&mut self) {
         let window = self.window;
-        let _ = self.cx.update(|cx| window.update(cx, |_, window, _| window.remove_window()));
+        let _ = self
+            .cx
+            .update(|cx| window.update(cx, |_, window, _| window.remove_window()));
         self.cx.run_until_parked();
         thread::sleep(Duration::from_millis(40));
         let writing = std::mem::take(&mut *WRITING.lock().unwrap_or_else(|e| e.into_inner()));
         for handle in writing {
             let ok = handle.join().is_ok();
-            assert!(ok || thread::panicking(), "a screenshot could not be written");
+            assert!(
+                ok || thread::panicking(),
+                "a screenshot could not be written"
+            );
         }
     }
 }

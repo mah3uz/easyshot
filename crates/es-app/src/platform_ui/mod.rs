@@ -46,8 +46,15 @@ pub enum SelectMode {
 
 #[derive(Debug, Clone)]
 pub enum Selection {
-    Region { output: OutputId, logical: Rect, frame: Arc<Frame> },
-    Window { id: WindowId, frame: Arc<Frame> },
+    Region {
+        output: OutputId,
+        logical: Rect,
+        frame: Arc<Frame>,
+    },
+    Window {
+        id: WindowId,
+        frame: Arc<Frame>,
+    },
     Color(Rgba),
     Cancelled,
 }

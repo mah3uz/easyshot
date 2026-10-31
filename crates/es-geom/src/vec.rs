@@ -15,7 +15,11 @@ impl Default for PVec {
 
 #[allow(clippy::should_implement_trait)]
 impl PVec {
-    pub const ZERO: PVec = PVec { x: 0.0, y: 0.0, z: 1.0 };
+    pub const ZERO: PVec = PVec {
+        x: 0.0,
+        y: 0.0,
+        z: 1.0,
+    };
 
     /// `z` defaults to 1.
     pub const fn new(x: f64, y: f64) -> Self {
@@ -135,7 +139,11 @@ impl PVec {
     pub fn angle_between(a: PVec, b: PVec) -> f64 {
         let p = a.x * b.x + a.y * b.y;
         let n = ((a.x * a.x + a.y * a.y) * (b.x * b.x + b.y * b.y)).sqrt();
-        let sign = if a.x * b.y - a.y * b.x < 0.0 { -1.0 } else { 1.0 };
+        let sign = if a.x * b.y - a.y * b.x < 0.0 {
+            -1.0
+        } else {
+            1.0
+        };
         sign * (p / n).clamp(-1.0, 1.0).acos()
     }
 
@@ -188,7 +196,12 @@ impl PVec {
     }
 
     /// `steps` points between `a` and `b`, eased by `easing`; `z` is interpolated with the eased `t`.
-    pub fn points_between(a: PVec, b: PVec, steps: usize, easing: impl Fn(f64) -> f64) -> Vec<PVec> {
+    pub fn points_between(
+        a: PVec,
+        b: PVec,
+        steps: usize,
+        easing: impl Fn(f64) -> f64,
+    ) -> Vec<PVec> {
         if steps <= 1 {
             return vec![a, b];
         }
@@ -266,8 +279,14 @@ mod tests {
         let a = PVec::new(0.0, 0.0);
         let b = PVec::new(10.0, 0.0);
         let p = PVec::new(20.0, 5.0);
-        assert_eq!(PVec::nearest_point_on_line_segment(a, b, p, true), PVec::new(10.0, 0.0));
-        assert_eq!(PVec::nearest_point_on_line_segment(a, b, p, false), PVec::new(20.0, 0.0));
+        assert_eq!(
+            PVec::nearest_point_on_line_segment(a, b, p, true),
+            PVec::new(10.0, 0.0)
+        );
+        assert_eq!(
+            PVec::nearest_point_on_line_segment(a, b, p, false),
+            PVec::new(20.0, 0.0)
+        );
         assert_eq!(PVec::nearest_point_on_line_segment(a, a, p, true), a);
     }
 
@@ -289,6 +308,10 @@ mod tests {
 
     #[test]
     fn clockwise_matches_y_down_winding() {
-        assert!(PVec::clockwise(PVec::new(0.0, 0.0), PVec::new(1.0, 0.0), PVec::new(1.0, 1.0)));
+        assert!(PVec::clockwise(
+            PVec::new(0.0, 0.0),
+            PVec::new(1.0, 0.0),
+            PVec::new(1.0, 1.0)
+        ));
     }
 }

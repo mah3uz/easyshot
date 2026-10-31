@@ -1,3 +1,5 @@
 fn main() {
-    gpui_platform::application().with_assets(es_ui::assets::Assets).run(es_ui::hello::open);
+    gpui_platform::application()
+        .with_assets(es_ui::assets::Assets)
+        .run(es_ui::hello::open);
 }
