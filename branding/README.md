@@ -15,3 +15,5 @@ To change the logo, replace these two files and run `just logo` (needs `rsvg-con
 - `assets/icons/easyshot.svg`: the tray and in-app icon the UI embeds (copy of `logo-symbolic.svg`).
 
 Never edit the derived files by hand. After changing a master, look at the 16, 22 and 24 px renders: if they turn to mush, simplify the master rather than adding a small-size variant.
+
+`concepts/` keeps every logo concept drawn so far (colour + symbolic). To switch to one, copy it over the two masters and run `just logo`.
