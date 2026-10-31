@@ -110,6 +110,10 @@ large_enum_variant = "deny"
 needless_pass_by_value = "deny"
 todo = "warn"
 
+[patch.crates-io]
+gpui-pre = { path = "vendor/gpui-pre" }
+gpui-pre-linux = { path = "vendor/gpui-pre-linux" }
+
 # gpui is too slow to use unoptimised.
 [profile.dev.package."*"]
 opt-level = 2
