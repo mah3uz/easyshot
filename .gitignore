@@ -1,0 +1,52 @@
+# Local agent workspace: plans, status, research, reviews (not part of the repo)
+/.claude/
+
+# Rust build output
+/target/
+**/*.rs.bk
+*.pdb
+
+# Packaging and release artefacts (built by CI, never committed)
+/dist/
+/packaging/**/pkg/
+/packaging/**/src/
+*.pkg.tar.*
+*.deb
+*.rpm
+*.tar.zst
+*.tar.gz
+SHA256SUMS
+*.minisig
+
+# Nix
+/result
+/result-*
+.direnv/
+
+# Test harness and bench output
+/tests/harness/out/
+/tests/**/*.actual.png
+bench-*.json
+*.profraw
+*.profdata
+perf.data*
+flamegraph*.svg
+
+# Logs and crash dumps from local runs
+*.log
+core
+core.*
+
+# Editors and OS
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Tool scratch
+.playwright-mcp/
+
+# Machine-local cargo settings (sccache, jobs budget), as in sysman
+/.cargo/config.toml
