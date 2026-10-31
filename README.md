@@ -1,4 +1,10 @@
-# easyshot
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/banner/banner-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="assets/banner/banner-light.svg">
+    <img alt="easyshot" src="assets/banner/banner-light.png">
+  </picture>
+</h1>
 
 A screenshot and screen-recording app for Linux/Wayland, with annotation, built with Rust
 and GPUI.
