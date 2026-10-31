@@ -1,0 +1,54 @@
+[package]
+name = "easyshot"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "easyshot"
+path = "src/main.rs"
+
+[dependencies]
+es-geom.workspace = true
+es-model.workspace = true
+es-protocol.workspace = true
+es-store.workspace = true
+es-desktop.workspace = true
+es-record.workspace = true
+es-backend.workspace = true
+es-ui.workspace = true
+es-app.workspace = true
+es-editor.workspace = true
+es-overlays.workspace = true
+es-shell.workspace = true
+gpui.workspace = true
+gpui_platform.workspace = true
+clap.workspace = true
+anyhow.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tracing-appender.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+gpui = { workspace = true, features = ["test-support", "bench-support"] }
+gpui_platform = { workspace = true, features = ["test-support", "bench-support"] }
+es-testkit.workspace = true
+
+[features]
+default = ["es-backend/hyprland", "es-backend/wlroots", "es-backend/niri"]
+hyprland = ["es-backend/hyprland"]
+wlroots = ["es-backend/wlroots"]
+niri = ["es-backend/niri"]
+player = ["es-overlays/player"]
+portal-recorder = ["es-record/portal-recorder"]
+sound = ["es-desktop/sound"]
+evdev-input = ["es-record/evdev-input"]
+test-hooks = ["es-backend/test-hooks", "es-app/test-hooks"]
+dev-inspector = ["es-ui/dev-inspector"]

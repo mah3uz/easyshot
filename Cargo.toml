@@ -1,0 +1,125 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+exclude = ["vendor"]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.98"
+license = "MIT"
+authors = ["Mahfuz Shaikh <mah3uz@gmail.com>"]
+
+[workspace.dependencies]
+# internal
+es-geom = { path = "crates/es-geom" }
+es-model = { path = "crates/es-model" }
+es-protocol = { path = "crates/es-protocol" }
+es-text = { path = "crates/es-text" }
+es-anno = { path = "crates/es-anno" }
+es-render = { path = "crates/es-render" }
+es-scroll = { path = "crates/es-scroll" }
+es-ocr = { path = "crates/es-ocr" }
+es-store = { path = "crates/es-store" }
+es-wayland = { path = "crates/es-wayland" }
+es-desktop = { path = "crates/es-desktop" }
+es-record = { path = "crates/es-record" }
+es-backend = { path = "crates/es-backend" }
+es-ui = { path = "crates/es-ui" }
+es-app = { path = "crates/es-app" }
+es-editor = { path = "crates/es-editor" }
+es-overlays = { path = "crates/es-overlays" }
+es-shell = { path = "crates/es-shell" }
+es-testkit = { path = "crates/es-testkit" }
+
+# gpui-component pins gpui-pre exactly; any other version here would put two gpui copies in the graph.
+gpui = { package = "gpui-pre", version = "=0.3.10" }
+gpui_platform = { package = "gpui-pre-platform", version = "=0.3.10", features = ["font-kit", "wayland", "x11"] }
+gpui-component = "=0.8.1"
+gpui-kit-assets = "=0.8.1"
+
+# geometry, text, raster
+kurbo = "0.13"
+tiny-skia = "0.12"
+cosmic-text = "0.19"
+swash = "0.2"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+libblur = "0.24"
+fast_image_resize = "6"
+rayon = "1"
+i_overlay = "9.1"
+rxing = "0.9"
+
+# wayland
+wayland-client = "0.31"
+wayland-protocols = { version = "0.32.13", features = ["staging", "unstable", "client"] }
+wayland-protocols-wlr = { version = "0.3.12", features = ["client"] }
+libwayshot = "0.9"
+wl-clipboard-rs = "0.9.5"
+rustix = { version = "1", features = ["fs", "mm", "shm"] }
+
+# desktop / IPC
+# gpui-pre-linux and gpui-component turn on ashpd/zbus "async-io"; ashpd rejects async-io + tokio together, so the whole graph uses async-io.
+zbus = "5"
+ashpd = { version = "0.13", default-features = false, features = ["async-io", "file_chooser", "global_shortcuts", "screencast", "screenshot", "settings"] }
+ksni = { version = "0.3.7", default-features = false, features = ["async-io"] }
+notify-rust = "4.18"
+niri-ipc = "26.4"
+trash = "5.2"
+rodio = "0.23"
+evdev = "0.13"
+gstreamer = "0.25"
+gstreamer-app = "0.25"
+gstreamer-video = "0.25"
+
+# runtime, data, utilities
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "time", "sync", "process", "fs"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "1.1"
+toml_edit = "0.25"
+directories = "6"
+notify = "8"
+regex = "1"
+sha1 = "0.11"
+sha2 = "0.11"
+uuid = { version = "1", features = ["v4", "v5", "serde"] }
+time = { version = "0.3", features = ["serde", "formatting", "parsing", "macros"] }
+bitflags = { version = "2", features = ["serde"] }
+async-channel = "2"
+futures = "0.3"
+smallvec = { version = "1", features = ["serde"] }
+clap = { version = "4", features = ["derive"] }
+thiserror = "2"
+tempfile = "3"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
+i18n-embed = { version = "0.16", features = ["fluent-system", "desktop-requester"] }
+i18n-embed-fl = "0.10"
+rust-embed = "8"
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
+dbg_macro = "deny"
+print_stdout = "deny"
+large_enum_variant = "deny"
+needless_pass_by_value = "deny"
+todo = "warn"
+
+# gpui is too slow to use unoptimised.
+[profile.dev.package."*"]
+opt-level = 2
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+
+[profile.fast]
+inherits = "release"
+lto = "off"
+codegen-units = 16

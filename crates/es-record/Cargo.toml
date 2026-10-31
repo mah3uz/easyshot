@@ -1,0 +1,32 @@
+[package]
+name = "es-record"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+es-model.workspace = true
+es-protocol.workspace = true
+es-geom.workspace = true
+tokio.workspace = true
+ashpd.workspace = true
+serde.workspace = true
+futures.workspace = true
+async-channel.workspace = true
+serde_json.workspace = true
+time.workspace = true
+uuid.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+gstreamer = { workspace = true, optional = true }
+gstreamer-app = { workspace = true, optional = true }
+evdev = { workspace = true, optional = true }
+
+[features]
+portal-recorder = ["dep:gstreamer", "dep:gstreamer-app"]
+evdev-input = ["dep:evdev"]

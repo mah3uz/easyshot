@@ -1,0 +1,5 @@
+[profile.default]
+fail-fast = false
+# A window test can hang as it ends, in the toolkit's off-screen scheduler: it is ended alone and run again.
+slow-timeout = { period = "60s", terminate-after = 3 }
+retries = 1

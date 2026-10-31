@@ -1,0 +1,61 @@
+use crate::errors::Result;
+use es_geom::{Point, Rect, Rgba, Size};
+use es_model::platform::{ClipItem, Frame, OutputId, WindowId};
+use gpui::{App, Task};
+use std::sync::Arc;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SurfaceRole {
+    Overlay,
+    Countdown,
+    Toast,
+    Deck,
+    Pin,
+    Bar,
+    Highlight,
+    Scroll,
+}
+
+pub trait Surfaces {
+    /// Test mode asserts `output == test output`.
+    fn open(
+        &self,
+        role: SurfaceRole,
+        output: &OutputId,
+        size: Size,
+        cx: &mut App,
+    ) -> Result<Box<dyn SurfaceHandle>>;
+}
+
+pub trait SurfaceHandle {
+    fn set_position(&self, global_logical: Point, cx: &mut App);
+    fn resize(&self, size: Size, cx: &mut App);
+    fn set_input_region(&self, rects: &[Rect], cx: &mut App);
+    fn output(&self) -> OutputId;
+    fn close(&self, cx: &mut App);
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SelectMode {
+    Region,
+    Window,
+    Text,
+    Color,
+    Scroll,
+}
+
+#[derive(Debug, Clone)]
+pub enum Selection {
+    Region { output: OutputId, logical: Rect, frame: Arc<Frame> },
+    Window { id: WindowId, frame: Arc<Frame> },
+    Color(Rgba),
+    Cancelled,
+}
+
+pub trait SelectionFlow {
+    fn run(&self, mode: SelectMode, cx: &mut App) -> Task<Result<Selection>>;
+}
+
+pub trait ClipboardSink {
+    fn copy(&self, items: Vec<ClipItem>, cx: &mut App) -> Task<Result<()>>;
+}

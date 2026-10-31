@@ -1,0 +1,72 @@
+config_version = 1
+
+[general]
+show_capture_bar_at_launch = true
+theme = "system"
+# save_dir unset: the XDG Pictures folder's Screenshots directory
+auto_save = true
+file_name_template = "easyshot_{date}-{time}"
+copy_after_save = true
+play_sound = true
+export_format = "png"
+export_quality = 0.9
+history_limit = 100
+editor_opens_fullscreen = false
+low_res_preview = false
+
+[capture]
+self_timer = 0
+capture_on_release = false
+preselect_previous = true
+selector_follows_pointer = true
+pinned_output = ""
+open_editor_after_capture = false
+keep_in_deck_until_saved = false
+
+[overlay]
+layout = "standard"
+position = "bottom-right"
+card_size = "small"
+always_show_actions = false
+edge_margin = 20
+dismiss_delay = 5
+
+[after_capture.screenshot]
+show_preview = true
+copy = false
+save = true
+open_editor = false
+pin = false
+
+[recording]
+save = false
+mic = ""
+system_audio = false
+keystrokes = false
+start_delay = 0
+open_editor_after = false
+fps = 60
+codec = "h264"
+container = "mkv"
+quality = "very_high"
+recorder = "auto"
+
+[default_look]
+style = ""
+padding = 0.08
+corner_radius = 0.018
+shadow = 0.36
+
+[compositor]
+install_rules = true
+float_editor = true
+
+[editor]
+nudge_step = 1
+nudge_step_shift = 10
+zoom_anchor = "pointer"
+
+[ocr]
+languages = ["eng"]
+
+[shortcuts]

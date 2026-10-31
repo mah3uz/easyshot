@@ -1,0 +1,29 @@
+[package]
+name = "es-ui"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+es-geom.workspace = true
+gpui.workspace = true
+gpui-component.workspace = true
+gpui-kit-assets.workspace = true
+i18n-embed.workspace = true
+i18n-embed-fl.workspace = true
+rust-embed.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+gpui = { workspace = true, features = ["test-support", "bench-support"] }
+gpui_platform = { workspace = true, features = ["test-support", "bench-support"] }
+es-testkit.workspace = true
+
+[features]
+dev-inspector = ["gpui/inspector"]

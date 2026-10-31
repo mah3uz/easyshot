@@ -1,0 +1,21 @@
+[package]
+name = "es-model"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+es-geom.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+uuid.workspace = true
+time.workspace = true
+bitflags.workspace = true
+smallvec.workspace = true
+thiserror.workspace = true

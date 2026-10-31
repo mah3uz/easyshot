@@ -1,0 +1,18 @@
+[package]
+name = "es-ocr"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+es-geom.workspace = true
+rxing.workspace = true
+regex.workspace = true
+image.workspace = true
+thiserror.workspace = true
+tracing.workspace = true

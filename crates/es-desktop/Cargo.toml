@@ -1,0 +1,29 @@
+[package]
+name = "es-desktop"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+es-protocol.workspace = true
+zbus.workspace = true
+ashpd.workspace = true
+ksni.workspace = true
+notify-rust.workspace = true
+trash.workspace = true
+tokio.workspace = true
+futures.workspace = true
+async-channel.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+directories.workspace = true
+rodio = { workspace = true, optional = true }
+
+[features]
+sound = ["dep:rodio"]

@@ -1,0 +1,20 @@
+[package]
+name = "es-geom"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+kurbo.workspace = true
+serde.workspace = true
+smallvec.workspace = true
+thiserror.workspace = true
+i_overlay.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

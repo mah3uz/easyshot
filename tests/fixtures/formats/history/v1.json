@@ -1,0 +1,28 @@
+{
+  "format": "easyshot.history",
+  "version": 1,
+  "entries": [
+    {
+      "id": "6f1c1c0e-3b5a-4d0a-9c55-1d2f7a6b8e01",
+      "created_at": "2026-01-01T09:30:00Z",
+      "kind": "region",
+      "name": "easyshot_2026-01-01-093000",
+      "file": "easyshot_2026-01-01-093000.png",
+      "export_path": "/home/user/Pictures/Screenshots/easyshot_2026-01-01-093000.png",
+      "pixel_size": [1280, 720],
+      "has_annotations": true,
+      "share_url": null
+    },
+    {
+      "id": "0b9e4a52-7c1d-4f33-8a10-5e6d9c2b7f02",
+      "created_at": "2026-01-02T18:05:10+10:00",
+      "kind": "fullscreen",
+      "name": "easyshot_2026-01-02-180510",
+      "file": "easyshot_2026-01-02-180510.png",
+      "export_path": null,
+      "pixel_size": [3840, 2160],
+      "has_annotations": false,
+      "share_url": "https://example.invalid/s/abc"
+    }
+  ]
+}

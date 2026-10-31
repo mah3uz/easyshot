@@ -1,0 +1,34 @@
+[package]
+name = "es-backend"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+es-wayland.workspace = true
+es-desktop.workspace = true
+es-record.workspace = true
+es-protocol.workspace = true
+es-geom.workspace = true
+es-model.workspace = true
+tokio.workspace = true
+futures.workspace = true
+async-channel.workspace = true
+bitflags.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+niri-ipc = { workspace = true, optional = true }
+
+[features]
+default = ["hyprland", "wlroots", "niri"]
+hyprland = []
+wlroots = []
+niri = ["dep:niri-ipc"]
+test-hooks = []
