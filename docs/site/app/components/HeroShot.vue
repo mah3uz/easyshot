@@ -7,7 +7,19 @@
   <div class="relative mx-auto w-full max-w-[1080px] [perspective:2000px]">
     <div class="pointer-events-none absolute -inset-x-10 -top-10 bottom-0 -z-10 rounded-[60px] bg-[radial-gradient(ellipse_at_center,var(--glow),transparent_65%)] blur-2xl" />
     <div class="hero-tilt relative overflow-hidden rounded-[22px] border border-line-strong shadow-float sm:rounded-[28px]">
-      <img src="/img/wall-3.webp" alt="" class="absolute inset-0 size-full object-cover" width="1600" height="900" fetchpriority="high" />
+      <div class="absolute inset-0 bg-[url(/img/wall-3.webp)] bg-cover bg-center" />
+      <img
+        :src="photoUrl('valley', 1600)"
+        :srcset="photoSrcset('valley')"
+        sizes="(min-width: 1180px) 1080px, 100vw"
+        alt=""
+        class="absolute inset-0 size-full object-cover"
+        width="1600"
+        height="900"
+        fetchpriority="high"
+        referrerpolicy="no-referrer"
+        onerror="this.style.display='none'"
+      />
 
       <!-- Top bar, like a tiling compositor's panel -->
       <div class="relative flex h-7 items-center justify-between bg-black/25 px-4 text-[11px] font-medium text-white/80 backdrop-blur-md">
@@ -18,8 +30,8 @@
 
       <div class="relative aspect-[4/3] w-full sm:aspect-[16/9.4]">
         <!-- A window on the desktop -->
-        <div class="absolute top-[12%] left-[8%] w-[80%] sm:top-[9%] sm:left-[16%] sm:w-[58%] overflow-hidden rounded-xl bg-white/95 shadow-2xl">
-          <img src="/img/practice.webp" alt="" class="w-full" width="960" height="600" />
+        <div class="absolute top-[10%] left-[8%] w-[80%] shadow-2xl sm:top-[8%] sm:left-[14%] sm:w-[58%]" style="border-radius: 1.6%">
+          <ShotWindow photo="lake" eager />
         </div>
         <!-- Second window, a terminal -->
         <div class="absolute top-[22%] right-[5%] hidden w-[26%] overflow-hidden rounded-xl bg-[#062a36]/95 font-mono text-[10px] leading-relaxed text-teal-hi shadow-2xl sm:block">
@@ -46,7 +58,7 @@
         <!-- Preview deck -->
         <div class="absolute bottom-[5%] left-[3%] grid w-[22%] min-w-[120px] gap-2">
           <div class="deck-card overflow-hidden rounded-xl border border-white/30 bg-white/20 p-1 shadow-xl backdrop-blur-md">
-            <img src="/img/practice.webp" alt="" class="rounded-lg" width="960" height="600" />
+            <ShotWindow photo="lake" :chrome="false" class="pointer-events-none" />
             <div class="deck-actions absolute inset-1 flex items-center justify-center gap-1.5 rounded-lg bg-teal-ink/55 opacity-0 backdrop-blur-[2px]">
               <span class="rounded-md bg-white/90 px-2 py-1 text-[10px] font-semibold text-teal-ink">Copy</span>
               <span class="rounded-md bg-white/90 px-2 py-1 text-[10px] font-semibold text-teal-ink">Save</span>

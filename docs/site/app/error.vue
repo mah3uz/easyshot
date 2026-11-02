@@ -6,6 +6,7 @@ useSeoMeta({ title: props.error.statusCode === 404 ? 'Page not found' : 'Somethi
 
 <template>
   <div class="flex min-h-dvh flex-col">
+    <div class="page-bg" aria-hidden="true"><i class="b1" /><i class="b2" /><i class="b3" /></div>
     <SiteHeader />
     <main class="container-x grid flex-1 place-items-center py-40 text-center">
       <div class="grid justify-items-center gap-5">

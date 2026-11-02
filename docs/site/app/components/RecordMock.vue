@@ -14,12 +14,11 @@ const clock = computed(() => `${String(Math.floor(seconds.value / 60)).padStart(
 
 <template>
   <div class="relative overflow-hidden rounded-[22px] border border-line-strong shadow-float">
-    <img src="/img/wall-5.webp" alt="" class="absolute inset-0 size-full object-cover" width="1600" height="900" loading="lazy" />
+    <div class="absolute inset-0 bg-[url(/img/wall-5.webp)] bg-cover bg-center" />
+    <img :src="photoUrl('stars', 1600)" :srcset="photoSrcset('stars')" sizes="(min-width: 1024px) 640px, 100vw" alt="" class="absolute inset-0 size-full object-cover" width="1600" height="900" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'" />
     <div class="relative aspect-[16/10]">
-      <div class="absolute inset-[12%_14%_24%_14%] rounded-xl shadow-[0_0_0_9999px_rgba(3,30,40,.5)]">
-        <div class="absolute inset-0 overflow-hidden rounded-xl">
-          <img src="/img/practice.webp" alt="" class="size-full object-cover" width="960" height="600" loading="lazy" />
-        </div>
+      <div class="absolute top-[9%] left-1/2 w-[64%] -translate-x-1/2 rounded-xl shadow-[0_0_0_9999px_rgba(3,30,40,.5)]">
+        <ShotWindow photo="desk" />
         <div class="rec-ring absolute -inset-[3px] rounded-[14px] border-2 border-[#ff4f6d]" />
       </div>
 

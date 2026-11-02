@@ -25,15 +25,19 @@
   --sh-lg: 0 40px 90px -30px rgba(4, 48, 64, 0.38), 0 12px 30px -12px rgba(4, 48, 64, 0.16);
   --glow: rgba(33, 189, 176, 0.25);
   --code-bg: #0b3341;
+  --page-grad: linear-gradient(180deg, #f2f9fa 0%, #f6fafb 40%, #f3f8fa 100%);
+  --blob-1: rgba(98, 237, 212, 0.22);
+  --blob-2: rgba(19, 136, 166, 0.12);
+  --blob-3: rgba(120, 140, 255, 0.1);
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     --bg: #04212b;
-    --bg-2: #062a36;
-    --surface: #08303d;
-    --surface-2: #0b3846;
+    --bg-2: rgba(160, 230, 225, 0.035);
+    --surface: rgba(12, 60, 76, 0.55);
+    --surface-2: rgba(22, 82, 100, 0.45);
     --line: rgba(160, 230, 225, 0.1);
     --line-strong: rgba(160, 230, 225, 0.2);
     --fg: #e8f7f6;
@@ -48,15 +52,19 @@
     --sh-lg: 0 50px 100px -30px rgba(0, 10, 16, 0.85), 0 16px 40px -16px rgba(0, 10, 16, 0.6);
     --glow: rgba(63, 217, 196, 0.22);
     --code-bg: #031a22;
+    --page-grad: linear-gradient(180deg, #073543 0%, #04252f 38%, #03212b 70%, #052a37 100%);
+    --blob-1: rgba(33, 189, 176, 0.28);
+    --blob-2: rgba(19, 136, 166, 0.34);
+    --blob-3: rgba(76, 110, 245, 0.16);
     color-scheme: dark;
   }
 }
 
 :root[data-theme='dark'] {
   --bg: #04212b;
-  --bg-2: #062a36;
-  --surface: #08303d;
-  --surface-2: #0b3846;
+  --bg-2: rgba(160, 230, 225, 0.035);
+  --surface: rgba(12, 60, 76, 0.55);
+  --surface-2: rgba(22, 82, 100, 0.45);
   --line: rgba(160, 230, 225, 0.1);
   --line-strong: rgba(160, 230, 225, 0.2);
   --fg: #e8f7f6;
@@ -71,6 +79,10 @@
   --sh-lg: 0 50px 100px -30px rgba(0, 10, 16, 0.85), 0 16px 40px -16px rgba(0, 10, 16, 0.6);
   --glow: rgba(63, 217, 196, 0.22);
   --code-bg: #031a22;
+  --page-grad: linear-gradient(180deg, #073543 0%, #04252f 38%, #03212b 70%, #052a37 100%);
+  --blob-1: rgba(33, 189, 176, 0.28);
+  --blob-2: rgba(19, 136, 166, 0.34);
+  --blob-3: rgba(76, 110, 245, 0.16);
   color-scheme: dark;
 }
 
@@ -198,7 +210,7 @@
     @apply h-[38px] px-4 text-sm;
   }
   .card {
-    @apply rounded-[18px] border border-line bg-surface shadow-soft;
+    @apply rounded-[18px] border border-line bg-surface shadow-soft backdrop-blur-xl;
     transition:
       transform 0.5s var(--ease-out-soft),
       box-shadow 0.5s var(--ease-out-soft),
@@ -219,6 +231,56 @@
   .code-block .p {
     color: #62edd4;
     user-select: none;
+  }
+}
+
+/* The page backdrop: a gradient with three slow, blurred glows. Dark mode leans on it. */
+.page-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  background: var(--page-grad);
+  pointer-events: none;
+}
+.page-bg i {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  will-change: transform;
+}
+.page-bg .b1 {
+  width: 60vmax;
+  height: 60vmax;
+  top: -25vmax;
+  left: -15vmax;
+  background: var(--blob-1);
+  animation: drift1 38s ease-in-out infinite alternate;
+}
+.page-bg .b2 {
+  width: 55vmax;
+  height: 55vmax;
+  top: -10vmax;
+  right: -25vmax;
+  background: var(--blob-2);
+  animation: drift2 46s ease-in-out infinite alternate;
+}
+.page-bg .b3 {
+  width: 50vmax;
+  height: 50vmax;
+  bottom: -30vmax;
+  left: 20vmax;
+  background: var(--blob-3);
+  animation: drift1 52s ease-in-out infinite alternate-reverse;
+}
+@keyframes drift1 {
+  to {
+    transform: translate(12vmax, 10vmax) scale(1.15);
+  }
+}
+@keyframes drift2 {
+  to {
+    transform: translate(-14vmax, 14vmax) scale(0.9);
   }
 }
 

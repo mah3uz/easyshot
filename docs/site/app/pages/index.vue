@@ -160,7 +160,7 @@ useHead({
 
     <!-- Annotate -->
     <section id="annotate" class="relative overflow-hidden bg-bg-2/60 py-24 sm:py-32">
-      <div class="container-x grid gap-14">
+      <div class="container-x grid grid-cols-[minmax(0,1fr)] gap-14">
         <div class="grid items-end gap-8 md:grid-cols-2">
           <div v-reveal class="grid gap-4">
             <span class="eyebrow"><Icon name="pencil-line" :size="15" />Annotate</span>
@@ -240,9 +240,9 @@ useHead({
             Every action is a command, so any key bind, launcher or script can drive easyshot. Settings › Shortcuts copies
             the lines for your compositor, and checks which keys are already taken.
           </p>
-          <div class="flex flex-wrap items-center gap-2 pt-2 text-sm text-fg-2">
-            <kbd>Super</kbd><kbd>Shift</kbd><kbd>4</kbd><span class="mr-4">capture an area</span>
-            <kbd>Super</kbd><kbd>Shift</kbd><kbd>5</kbd><span>record</span>
+          <div class="flex flex-wrap items-center gap-x-6 gap-y-3 pt-2 text-sm text-fg-2">
+            <span class="flex items-center gap-1.5 whitespace-nowrap"><kbd>Super</kbd><kbd>Shift</kbd><kbd>4</kbd><span class="ml-1">capture an area</span></span>
+            <span class="flex items-center gap-1.5 whitespace-nowrap"><kbd>Super</kbd><kbd>Shift</kbd><kbd>5</kbd><span class="ml-1">record</span></span>
           </div>
         </div>
         <div v-reveal="0.1"><BindSnippet /></div>

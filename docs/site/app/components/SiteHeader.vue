@@ -33,7 +33,7 @@ watch(() => route.fullPath, () => (open.value = false))
         <span class="font-display text-[19px] font-bold tracking-tight">easyshot</span>
       </NuxtLink>
 
-      <ul class="hidden items-center gap-1 md:flex">
+      <ul class="hidden items-center gap-1 lg:flex">
         <li v-for="l in links" :key="l.to">
           <NuxtLink
             :to="l.to"
@@ -52,7 +52,7 @@ watch(() => route.fullPath, () => (open.value = false))
         </a>
         <button
           type="button"
-          class="grid size-[38px] place-items-center rounded-full border border-line bg-surface md:hidden"
+          class="grid size-[38px] place-items-center rounded-full border border-line bg-surface lg:hidden"
           :aria-expanded="open"
           aria-controls="mobile-nav"
           aria-label="Menu"
@@ -71,7 +71,7 @@ watch(() => route.fullPath, () => (open.value = false))
       leave-active-class="transition duration-200"
       leave-to-class="opacity-0"
     >
-      <ul v-if="open" id="mobile-nav" class="container-x grid gap-1 pb-5 md:hidden">
+      <ul v-if="open" id="mobile-nav" class="container-x grid gap-1 pb-5 lg:hidden">
         <li v-for="l in links" :key="l.to">
           <NuxtLink :to="l.to" class="block rounded-xl px-3 py-3 text-base font-medium hover:bg-surface-2">{{ l.label }}</NuxtLink>
         </li>

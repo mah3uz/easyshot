@@ -21,13 +21,13 @@ const activeTool = ref('arrow-up-right')
 <template>
   <div class="overflow-hidden rounded-[22px] border border-line-strong bg-surface shadow-float">
     <!-- Title bar -->
-    <div class="flex h-11 items-center justify-between border-b border-line bg-surface-2 px-3">
-      <div class="flex items-center gap-1">
+    <div class="flex h-11 items-center justify-between gap-2 border-b border-line bg-surface-2 px-2 sm:px-3">
+      <div class="flex min-w-0 items-center gap-0.5 overflow-x-auto sm:gap-1 [scrollbar-width:none]">
         <button
           v-for="t in tools"
           :key="t"
           type="button"
-          class="grid size-8 place-items-center rounded-lg text-fg-2 transition hover:bg-accent-soft hover:text-accent"
+          class="grid size-8 shrink-0 place-items-center rounded-lg text-fg-2 transition hover:bg-accent-soft hover:text-accent"
           :class="activeTool === t && 'bg-accent-soft text-accent'"
           :aria-label="`Tool: ${t.replace(/-/g, ' ')}`"
           :aria-pressed="activeTool === t"
@@ -42,7 +42,7 @@ const activeTool = ref('arrow-up-right')
       </div>
     </div>
 
-    <div class="grid md:grid-cols-[1fr_250px]">
+    <div class="grid grid-cols-[minmax(0,1fr)] md:grid-cols-[minmax(0,1fr)_250px]">
       <!-- Canvas -->
       <div class="grid min-h-[280px] place-items-center bg-[repeating-conic-gradient(var(--bg-2)_0_25%,var(--bg)_0_50%)] bg-[length:18px_18px] p-4 sm:p-8">
         <div
@@ -57,19 +57,19 @@ const activeTool = ref('arrow-up-right')
               transform: tilt ? 'rotateX(14deg) rotateY(-16deg) rotateZ(3deg)' : 'none',
             }"
           >
-            <img src="/img/practice.webp" alt="A screenshot being annotated in the editor" class="w-full" width="960" height="600" loading="lazy" />
-            <!-- Annotations -->
-            <svg class="absolute inset-0 size-full" viewBox="0 0 960 600" aria-hidden="true">
-              <defs>
-                <marker id="ah" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-                  <path d="M0 0 10 5 0 10z" fill="#ff4f6d" />
-                </marker>
-              </defs>
-              <path class="em-draw" d="M560 470 C 640 520, 700 470, 720 420" fill="none" stroke="#ff4f6d" stroke-width="10" stroke-linecap="round" marker-end="url(#ah)" />
-              <rect class="em-draw" x="630" y="190" width="220" height="220" rx="110" fill="none" stroke="#ff4f6d" stroke-width="8" />
-            </svg>
-            <div class="em-pixelate absolute top-[63.5%] left-[11.5%] h-[11.5%] w-[37%] rounded-md" />
-            <span class="absolute top-[82%] left-[44%] rounded-md bg-[#ff4f6d] px-2 py-0.5 text-[clamp(9px,1.6vw,14px)] font-semibold text-white shadow">Ship it!</span>
+            <ShotWindow photo="forest" redact>
+              <svg class="absolute inset-0 size-full" viewBox="0 0 1600 900" aria-hidden="true">
+                <defs>
+                  <marker id="ah" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+                    <path d="M0 0 10 5 0 10z" fill="#ff4f6d" />
+                  </marker>
+                </defs>
+                <path class="em-draw" pathLength="100" d="M380 720 C 520 760, 700 700, 820 560" fill="none" stroke="#ff4f6d" stroke-width="16" stroke-linecap="round" marker-end="url(#ah)" />
+                <rect class="em-draw" pathLength="100" x="900" y="240" width="460" height="300" rx="40" fill="none" stroke="#ff4f6d" stroke-width="12" />
+              </svg>
+              <span class="absolute top-[72%] left-[8%] rounded-md bg-[#ff4f6d] px-2 py-0.5 text-[clamp(9px,1.6vw,14px)] font-semibold text-white shadow">Look here!</span>
+              <span class="absolute top-[10%] left-[5%] grid size-[clamp(18px,3vw,28px)] place-items-center rounded-full bg-[#ff4f6d] text-[clamp(9px,1.4vw,13px)] font-bold text-white shadow">1</span>
+            </ShotWindow>
           </div>
         </div>
       </div>
@@ -110,16 +110,9 @@ const activeTool = ref('arrow-up-right')
 </template>
 
 <style>
-.em-pixelate {
-  background:
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.18) 0 10px, transparent 10px 20px),
-    repeating-linear-gradient(0deg, rgba(10, 38, 49, 0.12) 0 10px, transparent 10px 20px),
-    #c9d4e6;
-  backdrop-filter: blur(6px);
-}
 .em-draw {
-  stroke-dasharray: 700;
-  stroke-dashoffset: 700;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
 }
 .is-in .em-draw {
   animation: draw 1.6s cubic-bezier(0.65, 0, 0.35, 1) 0.5s forwards;
