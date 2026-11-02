@@ -4,6 +4,10 @@ pub mod draw;
 pub mod editor;
 pub mod style;
 
+pub use document::{Document, Snapshot, TextMeasure};
+pub use editor::{Editor, GestureId, Handle, SelectionBounds, Viewport};
+pub use style::{CurrentStyle, StylePatch};
+
 use es_geom::Point;
 use smallvec::SmallVec;
 
