@@ -9,17 +9,30 @@
 A screenshot and screen-recording app for Linux/Wayland, with annotation, built with Rust
 and GPUI.
 
-easyshot is not usable yet. The workspace skeleton exists; nothing is implemented. Read
-`docs/MANUAL.md` for the behaviour v1 is meant to have.
+easyshot does not run as an app yet. Its parts are built and tested on their own, but the
+background service that connects them is not, so a hotkey or tray click does nothing. Read
+`docs/MANUAL.md` for how each part behaves.
 
-## What v1 is meant to do
+## What is built
 
-- Capture a region, the full screen, a window, a timed capture, text (OCR), a colour, or a
-  scrolling page.
-- Show each capture in a floating preview deck, pin screenshots on top of other windows,
-  and keep a history and gallery.
-- Edit in an annotation editor with 12 tools, beautify options and smart redaction.
-- Record the screen with audio, and trim the result.
+- Capture overlays: an area, a window, a text area for OCR, a colour, and a scrolling page,
+  with a countdown for timed captures.
+- A floating preview deck for each capture, and screenshots pinned above other windows.
+- An annotation editor with 12 tools, editable text, crop, rotate and flip, and an inspector
+  for background, camera angle, progressive blur, border, watermark and presets. It saves,
+  exports and copies, and recovers unsaved edits after a crash.
+- Screen recording through gpu-screen-recorder, wf-recorder or the screen-cast portal, with
+  the capture bar, the recording controls and a trim viewer.
+- Settings, a media gallery, a first-run guide and a tray menu.
+- The `easyshot` command line, including `easyshot doctor`, which reports what your desktop
+  supports.
+
+## Limits
+
+- No background service yet, so the parts cannot be used together.
+- Tested in headless windows and in a headless sway session. Not yet run on Hyprland or
+  niri.
+- No packages; build from source (see `CONTRIBUTING.md`).
 
 Compositors for v1: Hyprland 0.57+, sway 1.12 and niri 26.04, plus any compositor with the
 protocols the generic providers need.
