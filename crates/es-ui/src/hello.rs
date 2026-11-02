@@ -1,6 +1,6 @@
 use gpui::{
-    App, AppContext, Context, Entity, IntoElement, ParentElement, Render, Styled, Window,
-    WindowOptions, div, px,
+    App, AppContext, Context, CursorHideMode, Entity, IntoElement, ParentElement, Render, Styled,
+    Window, WindowOptions, div, px,
 };
 use gpui_component::{
     ActiveTheme, Icon, Root,
@@ -13,6 +13,8 @@ pub fn init(cx: &mut App) {
     fonts::register(cx);
     theme::install(cx);
     crate::a11y::bind_focus_keys(cx);
+    // Letters pick tools and Space is held while dragging, so a key press must not hide the pointer.
+    cx.set_cursor_hide_mode(CursorHideMode::Never);
 }
 
 pub fn root(window: &mut Window, cx: &mut App) -> Entity<Root> {

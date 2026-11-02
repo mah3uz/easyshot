@@ -1,5 +1,6 @@
 use es_testkit::Headless;
 use es_ui::{assets::Assets, hello};
+use gpui::CursorHideMode;
 
 #[test]
 fn hello_window_renders_its_stack() {
@@ -21,4 +22,13 @@ fn hello_window_renders_its_stack() {
             "{family} is not registered"
         );
     }
+}
+
+#[test]
+fn key_presses_never_hide_the_pointer() {
+    let mut app = Headless::open(Assets, hello::init, 480.0, 320.0, hello::root);
+    assert_eq!(
+        app.cx.update(|cx| cx.cursor_hide_mode()),
+        CursorHideMode::Never
+    );
 }
