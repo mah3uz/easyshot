@@ -364,3 +364,17 @@ fn sway_is_detected_from_its_socket() {
     let named = (wlroots::WINDOWS.probe)(&probe(&[sock, ("XDG_CURRENT_DESKTOP", "X:sway")]));
     assert!(plain.is_some() && named > plain);
 }
+
+#[test]
+fn turning_float_editor_off_sends_no_rule_to_sway() {
+    let fake = FakeSway::start(TREE);
+    let Ok(rules) = (wlroots::RULES.build)(&fake.probe()) else {
+        panic!("build failed");
+    };
+    rules
+        .install(&RuleSet {
+            float_editor: false,
+        })
+        .unwrap();
+    assert!(fake.shared.lock().unwrap().commands.is_empty());
+}

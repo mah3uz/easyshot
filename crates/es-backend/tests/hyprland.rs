@@ -383,3 +383,17 @@ fn detection_needs_the_signature_and_a_hyprland_desktop() {
         .expect("no socket here");
     assert!(err.to_string().contains("no Hyprland socket"), "{err}");
 }
+
+#[test]
+fn turning_float_editor_off_leaves_the_editor_rule_out_of_the_eval() {
+    let fake = FakeHypr::start(Answer::Recorded);
+    let rules = HyprRules { ipc: fake.ipc() };
+    rules
+        .install(&RuleSet {
+            float_editor: false,
+        })
+        .expect("install");
+    let sent = fake.requests();
+    assert_eq!(sent[0], format!("eval {}", hyprland::install_script(false)));
+    assert!(!sent[0].contains("easyshot-editor"), "{}", sent[0]);
+}

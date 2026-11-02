@@ -189,7 +189,10 @@ struct Outcome {
 }
 
 impl WindowRules for SwayRules {
-    fn install(&self, _rules: &RuleSet) -> Result<()> {
+    fn install(&self, rules: &RuleSet) -> Result<()> {
+        if !rules.float_editor {
+            return Ok(());
+        }
         let outcomes: Vec<Outcome> = self.0.json(RUN_COMMAND, binds::EDITOR_RULE.as_bytes())?;
         match outcomes.into_iter().find(|o| !o.success) {
             Some(o) => {

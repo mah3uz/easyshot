@@ -7,8 +7,16 @@ use es_model::platform::{
 use es_protocol::Route;
 use std::sync::Arc;
 
-#[derive(Debug, Clone, Default)]
-pub struct RuleSet {}
+#[derive(Debug, Clone)]
+pub struct RuleSet {
+    pub float_editor: bool,
+}
+
+impl Default for RuleSet {
+    fn default() -> Self {
+        Self { float_editor: true }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BindSyntax {

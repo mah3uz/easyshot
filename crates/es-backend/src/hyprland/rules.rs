@@ -52,8 +52,8 @@ pub struct HyprRules {
 }
 
 impl WindowRules for HyprRules {
-    fn install(&self, _rules: &RuleSet) -> Result<()> {
-        self.ipc.eval(&install_script(true))
+    fn install(&self, rules: &RuleSet) -> Result<()> {
+        self.ipc.eval(&install_script(rules.float_editor))
     }
     fn remove(&self) -> Result<()> {
         self.ipc.eval(&remove_script())
