@@ -12,7 +12,9 @@
     <name>Mahfuz Shaikh</name>
   </developer>
   <launchable type="desktop-id">@APP_ID@.desktop</launchable>
-  <url type="homepage">https://github.com/mah3uz/easyshot</url>
+  <url type="homepage">https://easyshot.site</url>
+  <url type="vcs-browser">https://github.com/mah3uz/easyshot</url>
+  <url type="bugtracker">https://github.com/mah3uz/easyshot/issues</url>
   <provides>
     <binary>easyshot</binary>
   </provides>

@@ -59,7 +59,7 @@ npm run deploy     # build and deploy with wrangler
 
 `wrangler.jsonc` deploys `.output/public` as static assets. Set the public URL used in
 canonical links, Open Graph tags and the sitemap with `NUXT_PUBLIC_SITE_URL` at build time
-(default `https://easyshot.dev`):
+(default `https://easyshot.site`):
 
 ```bash
 NUXT_PUBLIC_SITE_URL=https://example.com npm run deploy

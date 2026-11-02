@@ -2,6 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "easyshot-site",
   "compatibility_date": "2025-10-01",
+  "routes": [{ "pattern": "easyshot.site", "custom_domain": true }],
   // Static assets only: `nuxt generate` writes the site to .output/public.
   "assets": {
     "directory": "./.output/public",

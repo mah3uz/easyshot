@@ -1,7 +1,7 @@
 import tailwindcss from '@tailwindcss/vite'
 
 // Static site, generated with `nuxt generate` and served by Cloudflare Workers static assets.
-const siteUrl = process.env.NUXT_PUBLIC_SITE_URL || 'https://easyshot.dev'
+const siteUrl = process.env.NUXT_PUBLIC_SITE_URL || 'https://easyshot.site'
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-10-01',

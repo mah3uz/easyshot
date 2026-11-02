@@ -11,6 +11,8 @@ GPUI. Capture an area, a window, text, a colour or a scrolling page, mark it up 
 editor, and record your screen, all from key binds in your own compositor. It runs as one
 background service with a tray icon and a floating preview of each capture.
 
+Website and how-to guide: https://easyshot.site
+
 ## Features
 
 **Capture**
