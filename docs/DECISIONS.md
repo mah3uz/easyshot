@@ -2,7 +2,7 @@
 
 Why easyshot is built the way it is. One section per decision, with what was rejected and
 why. Background and sources are in `PRIOR-ART.md`. A reversed decision is removed; the one
-that replaces it says so. "Reason not recorded" means the plan gave none.
+that replaces it says so. "Reason not recorded" means no reason was written down at the time.
 
 ## Architecture and tooling
 
@@ -62,12 +62,12 @@ recording on its own. Rejected: accepting the full route vocabulary, or argument
 
 ### Compositor targets and providers
 v1: Hyprland (primary), sway 1.12 and niri 26.04, plus any compositor that passes the
-generic providers. v1.1: river, labwc, COSMIC. Later: Wayfire. Phase 4: KDE and GNOME.
-Rejected for v1: KDE and GNOME backends (not in v1).
+generic providers. river, labwc and COSMIC come after v1; KDE and GNOME later still.
+Rejected for v1: KDE and GNOME backends.
 
 ### Distro packaging replaces a self-updater
 Releases for several distros; no self-updater and no Flatpak in v1. Reason not recorded
-beyond the plan's statement that distro packaging replaces the updater.
+beyond that distro packaging replaces the updater.
 
 ### MIT licence
 easyshot is MIT and written as its own Rust code; ideas and algorithms are ported, not
@@ -81,6 +81,32 @@ and events it uses, written from niri's documented JSON wire format. Events it d
 track fail to parse and are skipped.
 Rejected: the `niri-ipc` crate, which is GPL-3.0-or-later and would make the default MIT
 binary a GPL work.
+
+## Desktop integration
+
+### One app ID, `dev.easyshot.app`
+The D-Bus name, the desktop entry, the unit and the window IDs
+(`dev.easyshot.app.{editor,settings,gallery,onboarding,player}`) all derive from the one
+constant in `es-protocol`; `scripts/app-id.sh` reads it for packaging. Why: an ID that
+disagrees between the bus name, the desktop entry and the window class breaks single
+instance, icon lookup and compositor window rules. Rejected: separate IDs per file.
+
+### Tray icon is a full-colour pixmap with an empty icon name
+The tray item sends its icon as an ARGB pixmap and an empty `IconName`. Why: Qt-based
+status-bar hosts draw a themed symbolic icon that uses `currentColor` in black, which made
+the icon invisible on dark bars. Rejected: a named symbolic icon from the theme.
+
+### The pointer is never hidden on key presses
+GPUI's `CursorHideMode::Never` is set at startup. Why: with the default, typing Space or a
+tool letter hides the pointer until the mouse moves, which is wrong in an editor where
+those keys are part of a pointer gesture. Rejected: the default hide-while-typing mode.
+
+### Package install enables and starts the user service
+The Arch install script runs `systemctl --global enable easyshot.service`, then starts the
+service for each logged-in user on install and restarts it (or starts it) on upgrade; removal
+stops it. Why: the tray and `easyshot://` links need the daemon, and an old daemon would keep
+running old code after an upgrade. Rejected: leaving the user to enable it, and
+`enable --now` for one user only, which misses the other users.
 
 ## Capture and recording
 

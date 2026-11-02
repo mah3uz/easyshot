@@ -9,9 +9,9 @@ niri are the v1 compositors.
 
 ## 1. What has been run where
 
-The libraries are built and unit-tested; the app, its windows and overlays are not built
-yet. Everything else below describes the design, not observed behaviour. This section is
-updated as parts are built and run, with the compositor and date.
+The libraries, overlays, editor, shell windows, CLI and daemon are built, and the app runs
+end to end. Only what the table lists has been observed; everything else in this document is
+design that has not been run on that compositor. Rows name the compositor and date.
 
 | What | Where it ran | Date |
 |---|---|---|
@@ -28,9 +28,10 @@ updated as parts are built and run, with the compositor and date.
 | The daemon in test mode at scale 1.5: `capture/region` sent over a private bus, a 304×151 drag, and the 456×227 PNG lands in the save folder with one deck card shown; the card's Edit opens an editor window (`easyshot` daemon, `es-app` pipeline) | headless sway 1.12 | 2026-11-02 |
 | The daemon in test mode with a fake recorder at scale 1.5: `record/area`, a dragged area, the control bar placed outside it, `record/stop`, then a video card and a project folder (`easyshot` daemon recording) | headless sway 1.12 | 2026-11-02 |
 | Headless GPUI windows (hello, component gallery) | no compositor (GPUI headless renderer) | 2026-11-02 |
+| First run in a real session: the daemon started by its systemd user unit, the tray icon registered, a region capture, the editor and Settings. Found and since fixed: editor keys unbound, theme setting ignored, tray icon invisible on Qt bars, stuck Space pan, pointer hiding and cursor flicker. The fixed build is not re-verified | Hyprland (first run, partial) | 2026-11-03 |
 
-Not yet run anywhere: Hyprland and niri (their backend modules are tested only against
-recorded replies and fake sockets), any other compositor; rotated outputs; 10-bit
+Not yet run: niri (its backend module is tested only against recorded replies and fake
+sockets), any other compositor, the packages installed from the AUR; rotated outputs; 10-bit
 formats; wlr-screencopy older than version 3.
 
 ## 2. Design rules
@@ -104,22 +105,22 @@ Layer 2  IO and system mechanisms — no GPUI
   es-store     the only writer of every file: atomic writes, config (toml_edit), state,
                history index, deck staging, presets, sidecar, retention, naming          → es-model
   es-wayland   our own wayland-client connection: registry probe, outputs, capture
-               protocols, foreign-toplevel, data-control clipboard, virtual pointer       → es-geom
+               protocols, foreign-toplevel, data-control clipboard, virtual pointer       → es-geom, es-model
   es-desktop   freedesktop over D-Bus: Command service/client, tray, notifications,
                portals, trash, autostart, sound (feature)                                → es-protocol
   es-record    recorder providers, audio devices, input streams, project folder          → es-model, es-protocol, es-geom
   es-backend   capability traits, Caps, the provider registry, compositor modules,
-               test-mode decorators, doctor report                                       → es-wayland, es-desktop, es-record, es-protocol, es-geom
+               test-mode decorators, doctor report                                       → es-wayland, es-desktop, es-record, es-protocol, es-geom, es-model
 Layer 3  GPUI
-  es-ui        tokens, theme, components, motion, icons, strings, a11y helpers           → es-geom, es-text, gpui-kit
+  es-ui        tokens, theme, components, motion, icons, strings, a11y helpers           → es-geom, es-model, es-protocol, es-text, gpui-component
   es-app       Services global, PlatformEvent pump, RouteDispatcher, Jobs, Windows,
                CaptureCoordinator, platform_ui seams, toasts, errors::present            → layers 0–2, es-ui
-  es-editor    EditorSession entities, canvas, toolbar, inspector, footer                → es-app, es-ui, es-anno, es-render, es-text
+  es-editor    EditorSession entities, canvas, toolbar, inspector, footer                → es-app, es-ui, es-anno, es-render, es-text, es-store, es-ocr
   es-overlays  selector, window mode, loupe, countdown, scroll UI, deck, pins, bars,
-               recording UI, trim player                                                 → es-app, es-ui
+               recording UI, trim player                                                 → es-app, es-ui, es-render, es-scroll, es-store
   es-shell     settings, gallery, onboarding, tray model                                 → es-app, es-ui
   easyshot     bin: clap → cli::run (no GPUI) | daemon::run                              → all of layer 3
-  es-testkit   dev-only: shared headless-window test helper; never a normal dependency
+  es-testkit   dev-only: shared headless-window test helper; never a normal dependency  → gpui, es-geom
 ```
 
 Layer-3 crates may depend on any layer 0–2 crate; the arrows list only the layer-3 edges.
@@ -137,8 +138,7 @@ Enforcement:
 - `just gpui-guard` fails if a second gpui or zbus copy appears (`cargo tree -d`).
 
 Cargo features cover only what changes system dependencies or must never ship: `hyprland`,
-`wlroots`, `niri` (default on), later `cosmic`, `wayfire`, `kde`, `gnome`; `player`,
-`sound`, `evdev-input`, `portal-recorder`; `test-hooks` (never in release builds);
+`wlroots`, `niri` (default on); `player`, `sound`, `evdev-input`, `portal-recorder`; `test-hooks` (never in release builds);
 `dev-inspector`. Everything else is runtime detection.
 
 ## 5. Threads and async
@@ -169,6 +169,9 @@ highest-priority provider whose `probe()` returns `Some` and whose `build()` suc
 records the chosen and rejected providers (with the reason) for logs and `easyshot doctor`.
 `EASYSHOT_PROVIDER_<CAP>=<name>` forces a choice. `Caps` is derived from the chosen
 providers and the probed tools, never set by hand.
+
+The recorder providers are gpu-screen-recorder, then wf-recorder. The portal ScreenCast
+recorder is listed but not available: its provider builds no client, so it is never chosen.
 
 The `wayland::*` providers are chosen by protocol globals, not compositor name. Any
 compositor with layer-shell and a capture protocol works without new code. Compositor
@@ -304,7 +307,7 @@ as a missing wallpaper. `es_store::wallpapers::read` reads only a regular file o
 7. The deck shows a card.
 8. `JobFinished` returns to the waiting CLI.
 
-This flow is the design; none of it has run.
+Run through the daemon in headless sway and, in part, on Hyprland (see section 1).
 
 ## 11. Build and test
 
@@ -316,8 +319,11 @@ others listed in `Cargo.toml`) with one codegen unit, so its timings match a shi
 
 The install files (desktop entry, `easyshot://` handler, systemd user unit, D-Bus activation
 file, AppStream metainfo) are templates in `packaging/data/`; `packaging/stage.sh` fills in the
-app ID from `scripts/app-id.sh` and the PKGBUILD installs them. None has been run on a
-live session: they are checked only by the desktop-file, AppStream and systemd validators.
+app ID from `scripts/app-id.sh` and the PKGBUILD installs them. The packages
+are checked only by the desktop-file, AppStream and systemd validators and have not been
+installed. The Arch
+packages' install script enables `easyshot.service` for all users (`systemctl --global`)
+and starts or restarts it for each logged-in user.
 
 Decoded wallpapers live in one `WallpaperCache` (4 images, 192 MB), and the pictures the
 editor shows count against one 256 MB `ImageBudget` (LRU); both are shared by every window
@@ -332,9 +338,9 @@ niri.
 |---|---|
 | Geometry, engine, store, OCR, render, export | unit |
 | Editor, settings, gallery, player UI; canvas performance | headless windows |
-| Overlay, deck, pin, toast, bars; fractional scale; window capture; rules | Hyprland headless output |
+| Overlay, deck, pin, toast, bars; fractional scale; window capture; rules | Hyprland headless output (not yet run) |
 | Generic providers, sway module, input-region pass-through, Auto Scroll | headless sway |
-| wlr-screencopy-only capture, niri module | niri |
+| wlr-screencopy-only capture, niri module | nested niri (not yet run) |
 | IME, drag-out, real clipboard paste, GSR recordings with KMS, binds, Orca | manual with the maintainer |
 
 Lints are in `[workspace.lints]`. `dead_code` warnings are fatal in the gate. CI warns on
