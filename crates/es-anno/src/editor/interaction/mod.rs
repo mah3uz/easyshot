@@ -126,6 +126,26 @@ impl Editor {
         ch
     }
 
+    /// Moves the shape under the pointer whatever the tool; a press that hits no shape does nothing.
+    pub fn pointer_down_move(&mut self, pointer: PointerInfo) -> Changes {
+        let mut ch = Changes::default();
+        if pointer.button != PointerButton::Primary {
+            return ch;
+        }
+        let Some(p) = page_of(&pointer) else {
+            return ch;
+        };
+        let Some(id) = self.hit_shape(pointer.page) else {
+            return ch;
+        };
+        if !self.is_idle() {
+            absorb(&mut ch, self.pointer_up(pointer));
+        }
+        self.stop_text_into(&mut ch);
+        self.select_and_translate(id, p, pointer.shift, &mut ch);
+        ch
+    }
+
     pub fn pointer_move(&mut self, pointer: PointerInfo) -> Changes {
         let mut ch = Changes::default();
         let Some(p) = page_of(&pointer) else {

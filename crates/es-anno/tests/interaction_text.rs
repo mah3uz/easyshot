@@ -30,7 +30,7 @@ fn a_text_tool_click_creates_text_centred_on_the_first_line_and_starts_typing() 
     click(&mut ed, at(300.0, 200.0));
     let id = ed.editing_text_id().expect("typing into the new text");
     let s = ed.doc().shape(id).expect("text in document");
-    assert_eq!((s.x, s.y), (300.0, 200.0 - 48.0 * 1.35 / 2.0));
+    assert_eq!((s.x, s.y), (300.0, 200.0 - 20.0 * 1.35 / 2.0));
     assert_eq!(
         ed.selected_ids().iter().copied().collect::<Vec<_>>(),
         vec![id]
@@ -65,16 +65,16 @@ fn clicking_elsewhere_commits_the_text_and_starts_new_text_there() {
 
 #[test]
 fn a_text_tool_click_on_existing_text_edits_it_instead_of_making_more() {
-    let t = text(200.0, 200.0, "hi");
+    let t = text(200.0, 200.0, "hello world");
     let ti = t.id;
     let mut ed = editor(vec![t], vec![]);
     ed.select_tool(Tool::Text);
-    assert_eq!(ed.cursor_for(Point::new(210.0, 220.0)), CursorKind::IBeam);
+    assert_eq!(ed.cursor_for(Point::new(240.0, 212.0)), CursorKind::IBeam);
     assert_eq!(
         ed.cursor_for(Point::new(600.0, 600.0)),
         CursorKind::AnnotationPlus
     );
-    click(&mut ed, at(210.0, 220.0));
+    click(&mut ed, at(240.0, 212.0));
     assert_eq!(ed.editing_text_id(), Some(ti));
     assert_eq!(ed.doc().shapes().len(), 1);
 }
@@ -93,23 +93,23 @@ fn a_press_on_the_text_being_typed_is_left_to_the_text_field() {
 
 #[test]
 fn a_double_click_edits_text_in_the_select_tool_and_a_single_click_does_not() {
-    let t = text(200.0, 200.0, "hi");
+    let t = text(200.0, 200.0, "hello world");
     let ti = t.id;
     let mut ed = editor(vec![t], vec![]);
-    click(&mut ed, at(210.0, 220.0));
+    click(&mut ed, at(240.0, 212.0));
     assert_eq!(ed.editing_text_id(), None);
     click(
         &mut ed,
         PointerInfo {
             click_count: 2,
-            ..at(210.0, 220.0)
+            ..at(240.0, 212.0)
         },
     );
     assert_eq!(ed.editing_text_id(), Some(ti));
-    assert_eq!(ed.cursor_for(Point::new(210.0, 220.0)), CursorKind::IBeam);
+    assert_eq!(ed.cursor_for(Point::new(240.0, 212.0)), CursorKind::IBeam);
 
     let before = ed.doc().snapshot();
-    ed.update_text("hi you");
+    ed.update_text("hello you");
     click(&mut ed, at(900.0, 900.0));
     assert_eq!(ed.editing_text_id(), None, "a press elsewhere commits");
     one_undo_entry(&mut ed, &before);

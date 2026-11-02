@@ -172,7 +172,7 @@ impl Default for TextProps {
         Self {
             text: String::new(),
             swatch: Swatch::default(),
-            font_size: 48.0,
+            font_size: 20.0,
             font_family: FontFamily::Pro,
             is_bold: true,
             is_italic: false,

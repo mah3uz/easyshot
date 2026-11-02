@@ -190,7 +190,7 @@ fn text_geometry_is_the_measured_box() {
     let id = t.id;
     let ed = editor(vec![t], vec![]);
     let b = ed.doc().geometry(id).unwrap().bounds();
-    assert_eq!((b.w, b.h), (121.0, 48.0 * 1.35));
+    assert_eq!((b.w, b.h), (51.0, 20.0 * 1.35));
 }
 
 #[test]

@@ -24,9 +24,12 @@
 - The watermark stays on the canvas while you edit annotations.
 - Wallpaper backgrounds draw several times faster, and changing padding or zoom no longer decodes the wallpaper again.
 - The editor keeps the pictures it shows within a memory budget shared by all its windows.
+- Hold Space and drag an annotation to move it, with any tool; dragging empty canvas still pans.
+- New text starts at size 20 instead of 48.
 
 ### Bug fixes
 
+- Panning with Space or the middle button stops when you let go or release Space, even if the release happens outside the canvas.
 - An `easyshot://record` link asks for an area instead of recording the whole screen at once.
 - A screen recording stops when easyshot is killed, instead of running on unseen.
 - A document from someone else can no longer use a file outside your wallpapers as its background.
