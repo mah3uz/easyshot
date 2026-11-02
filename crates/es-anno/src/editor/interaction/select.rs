@@ -23,21 +23,7 @@ impl Editor {
                 absorb(ch, self.begin_text(id));
                 return;
             }
-            let mut next = self.selected_ids.clone();
-            if pointer.shift {
-                if !next.remove(&id) {
-                    next.insert(id);
-                }
-            } else if !next.contains(&id) {
-                next = [id].into();
-            }
-            if next != self.selected_ids {
-                self.set_selection(next, ch);
-                self.sync_style_from_selection();
-            }
-            if !self.selected_ids.is_empty() {
-                self.start_translate(p, ch);
-            }
+            self.select_and_translate(id, p, pointer.shift, ch);
             return;
         }
         if self.in_selection_frame(p) {
@@ -52,6 +38,30 @@ impl Editor {
             corner: p,
         };
         ch.needs_redraw = true;
+    }
+
+    pub(super) fn select_and_translate(
+        &mut self,
+        id: AnnoShapeId,
+        p: PVec,
+        shift: bool,
+        ch: &mut Changes,
+    ) {
+        let mut next = self.selected_ids.clone();
+        if shift {
+            if !next.remove(&id) {
+                next.insert(id);
+            }
+        } else if !next.contains(&id) {
+            next = [id].into();
+        }
+        if next != self.selected_ids {
+            self.set_selection(next, ch);
+            self.sync_style_from_selection();
+        }
+        if !self.selected_ids.is_empty() {
+            self.start_translate(p, ch);
+        }
     }
 
     /// A lone arrow's frame is mostly empty space, so only its line grabs it.

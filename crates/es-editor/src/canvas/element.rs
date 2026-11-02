@@ -162,16 +162,28 @@ fn paint_image(
 
 impl CanvasElement {
     fn register_pan(&self, hitbox: &Hitbox, window: &mut Window, cx: &mut App) {
-        let (panning, space) = {
-            let c = self.view.read(cx);
+        let focused = self.view.read(cx).focus.is_focused(window);
+        let (panning, space) = self.view.update(cx, |c, _| {
+            if !focused && c.space_held {
+                c.space_held = false;
+                c.pan_from = None;
+            }
             (c.pan_from.is_some(), c.space_held)
-        };
+        });
         if panning {
+            self.view
+                .update(cx, |c, _| c.cursor = CursorStyle::ClosedHand);
             window.set_cursor_style(CursorStyle::ClosedHand, hitbox);
             let view = self.view.clone();
             window.on_mouse_event(move |e: &MouseMoveEvent, phase, _, cx| {
                 if phase == DispatchPhase::Capture {
-                    view.update(cx, |c, cx| c.drag_pan(e.position, cx));
+                    view.update(cx, |c, cx| {
+                        if e.pressed_button.is_some() {
+                            c.drag_pan(e.position, cx);
+                        } else {
+                            c.end_pan(cx);
+                        }
+                    });
                 }
             });
             let view = self.view.clone();
@@ -181,7 +193,7 @@ impl CanvasElement {
                 }
             });
         } else if space {
-            window.set_cursor_style(CursorStyle::OpenHand, hitbox);
+            super::input::register_space(&self.view, hitbox, window, cx);
         } else if self.view.read(cx).is_cropping(cx) {
             super::crop_overlay::register(&self.view, hitbox, window, cx);
         } else {

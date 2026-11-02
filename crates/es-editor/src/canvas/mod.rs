@@ -220,7 +220,8 @@ impl EditorCanvas {
     }
 
     fn start_pan(&mut self, e: &MouseDownEvent, _: &mut Window, cx: &mut Context<Self>) {
-        if e.button == MouseButton::Middle || self.space_held {
+        let on_shape = e.button == MouseButton::Left && self.shape_at(e.position, cx);
+        if e.button == MouseButton::Middle || (self.space_held && !on_shape) {
             self.pan_from = Some(e.position);
             cx.stop_propagation();
             cx.notify();
