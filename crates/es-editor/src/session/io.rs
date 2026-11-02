@@ -1,6 +1,6 @@
 use crate::inspector::background::wallpaper_cache::wallpaper_bytes;
 use crate::session::doc::{DocEvent, DocModel};
-use crate::session::journal::{self, Entry};
+use crate::session::journal::{self, Entry, Journal};
 use crate::strings::fl;
 use crate::window::{EditorWindow, Job};
 use es_anno::{BuildContext, DrawList, build_draw_list};
@@ -19,7 +19,7 @@ use gpui::{App, Context, Entity, Subscription, Task};
 use image::RgbaImage;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use time::OffsetDateTime;
 use tiny_skia::{IntSize, Pixmap};
 use uuid::Uuid;
@@ -125,25 +125,27 @@ pub struct EditorIo {
     config: IoConfig,
     baseline: AnnotationDocument,
     baseline_look: BackgroundSettings,
-    baseline_base: u64,
+    /// Weak keeps the allocation alive, so no later image can reuse its address.
+    disk_base: Weak<RgbaImage>,
     committed: Option<PathBuf>,
     exported: Option<PathBuf>,
     saving: bool,
     save_waiters: Vec<oneshot::Sender<bool>>,
     prompt: Option<oneshot::Sender<Choice>>,
     journal_timer: Option<Task<()>>,
+    journal: Journal,
     gestures: u64,
     _doc_events: Subscription,
 }
 
 impl EditorIo {
     pub fn new(doc: Entity<DocModel>, cx: &mut Context<Self>) -> Self {
-        let (baseline, baseline_look, baseline_base) = {
+        let (baseline, baseline_look, disk_base) = {
             let d = doc.read(cx);
             (
                 d.editor().doc().model().clone(),
                 d.background().clone(),
-                d.base_revision(),
+                Arc::downgrade(d.base()),
             )
         };
         let events = cx.subscribe(&doc, |this, _, event: &DocEvent, cx| {
@@ -157,13 +159,14 @@ impl EditorIo {
             config: IoConfig::default(),
             baseline,
             baseline_look,
-            baseline_base,
+            disk_base,
             committed: None,
             exported: None,
             saving: false,
             save_waiters: Vec::new(),
             prompt: None,
             journal_timer: None,
+            journal: Journal::default(),
             gestures: 0,
             _doc_events: events,
         }
@@ -173,10 +176,21 @@ impl EditorIo {
         self.config = config;
     }
 
-    /// Continues a session found in the recovery directory: same journal, and the edits count as unsaved.
-    pub fn adopt_recovery(&mut self, session: String, baseline: AnnotationDocument) {
+    /// Continues a session found in the recovery directory: same journal, and the edits count as
+    /// unsaved. `staged` is the journal's staged base the editor opened, if it opened one.
+    pub fn adopt_recovery(
+        &mut self,
+        session: String,
+        baseline: AnnotationDocument,
+        staged: Option<PathBuf>,
+        cx: &App,
+    ) {
         self.session = session;
         self.baseline = baseline;
+        if let Some(file) = staged {
+            self.disk_base = Weak::new();
+            self.journal.adopt(self.doc.read(cx).base_revision(), file);
+        }
     }
 
     pub fn session_id(&self) -> &str {
@@ -187,7 +201,12 @@ impl EditorIo {
         let d = self.doc.read(cx);
         d.editor().doc().model() != &self.baseline
             || d.background() != &self.baseline_look
-            || d.base_revision() != self.baseline_base
+            || !self.base_on_disk(d)
+    }
+
+    /// Whether the base is the one in the file on disk, as after undoing every crop.
+    fn base_on_disk(&self, d: &DocModel) -> bool {
+        std::ptr::eq(self.disk_base.as_ptr(), Arc::as_ptr(d.base()))
     }
 
     /// False when nothing is configured for `job`, so an owner outside the editor may do it instead.
@@ -239,7 +258,7 @@ impl EditorIo {
             return;
         };
         if !self.is_dirty(cx) {
-            journal::remove(&paths, &self.session);
+            self.journal.remove(&paths, &self.session);
             return;
         }
         let d = self.doc.read(cx);
@@ -252,16 +271,20 @@ impl EditorIo {
             display: current,
             base_revision: d.base_revision(),
             document: d.editor().doc().model().clone(),
+            staged_base: None,
         };
-        if let Err(error) = journal::write(&paths, &self.session, entry) {
-            tracing::warn!(%error, "recovery journal not written");
+        let edited = (!self.base_on_disk(d)).then(|| d.base().clone());
+        if let Some(staging) = self.journal.write(&paths, &self.session, entry, edited) {
+            cx.background_executor()
+                .spawn(async move { staging.run() })
+                .detach();
         }
     }
 
     pub fn drop_journal(&mut self, cx: &App) {
         self.journal_timer = None;
         if let Some(paths) = self.paths(cx) {
-            journal::remove(&paths, &self.session);
+            self.journal.remove(&paths, &self.session);
         }
     }
 
@@ -274,8 +297,8 @@ impl EditorIo {
         let mut document = d.editor().doc().model().clone();
         document.background = d.background().clone();
         let look = d.background().clone();
-        let base_revision = d.base_revision();
-        let base_pixels = (base_revision != self.baseline_base).then(|| d.base().clone());
+        let saved_base = Arc::downgrade(d.base());
+        let base_pixels = (!self.base_on_disk(d)).then(|| d.base().clone());
         let display = self
             .committed
             .clone()
@@ -340,7 +363,7 @@ impl EditorIo {
                 if let Ok((committed, target)) = &outcome {
                     io.baseline = document;
                     io.baseline_look = look;
-                    io.baseline_base = base_revision;
+                    io.disk_base = saved_base;
                     io.committed = Some(committed.clone());
                     io.exported = Some(target.clone());
                     io.drop_journal(cx);

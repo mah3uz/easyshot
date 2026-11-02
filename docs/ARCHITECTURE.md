@@ -191,7 +191,7 @@ Degradation, each reported by doctor:
 | History index | `library/index.json`, a cache rebuilt by scanning `library/` |
 | Deck staging | `$XDG_DATA_HOME/easyshot/deck/<uuid>/` |
 | Recordings | `$XDG_DATA_HOME/easyshot/recordings/<name>.easyshotrec/` |
-| Recovery journal | `$XDG_STATE_HOME/easyshot/recovery/<session>.json` |
+| Recovery journal | `$XDG_STATE_HOME/easyshot/recovery/<session>.json`, edited base `<session>.base-<uuid>.png` |
 | State | `$XDG_STATE_HOME/easyshot/state.json` |
 | Logs, crash reports | `$XDG_STATE_HOME/easyshot/{log,crash}/` |
 | Thumbnails | `$XDG_CACHE_HOME/easyshot/thumbs/` |
@@ -247,6 +247,13 @@ The keys and defaults of `config.toml` are the `es_model::Config` type.
 - Recovery journal: after each committed undo entry, debounced 2 s, the editor writes
   `recovery/<session>.json` atomically (sidecar document, base image path and revision),
   deleted on save or discard. At startup each journal reopens in the editor.
+  When crop, rotate or flip has changed the base, the journal also references
+  `<session>.base-<uuid>.png` with those pixels. It is encoded off the main thread only when
+  the base revision changed, written under a new name before the journal that references it,
+  and the older one is deleted only after that journal is on disk, so a crash at any point
+  leaves a journal whose files match. One lock per session orders the writes; a write that a
+  newer one or a removal overtook is dropped. A missing or unreadable staged base reopens the
+  original base with a warning.
 - A panic hook writes `crash/<ts>.txt` (version, features, chosen providers, backtrace, last
   200 log lines); the next start offers "Open crash report". Nothing is uploaded. CPU jobs
   run under `catch_unwind`.

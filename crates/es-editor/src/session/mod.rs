@@ -90,22 +90,43 @@ impl EditorSession {
                 .ok_or_else(|| Error::NotFound(journal.display().to_string()))?;
             let reopened = es_store::reopen(&entry.display);
             let mut opened = load(&entry.display)?;
-            if entry.base_image != reopened.source {
-                opened.base = image::open(&entry.base_image)
-                    .map_err(|e| Error::Protocol(e.to_string()))?
-                    .to_rgba8();
-            }
+            let staged = entry.staged_base.and_then(|file| match image::open(&file) {
+                Ok(pixels) => Some((file, pixels.to_rgba8())),
+                Err(error) => {
+                    tracing::warn!(
+                        %error,
+                        path = %file.display(),
+                        "staged recovery base unreadable; opening the original base"
+                    );
+                    None
+                }
+            });
+            let staged = match staged {
+                Some((file, pixels)) => {
+                    opened.base = pixels;
+                    Some(file)
+                }
+                None => {
+                    if entry.base_image != reopened.source {
+                        opened.base = image::open(&entry.base_image)
+                            .map_err(|e| Error::Protocol(e.to_string()))?
+                            .to_rgba8();
+                    }
+                    None
+                }
+            };
             let baseline = reopened.document.unwrap_or_default();
             opened.document = entry.document;
             let session = journal::session_of(&journal).unwrap_or_default();
-            Ok::<_, Error>((opened, baseline, session, BundledText::bundled()))
+            Ok::<_, Error>((opened, baseline, session, staged, BundledText::bundled()))
         });
         cx.spawn(async move |cx| {
-            let (opened, baseline, session, text) = loading.await?;
+            let (opened, baseline, session, staged, text) = loading.await?;
             Ok(cx.update(|cx| {
                 let this = Self::new(opened, Arc::new(text), cx);
-                this.io
-                    .update(cx, |io, _| io.adopt_recovery(session, baseline));
+                this.io.update(cx, |io, cx| {
+                    io.adopt_recovery(session, baseline, staged, cx)
+                });
                 this
             }))
         })
