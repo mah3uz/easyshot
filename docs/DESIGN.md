@@ -1,8 +1,7 @@
 # easyshot — design
 
 Why the interface looks and behaves as it does. How it is built is in `ARCHITECTURE.md`;
-each choice and what was rejected is in `DECISIONS.md`. Nothing here is built yet; this is
-the intended design.
+each choice and what was rejected is in `DECISIONS.md`.
 
 ## 1. Reference design
 
@@ -20,7 +19,7 @@ Shortcuts. "Off" switches are config keys only, not interface.
 |---|---|
 | Arrow-key nudge | 1 page pixel; Shift = 10 (`[editor] nudge_step`, `nudge_step_shift`). Key repeat allowed for arrows only. One undo entry per key-hold. |
 | Esc deselects | In Select with nothing being edited or cropped and no dialog open, Esc clears the selection. A second Esc does nothing; it never closes the window. |
-| Middle-button drag and Space-hold pan | Open and closed hand cursors. Space is inert while editing text and ignores key repeat. |
+| Middle-button drag and Space-hold pan | Open and closed hand cursors. Space is inert while editing text and ignores key repeat. With Space held, dragging an annotation moves it, with any tool. |
 | Pointer-anchored zoom | Ctrl/Alt+wheel and pinch zoom about the pointer. Keyboard and menu zoom stay centre-anchored. `[editor] zoom_anchor="centre"` restores centre-anchored zoom. |
 | Duplicate | Ctrl+D duplicates the selection at a +16 page pixel offset. Bindings between duplicated shapes are remapped. One undo entry. |
 | Copy and paste shapes | Ctrl+C copies shapes only when the selection is non-empty and Select is active, using an in-app clipboard, never the system clipboard (which holds images). Ctrl+V pastes at +16, or at the pointer if it is over the canvas. Image copy stays Ctrl+Shift+C. |
@@ -34,8 +33,10 @@ means centre-resize), region selection across outputs, and numeric geometry fiel
 
 ## 3. Cursors
 
-Custom bitmaps are drawn procedurally at 1x, 1.5x and 2x and registered once through a
-patch to vendored GPUI that adds `CursorStyle::Custom`. The remaining cursors are GPUI
+Custom bitmaps are drawn procedurally at 1x, 1.5x and 2x and registered once through
+patches to vendored GPUI that add `CursorStyle::Custom`; each custom cursor has its own
+Wayland surface, and its image is committed before the cursor is set. The pointer is never
+hidden on key presses. The remaining cursors are GPUI
 `CursorStyle` values. The reference design's rules are the base.
 
 Affordance cursors are an addition: where the reference design shows no special cursor, easyshot
@@ -61,5 +62,4 @@ Custom bitmaps:
 ## 4. Where the rest is recorded
 
 The full per-surface, per-tool cursor table, the editor's visual specifications and the
-design tokens belong in this file once they are built and checked against the running
-interface. They are not written here until then.
+design tokens are not written down yet.

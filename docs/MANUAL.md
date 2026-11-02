@@ -1,8 +1,8 @@
 # easyshot manual
 
-**easyshot is not usable yet.** The project has a workspace skeleton and nothing is
-implemented. This manual describes what version 1 is meant to do. Until it is built, treat
-every statement here as intended behaviour, not something you can rely on.
+**easyshot is early software.** It runs end to end, but so far it has had one real session,
+on Hyprland, and that only partly. sway has been run only headless, and niri not at all.
+Expect rough edges, and report what you find.
 
 easyshot takes screenshots and screen recordings on Linux/Wayland, lets you annotate them,
 and keeps a history.
@@ -14,8 +14,9 @@ and keeps a history.
   river, labwc and COSMIC come later; KDE and GNOME are not supported in version 1.
 - Tesseract for text capture (OCR). Without it, the OCR items are disabled with an install
   hint.
-- A screen recorder for recording. Without one, the record items are disabled with an
-  install hint.
+- gpu-screen-recorder or wf-recorder for recording; easyshot uses gpu-screen-recorder when
+  both are installed. Without one, the record items are disabled with an install hint. The
+  portal screen-cast recorder is not available.
 
 `easyshot doctor` reports what your compositor and tools provide.
 
@@ -32,7 +33,7 @@ not running. Removing the package stops it.
 ## Running it
 
 easyshot runs as one background program, the daemon, started by a systemd user unit
-(`easyshot.service`) or by XDG autostart. Commands like `easyshot capture region` talk to
+(`easyshot.service`), by D-Bus activation or by XDG autostart. Commands like `easyshot capture region` talk to
 it, and start it if it is not running.
 
 With the package installed, the daemon starts with each graphical session. To stop it from
@@ -40,8 +41,7 @@ starting for your user only, run `systemctl --user mask --now easyshot.service`;
 `disable` does not override the package's enable for all users. `systemctl --user unmask
 easyshot.service` undoes it. Without the package, the first command you run starts the daemon
 through D-Bus activation, and `systemctl --user enable --now easyshot.service` keeps it
-running for the whole session. The package installs
-a desktop entry (Easyshot in your application menu opens Settings) and registers
+running for the whole session. The package installs a desktop entry (Easyshot in your application menu opens Settings) and registers
 `easyshot://` links, which open through `easyshot open`.
 
 easyshot cannot register global keyboard shortcuts for you on Hyprland or wlroots
@@ -155,7 +155,7 @@ These are additional editor keys, and all appear in Settings > Shortcuts.
 |---|---|
 | Arrow keys | Nudge the selection by 1 pixel. Shift: 10 pixels. |
 | Esc | Clear the selection. A second Esc does nothing. |
-| Middle-button drag, or hold Space and drag from empty canvas | Pan. |
+| Middle-button drag, or hold Space and drag from empty canvas | Pan. It stops when you let go, even outside the canvas. |
 | Hold Space and drag an annotation | Move it, with any tool; the pointer is a pointing hand over it. |
 | Ctrl/Alt + wheel, or pinch | Zoom about the pointer. |
 | Ctrl+D | Duplicate the selection. |
@@ -306,5 +306,5 @@ Flatpak are not part of version 1.
 
 ## Troubleshooting
 
-Nothing here is tested yet. Start with `easyshot doctor`, and set `EASYSHOT_LOG` to change
+Start with `easyshot doctor`, and set `EASYSHOT_LOG` to change
 what is logged.
