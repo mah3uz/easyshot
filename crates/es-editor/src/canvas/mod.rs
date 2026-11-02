@@ -1,4 +1,5 @@
 mod chrome;
+pub mod effects;
 mod element;
 pub mod grid;
 mod input;
@@ -81,6 +82,7 @@ pub struct EditorCanvas {
     underlay: Option<(UnderlayKey, Arc<RenderImage>)>,
     underlay_pending: Option<UnderlayKey>,
     underlay_task: Option<Task<()>>,
+    effects: effects::Effects,
     retired: Vec<Arc<RenderImage>>,
     redaction_painter: Option<RedactionPainter>,
     redactions: Rc<RefCell<Redactions>>,
@@ -117,6 +119,7 @@ impl EditorCanvas {
             underlay: None,
             underlay_pending: None,
             underlay_task: None,
+            effects: effects::Effects::default(),
             retired: Vec::new(),
             redaction_painter: Some(painter),
             redactions,

@@ -13,6 +13,8 @@ use std::sync::Arc;
 pub struct Prepared {
     pub grid: Option<(Arc<RenderImage>, Vec<Bounds<Pixels>>)>,
     pub underlay: Option<(Bounds<Pixels>, Arc<RenderImage>)>,
+    /// When set, it stands in for the underlay, tiles, redactions and shapes.
+    pub effects: Option<(Bounds<Pixels>, Arc<RenderImage>)>,
     pub tiles: Vec<(Bounds<Pixels>, Corners<Pixels>, Arc<RenderImage>)>,
     pub redactions: Vec<DrawItem>,
     pub viewport: Viewport,
@@ -215,16 +217,24 @@ impl EditorCanvas {
         stats.paths_painted = shapes_out.len() + spotlight.len();
         self.stats = stats;
         self.start_text_shadows(cx);
+        let effects = self.effects_frame(bounds, &math, f64::from(sf), &mut retired, cx);
+        let flat = effects.is_none();
+        if !flat {
+            self.stats.tiles_painted = 0;
+            self.stats.paths_painted = 0;
+        }
+        let keep = |v: Vec<Painted>| if flat { v } else { Vec::new() };
         Prepared {
             grid,
-            underlay,
-            tiles: tiles_out,
+            underlay: underlay.filter(|_| flat),
+            effects,
+            tiles: if flat { tiles_out } else { Vec::new() },
             redactions,
             viewport: vp,
             image: window_rect(bounds.origin, image_rect),
-            spotlight,
-            shapes: shapes_out,
-            shadows,
+            spotlight: keep(spotlight),
+            shapes: keep(shapes_out),
+            shadows: if flat { shadows } else { Vec::new() },
             retired,
         }
     }

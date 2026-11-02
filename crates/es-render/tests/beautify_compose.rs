@@ -170,3 +170,41 @@ fn the_shadow_darkens_the_background_around_the_card_only() {
     assert!(below[0] < 240, "{below:?}");
     assert_eq!(px(&out, 3, 3)[0], 255);
 }
+
+#[test]
+fn a_spotlight_dims_the_image_where_it_sits_on_a_padded_stage() {
+    let image = solid(200, 100, Color::from_rgba8(255, 255, 255, 255));
+    let settings = BackgroundSettings {
+        corner_radius: 0.0,
+        ..blue_stage()
+    };
+    let list = DrawList {
+        items: vec![DrawItem::Spotlight { holes: Vec::new() }],
+    };
+    let out = compose(&image, &list, &settings).unwrap();
+    let inside = px(&out, 20 + 190, 20 + 90);
+    assert!(
+        inside[0] < 255,
+        "the image's far corner is dimmed: {inside:?}"
+    );
+    assert_eq!(
+        px(&out, 20 + 205, 20 + 50),
+        [0, 0, 255, 255],
+        "the stage is not"
+    );
+}
+
+#[test]
+fn a_scaled_compose_places_annotations_on_the_scaled_image() {
+    let image = solid(100, 50, Color::from_rgba8(255, 0, 0, 255));
+    let settings = BackgroundSettings {
+        corner_radius: 0.0,
+        ..blue_stage()
+    };
+    let list = green_square(100.0, 40.0, 160.0, 80.0);
+    let out =
+        es_render::beautify::compose::compose_scaled(&image, &list, &settings, None, (0.5, 0.5))
+            .unwrap();
+    assert_eq!(px(&out, 10 + 65, 10 + 30), [0, 255, 0, 255]);
+    assert_eq!(px(&out, 10 + 45, 10 + 30), [255, 0, 0, 255]);
+}

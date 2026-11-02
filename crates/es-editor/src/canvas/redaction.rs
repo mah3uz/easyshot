@@ -103,7 +103,7 @@ impl Redactions {
     }
 }
 
-fn premultiplied(base: &RgbaImage) -> Option<Pixmap> {
+pub(super) fn premultiplied(base: &RgbaImage) -> Option<Pixmap> {
     let mut data = base.as_raw().clone();
     for px in data.as_chunks_mut::<4>().0 {
         let a = u16::from(px[3]);

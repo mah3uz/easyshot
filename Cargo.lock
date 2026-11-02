@@ -2063,6 +2063,7 @@ dependencies = [
  "i18n-embed-fl",
  "image",
  "kurbo 0.13.1",
+ "rayon",
  "rust-embed",
  "smallvec",
  "thiserror 2.0.21",

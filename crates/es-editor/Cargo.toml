@@ -31,6 +31,7 @@ thiserror.workspace = true
 tracing.workspace = true
 image.workspace = true
 tiny-skia.workspace = true
+rayon.workspace = true
 i18n-embed = { workspace = true }
 i18n-embed-fl = { workspace = true }
 rust-embed = { workspace = true }

@@ -5,9 +5,9 @@ use crate::beautify::layout::{Layout, layout};
 use crate::beautify::progressive_blur;
 use crate::beautify::shadow::{paint_shadow, shadow_layer};
 use crate::beautify::watermark;
-use crate::paint::paint_draw_list;
+use crate::paint::{ClipShape, paint_draw_list};
 use es_anno::draw::{DrawItem, DrawList};
-use es_geom::Affine;
+use es_geom::{Affine, Rect};
 use es_model::BackgroundSettings;
 use tiny_skia::{Pixmap, PixmapPaint, Transform};
 
@@ -27,12 +27,18 @@ pub fn compose_with_wallpaper(
     settings: &BackgroundSettings,
     wallpaper: Option<&Pixmap>,
 ) -> Option<Pixmap> {
-    let lay = layout(
-        f64::from(image.width()),
-        f64::from(image.height()),
-        settings,
-    )
-    .pixel_aligned();
+    compose_scaled(image, annotations, settings, wallpaper, (1.0, 1.0))
+}
+
+/// `image` is the screenshot already resized by `page_scale`, which maps annotation page space onto it.
+pub fn compose_scaled(
+    image: &Pixmap,
+    annotations: &DrawList,
+    settings: &BackgroundSettings,
+    wallpaper: Option<&Pixmap>,
+    page_scale: (f64, f64),
+) -> Option<Pixmap> {
+    let lay = image_layout(image, settings);
     let (width, height) = lay.canvas_pixels();
     let mut canvas = Pixmap::new(width, height)?;
     draw_background_with(&mut canvas, &settings.style, wallpaper);
@@ -44,7 +50,15 @@ pub fn compose_with_wallpaper(
         None
     };
     let target = staged.as_mut().unwrap_or(&mut canvas);
-    paint_card(target, image, annotations, settings, &lay, camera);
+    paint_card(
+        target,
+        image,
+        annotations,
+        settings,
+        &lay,
+        camera,
+        page_scale,
+    );
     if let Some(layer) = staged {
         let layer = project_camera_layer(layer, &lay, settings);
         canvas.draw_pixmap(
@@ -57,9 +71,62 @@ pub fn compose_with_wallpaper(
         );
     }
 
-    apply_progressive_blur(&mut canvas, settings, &lay);
-    watermark::paint(&mut canvas, &settings.watermark);
+    let scope = blur_scope(&canvas, &lay, settings);
+    progressive_blur::apply_scoped(&mut canvas, &settings.progressive_blur, scope);
+    paint_watermark(&mut canvas, settings, page_scale.0);
     Some(canvas)
+}
+
+fn image_layout(image: &Pixmap, settings: &BackgroundSettings) -> Layout {
+    layout(
+        f64::from(image.width()),
+        f64::from(image.height()),
+        settings,
+    )
+    .pixel_aligned()
+}
+
+/// The pieces before the camera and the blur, for previews that project and blur them many times.
+pub struct Stage {
+    pub layout: Layout,
+    pub background: Pixmap,
+    /// Shadow, border, image and annotations on a transparent canvas-sized layer.
+    pub card: Pixmap,
+}
+
+pub fn stage(
+    image: &Pixmap,
+    annotations: &DrawList,
+    settings: &BackgroundSettings,
+    page_scale: (f64, f64),
+) -> Option<Stage> {
+    let lay = image_layout(image, settings);
+    let (width, height) = lay.canvas_pixels();
+    let mut background = Pixmap::new(width, height)?;
+    draw_background_with(&mut background, &settings.style, None);
+    let mut card = Pixmap::new(width, height)?;
+    let camera = settings.camera.has_effect();
+    paint_card(
+        &mut card,
+        image,
+        annotations,
+        settings,
+        &lay,
+        camera,
+        page_scale,
+    );
+    Some(Stage {
+        layout: lay,
+        background,
+        card,
+    })
+}
+
+/// The font size is in output pixels, so a scaled render scales it too.
+pub fn paint_watermark(canvas: &mut Pixmap, settings: &BackgroundSettings, scale: f64) {
+    let mut mark = settings.watermark.clone();
+    mark.font_size *= scale;
+    watermark::paint(canvas, &mark);
 }
 
 fn paint_card(
@@ -69,6 +136,7 @@ fn paint_card(
     settings: &BackgroundSettings,
     lay: &Layout,
     always_shadow: bool,
+    (sx, sy): (f64, f64),
 ) {
     let frame = frame(lay);
     if settings.is_enabled() || always_shadow {
@@ -85,7 +153,12 @@ fn paint_card(
     if annotations.items.is_empty() {
         return;
     }
-    let origin = Affine::translate((lay.image.x0, lay.image.y0));
+    let origin =
+        Affine::translate((lay.image.x0, lay.image.y0)) * Affine::scale_non_uniform(sx, sy);
+    let clip = ClipShape {
+        rect: Rect::new(0.0, 0.0, lay.image.width() / sx, lay.image.height() / sy),
+        radii: lay.image_radii.map(|r| r / sx),
+    };
     let snapshot = if has_redaction(&annotations.items) {
         let mut s = Pixmap::new(target.width(), target.height());
         if let Some(s) = s.as_mut() {
@@ -103,7 +176,7 @@ fn paint_card(
         None
     };
     let snapshot = snapshot.as_ref().unwrap_or(image);
-    paint_draw_list(annotations, target, origin, frame.image, snapshot);
+    paint_draw_list(annotations, target, origin, clip, snapshot);
 }
 
 fn paint_image_clipped(target: &mut Pixmap, image: &Pixmap, frame: &Frame) {
@@ -133,7 +206,8 @@ fn project_camera_layer(layer: Pixmap, lay: &Layout, settings: &BackgroundSettin
     camera::project(layer, lay, &settings.camera, Quality::Full)
 }
 
-fn apply_progressive_blur(canvas: &mut Pixmap, settings: &BackgroundSettings, lay: &Layout) {
+/// Where a clipped blur applies: the image, or the bounds of its projection under the camera.
+pub fn blur_scope(canvas: &Pixmap, lay: &Layout, settings: &BackgroundSettings) -> Rect {
     let mut image = lay.image;
     if settings.camera.has_effect() {
         let size = (f64::from(canvas.width()), f64::from(canvas.height()));
@@ -141,7 +215,7 @@ fn apply_progressive_blur(canvas: &mut Pixmap, settings: &BackgroundSettings, la
             let (xs, ys): (Vec<f64>, Vec<f64>) = p.quad.iter().copied().unzip();
             let fold =
                 |v: &[f64], init: f64, f: fn(f64, f64) -> f64| v.iter().copied().fold(init, f);
-            image = es_geom::Rect::new(
+            image = Rect::new(
                 fold(&xs, f64::INFINITY, f64::min),
                 fold(&ys, f64::INFINITY, f64::min),
                 fold(&xs, f64::NEG_INFINITY, f64::max),
@@ -149,5 +223,5 @@ fn apply_progressive_blur(canvas: &mut Pixmap, settings: &BackgroundSettings, la
             );
         }
     }
-    progressive_blur::apply_scoped(canvas, &settings.progressive_blur, image);
+    image
 }

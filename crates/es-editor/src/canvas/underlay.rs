@@ -30,14 +30,18 @@ impl UnderlayKey {
         if !settings.requires_canvas_layout() || image.0 == 0 || image.1 == 0 {
             return None;
         }
-        let stepped = 2f64.powf((device_scale.max(1e-3).log2() * 2.0).ceil() / 2.0);
-        let scale = stepped.min(1.0).min(MAX_EDGE / canvas_edge.max(1.0));
         Some(Self {
             settings: settings.clone(),
             image,
-            scale,
+            scale: stepped_scale(device_scale, canvas_edge),
         })
     }
+}
+
+/// Image pixels per page pixel for a display scale, in steps of √2 and never above 1.
+pub fn stepped_scale(device_scale: f64, canvas_edge: f64) -> f64 {
+    let stepped = 2f64.powf((device_scale.max(1e-3).log2() * 2.0).ceil() / 2.0);
+    stepped.min(1.0).min(MAX_EDGE / canvas_edge.max(1.0))
 }
 
 /// Background, shadow and border, the layers that sit under the image card.

@@ -96,8 +96,18 @@ impl Element for CanvasElement {
             for (at, corners, image) in frame.tiles {
                 paint_image(window, bounds, at, corners, image);
             }
+            let flat = frame.effects.is_none();
+            if let Some((at, image)) = frame.effects {
+                paint_image(window, bounds, at, Corners::default(), image);
+            }
             let view = self.view.clone();
-            let painter = view.update(cx, |c, _| c.redaction_painter.take());
+            let painter = view.update(cx, |c, _| {
+                if flat {
+                    c.redaction_painter.take()
+                } else {
+                    None
+                }
+            });
             // An empty list still reaches the painter, so it can release the patches of deleted redactions.
             if let Some(painter) = painter {
                 painter(&frame.redactions, &frame.viewport, bounds, window, cx);
