@@ -63,9 +63,13 @@ lint:
 layers:
     scripts/layers.sh
 
-# Fail if compositor-specific names appear outside the es-backend compositor modules
+# Fail if compositor-specific names appear outside the es-backend compositor modules, or unsafe outside es-wayland
 grep-guard:
     scripts/grep-guard.sh
+
+# Regenerate LICENSES/THIRD-PARTY.md from the release dependency graph
+third-party:
+    cargo about generate --offline --locked -m crates/easyshot/Cargo.toml about.hbs -o LICENSES/THIRD-PARTY.md
 
 # Fail on duplicate or missing Fluent ids
 i18n-check:

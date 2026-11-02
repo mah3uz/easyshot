@@ -62,7 +62,6 @@ zbus = "5"
 ashpd = { version = "0.13", default-features = false, features = ["async-io", "file_chooser", "global_shortcuts", "screencast", "screenshot", "settings"] }
 ksni = { version = "0.3.7", default-features = false, features = ["async-io"] }
 notify-rust = "4.18"
-niri-ipc = "26.4"
 trash = "5.2"
 rodio = "0.23"
 evdev = "0.13"

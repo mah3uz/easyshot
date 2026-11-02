@@ -70,8 +70,16 @@ beyond the plan's statement that distro packaging replaces the updater.
 
 ### MIT licence
 easyshot is MIT and written as its own Rust code; ideas and algorithms are ported, not
-code. `LICENSES/` lists only what easyshot ships or depends on.
+code. `LICENSES/` lists only what easyshot ships or links, the Rust crates through
+`cargo about` (`just third-party`).
 Rejected: a clean-room rewrite of those parts. Reason not recorded.
+
+### Own types for niri's JSON IPC
+`es-backend` decodes the niri socket with its own serde types for the few requests, replies
+and events it uses, written from niri's documented JSON wire format. Events it does not
+track fail to parse and are skipped.
+Rejected: the `niri-ipc` crate, which is GPL-3.0-or-later and would make the default MIT
+binary a GPL work.
 
 ## Capture and recording
 

@@ -86,7 +86,8 @@ it on is unverified; say so in the commit.
 
 - `rustfmt` with defaults and edition 2024.
 - Lints are in `[workspace.lints]`: `unsafe_code` is denied (allowed only in `es-wayland`
-  with a `SAFETY` comment per block); `unwrap_used`, `dbg_macro`, `print_stdout` (except
+  with a `SAFETY` comment per block, and `just grep-guard` rejects the word `unsafe`
+  anywhere else in `crates/`); `unwrap_used`, `dbg_macro`, `print_stdout` (except
   the CLI) and others are clippy lints. `dead_code` warnings are fatal in the gate.
 - Comments explain why, not what.
 - No file over about 600 lines outside `vendor/`.

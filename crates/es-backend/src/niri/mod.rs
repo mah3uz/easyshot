@@ -1,6 +1,7 @@
 mod binds;
 mod ipc;
 mod layout;
+mod wire;
 
 use crate::error::{BackendError, Error, Result};
 use crate::probe::{Probe, Provider};
@@ -10,13 +11,13 @@ use es_model::platform::{OutputId, WindowEvent, WindowInfo};
 use es_protocol::Route;
 use ipc::Ipc;
 use layout::State;
-use niri_ipc::{Event, Output, Request, Response};
 use std::collections::HashMap;
 use std::io::BufReader;
 use std::net::Shutdown;
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, PoisonError};
+use wire::{Event, Output, Request, Response};
 
 pub const SOCKET_ENV: &str = "NIRI_SOCKET";
 

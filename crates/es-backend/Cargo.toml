@@ -25,13 +25,12 @@ serde_json.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 zbus.workspace = true
-niri-ipc = { workspace = true, optional = true }
 
 [features]
 default = ["hyprland", "wlroots", "niri"]
 hyprland = []
 wlroots = []
-niri = ["dep:niri-ipc"]
+niri = []
 test-hooks = []
 
 [dev-dependencies]

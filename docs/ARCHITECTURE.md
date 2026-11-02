@@ -123,6 +123,8 @@ Enforcement:
 - `just grep-guard` fails if `hyprctl`, `HYPRLAND_INSTANCE_SIGNATURE`, `.socket2.sock`,
   `SWAYSOCK` or `NIRI_SOCKET` appear in `crates/` outside
   `crates/es-backend/src/{hyprland,wlroots,niri}/` (`tests/harness/` and `docs/` exempt).
+  It also fails if the word `unsafe` or `unsafe_code` appears in a `.rs` file or
+  `Cargo.toml` under `crates/` outside `crates/es-wayland/`, so no crate can allow it.
 - `just gpui-guard` fails if a second gpui or zbus copy appears (`cargo tree -d`).
 
 Cargo features cover only what changes system dependencies or must never ship: `hyprland`,

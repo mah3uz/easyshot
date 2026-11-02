@@ -1,6 +1,6 @@
+use super::wire::{Event, Output, Window, Workspace};
 use es_geom::Rect;
 use es_model::platform::{OutputId, WindowEvent, WindowId, WindowInfo};
-use niri_ipc::{Event, Output, Window, Workspace};
 use std::collections::{BTreeMap, HashMap};
 
 #[derive(Default)]
@@ -118,7 +118,6 @@ impl State {
                     }
                 }
             }
-            _ => {}
         }
         None
     }

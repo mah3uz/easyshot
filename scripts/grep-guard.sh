@@ -12,4 +12,13 @@ if [ -n "$hits" ]; then
     printf '%s\n' "$hits" >&2
     exit 1
 fi
+unsafe_hits=$(grep -rnIE -e '\bunsafe\b' -e 'unsafe_code' \
+    --include='*.rs' --include='Cargo.toml' --exclude-dir=target crates |
+    grep -v '^crates/es-wayland/' || true)
+
+if [ -n "$unsafe_hits" ]; then
+    echo "grep-guard: unsafe code outside crates/es-wayland/" >&2
+    printf '%s\n' "$unsafe_hits" >&2
+    exit 1
+fi
 echo "grep-guard: ok"

@@ -1,5 +1,5 @@
+use super::wire::{Reply, Request, Response};
 use crate::error::{Error, Result};
-use niri_ipc::{Reply, Request, Response};
 use std::io::{BufRead, BufReader, ErrorKind, Read, Write};
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};

@@ -49,4 +49,5 @@ protocols the generic providers need.
 
 ## Licence
 
-MIT. Bundled fonts and icons keep their own terms; see `LICENSES/`.
+MIT. Bundled fonts, icons and Rust dependencies keep their own terms; see `LICENSES/`
+(`LICENSES/THIRD-PARTY.md` lists every linked crate).
