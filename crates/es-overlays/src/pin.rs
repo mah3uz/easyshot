@@ -239,6 +239,7 @@ impl PinView {
         div()
             .id("pin-menu")
             .accessible(Role::Menu, fl!("pin-a11y"))
+            .occlude()
             .absolute()
             .left(px(x))
             .top(px(y))

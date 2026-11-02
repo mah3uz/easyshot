@@ -16,8 +16,9 @@ use gpui::{
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::time::Duration;
 use uuid::Uuid;
-use window_mode_support::Surface;
+use window_mode_support::{Surface, rgb as pixel};
 
 #[test]
 fn every_layout_edit_keeps_actions_unique_dismiss_reachable_and_survives_saving() {
@@ -252,8 +253,11 @@ fn rig(cards: u8, dark: bool) -> Rig {
 }
 
 impl Rig {
-    fn card(&self, i: usize) -> Rect {
-        self.geometry.card(i)
+    /// Where the view draws card `i` for the cards it holds now.
+    fn card(&mut self, i: usize) -> Rect {
+        let deck = self.deck.clone();
+        let count = self.s.app.cx.update(|cx| deck.read(cx).len());
+        DeckSettings::default().geometry(count).card(i)
     }
 
     fn names(&mut self) -> Vec<String> {
@@ -268,6 +272,17 @@ impl Rig {
     fn point(&mut self, x: f32, y: f32) {
         self.s.hover(x, y, false);
         self.s.hover(x, y, false);
+    }
+
+    /// The headless app has no frame clock, so an animation advances only when the window is redrawn.
+    fn next_frame(&mut self) {
+        let handle = self.s.app.window.into();
+        self.s
+            .app
+            .cx
+            .update_window(handle, |_, window, _| window.refresh())
+            .unwrap();
+        self.s.app.settle();
     }
 
     fn click(&mut self, x: f32, y: f32) {
@@ -314,7 +329,6 @@ fn hovering_a_card_shows_its_tools_and_holds_the_deck() {
 }
 
 #[test]
-#[ignore = "the hover tools do not paint or take clicks in the headless window yet"]
 fn the_hover_tools_ask_for_their_actions() {
     let mut r = rig(3, false);
     let c = r.card(0);
@@ -341,7 +355,6 @@ fn the_hover_tools_ask_for_their_actions() {
 }
 
 #[test]
-#[ignore = "the hover tools do not paint or take clicks in the headless window yet"]
 fn dismiss_and_a_click_on_the_picture_close_or_open_the_capture() {
     let mut r = rig(2, false);
     let c = r.card(1);
@@ -405,12 +418,16 @@ fn pictures_of_the_deck_at_rest_and_hovered() {
         let mut r = rig(3, dark);
         r.s.app.screenshot(&format!("deck-entry-{theme}"));
         let c = r.card(2);
-        r.point((c.x0 + 60.) as f32, (c.y0 + 100.) as f32);
-        r.s.app.until("the hover fade finishes", |_| {
-            std::thread::sleep(std::time::Duration::from_millis(150));
-            true
-        });
-        r.point((c.x0 + 61.) as f32, (c.y0 + 100.) as f32);
-        r.s.app.screenshot(&format!("deck-hover-{theme}"));
+        let (x, y) = ((c.x0 + 150.) as f32, (c.y0 + 100.) as f32);
+        let rest = pixel(&r.s.app.screenshot("deck-probe"), x, y);
+        r.point(x, y);
+        std::thread::sleep(Duration::from_millis(150));
+        r.next_frame();
+        let hovered = r.s.app.screenshot(&format!("deck-hover-{theme}"));
+        let scrim = pixel(&hovered, x, y);
+        assert!(
+            (0..3).all(|i| u16::from(scrim[i]) + 40 < u16::from(rest[i])),
+            "the hover scrim darkens the picture: {rest:?} -> {scrim:?}"
+        );
     }
 }

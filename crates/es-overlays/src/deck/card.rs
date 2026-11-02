@@ -221,7 +221,8 @@ impl Card {
             .filter_map(|s| self.layout.get(s).filter(usable).map(|a| self.tool(s, a)));
         div()
             .absolute()
-            .size_full()
+            .inset_0()
+            .rounded(RADIUS)
             .bg(black(SCRIM))
             .child(
                 div()
@@ -247,7 +248,7 @@ impl RenderOnce for Card {
         let caption = |text: String| {
             div()
                 .absolute()
-                .size_full()
+                .inset_0()
                 .flex()
                 .items_center()
                 .justify_center()
@@ -320,7 +321,7 @@ impl RenderOnce for Card {
             .child(
                 div()
                     .absolute()
-                    .size_full()
+                    .inset_0()
                     .rounded(RADIUS)
                     .border(STROKE)
                     .border_color(white(0.2)),
