@@ -1,4 +1,4 @@
-use crate::effects::redaction_patch;
+use crate::effects::{gaussian, redaction_patch};
 use crate::text::skia_path;
 use es_anno::draw::{DrawItem, DrawList, SPOTLIGHT_DIM};
 use es_geom::{Affine, Cap, FillRule, Join, Rect, Rgba};
@@ -113,6 +113,7 @@ fn paint_items(items: &[DrawItem], target: &mut Pixmap, cx: &Cx, ts: Transform, 
             } => {
                 let paint = paint_for(*color, opacity);
                 if let Some(p) = skia_path(glyphs) {
+                    text_shadow(target, &p, ts, opacity);
                     target.fill_path(&p, &paint, tiny_skia::FillRule::Winding, ts, None);
                 }
                 for r in underline {
@@ -195,6 +196,45 @@ fn spotlight(holes: &[es_geom::BezPath], target: &mut Pixmap, cx: &Cx) {
         0,
         0,
         layer.as_ref(),
+        &PixmapPaint::default(),
+        Transform::identity(),
+        None,
+    );
+}
+
+const TEXT_SHADOW_ALPHA: f32 = 0.2;
+const TEXT_SHADOW_SIGMA: f64 = 1.4;
+const TEXT_SHADOW_DROP: f64 = 1.0;
+
+fn text_shadow(target: &mut Pixmap, glyphs: &Path, ts: Transform, opacity: f64) {
+    let scale = f64::from(ts.sx).hypot(f64::from(ts.ky));
+    let sigma = TEXT_SHADOW_SIGMA * scale;
+    let drop = (TEXT_SHADOW_DROP * scale) as f32;
+    let Some(b) = glyphs.bounds().transform(ts) else {
+        return;
+    };
+    let pad = (sigma * 3.0).ceil() as i64 + 2;
+    let (tw, th) = (i64::from(target.width()), i64::from(target.height()));
+    let x0 = (b.left().floor() as i64 - pad).clamp(0, tw);
+    let y0 = (b.top().floor() as i64 - pad).clamp(0, th);
+    let x1 = (b.right().ceil() as i64 + pad).clamp(0, tw);
+    let y1 = ((b.bottom().ceil() + drop) as i64 + pad).clamp(0, th);
+    if x1 <= x0 || y1 <= y0 {
+        return;
+    }
+    let Some(mut layer) = Pixmap::new((x1 - x0) as u32, (y1 - y0) as u32) else {
+        return;
+    };
+    let shadow = paint_for(Rgba::new(0.0, 0.0, 0.0, TEXT_SHADOW_ALPHA), opacity);
+    let shifted = ts.post_translate(-(x0 as f32), -(y0 as f32) + drop);
+    layer.fill_path(glyphs, &shadow, tiny_skia::FillRule::Winding, shifted, None);
+    let Some(blurred) = gaussian(&layer, sigma) else {
+        return;
+    };
+    target.draw_pixmap(
+        x0 as i32,
+        y0 as i32,
+        blurred.as_ref(),
         &PixmapPaint::default(),
         Transform::identity(),
         None,

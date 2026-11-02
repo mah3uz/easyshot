@@ -131,7 +131,7 @@ pub fn redaction_patch(
     })
 }
 
-fn crop_pixmap(src: &Pixmap, x: u32, y: u32, w: u32, h: u32) -> Option<Pixmap> {
+pub(crate) fn crop_pixmap(src: &Pixmap, x: u32, y: u32, w: u32, h: u32) -> Option<Pixmap> {
     let mut out = Pixmap::new(w, h)?;
     let sw = src.width() as usize;
     let row_len = w as usize * 4;
@@ -143,7 +143,7 @@ fn crop_pixmap(src: &Pixmap, x: u32, y: u32, w: u32, h: u32) -> Option<Pixmap> {
     Some(out)
 }
 
-fn gaussian(src: &Pixmap, sigma: f64) -> Option<Pixmap> {
+pub(crate) fn gaussian(src: &Pixmap, sigma: f64) -> Option<Pixmap> {
     let (w, h) = (src.width(), src.height());
     let input = BlurImage::borrow(src.data(), w, h, FastBlurChannels::Channels4);
     let mut output = BlurImageMut::alloc(w, h, FastBlurChannels::Channels4);

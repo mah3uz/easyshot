@@ -1,3 +1,4 @@
+use crate::beautify::wallpaper::draw_wallpaper;
 use es_model::{BackgroundColor, BackgroundGradient, BackgroundStyle, UnitPoint};
 use rayon::prelude::*;
 use tiny_skia::{Color, Pixmap};
@@ -242,10 +243,22 @@ pub fn draw_gradient(target: &mut Pixmap, gradient: &BackgroundGradient) {
 }
 
 pub fn draw_background(target: &mut Pixmap, style: &BackgroundStyle) {
+    draw_background_with(target, style, None);
+}
+
+/// A wallpaper style without a decodable image falls back to the first bundled gradient.
+pub fn draw_background_with(
+    target: &mut Pixmap,
+    style: &BackgroundStyle,
+    wallpaper: Option<&Pixmap>,
+) {
     match style {
         BackgroundStyle::Solid(c) => fill_solid(target, c),
         BackgroundStyle::Gradient(g) => draw_gradient(target, g),
-        BackgroundStyle::Wallpaper { .. } => target.fill(Color::BLACK),
+        BackgroundStyle::Wallpaper { .. } => match wallpaper {
+            Some(image) => draw_wallpaper(target, image),
+            None => draw_gradient(target, &PRESETS[0].style()),
+        },
         BackgroundStyle::None => {}
     }
 }

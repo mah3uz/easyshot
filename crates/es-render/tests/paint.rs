@@ -145,7 +145,7 @@ fn text_fills_glyphs_and_underline() {
     let out = paint(&DrawList { items: vec![item] }, &white(40, 40));
     assert_eq!(px(&out, 5, 5)[1], 0);
     assert_eq!(px(&out, 10, 15)[1], 0);
-    assert_eq!(px(&out, 10, 12)[1], 255);
+    assert_eq!(px(&out, 25, 12)[1], 255);
 }
 
 fn spot(holes: Vec<BezPath>) -> DrawList {

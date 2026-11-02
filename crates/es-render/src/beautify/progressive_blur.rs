@@ -1,10 +1,8 @@
-use es_model::{BlurMode, ProgressiveBlurSettings};
-use libblur::{
-    BlurImage, BlurImageMut, ConvolutionMode, EdgeMode, EdgeMode2D, FastBlurChannels,
-    GaussianBlurParams, ThreadingPolicy, gaussian_blur,
-};
+use crate::effects::{crop_pixmap, gaussian};
+use es_geom::Rect;
+use es_model::{BlurEdgeMode, BlurMode, ProgressiveBlurSettings};
 use rayon::prelude::*;
-use tiny_skia::Pixmap;
+use tiny_skia::{BlendMode, Pixmap, PixmapPaint, Transform};
 
 const FULL_LEVELS: usize = 6;
 
@@ -79,24 +77,6 @@ pub fn focus_mask(width: u32, height: u32, settings: &ProgressiveBlurSettings) -
     }
 }
 
-fn gaussian(src: &Pixmap, sigma: f64) -> Option<Pixmap> {
-    let (w, h) = (src.width(), src.height());
-    let input = BlurImage::borrow(src.data(), w, h, FastBlurChannels::Channels4);
-    let mut output = BlurImageMut::alloc(w, h, FastBlurChannels::Channels4);
-    gaussian_blur(
-        &input,
-        &mut output,
-        GaussianBlurParams::new_from_sigma(sigma.max(0.5)),
-        EdgeMode2D::new(EdgeMode::Clamp),
-        ThreadingPolicy::Adaptive,
-        ConvolutionMode::Exact,
-    )
-    .ok()?;
-    let mut out = Pixmap::new(w, h)?;
-    out.data_mut().copy_from_slice(output.projected());
-    Some(out)
-}
-
 fn blend(sharp: &Pixmap, blurred: &[Pixmap], mask: &FocusMask) -> Option<Pixmap> {
     if mask.width != sharp.width() || mask.height != sharp.height() {
         return None;
@@ -150,6 +130,45 @@ pub fn apply(canvas: &mut Pixmap, settings: &ProgressiveBlurSettings) {
     if let Some(out) = blend(canvas, &blurred, &mask) {
         *canvas = out;
     }
+}
+
+/// Bleed blurs the whole canvas; Clipped blurs only inside `image`, with the focus placed relative to it.
+pub fn apply_scoped(canvas: &mut Pixmap, settings: &ProgressiveBlurSettings, image: Rect) {
+    if settings.edge_mode == BlurEdgeMode::Bleed {
+        return apply(canvas, settings);
+    }
+    if !settings.is_active() {
+        return;
+    }
+    let (cw, ch) = (i64::from(canvas.width()), i64::from(canvas.height()));
+    let x0 = (image.x0.floor() as i64).clamp(0, cw);
+    let y0 = (image.y0.floor() as i64).clamp(0, ch);
+    let x1 = (image.x1.ceil() as i64).clamp(0, cw);
+    let y1 = (image.y1.ceil() as i64).clamp(0, ch);
+    if x1 <= x0 || y1 <= y0 {
+        return;
+    }
+    let Some(mut region) = crop_pixmap(
+        canvas,
+        x0 as u32,
+        y0 as u32,
+        (x1 - x0) as u32,
+        (y1 - y0) as u32,
+    ) else {
+        return;
+    };
+    apply(&mut region, settings);
+    canvas.draw_pixmap(
+        x0 as i32,
+        y0 as i32,
+        region.as_ref(),
+        &PixmapPaint {
+            blend_mode: BlendMode::Source,
+            ..PixmapPaint::default()
+        },
+        Transform::identity(),
+        None,
+    );
 }
 
 /// Blurs at a third, two thirds and all of the render radius.

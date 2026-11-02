@@ -1,9 +1,10 @@
 use crate::beautify::camera::{self, Quality};
 use crate::beautify::frame::{Frame, frame, paint_border, paint_image};
-use crate::beautify::gradients::draw_background;
+use crate::beautify::gradients::draw_background_with;
 use crate::beautify::layout::{Layout, layout};
 use crate::beautify::progressive_blur;
 use crate::beautify::shadow::{paint_shadow, shadow_layer};
+use crate::beautify::watermark;
 use crate::paint::paint_draw_list;
 use es_anno::draw::{DrawItem, DrawList};
 use es_geom::Affine;
@@ -17,6 +18,15 @@ pub fn compose(
     annotations: &DrawList,
     settings: &BackgroundSettings,
 ) -> Option<Pixmap> {
+    compose_with_wallpaper(image, annotations, settings, None)
+}
+
+pub fn compose_with_wallpaper(
+    image: &Pixmap,
+    annotations: &DrawList,
+    settings: &BackgroundSettings,
+    wallpaper: Option<&Pixmap>,
+) -> Option<Pixmap> {
     let lay = layout(
         f64::from(image.width()),
         f64::from(image.height()),
@@ -25,7 +35,7 @@ pub fn compose(
     .pixel_aligned();
     let (width, height) = lay.canvas_pixels();
     let mut canvas = Pixmap::new(width, height)?;
-    draw_background(&mut canvas, &settings.style);
+    draw_background_with(&mut canvas, &settings.style, wallpaper);
 
     let camera = settings.camera.has_effect();
     let mut staged = if camera {
@@ -47,8 +57,8 @@ pub fn compose(
         );
     }
 
-    apply_progressive_blur(&mut canvas, settings);
-    paint_watermark(&mut canvas, settings);
+    apply_progressive_blur(&mut canvas, settings, &lay);
+    watermark::paint(&mut canvas, &settings.watermark);
     Some(canvas)
 }
 
@@ -123,8 +133,21 @@ fn project_camera_layer(layer: Pixmap, lay: &Layout, settings: &BackgroundSettin
     camera::project(layer, lay, &settings.camera, Quality::Full)
 }
 
-fn apply_progressive_blur(canvas: &mut Pixmap, settings: &BackgroundSettings) {
-    progressive_blur::apply(canvas, &settings.progressive_blur);
+fn apply_progressive_blur(canvas: &mut Pixmap, settings: &BackgroundSettings, lay: &Layout) {
+    let mut image = lay.image;
+    if settings.camera.has_effect() {
+        let size = (f64::from(canvas.width()), f64::from(canvas.height()));
+        if let Some(p) = camera::projection(lay.card, lay.image, size, &settings.camera) {
+            let (xs, ys): (Vec<f64>, Vec<f64>) = p.quad.iter().copied().unzip();
+            let fold =
+                |v: &[f64], init: f64, f: fn(f64, f64) -> f64| v.iter().copied().fold(init, f);
+            image = es_geom::Rect::new(
+                fold(&xs, f64::INFINITY, f64::min),
+                fold(&ys, f64::INFINITY, f64::min),
+                fold(&xs, f64::NEG_INFINITY, f64::max),
+                fold(&ys, f64::NEG_INFINITY, f64::max),
+            );
+        }
+    }
+    progressive_blur::apply_scoped(canvas, &settings.progressive_blur, image);
 }
-
-fn paint_watermark(_canvas: &mut Pixmap, _settings: &BackgroundSettings) {}
