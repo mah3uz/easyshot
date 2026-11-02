@@ -18,9 +18,11 @@ updated as parts are built and run, with the compositor and date.
 | GPUI layer-surface margin, custom cursors at scale 1 and 1.5, drag icon (`es-ui` cursors example) | headless sway 1.12 | 2026-11-01 |
 | Wayland probe, output capture at scale 1 and 1.5 (ext-image-copy-capture and wlr-screencopy give identical pixels), output hot-plug events, window capture (`es-wayland`) | headless sway 1.12 | 2026-11-02 |
 | Window list with open, focus and close events; clipboard serving PNG, text and uri-list over ext and wlr data-control (read back with `wl-paste`); virtual-pointer scroll; cursor session positions (`es-wayland`) | headless sway 1.12 | 2026-11-02 |
+| Backend detection picks ext-image-copy-capture; sway window rects from `GET_TREE` match the captured window size; the editor `for_window` rule floats the window (`es-backend`) | headless sway 1.12 | 2026-11-02 |
 | Headless GPUI windows (hello, component gallery) | no compositor (GPUI headless renderer) | 2026-11-02 |
 
-Not yet run anywhere: Hyprland, niri, any other compositor; rotated outputs; 10-bit
+Not yet run anywhere: Hyprland and niri (their backend modules are tested only against
+recorded replies and fake sockets), any other compositor; rotated outputs; 10-bit
 formats; wlr-screencopy older than version 3.
 
 ## 2. Design rules
