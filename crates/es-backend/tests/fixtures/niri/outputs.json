@@ -1,0 +1,16 @@
+{
+  "DP-1": {
+    "name": "DP-1", "make": "Dell", "model": "U2720Q", "serial": null,
+    "physical_size": [600, 340],
+    "modes": [{"width": 1920, "height": 1080, "refresh_rate": 60000, "is_preferred": true}],
+    "current_mode": 0, "is_custom_mode": false, "vrr_supported": false, "vrr_enabled": false,
+    "logical": {"x": 0, "y": 0, "width": 1280, "height": 720, "scale": 1.5, "transform": "Normal"}
+  },
+  "HDMI-A-1": {
+    "name": "HDMI-A-1", "make": "LG", "model": "27UL500", "serial": null,
+    "physical_size": [600, 340],
+    "modes": [{"width": 1920, "height": 1080, "refresh_rate": 60000, "is_preferred": true}],
+    "current_mode": 0, "is_custom_mode": false, "vrr_supported": false, "vrr_enabled": false,
+    "logical": {"x": 1280, "y": 0, "width": 1920, "height": 1080, "scale": 1.0, "transform": "Normal"}
+  }
+}

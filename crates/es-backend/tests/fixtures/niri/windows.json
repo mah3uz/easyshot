@@ -1,0 +1,20 @@
+[
+  {"id": 10, "title": "window 10", "app_id": "app-10", "pid": 1010, "workspace_id": 1, "is_focused": false, "is_floating": false, "is_urgent": false,
+   "layout": {"pos_in_scrolling_layout": [1, 1], "tile_size": [800.0, 720.0], "window_size": [796, 716], "tile_pos_in_workspace_view": [-400.0, 0.0], "window_offset_in_tile": [2.0, 2.0]},
+   "focus_timestamp": {"secs": 300, "nanos": 0}},
+  {"id": 11, "title": "window 11", "app_id": "app-11", "pid": 1011, "workspace_id": 1, "is_focused": true, "is_floating": false, "is_urgent": false,
+   "layout": {"pos_in_scrolling_layout": [2, 1], "tile_size": [800.0, 720.0], "window_size": [796, 716], "tile_pos_in_workspace_view": [400.0, 0.0], "window_offset_in_tile": [2.0, 2.0]},
+   "focus_timestamp": {"secs": 500, "nanos": 0}},
+  {"id": 12, "title": "window 12", "app_id": "app-12", "pid": 1012, "workspace_id": 1, "is_focused": false, "is_floating": false, "is_urgent": false,
+   "layout": {"pos_in_scrolling_layout": [3, 1], "tile_size": [800.0, 720.0], "window_size": [796, 716], "tile_pos_in_workspace_view": [1200.0, 0.0], "window_offset_in_tile": [2.0, 2.0]},
+   "focus_timestamp": {"secs": 200, "nanos": 0}},
+  {"id": 13, "title": "window 13", "app_id": "app-13", "pid": 1013, "workspace_id": 1, "is_focused": false, "is_floating": false, "is_urgent": false,
+   "layout": {"pos_in_scrolling_layout": [4, 1], "tile_size": [800.0, 720.0], "window_size": [796, 716], "tile_pos_in_workspace_view": null, "window_offset_in_tile": [2.0, 2.0]},
+   "focus_timestamp": {"secs": 100, "nanos": 0}},
+  {"id": 14, "title": "window 14", "app_id": "app-14", "pid": 1014, "workspace_id": 2, "is_focused": false, "is_floating": false, "is_urgent": false,
+   "layout": {"pos_in_scrolling_layout": [1, 1], "tile_size": [1280.0, 720.0], "window_size": [1280, 720], "tile_pos_in_workspace_view": [0.0, 0.0], "window_offset_in_tile": [0.0, 0.0]},
+   "focus_timestamp": {"secs": 50, "nanos": 0}},
+  {"id": 15, "title": "window 15", "app_id": "app-15", "pid": 1015, "workspace_id": 3, "is_focused": false, "is_floating": true, "is_urgent": false,
+   "layout": {"pos_in_scrolling_layout": null, "tile_size": [640.0, 480.0], "window_size": [640, 480], "tile_pos_in_workspace_view": [100.5, 100.0], "window_offset_in_tile": [0.0, 0.0]},
+   "focus_timestamp": {"secs": 400, "nanos": 0}}
+]
