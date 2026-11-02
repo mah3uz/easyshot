@@ -18,3 +18,4 @@ smallvec.workspace = true
 serde.workspace = true
 uuid.workspace = true
 thiserror.workspace = true
+i_overlay.workspace = true

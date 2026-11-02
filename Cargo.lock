@@ -2005,6 +2005,7 @@ dependencies = [
  "es-geom",
  "es-model",
  "es-text",
+ "i_overlay",
  "kurbo 0.13.1",
  "serde",
  "smallvec",

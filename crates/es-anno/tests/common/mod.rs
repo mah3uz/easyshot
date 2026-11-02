@@ -175,3 +175,29 @@ pub fn one_undo_entry(ed: &mut Editor, before: &Snapshot) {
     ed.redo();
     assert_eq!(ed.doc().snapshot(), after);
 }
+
+use es_anno::{GlyphOutline, GlyphOutliner};
+use es_geom::{BezPath, Rect};
+
+/// One solid box per character, `font_size / 2` wide and `font_size` tall, from the origin.
+pub struct FakeOutliner;
+
+impl GlyphOutliner for FakeOutliner {
+    fn outline(&self, p: &TextProps) -> GlyphOutline {
+        let mut glyphs = BezPath::new();
+        let w = p.font_size / 2.0;
+        for (i, _) in p.text.chars().enumerate() {
+            let x = i as f64 * w;
+            glyphs.move_to((x, 0.0));
+            glyphs.line_to((x + w, 0.0));
+            glyphs.line_to((x + w, p.font_size));
+            glyphs.line_to((x, p.font_size));
+            glyphs.close_path();
+        }
+        let width = p.text.chars().count() as f64 * w;
+        GlyphOutline {
+            glyphs,
+            underline: vec![Rect::new(0.0, p.font_size, width, p.font_size + 2.0)],
+        }
+    }
+}

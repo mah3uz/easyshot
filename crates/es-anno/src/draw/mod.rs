@@ -1,5 +1,12 @@
 use es_geom::{Affine, BezPath, Cap, FillRule, Join, Rect, Rgba};
 
+mod build;
+mod shapes;
+
+pub use build::{
+    BuildContext, GlyphOutline, GlyphOutliner, SPOTLIGHT_DIM, build_draw_list, draw_items,
+};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RedactionKind {
     Blur,
