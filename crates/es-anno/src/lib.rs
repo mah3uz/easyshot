@@ -3,11 +3,13 @@ pub mod document;
 pub mod draw;
 pub mod editor;
 pub mod style;
+pub mod text;
 
 pub use document::{Document, Snapshot, TextMeasure};
 pub use draw::{BuildContext, DrawItem, DrawList, GlyphOutline, GlyphOutliner, build_draw_list};
 pub use editor::{Editor, GestureId, Handle, SelectionBounds, Viewport};
 pub use style::{CurrentStyle, StylePatch};
+pub use text::BundledText;
 
 use es_geom::Point;
 use smallvec::SmallVec;
