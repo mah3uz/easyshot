@@ -8,5 +8,5 @@ retries = 1
 sway-seat = { max-threads = 1 }
 
 [[profile.default.overrides]]
-filter = 'test(/^platform_daemon_/)'
+filter = 'test(/(^|::)platform_/)'
 test-group = 'sway-seat'
