@@ -29,6 +29,8 @@ and nowhere else.
   line each. Internals, tests and docs are left out.
 - `README.md` — the front page: a summary with links. Change it only when a headline
   feature changes.
+- `docs/site/` — the website and how-to guide (`docs/site/README.md` says how it is built).
+  It describes what `docs/MANUAL.md` says: a change a user would notice updates both.
 - `crates/<name>/README.md` — one crate's responsibility and what it may and must not
   depend on.
 
