@@ -23,7 +23,8 @@ updated as parts are built and run, with the compositor and date.
 | Region selector on a frozen output at scale 1.5: a drag returns an edge-rounded crop of the exact physical size (`es-overlays` capture) | headless sway 1.12 | 2026-11-02 |
 | Window mode over a floating window at scale 1.5 returns its 1200×900 frame; the colour picker returns the pixel under the pointer, matching a grim sample (`es-overlays` capture) | headless sway 1.12 | 2026-11-02 |
 | Scrolling capture of a terminal scrolled by wheel input: the stitched 948×4230 image holds each visible line once, in order (`es-overlays` scroll, `es-scroll`); automatic scrolling not run on real content | headless sway 1.12 | 2026-11-02 |
-| Deck of three cards at scale 1.5 with hover tools painted and timers paused while hovered; a pin opens centred and resizes from its held top-left corner; dragging a pin does not follow the pointer yet (`es-overlays` deck, pin) | headless sway 1.12 | 2026-11-02 |
+| Deck of three cards at scale 1.5 with hover tools painted, timers paused while hovered and resumed when the pointer leaves for a pin; a pin opens centred, resizes from its held top-left corner and follows a 150×100 drag exactly, with rounded corners (`es-overlays` deck, pin) | headless sway 1.12 | 2026-11-02 |
+| Recording control bar with a fake recorder at scale 1.5 is placed below the recorded area, or above it when there is no room below (`es-overlays` record) | headless sway 1.12 | 2026-11-02 |
 | Headless GPUI windows (hello, component gallery) | no compositor (GPUI headless renderer) | 2026-11-02 |
 
 Not yet run anywhere: Hyprland and niri (their backend modules are tested only against
