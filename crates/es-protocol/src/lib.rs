@@ -1,3 +1,11 @@
+mod catalogue;
+mod keys;
+mod route;
+
+pub use catalogue::{CATALOGUE, entry_by_id, entry_for_route};
+pub use keys::{Modifiers, Trigger, key_label, key_recording_name, key_spoken_name};
+pub use route::PATH_ARG;
+
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
@@ -81,17 +89,6 @@ pub enum ArgValue {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct RouteArgs(pub BTreeMap<String, ArgValue>);
 
-impl Route {
-    pub fn parse(_route: &str, _args: &RouteArgs) -> Result<Route> {
-        todo!()
-    }
-
-    /// Accepts exactly eight routes, with no arguments.
-    pub fn from_url(_url: &str) -> Result<Route> {
-        todo!()
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum JobStatus {
     Ok,
@@ -129,8 +126,6 @@ pub struct ShortcutEntry {
     pub default_trigger: Option<&'static str>,
     pub target: Target,
 }
-
-pub static CATALOGUE: &[ShortcutEntry] = &[];
 
 #[cfg(test)]
 mod tests {
