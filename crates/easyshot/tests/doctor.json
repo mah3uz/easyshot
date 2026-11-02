@@ -1,0 +1,235 @@
+{
+  "compositor": {
+    "name": "",
+    "version": null
+  },
+  "providers": [
+    {
+      "capability": "capture",
+      "chosen": null,
+      "forced": null,
+      "rejected": [
+        {
+          "provider": "ext-image-copy",
+          "reason": "not detected"
+        },
+        {
+          "provider": "wlr-screencopy",
+          "reason": "not detected"
+        },
+        {
+          "provider": "portal-screenshot",
+          "reason": "not detected"
+        }
+      ]
+    },
+    {
+      "capability": "windows",
+      "chosen": null,
+      "forced": null,
+      "rejected": [
+        {
+          "provider": "hyprland",
+          "reason": "not detected"
+        },
+        {
+          "provider": "wlroots",
+          "reason": "not detected"
+        },
+        {
+          "provider": "niri",
+          "reason": "not detected"
+        },
+        {
+          "provider": "foreign-toplevel",
+          "reason": "not detected"
+        }
+      ]
+    },
+    {
+      "capability": "pointer",
+      "chosen": null,
+      "forced": null,
+      "rejected": [
+        {
+          "provider": "hyprland",
+          "reason": "not detected"
+        },
+        {
+          "provider": "wlroots",
+          "reason": "not detected"
+        },
+        {
+          "provider": "niri",
+          "reason": "not detected"
+        }
+      ]
+    },
+    {
+      "capability": "rules",
+      "chosen": null,
+      "forced": null,
+      "rejected": [
+        {
+          "provider": "hyprland",
+          "reason": "not detected"
+        },
+        {
+          "provider": "wlroots",
+          "reason": "not detected"
+        }
+      ]
+    },
+    {
+      "capability": "binds",
+      "chosen": null,
+      "forced": null,
+      "rejected": [
+        {
+          "provider": "hyprland",
+          "reason": "not detected"
+        },
+        {
+          "provider": "wlroots",
+          "reason": "not detected"
+        },
+        {
+          "provider": "niri",
+          "reason": "not detected"
+        }
+      ]
+    },
+    {
+      "capability": "clipboard",
+      "chosen": null,
+      "forced": null,
+      "rejected": [
+        {
+          "provider": "data-control",
+          "reason": "not detected"
+        }
+      ]
+    },
+    {
+      "capability": "virtual_input",
+      "chosen": null,
+      "forced": null,
+      "rejected": [
+        {
+          "provider": "virtual-pointer",
+          "reason": "not detected"
+        }
+      ]
+    },
+    {
+      "capability": "cursor",
+      "chosen": null,
+      "forced": null,
+      "rejected": [
+        {
+          "provider": "hyprland",
+          "reason": "not detected"
+        },
+        {
+          "provider": "cursor-session",
+          "reason": "not detected"
+        }
+      ]
+    },
+    {
+      "capability": "shortcuts",
+      "chosen": "user-binds",
+      "forced": null,
+      "rejected": [
+        {
+          "provider": "portal-global-shortcuts",
+          "reason": "not detected"
+        }
+      ]
+    },
+    {
+      "capability": "tray",
+      "chosen": null,
+      "forced": null,
+      "rejected": [
+        {
+          "provider": "status-notifier",
+          "reason": "not detected"
+        }
+      ]
+    },
+    {
+      "capability": "notifier",
+      "chosen": null,
+      "forced": null,
+      "rejected": [
+        {
+          "provider": "freedesktop-notifications",
+          "reason": "not detected"
+        }
+      ]
+    },
+    {
+      "capability": "files",
+      "chosen": null,
+      "forced": null,
+      "rejected": [
+        {
+          "provider": "portal-file-chooser",
+          "reason": "not detected"
+        }
+      ]
+    },
+    {
+      "capability": "appearance",
+      "chosen": null,
+      "forced": null,
+      "rejected": [
+        {
+          "provider": "portal-settings",
+          "reason": "not detected"
+        }
+      ]
+    },
+    {
+      "capability": "recorders",
+      "chosen": null,
+      "forced": null,
+      "rejected": [
+        {
+          "provider": "portal-recorder",
+          "reason": "not detected"
+        }
+      ]
+    }
+  ],
+  "caps": [],
+  "missing_tools": [
+    {
+      "tool": "gpu-screen-recorder",
+      "package": "gpu-screen-recorder"
+    },
+    {
+      "tool": "wf-recorder",
+      "package": "wf-recorder"
+    },
+    {
+      "tool": "tesseract",
+      "package": "tesseract"
+    },
+    {
+      "tool": "ffmpeg",
+      "package": "ffmpeg"
+    }
+  ],
+  "errors": [],
+  "source": "standalone",
+  "wayland_globals": {},
+  "portals": {
+    "FileChooser": false,
+    "Settings": false,
+    "GlobalShortcuts": false,
+    "ScreenCast": false,
+    "Screenshot": false
+  }
+}

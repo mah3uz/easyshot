@@ -1,4 +1,5 @@
 pub mod atomic;
+pub mod bundle;
 pub mod commit;
 pub mod config;
 pub mod datefmt;

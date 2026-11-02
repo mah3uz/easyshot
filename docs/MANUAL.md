@@ -173,20 +173,27 @@ Editor settings that exist only in the config file:
 ## Command line
 
 `easyshot <command>` sends a command to the daemon and waits for it to finish. Press
-Ctrl+C to cancel. If the daemon disappears, the command exits with code 3. `easyshot open
-<url>` handles `easyshot://` links.
+Ctrl+C to cancel. If the daemon is not running, easyshot tries to start it; if that fails
+it tells you to run `easyshot daemon` or `systemctl --user start easyshot.service`.
+`easyshot open <url>` handles `easyshot://` links; `easyshot open <file>` opens a PNG or
+JPEG in the editor.
+
+Exit codes: 0 done, 1 error, 2 cancelled, 3 the daemon is not running or went away.
 
 Commands:
 
-- capture: `capture/region`, `capture/fullscreen`, `capture/window`, `capture/previous`,
-  `capture/timed`, `capture/region-copy`, `capture/region-save`, `capture/region-annotate`,
-  `capture/region-pin`, `capture/scroll`
-- `ocr`, `ocr/single-line`, `color-picker`
-- `record`, `record/area`, `record/stop`, `record/pause`, `record/restart`,
-  `record/discard`
-- `capture-bar`, `gallery`, `restore-last`, `pin-last`, `unpin-all`, `open <path>`,
-  `edit-clipboard`, `settings[/<page>]`, `deck/toggle`, `deck/save-all`, `deck/close-all`,
-  `quit`
+- `capture region|fullscreen|window|previous|timed|scroll`; `capture region` also takes one
+  of `--copy`, `--save`, `--annotate`, `--pin`
+- `ocr [--single-line]`, `color-picker`
+- `record [area|stop|pause|restart|discard]`
+- `capture-bar`, `gallery`, `restore-last`, `pin-last`, `unpin-all`, `edit-clipboard`,
+  `settings [page]`, `deck toggle|save-all|close-all`, `quit`
+- `doctor [--json] [--bundle]` asks the daemon, or probes by itself when it is not running.
+  It lists each capability's chosen and rejected providers with the reason, the Wayland
+  globals, the portal interfaces and the missing tools. `--bundle` writes
+  `easyshot-doctor-<time>.tar` to the current directory with the report and your logs, and
+  no images.
+- `daemon` runs the daemon in the foreground.
 
 `easyshot://` links accept only these eight, with no arguments: `capture/region`,
 `capture/fullscreen`, `capture/window`, `capture/scroll`, `record`, `ocr`, `color-picker`,

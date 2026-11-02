@@ -21,13 +21,13 @@ es-store.workspace = true
 es-desktop.workspace = true
 es-record.workspace = true
 es-backend.workspace = true
-es-ui.workspace = true
-es-app.workspace = true
-es-editor.workspace = true
-es-overlays.workspace = true
-es-shell.workspace = true
-gpui.workspace = true
-gpui_platform.workspace = true
+es-ui = { workspace = true, optional = true }
+es-app = { workspace = true, optional = true }
+es-editor = { workspace = true, optional = true }
+es-overlays = { workspace = true, optional = true }
+es-shell = { workspace = true, optional = true }
+gpui = { workspace = true, optional = true }
+gpui_platform = { workspace = true, optional = true }
 clap.workspace = true
 anyhow.workspace = true
 tokio.workspace = true
@@ -35,20 +35,26 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 tracing-appender.workspace = true
 serde_json.workspace = true
+futures.workspace = true
+ctrlc.workspace = true
+async-channel.workspace = true
 
 [dev-dependencies]
 gpui = { workspace = true, features = ["test-support", "bench-support"] }
 gpui_platform = { workspace = true, features = ["test-support", "bench-support"] }
 es-testkit.workspace = true
+es-desktop = { workspace = true, features = ["test-hooks"] }
+tempfile.workspace = true
 
 [features]
-default = ["es-backend/hyprland", "es-backend/wlroots", "es-backend/niri"]
+gui = ["dep:gpui", "dep:gpui_platform", "dep:es-ui", "dep:es-app", "dep:es-editor", "dep:es-overlays", "dep:es-shell"]
+default = ["gui", "es-backend/hyprland", "es-backend/wlroots", "es-backend/niri"]
 hyprland = ["es-backend/hyprland"]
 wlroots = ["es-backend/wlroots"]
 niri = ["es-backend/niri"]
-player = ["es-overlays/player"]
+player = ["es-overlays?/player"]
 portal-recorder = ["es-record/portal-recorder"]
 sound = ["es-desktop/sound"]
 evdev-input = ["es-record/evdev-input"]
-test-hooks = ["es-backend/test-hooks", "es-app/test-hooks"]
-dev-inspector = ["es-ui/dev-inspector"]
+test-hooks = ["es-backend/test-hooks", "es-app?/test-hooks"]
+dev-inspector = ["es-ui?/dev-inspector"]

@@ -1,4 +1,103 @@
 mod cli;
+#[cfg(feature = "gui")]
 mod daemon;
+mod doctor;
+mod run;
+#[cfg(test)]
+mod run_tests;
 
-fn main() {}
+use clap::{CommandFactory, FromArgMatches};
+use cli::{Cli, Request};
+use std::process::ExitCode;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+const FEATURES: &[(&str, bool)] = &[
+    ("gui", cfg!(feature = "gui")),
+    ("hyprland", cfg!(feature = "hyprland")),
+    ("wlroots", cfg!(feature = "wlroots")),
+    ("niri", cfg!(feature = "niri")),
+    ("player", cfg!(feature = "player")),
+    ("portal-recorder", cfg!(feature = "portal-recorder")),
+    ("sound", cfg!(feature = "sound")),
+    ("evdev-input", cfg!(feature = "evdev-input")),
+];
+
+fn long_version() -> &'static str {
+    let enabled: Vec<_> = FEATURES
+        .iter()
+        .filter(|(_, on)| *on)
+        .map(|(n, _)| *n)
+        .collect();
+    Box::leak(
+        format!(
+            "{}\nfeatures: {}",
+            env!("CARGO_PKG_VERSION"),
+            enabled.join(", ")
+        )
+        .into_boxed_str(),
+    )
+}
+
+fn main() -> ExitCode {
+    let matches = Cli::command().long_version(long_version()).get_matches();
+    let cli = match Cli::from_arg_matches(&matches) {
+        Ok(cli) => cli,
+        Err(e) => e.exit(),
+    };
+    let request = match cli.request() {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("easyshot: {e}");
+            return ExitCode::from(run::EXIT_ERROR as u8);
+        }
+    };
+    if request == Request::Daemon {
+        return daemon_main();
+    }
+    let (cancel_tx, cancel_rx) = async_channel::bounded::<()>(1);
+    let _ = ctrlc::set_handler(move || {
+        let _ = cancel_tx.try_send(());
+    });
+    let env = run::Env {
+        endpoint: es_desktop::dbus::Endpoint::session(),
+        spawn_daemon: cfg!(feature = "gui"),
+        wait: Duration::from_secs(3),
+        standalone_report: Box::new(|| {
+            let probe = es_backend::Probe::gather()?;
+            Ok(doctor::standalone_report(&probe))
+        }),
+        log_dir: es_store::Paths::from_xdg().ok().map(|p| p.log_dir()),
+        bundle_dir: std::env::current_dir().unwrap_or_default(),
+        now: SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs()),
+    };
+    let cancel = async move {
+        let _ = cancel_rx.recv().await;
+    };
+    let code = run::execute(
+        request,
+        &env,
+        cancel,
+        &mut std::io::stdout(),
+        &mut std::io::stderr(),
+    );
+    ExitCode::from(code as u8)
+}
+
+#[cfg(feature = "gui")]
+fn daemon_main() -> ExitCode {
+    match daemon::run(daemon::DaemonArgs) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(e) => {
+            eprintln!("easyshot: {e:#}");
+            ExitCode::from(run::EXIT_ERROR as u8)
+        }
+    }
+}
+
+#[cfg(not(feature = "gui"))]
+fn daemon_main() -> ExitCode {
+    eprintln!("easyshot: this build has no GUI; rebuild with the `gui` feature to run the daemon");
+    ExitCode::from(run::EXIT_ERROR as u8)
+}
