@@ -1,8 +1,10 @@
-use es_model::BackgroundSettings;
+use crate::inspector::background::wallpaper_cache::wallpaper_bytes;
+use es_model::{BackgroundSettings, BackgroundStyle};
 use es_render::beautify::frame::{frame, paint_border};
-use es_render::beautify::gradients::draw_background;
+use es_render::beautify::gradients::draw_background_with;
 use es_render::beautify::layout;
 use es_render::beautify::shadow::{paint_shadow, shadow_layer};
+use es_render::beautify::wallpaper::decode_wallpaper;
 use gpui::RenderImage;
 use image::{Frame, RgbaImage};
 use std::sync::Arc;
@@ -54,7 +56,13 @@ pub fn render(key: &UnderlayKey) -> Option<Pixmap> {
     let (cw, ch) = lay.canvas_pixels();
     let mut target = Pixmap::new(cw, ch)?;
     let s = &key.settings;
-    draw_background(&mut target, &s.style);
+    let wallpaper = match &s.style {
+        BackgroundStyle::Wallpaper { path } => {
+            wallpaper_bytes(path).and_then(|b| decode_wallpaper(&b))
+        }
+        _ => None,
+    };
+    draw_background_with(&mut target, &s.style, wallpaper.as_ref());
     let f = frame(&lay);
     if s.is_enabled() || s.camera.has_effect() {
         let edge = lay.card.width().min(lay.card.height());

@@ -224,6 +224,7 @@ editor-bg-wallpaper-recent = Recent
 editor-bg-wallpaper-system = Built-in
 editor-bg-wallpaper-add-help = Choose wallpaper
 editor-bg-wallpaper-panel-title = Choose Background Wallpaper
+editor-bg-wallpaper-missing = { $name }, missing
 
 ## Inspector: camera
 editor-camera-angle = Camera angle

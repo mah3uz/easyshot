@@ -62,6 +62,10 @@ impl Paths {
         self.data.join("library")
     }
 
+    pub fn wallpapers_dir(&self) -> PathBuf {
+        self.data.join("wallpapers")
+    }
+
     pub fn history_index(&self) -> PathBuf {
         self.library_dir().join("index.json")
     }

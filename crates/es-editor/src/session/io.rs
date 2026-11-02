@@ -1,3 +1,4 @@
+use crate::inspector::background::wallpaper_cache::wallpaper_bytes;
 use crate::session::doc::{DocEvent, DocModel};
 use crate::session::journal::{self, Entry};
 use crate::strings::fl;
@@ -6,7 +7,7 @@ use es_anno::{BuildContext, DrawList, build_draw_list};
 use es_app::platform_ui::ClipboardSink;
 use es_app::services::Services;
 use es_model::platform::ClipItem;
-use es_model::{AnnotationDocument, BackgroundSettings, Config};
+use es_model::{AnnotationDocument, BackgroundSettings, BackgroundStyle, Config};
 use es_render::encode::OutputFormat;
 use es_render::export::{Purpose, export};
 use es_store::atomic::write_atomic;
@@ -109,7 +110,12 @@ impl Frame {
                 quality_percent: jpeg_quality_percent(quality),
             },
         };
-        export(&base, &self.draw, &self.look, None, output).map_err(|e| e.to_string())
+        let wallpaper = match &self.look.style {
+            BackgroundStyle::Wallpaper { path } => wallpaper_bytes(path),
+            _ => None,
+        };
+        export(&base, &self.draw, &self.look, wallpaper.as_deref(), output)
+            .map_err(|e| e.to_string())
     }
 }
 

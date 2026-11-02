@@ -86,6 +86,11 @@ impl Inspector {
             }
         }
         let presets = cx.new(|cx| PresetsBar::new(look.clone(), cx));
+        let mut bodies: [Option<AnyView>; SECTIONS] = Default::default();
+        bodies[index(Section::Background)] = Some(
+            cx.new(|cx| background::BackgroundBody::new(look.clone(), cx))
+                .into(),
+        );
         let subscriptions = vec![
             LookModel::drive_canvas(&look, canvas, cx),
             cx.observe(&look, |_, _, cx| cx.notify()),

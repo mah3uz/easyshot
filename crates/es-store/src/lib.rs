@@ -16,6 +16,7 @@ pub mod retention;
 pub mod state;
 pub mod temp;
 pub mod thumbs;
+pub mod wallpapers;
 pub mod watch;
 
 pub use commit::{Commit, Reopened, commit, reopen};

@@ -236,3 +236,52 @@ fn undoing_back_to_the_saved_state_deletes_the_journal() {
     assert!(!f.dirty());
     assert!(f.journal_files().is_empty());
 }
+
+fn export_with_wallpaper(
+    f: &mut shell::Fixture,
+    wallpaper: &std::path::Path,
+    name: &str,
+) -> ([u8; 4], es_model::BackgroundSettings) {
+    let look = es_model::BackgroundSettings {
+        style: es_model::BackgroundStyle::Wallpaper {
+            path: wallpaper.to_path_buf(),
+        },
+        ..es_model::BackgroundSettings::default()
+    };
+    let model = f
+        .editor
+        .read_with(&f.app.cx, |w, _| w.session().unwrap().look.clone());
+    f.app
+        .cx
+        .update(|cx| model.update(cx, |l, cx| l.set(look.clone(), cx)));
+    let target = f.dir.path().join(name);
+    *f.chooser.answer.borrow_mut() = Some(target.clone());
+    f.request(Job::Export);
+    let exported = image::open(&target).unwrap().into_rgba8();
+    (exported.get_pixel(2, 2).0, look)
+}
+
+#[test]
+fn an_export_draws_its_wallpaper_like_the_canvas_does() {
+    use es_editor::canvas::underlay::{UnderlayKey, render};
+
+    let mut f = launch();
+    let red = f.dir.path().join("red.png");
+    image::RgbaImage::from_pixel(64, 64, image::Rgba([230, 20, 20, 255]))
+        .save(&red)
+        .unwrap();
+
+    let (with, look) = export_with_wallpaper(&mut f, &red, "with.png");
+    assert_eq!(with, [230, 20, 20, 255], "the wallpaper fills the margin");
+    let key = UnderlayKey::new(&look, (1200, 640), 1300.0, 1.0).unwrap();
+    let c = render(&key).unwrap().pixel(2, 2).unwrap();
+    assert_eq!(
+        [c.red(), c.green(), c.blue(), c.alpha()],
+        with,
+        "export and canvas draw the same wallpaper"
+    );
+
+    let gone = f.dir.path().join("gone.png");
+    let (without, _) = export_with_wallpaper(&mut f, &gone, "without.png");
+    assert_ne!(without, with, "a missing wallpaper is not drawn");
+}
