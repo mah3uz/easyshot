@@ -1,8 +1,9 @@
 use crate::{Error, Result};
-use rustix::process::{Pid, Signal, kill_process};
-use std::collections::HashMap;
+use rustix::process::{Pid, Signal, kill_process, kill_process_group};
+use std::collections::{HashMap, VecDeque};
 use std::ffi::OsStr;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Write};
+use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::process::{Command, ExitStatus, Stdio};
 use std::sync::{Arc, Condvar, Mutex};
@@ -69,20 +70,60 @@ struct Shared {
     exited: Condvar,
 }
 
+const KEPT_LINES: usize = 50;
+const MAX_LINE: usize = 4096;
+
+// A death signal is dropped on exec of a file-capability binary; the watcher outlives us instead.
+const WATCHER: &str = "trap '' INT; if ! read -r _; then kill -INT 0; sleep 10; kill -KILL 0; fi";
+
+type Lines = Arc<Mutex<VecDeque<String>>>;
+
 pub struct Helper {
     pid: u32,
     shared: Arc<Shared>,
-    stdout: Arc<Mutex<Vec<String>>>,
-    stderr: Arc<Mutex<Vec<String>>>,
+    stdout: Lines,
+    stderr: Lines,
     threads: Vec<JoinHandle<()>>,
 }
 
-fn pump(r: impl std::io::Read + Send + 'static, sink: Arc<Mutex<Vec<String>>>) -> JoinHandle<()> {
+fn snapshot(lines: &Lines) -> Vec<String> {
+    lines
+        .lock()
+        .map(|v| v.iter().cloned().collect())
+        .unwrap_or_default()
+}
+
+fn push_line(sink: &Lines, line: &[u8]) {
+    if let Ok(mut v) = sink.lock() {
+        if v.len() == KEPT_LINES {
+            v.pop_front();
+        }
+        v.push_back(String::from_utf8_lossy(line).into_owned());
+    }
+}
+
+fn pump(r: impl std::io::Read + Send + 'static, sink: Lines) -> JoinHandle<()> {
     std::thread::spawn(move || {
-        for line in BufReader::new(r).lines().map_while(std::result::Result::ok) {
-            if let Ok(mut v) = sink.lock() {
-                v.push(line);
+        let mut reader = BufReader::new(r);
+        let mut line = Vec::new();
+        while let Ok(buf) = reader.fill_buf()
+            && !buf.is_empty()
+        {
+            let (chunk, ended) = match buf.iter().position(|&b| b == b'\n') {
+                Some(i) => (&buf[..i], Some(i + 1)),
+                None => (buf, None),
+            };
+            let room = MAX_LINE.saturating_sub(line.len());
+            line.extend_from_slice(&chunk[..chunk.len().min(room)]);
+            let used = ended.unwrap_or(buf.len());
+            reader.consume(used);
+            if ended.is_some() {
+                push_line(&sink, &line);
+                line.clear();
             }
+        }
+        if !line.is_empty() {
+            push_line(&sink, &line);
         }
     })
 }
@@ -95,7 +136,6 @@ fn io_err(path: &Path, source: std::io::Error) -> Error {
 }
 
 impl Helper {
-    /// The spawning thread stays alive until the child exits: the death signal is tied to it.
     pub fn spawn(
         program: &Path,
         args: &[String],
@@ -107,19 +147,14 @@ impl Helper {
         let args = args.to_vec();
         let env = env.clone();
         let shared = Arc::new(Shared::default());
-        let stdout = Arc::new(Mutex::new(Vec::new()));
-        let stderr = Arc::new(Mutex::new(Vec::new()));
+        let stdout = Lines::default();
+        let stderr = Lines::default();
         let (sh, so, se) = (shared.clone(), stdout.clone(), stderr.clone());
         std::thread::spawn(move || {
-            let mut cmd = if which("setpriv").is_some() {
-                let mut c = Command::new("setpriv");
-                c.args(["--pdeathsig", "INT", "--"]).arg(&program);
-                c
-            } else {
-                Command::new(&program)
-            };
+            let mut cmd = Command::new(&program);
             cmd.args(&args)
                 .envs(&env)
+                .process_group(0)
                 .stdin(Stdio::null())
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped());
@@ -130,6 +165,23 @@ impl Helper {
                     return;
                 }
             };
+            let watcher = Command::new("/bin/sh")
+                .args(["-c", WATCHER])
+                .process_group(child.id() as i32)
+                .stdin(Stdio::piped())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn();
+            let mut watcher = match watcher {
+                Ok(w) => w,
+                Err(e) => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    let _ = tx.send(Err(io_err(Path::new("/bin/sh"), e)));
+                    return;
+                }
+            };
+            let lifeline = watcher.stdin.take();
             let mut threads = Vec::new();
             if let Some(o) = child.stdout.take() {
                 threads.push(pump(o, so));
@@ -139,6 +191,10 @@ impl Helper {
             }
             let _ = tx.send(Ok((child.id(), threads)));
             let status = child.wait();
+            if let Some(mut l) = lifeline {
+                let _ = l.write_all(b"\n");
+            }
+            let _ = watcher.wait();
             if let Ok(s) = status {
                 if let Ok(mut g) = sh.status.lock() {
                     *g = Some(s);
@@ -165,22 +221,27 @@ impl Helper {
         self.shared.status.lock().ok().and_then(|g| *g)
     }
 
+    /// SIGKILL goes to the whole group so the watcher dies with the helper.
     pub fn signal(&self, sig: Signal) {
         let guard = self.shared.status.lock();
         if guard.map(|g| g.is_some()).unwrap_or(true) {
             return;
         }
         if let Some(pid) = Pid::from_raw(self.pid as i32) {
-            let _ = kill_process(pid, sig);
+            let _ = if sig == Signal::KILL {
+                kill_process_group(pid, sig)
+            } else {
+                kill_process(pid, sig)
+            };
         }
     }
 
     pub fn stdout_lines(&self) -> Vec<String> {
-        self.stdout.lock().map(|v| v.clone()).unwrap_or_default()
+        snapshot(&self.stdout)
     }
 
     pub fn stderr_tail(&self) -> String {
-        let v = self.stderr.lock().map(|v| v.clone()).unwrap_or_default();
+        let v = snapshot(&self.stderr);
         v[v.len().saturating_sub(5)..].join("\n")
     }
 
@@ -246,4 +307,26 @@ pub fn which(program: impl AsRef<OsStr>) -> Option<std::path::PathBuf> {
         .split(':')
         .map(|d| Path::new(d).join(p))
         .find(|c| c.is_file())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn output_keeps_the_last_lines_each_cut_to_a_bound() {
+        let mut data = Vec::new();
+        for i in 0..200 {
+            data.extend_from_slice(format!("line {i}\n").as_bytes());
+        }
+        data.extend(std::iter::repeat_n(b'\r', 1 << 20));
+        let sink = Lines::default();
+        pump(std::io::Cursor::new(data), sink.clone())
+            .join()
+            .expect("pump");
+        let lines = snapshot(&sink);
+        assert_eq!(lines.len(), KEPT_LINES);
+        assert_eq!(lines[0], "line 151");
+        assert_eq!(lines[KEPT_LINES - 1].len(), MAX_LINE);
+    }
 }

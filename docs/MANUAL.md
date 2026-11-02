@@ -230,7 +230,8 @@ Commands:
 
 `easyshot://` links accept only these eight, with no arguments: `capture/region`,
 `capture/fullscreen`, `capture/window`, `capture/scroll`, `record`, `ocr`, `color-picker`,
-`settings`.
+`settings`. A `record` link asks you to select the area first; it never starts recording the
+whole screen.
 
 ## Files
 

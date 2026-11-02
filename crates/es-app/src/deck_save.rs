@@ -59,7 +59,7 @@ pub fn save_card(paths: &Paths, config: &Arc<Config>, item: &DeckItem) -> Result
         path: item.file.clone(),
         source,
     })?;
-    let rgba = image::load_from_memory(&png)
+    let rgba = es_store::decode::image_from_memory(&png)
         .map_err(|e| Error::Protocol(format!("{}: {e}", item.file.display())))?
         .to_rgba8();
     let stem = Path::new(&item.name)

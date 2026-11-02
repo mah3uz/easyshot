@@ -7,7 +7,7 @@ use std::{
 
 use es_store::Paths;
 use gpui::{Context, RenderImage};
-use image::{DynamicImage, Frame, ImageReader, imageops::FilterType};
+use image::{DynamicImage, Frame, imageops::FilterType};
 
 /// Twice a built-in tile, so the thumbnail stays sharp on a 2× display.
 const THUMB: (u32, u32) = (216, 160);
@@ -53,7 +53,7 @@ impl BuiltIn {
 
 /// The encoded wallpaper a style points at; a built-in whose written copy was removed still draws.
 pub fn wallpaper_bytes(path: &Path) -> Option<Cow<'static, [u8]>> {
-    if let Ok(bytes) = std::fs::read(path) {
+    if let Some(bytes) = es_store::wallpapers::read(path) {
         return Some(Cow::Owned(bytes));
     }
     let in_wallpapers = path.parent()?.file_name()? == "wallpapers";
@@ -126,10 +126,8 @@ fn thumbnail(source: &Source) -> Thumb {
             .get(*i)
             .and_then(|b| image::load_from_memory(b.bytes).ok()),
         Source::File(path) if !path.exists() => return Thumb::Missing,
-        Source::File(path) => ImageReader::open(path)
-            .ok()
-            .and_then(|r| r.with_guessed_format().ok())
-            .and_then(|r| r.decode().ok()),
+        Source::File(path) => es_store::wallpapers::read(path)
+            .and_then(|bytes| es_store::decode::image_from_memory(&bytes).ok()),
     };
     decoded
         .and_then(|image| render_image(&image))
@@ -145,4 +143,19 @@ fn render_image(image: &DynamicImage) -> Option<Arc<RenderImage>> {
         px.0.swap(0, 2);
     }
     (bgra.width() > 0).then(|| Arc::new(RenderImage::new([Frame::new(bgra)])))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_device_or_a_missing_file_gives_no_wallpaper() {
+        assert!(wallpaper_bytes(Path::new("/dev/zero")).is_none());
+        assert!(wallpaper_bytes(Path::new("/nonexistent/private.png")).is_none());
+        assert!(matches!(
+            thumbnail(&Source::File("/dev/zero".into())),
+            Thumb::Unreadable
+        ));
+    }
 }

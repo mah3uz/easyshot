@@ -42,14 +42,22 @@ pub async fn show_items(endpoint: &Endpoint, path: &Path) -> Result<()> {
         .map_err(protocol)
 }
 
+/// Reaps on a thread, so a program the app does not wait on never lingers as a zombie.
+pub fn spawn_reaped(cmd: &mut std::process::Command) -> std::io::Result<u32> {
+    let mut child = cmd.spawn()?;
+    let pid = child.id();
+    std::thread::spawn(move || child.wait());
+    Ok(pid)
+}
+
 fn open_folder(path: &Path) -> Result<()> {
     let folder = path.parent().unwrap_or(path);
-    std::process::Command::new("xdg-open")
-        .arg(folder)
+    let mut cmd = std::process::Command::new("xdg-open");
+    cmd.arg(folder)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .spawn()
+        .stderr(std::process::Stdio::null());
+    spawn_reaped(&mut cmd)
         .map(|_| ())
         .map_err(|source| Error::Io {
             path: "xdg-open".into(),

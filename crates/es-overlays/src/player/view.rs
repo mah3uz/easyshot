@@ -88,7 +88,7 @@ fn render_image(width: u32, height: u32, bgra: Vec<u8>) -> Option<Arc<RenderImag
 }
 
 fn load_strip(path: &std::path::Path) -> Option<Arc<RenderImage>> {
-    let mut rgba = image::open(path).ok()?.to_rgba8();
+    let mut rgba = es_store::decode::open_image(path).ok()?.to_rgba8();
     for p in rgba.as_chunks_mut::<4>().0 {
         p.swap(0, 2);
     }

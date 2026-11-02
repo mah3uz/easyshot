@@ -13,7 +13,7 @@ mod tray_icon;
 pub use apps::{app_name, app_name_in};
 pub use autostart::{autostart_enabled, autostart_file, set_autostart, set_autostart_in};
 pub use bus::Labels;
-pub use files::{move_to_trash, show_in_file_manager, show_items};
+pub use files::{move_to_trash, show_in_file_manager, show_items, spawn_reaped};
 pub use noop::{RecordingNotifier, RecordingShortcuts, RecordingSound, RecordingTray};
 pub use notify::DesktopNotifier;
 pub use portal::{PortalAppearance, PortalFilePicker, PortalShortcuts, portal_trigger};

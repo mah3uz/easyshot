@@ -12,11 +12,9 @@ use std::io::{BufRead, BufReader, Write};
 use std::os::unix::fs::PermissionsExt;
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-
-static SOCKET_SEQ: AtomicU64 = AtomicU64::new(0);
 
 pub struct GsrRecorder {
     portal: bool,
@@ -273,11 +271,15 @@ impl Recorder for GsrRecorder {
         let out = spec
             .dir
             .join(format!("screen.{}", container_ext(spec.container)));
-        let sock = self.ipc_dir.join(format!(
-            "easyshot-gsr-{}-{}.sock",
-            std::process::id(),
-            SOCKET_SEQ.fetch_add(1, Ordering::Relaxed)
-        ));
+        let ipc = tempfile::Builder::new()
+            .prefix("easyshot-gsr-")
+            .permissions(std::fs::Permissions::from_mode(0o700))
+            .tempdir_in(&self.ipc_dir)
+            .map_err(|source| Error::Io {
+                path: self.ipc_dir.clone(),
+                source,
+            })?;
+        let sock = ipc.path().join("gsr.sock");
         let units = self.units.lock().map(|u| u.clone()).unwrap_or_default();
         let args = gsr_args(&spec, self.portal, &units, &sock, &out);
 
@@ -329,6 +331,7 @@ impl Recorder for GsrRecorder {
         let _ = tx.try_send(RecorderEvent::Started);
         Ok(Box::new(GsrHandle {
             helper,
+            _ipc: ipc,
             sock,
             out,
             dir: spec.dir,
@@ -346,6 +349,7 @@ impl Recorder for GsrRecorder {
 
 struct GsrHandle {
     helper: Helper,
+    _ipc: tempfile::TempDir,
     sock: PathBuf,
     out: PathBuf,
     dir: PathBuf,

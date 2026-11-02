@@ -34,7 +34,9 @@ pub fn ensure(paths: &Paths, image: &Path, size: u32) -> crate::Result<PathBuf> 
         return Ok(thumb);
     }
     let invalid = |e: image::ImageError| crate::error::io(image)(std::io::Error::other(e));
-    let small = image::open(image).map_err(invalid)?.thumbnail(size, size);
+    let small = crate::decode::open_image(image)
+        .map_err(invalid)?
+        .thumbnail(size, size);
     let mut png = Vec::new();
     small
         .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)

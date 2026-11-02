@@ -41,7 +41,7 @@ pub struct EditorSession {
 /// Reads the sidecar and decodes the base image; a plain capture opens with an empty document.
 pub fn load(display: &Path) -> Result<Opened> {
     let reopened = es_store::reopen(display);
-    let base = image::open(&reopened.source)
+    let base = es_store::decode::open_image(&reopened.source)
         .map_err(|e| match e {
             image::ImageError::IoError(source) => Error::Io {
                 path: reopened.source.clone(),
@@ -90,17 +90,20 @@ impl EditorSession {
                 .ok_or_else(|| Error::NotFound(journal.display().to_string()))?;
             let reopened = es_store::reopen(&entry.display);
             let mut opened = load(&entry.display)?;
-            let staged = entry.staged_base.and_then(|file| match image::open(&file) {
-                Ok(pixels) => Some((file, pixels.to_rgba8())),
-                Err(error) => {
-                    tracing::warn!(
-                        %error,
-                        path = %file.display(),
-                        "staged recovery base unreadable; opening the original base"
-                    );
-                    None
-                }
-            });
+            let staged =
+                entry
+                    .staged_base
+                    .and_then(|file| match es_store::decode::open_image(&file) {
+                        Ok(pixels) => Some((file, pixels.to_rgba8())),
+                        Err(error) => {
+                            tracing::warn!(
+                                %error,
+                                path = %file.display(),
+                                "staged recovery base unreadable; opening the original base"
+                            );
+                            None
+                        }
+                    });
             let staged = match staged {
                 Some((file, pixels)) => {
                     opened.base = pixels;
@@ -108,7 +111,7 @@ impl EditorSession {
                 }
                 None => {
                     if entry.base_image != reopened.source {
-                        opened.base = image::open(&entry.base_image)
+                        opened.base = es_store::decode::open_image(&entry.base_image)
                             .map_err(|e| Error::Protocol(e.to_string()))?
                             .to_rgba8();
                     }
@@ -136,6 +139,7 @@ impl EditorSession {
         let services = cx.try_global::<Services>();
         let paths = services.map(|s| s.stores.paths.clone());
         let config = services.map(|s| s.settings.read(cx).config().clone());
+        look::distrust_wallpaper(&mut opened.document, paths.as_ref());
         look::opening_look(&mut opened.document, paths.as_ref(), config.as_deref());
         let doc = cx.new(|_| DocModel::new(opened, text, &StylePreset::default()));
         let viewport = cx.new(|cx| ViewportModel::new(doc.clone(), cx));

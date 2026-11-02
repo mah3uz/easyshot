@@ -3,7 +3,7 @@ mod desktop_support;
 
 use dbus_support::run;
 use desktop_support::{QuietBus, isolated, serve_on};
-use es_desktop::{autostart_file, move_to_trash, set_autostart_in, show_items};
+use es_desktop::{autostart_file, move_to_trash, set_autostart_in, show_items, spawn_reaped};
 use std::path::Path;
 
 struct FileManager {
@@ -83,4 +83,18 @@ fn autostart_writes_the_desktop_entry_and_removes_it() {
     set_autostart_in(home.path(), false, "easyshot daemon").expect("disable");
     assert!(!autostart_file(home.path()).exists());
     set_autostart_in(home.path(), false, "easyshot daemon").expect("disabling twice is fine");
+}
+
+#[test]
+fn a_detached_program_is_reaped_when_it_exits() {
+    let pid = spawn_reaped(&mut std::process::Command::new("true")).expect("spawn");
+    let proc_dir = format!("/proc/{pid}");
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while Path::new(&proc_dir).exists() {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the child is still a zombie"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
 }

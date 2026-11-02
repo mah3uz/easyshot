@@ -22,6 +22,10 @@
 
 ### Bug fixes
 
+- An `easyshot://record` link asks for an area instead of recording the whole screen at once.
+- A screen recording stops when easyshot is killed, instead of running on unseen.
+- A document from someone else can no longer use a file outside your wallpapers as its background.
+
 - A capture you only pinned or opened in the editor no longer comes back as a deck card after a restart.
 - Smart Redaction in the editor now scans the image and adds the redactions.
 - Text read by OCR is no longer written to the log.
