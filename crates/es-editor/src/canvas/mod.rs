@@ -1,4 +1,5 @@
 mod chrome;
+pub mod crop_overlay;
 pub mod effects;
 mod element;
 pub mod grid;
@@ -16,6 +17,7 @@ pub use element::CanvasElement;
 pub use text_edit::{CARET_BLINK, TextEditState};
 
 use crate::session::EditorSession;
+use crate::session::crop::CropModel;
 use crate::session::doc::DocModel;
 use crate::session::viewport::{ViewportModel, WHEEL_ZOOM_RATE};
 use es_anno::{DrawItem, Viewport};
@@ -52,6 +54,8 @@ pub struct FrameStats {
     pub shapes_placed: usize,
     pub paths_painted: usize,
     pub live_chunks_tessellated: usize,
+    /// GPU images handed back to the window since the canvas opened.
+    pub images_released: usize,
 }
 
 struct ShapeEntry {
@@ -73,6 +77,7 @@ struct SpotEntry {
 pub struct EditorCanvas {
     doc: Entity<DocModel>,
     viewport: Entity<ViewportModel>,
+    crop: Entity<CropModel>,
     background: BackgroundSettings,
     focus: FocusHandle,
     shapes: HashMap<AnnoShapeId, ShapeEntry>,
@@ -104,12 +109,14 @@ impl EditorCanvas {
         let subscriptions = vec![
             cx.observe(&session.doc, |_, _, cx| cx.notify()),
             cx.observe(&session.viewport, |_, _, cx| cx.notify()),
+            cx.observe(&session.crop, |_, _, cx| cx.notify()),
         ];
         let redactions = Rc::new(RefCell::new(Redactions::default()));
         let painter = redaction::painter(redactions.clone(), session.doc.clone(), cx.weak_entity());
         Self {
             doc: session.doc.clone(),
             viewport: session.viewport.clone(),
+            crop: session.crop.clone(),
             background,
             focus: cx.focus_handle(),
             shapes: HashMap::new(),
@@ -225,6 +232,10 @@ impl EditorCanvas {
     }
 
     fn on_key_down(&mut self, e: &KeyDownEvent, _: &mut Window, cx: &mut Context<Self>) {
+        if self.crop_key(e, cx) {
+            cx.stop_propagation();
+            return;
+        }
         if self.is_editing_text(cx) {
             if self.text_key_down(e, cx) {
                 cx.stop_propagation();

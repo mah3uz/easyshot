@@ -71,6 +71,16 @@ and Close.
 The editor has 12 tools. You can select, move, resize and rotate shapes, bind arrows to
 shapes, edit text, and undo and redo. You can crop, rotate and flip, and zoom and pan.
 
+To crop, press the crop button in the tool row. Drag a corner or edge handle to resize the
+selection, or drag inside it to move it; hold Alt to resize about the centre. The aspect
+menu in the title bar offers Freeform, Original, 1:1, 16:9, 9:16, 4:3 and 3:2; while an
+aspect is locked only the corners resize. The footer shows the size the image will have.
+Enter or Crop applies; Escape, Cancel or the crop button again leaves without a change, and
+Reset returns to the whole image. Rotate and flip are in the menu beside the crop button.
+Your annotations move with the pixels under them. Crop, rotate and flip are undoable: undo
+first steps back through the edits you made after them. The editor keeps the last 16 image
+steps, and drops the oldest sooner when they would hold more than 768 MiB of pixels.
+
 Beautify options: background (colour, gradient, wallpaper), padding, corners, shadow and
 its style, alignment, aspect ratio, camera 3D, progressive blur, border, watermark and
 presets.

@@ -1,6 +1,7 @@
 mod arrange;
 mod commands;
 mod history;
+mod image_edit;
 pub mod interaction;
 mod selection;
 mod text;
@@ -8,6 +9,7 @@ mod viewport;
 
 pub use arrange::COPY_OFFSET;
 pub use history::{GestureId, UNDO_LIMIT};
+pub use image_edit::EditHistory;
 pub use interaction::{Handle, Interaction};
 pub use selection::SelectionBounds;
 pub use viewport::Viewport;

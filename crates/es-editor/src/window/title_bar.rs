@@ -46,12 +46,17 @@ impl EditorWindow {
                     .child(self.title(cx)),
             )
             .child(
-                side().justify_end().pr(px(12.)).child(
-                    hold("actions-hold")
-                        .gap(px(8.))
-                        .child(self.save_control(cx))
-                        .child(self.export_control(cx)),
-                ),
+                side()
+                    .justify_end()
+                    .pr(px(12.))
+                    .child(if self.is_cropping(cx) {
+                        hold("crop-hold").child(self.crop_controls(cx))
+                    } else {
+                        hold("actions-hold")
+                            .gap(px(8.))
+                            .child(self.save_control(cx))
+                            .child(self.export_control(cx))
+                    }),
             )
     }
 

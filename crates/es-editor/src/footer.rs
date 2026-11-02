@@ -59,7 +59,7 @@ impl EditorWindow {
                 })
             })
             .child(div().flex_1())
-            .child(self.copy_control(cx))
+            .child(self.crop_badge(cx).unwrap_or_else(|| self.copy_control(cx)))
     }
 
     fn copy_control(&self, cx: &mut Context<Self>) -> AnyElement {

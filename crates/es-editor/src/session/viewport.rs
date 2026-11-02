@@ -166,6 +166,7 @@ pub struct ViewportModel {
     math: ViewMath,
     revision: u64,
     anchor_at_pointer: bool,
+    settings: BackgroundSettings,
 }
 
 impl EventEmitter<ViewportChanged> for ViewportModel {}
@@ -175,11 +176,13 @@ impl ViewportModel {
         let d = doc.read(cx);
         let size = d.image_size();
         let lay = layout(size.width, size.height, d.background()).pixel_aligned();
+        let settings = d.background().clone();
         let mut this = Self {
             doc,
             math: ViewMath::new(lay),
             revision: 1,
             anchor_at_pointer: true,
+            settings,
         };
         this.push(cx);
         this
@@ -222,9 +225,20 @@ impl ViewportModel {
     pub fn set_background(&mut self, settings: &BackgroundSettings, cx: &mut Context<Self>) {
         let size = self.doc.read(cx).image_size();
         let lay = layout(size.width, size.height, settings).pixel_aligned();
+        self.settings = settings.clone();
         self.update(cx, |m| {
             m.layout = lay;
             m.clamp_pan();
+        });
+    }
+
+    /// Lays out for a replaced base image and fits it.
+    pub fn image_changed(&mut self, cx: &mut Context<Self>) {
+        let size = self.doc.read(cx).image_size();
+        let lay = layout(size.width, size.height, &self.settings).pixel_aligned();
+        self.update(cx, |m| {
+            m.layout = lay;
+            m.fit();
         });
     }
 

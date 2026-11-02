@@ -1,3 +1,4 @@
+mod crop_bar;
 mod states;
 mod title_bar;
 
@@ -18,6 +19,7 @@ use gpui::{
 use gpui_component::{Icon, Sizable, spinner::Spinner};
 
 use crate::inspector::Inspector;
+use crate::session::crop::CropEvent;
 use crate::toolbar::{ToolRow, ToolRowEvent};
 use crate::{EditorCanvas, EditorSession, EditorSource, Result, strings::fl};
 
@@ -160,11 +162,25 @@ impl EditorWindow {
                     cx.subscribe_self(|this, event: &EditorWindowEvent, cx| {
                         this.run_job(event.job(), cx)
                     }),
+                    cx.observe(&session.crop, |_, _, cx| cx.notify()),
+                    cx.subscribe(&session.crop, {
+                        let row = tool_row.clone();
+                        move |_, _, event: &CropEvent, cx| {
+                            let on = *event == CropEvent::Started;
+                            row.update(cx, |r, cx| r.set_cropping(on, cx));
+                        }
+                    }),
                     cx.subscribe(&tool_row, |this, row, event: &ToolRowEvent, cx| {
                         if *event == ToolRowEvent::ToggleInspector {
                             this.toggle_inspector(cx);
                             let open = this.inspector_open;
                             row.update(cx, |r, cx| r.set_inspector_open(open, cx));
+                        } else if *event == ToolRowEvent::Crop {
+                            this.with_crop(cx, |c, cx| c.toggle(cx));
+                        } else if let Some(op) = crop_bar::image_op(*event) {
+                            this.with_crop(cx, |c, cx| {
+                                c.transform(op, cx);
+                            });
                         }
                     }),
                 ];
@@ -217,13 +233,11 @@ impl EditorWindow {
     }
 
     pub fn can_undo(&self, cx: &gpui::App) -> bool {
-        self.session()
-            .is_some_and(|s| s.doc.read(cx).editor().can_undo())
+        self.session().is_some_and(|s| s.can_undo(cx))
     }
 
     pub fn can_redo(&self, cx: &gpui::App) -> bool {
-        self.session()
-            .is_some_and(|s| s.doc.read(cx).editor().can_redo())
+        self.session().is_some_and(|s| s.can_redo(cx))
     }
 
     pub fn undo(&mut self, cx: &mut Context<Self>) {

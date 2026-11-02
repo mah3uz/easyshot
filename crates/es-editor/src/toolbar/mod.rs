@@ -1,4 +1,4 @@
-mod menus;
+pub(crate) mod menus;
 mod style_bar;
 mod text_style;
 pub mod tools;

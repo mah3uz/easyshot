@@ -84,6 +84,10 @@ impl Element for CanvasElement {
             }
         }
         let chrome = self.view.read(cx).chrome(bounds, window.scale_factor(), cx);
+        let crop = self
+            .view
+            .read(cx)
+            .crop_overlay(bounds, window.scale_factor(), cx);
         window.with_content_mask(Some(ContentMask { bounds }), |window| {
             if let Some((image, cells)) = frame.grid {
                 for at in cells {
@@ -132,7 +136,7 @@ impl Element for CanvasElement {
                 }
                 window.paint_path(p.path, p.color);
             }
-            for p in chrome {
+            for p in chrome.into_iter().chain(crop) {
                 window.paint_path(p.path, p.color);
             }
         });
@@ -175,6 +179,8 @@ impl CanvasElement {
             });
         } else if space {
             window.set_cursor_style(CursorStyle::OpenHand, hitbox);
+        } else if self.view.read(cx).is_cropping(cx) {
+            super::crop_overlay::register(&self.view, hitbox, window, cx);
         } else {
             super::input::register(&self.view, hitbox, window, cx);
         }

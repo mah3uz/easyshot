@@ -28,6 +28,7 @@ pub(crate) struct History {
     redo: Vec<Snapshot>,
     open: Option<Open>,
     serial: u64,
+    revision: u64,
 }
 
 impl History {
@@ -37,6 +38,14 @@ impl History {
 
     pub(crate) fn can_redo(&self) -> bool {
         !self.redo.is_empty()
+    }
+
+    pub(crate) fn revision(&self) -> u64 {
+        self.revision
+    }
+
+    pub(crate) fn clear_redo(&mut self) {
+        self.redo.clear();
     }
 
     pub(crate) fn is_open(&self, key: GestureKey) -> bool {
@@ -73,6 +82,7 @@ impl History {
             self.undo.pop_front();
         }
         self.redo.clear();
+        self.revision += 1;
         true
     }
 

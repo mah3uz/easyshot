@@ -59,6 +59,7 @@ impl EditorCanvas {
         let math = *self.viewport.read(cx).math();
         let vp = math.viewport();
         let mut stats = FrameStats::default();
+        let released_before = self.stats.images_released;
         let mut retired = std::mem::take(&mut self.retired);
         let t = es_ui::theme::tokens(cx);
         let accent = t.accent;
@@ -224,6 +225,7 @@ impl EditorCanvas {
             self.stats.paths_painted = 0;
         }
         let keep = |v: Vec<Painted>| if flat { v } else { Vec::new() };
+        self.stats.images_released = released_before + retired.len();
         Prepared {
             grid,
             underlay: underlay.filter(|_| flat),

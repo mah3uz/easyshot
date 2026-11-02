@@ -121,20 +121,44 @@ impl EditorSession {
         let io = cx.new(|cx| EditorIo::new(doc.clone(), cx));
         Self {
             look: cx.new(|cx| LookModel::new(doc.clone(), paths, cx)),
+            crop: cx.new(|_| CropModel::new(doc.clone(), viewport.clone())),
             doc,
             io,
             viewport,
-            crop: cx.new(|_| CropModel {}),
         }
     }
 
-    /// Engine stack first, then the image stack.
+    /// Engine stack first, then the image stack; nothing while cropping.
     pub fn undo(&self, cx: &mut App) {
-        self.doc.update(cx, |d, cx| d.apply(cx, |e| e.undo()));
+        if self.crop.read(cx).is_cropping() {
+            return;
+        }
+        if self.doc.read(cx).editor().can_undo() {
+            self.doc.update(cx, |d, cx| d.apply(cx, |e| e.undo()));
+        } else {
+            self.crop.update(cx, |c, cx| c.undo(cx));
+        }
     }
 
-    /// Engine stack first, then the image stack.
+    /// Engine stack first, then the image stack; nothing while cropping.
     pub fn redo(&self, cx: &mut App) {
-        self.doc.update(cx, |d, cx| d.apply(cx, |e| e.redo()));
+        if self.crop.read(cx).is_cropping() {
+            return;
+        }
+        if self.doc.read(cx).editor().can_redo() {
+            self.doc.update(cx, |d, cx| d.apply(cx, |e| e.redo()));
+        } else {
+            self.crop.update(cx, |c, cx| c.redo(cx));
+        }
+    }
+
+    pub fn can_undo(&self, cx: &App) -> bool {
+        let crop = self.crop.read(cx);
+        !crop.is_cropping() && (self.doc.read(cx).editor().can_undo() || crop.can_undo())
+    }
+
+    pub fn can_redo(&self, cx: &App) -> bool {
+        let crop = self.crop.read(cx);
+        !crop.is_cropping() && (self.doc.read(cx).editor().can_redo() || crop.can_redo(cx))
     }
 }

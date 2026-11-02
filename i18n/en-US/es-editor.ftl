@@ -18,6 +18,10 @@ editor-history-a11y = Undo and redo
 editor-crop-aspect-help = Aspect ratio
 editor-crop-reset-help = Reset the selection to the whole image
 editor-crop-apply = Crop
+editor-crop-reset = Reset
+editor-crop-cancel = Cancel
+editor-crop-aspect-freeform = Freeform
+editor-crop-aspect-original = Original
 
 ## Tool row
 editor-tool-select = Select
@@ -44,6 +48,7 @@ editor-aspect-1-1 = 1:1
 editor-aspect-4-3 = 4:3
 editor-aspect-3-2 = 3:2
 editor-aspect-16-9 = 16:9
+editor-aspect-9-16 = 9:16
 editor-crop = Crop
 editor-crop-help = Crop Image — click again to cancel
 editor-rotate-help = Rotate left 90°. Open the menu for Rotate Right and Flip.
@@ -281,6 +286,7 @@ editor-zoom-in = Zoom In
 editor-zoom-out = Zoom Out
 editor-zoom-fit = Fit Canvas
 editor-crop-size-help = Crop size
+editor-crop-size = { $width } × { $height } px
 editor-lowres-help = Why is this preview low resolution?
 editor-lowres-text = Low-res preview to save memory - exports stay full quality
 editor-share-help = Upload and copy a share link

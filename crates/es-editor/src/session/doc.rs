@@ -122,8 +122,8 @@ impl DocModel {
         changes
     }
 
-    pub fn replace_base(&mut self, base: RgbaImage, cx: &mut Context<Self>) {
-        self.base = Arc::new(base);
+    pub fn replace_base(&mut self, base: impl Into<Arc<RgbaImage>>, cx: &mut Context<Self>) {
+        self.base = base.into();
         self.base_revision += 1;
         cx.notify();
     }
