@@ -25,7 +25,7 @@ updated as parts are built and run, with the compositor and date.
 | Scrolling capture of a terminal scrolled by wheel input: the stitched 948×4230 image holds each visible line once, in order (`es-overlays` scroll, `es-scroll`); automatic scrolling not run on real content | headless sway 1.12 | 2026-11-02 |
 | Deck of three cards at scale 1.5 with hover tools painted, timers paused while hovered and resumed when the pointer leaves for a pin; a pin opens centred, resizes from its held top-left corner and follows a 150×100 drag exactly, with rounded corners (`es-overlays` deck, pin) | headless sway 1.12 | 2026-11-02 |
 | Recording control bar with a fake recorder at scale 1.5 is placed below the recorded area, or above it when there is no room below (`es-overlays` record) | headless sway 1.12 | 2026-11-02 |
-| The daemon in test mode at scale 1.5: `capture/region` sent over a private bus, a 304×151 drag, and the 456×227 PNG lands in the save folder with one deck card shown (`easyshot` daemon, `es-app` pipeline) | headless sway 1.12 | 2026-11-02 |
+| The daemon in test mode at scale 1.5: `capture/region` sent over a private bus, a 304×151 drag, and the 456×227 PNG lands in the save folder with one deck card shown; the card's Edit opens an editor window (`easyshot` daemon, `es-app` pipeline) | headless sway 1.12 | 2026-11-02 |
 | Headless GPUI windows (hello, component gallery) | no compositor (GPUI headless renderer) | 2026-11-02 |
 
 Not yet run anywhere: Hyprland and niri (their backend modules are tested only against
