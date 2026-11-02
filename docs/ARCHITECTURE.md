@@ -21,6 +21,7 @@ updated as parts are built and run, with the compositor and date.
 | Backend detection picks ext-image-copy-capture; sway window rects from `GET_TREE` match the captured window size; the editor `for_window` rule floats the window (`es-backend`) | headless sway 1.12 | 2026-11-02 |
 | Layer-shell surfaces (overlay, toast, pin) on the right output at scale 1.5, scale gate, pin moved by margins, no decoration padding after GPUI patch P7 (`es-app` platform_ui) | headless sway 1.12 | 2026-11-02 |
 | Region selector on a frozen output at scale 1.5: a drag returns an edge-rounded crop of the exact physical size (`es-overlays` capture) | headless sway 1.12 | 2026-11-02 |
+| Window mode over a floating window at scale 1.5 returns its 1200×900 frame; the colour picker returns the pixel under the pointer, matching a grim sample (`es-overlays` capture) | headless sway 1.12 | 2026-11-02 |
 | Headless GPUI windows (hello, component gallery) | no compositor (GPUI headless renderer) | 2026-11-02 |
 
 Not yet run anywhere: Hyprland and niri (their backend modules are tested only against
