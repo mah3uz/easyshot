@@ -3,14 +3,14 @@ mod window_mode_support;
 
 use es_geom::{Point, Rect, Size};
 use es_overlays::pin::{
-    CopyImage, MAX_SCALE, MIN_OPACITY, MIN_SCALE, PinEvent, PinView, SHADOW_PAD, anchored,
-    next_scale, scaled,
+    CopyImage, MAX_SCALE, MIN_OPACITY, MIN_SCALE, PinEvent, PinView, PointerGlobal, SHADOW_PAD,
+    anchored, next_scale, scaled,
 };
 use gpui::{
     Modifiers, MouseButton, MouseDownEvent, PlatformInput, RenderImage, ScrollDelta, ScrollEvent,
     point, px,
 };
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -68,19 +68,26 @@ fn picture() -> Arc<RenderImage> {
 
 struct Rig {
     s: Surface<PinView>,
+    frame: Point,
+    global: Rc<Cell<Option<Point>>>,
     events: Rc<RefCell<Vec<PinEvent>>>,
     _sub: gpui::Subscription,
 }
 
 fn rig() -> Rig {
+    let global = Rc::new(Cell::new(None));
+    let asked = global.clone();
+    let pointer: PointerGlobal = Rc::new(move || asked.get());
     let mut s = Surface::open(
         PICTURE.width as f32 + 2. * PAD,
         PICTURE.height as f32 + 2. * PAD,
-        |_| PinView::new(picture(), PICTURE, START),
+        |_| PinView::new(picture(), PICTURE, START, pointer),
     );
     let (events, sub) = s.record::<PinEvent>();
     Rig {
         s,
+        frame: START - (SHADOW_PAD, SHADOW_PAD),
+        global,
         events,
         _sub: sub,
     }
@@ -92,13 +99,17 @@ impl Rig {
         self.s.app.cx.update(|cx| f(view.read(cx)))
     }
 
-    /// The compositor moves the surface with the pin, so a pointer still on the output lands at a new surface-local point.
-    fn local(&mut self, global: Point) -> (f32, f32) {
-        let origin = self.read(PinView::origin);
+    /// Where the pointer lands on the surface, as placed when the compositor last caught up.
+    fn local(&self, global: Point) -> (f32, f32) {
         (
-            (global.x - origin.x) as f32 + PAD,
-            (global.y - origin.y) as f32 + PAD,
+            (global.x - self.frame.x) as f32,
+            (global.y - self.frame.y) as f32,
         )
+    }
+
+    /// A compositor that reports against the surface's current place catches up with the pin.
+    fn catch_up(&mut self) {
+        self.frame = self.read(PinView::origin) - (SHADOW_PAD, SHADOW_PAD);
     }
 
     fn scroll(&mut self, delta: ScrollDelta, control: bool) {
@@ -166,6 +177,44 @@ fn dragging_anywhere_on_the_picture_moves_it_with_the_pointer() {
     );
 }
 
+/// Positions held in the frame of the press, or from a global pointer while they follow the surface.
+fn drag_150_by_100(global: bool) {
+    let mut r = rig();
+    let press = START + (60., 50.);
+    r.global.set(global.then_some(press));
+    let (x, y) = r.local(press);
+    r.s.hover(x, y, false);
+    r.s.down(x, y);
+    let mut pointer = press;
+    for step in 1..=25 {
+        pointer += (6., 4.);
+        r.global.set(global.then_some(pointer));
+        let (x, y) = r.local(pointer);
+        r.s.hover(x, y, true);
+        assert_eq!(
+            r.read(PinView::origin),
+            START + (pointer - press),
+            "step {step}: the pin keeps the grabbed point under the pointer"
+        );
+        if global && step % 4 == 0 {
+            r.catch_up();
+        }
+    }
+    let (x, y) = r.local(pointer);
+    r.s.up(x, y);
+    assert_eq!(r.read(PinView::origin), START + (150., 100.));
+}
+
+#[test]
+fn a_drag_moves_the_pin_exactly_as_far_as_the_pointer_in_the_frame_of_the_press() {
+    drag_150_by_100(false);
+}
+
+#[test]
+fn a_drag_follows_the_global_pointer_exactly_while_the_surface_lags_behind() {
+    drag_150_by_100(true);
+}
+
 #[test]
 fn scrolling_resizes_from_the_top_left_keeping_its_shape_within_the_limits() {
     let mut r = rig();
@@ -194,6 +243,27 @@ fn scrolling_resizes_from_the_top_left_keeping_its_shape_within_the_limits() {
     );
     let at_limits = resizes.windows(2).filter(|w| w[0] == w[1]).count();
     assert_eq!(at_limits, 0, "scrolling past a limit resizes nothing");
+}
+
+#[test]
+fn the_picture_has_rounded_corners() {
+    let mut r = rig();
+    let shot = r.s.app.screenshot("pin-corners");
+    let edge = rgb(&shot, PAD + 150., PAD + 1.);
+    let w = PICTURE.width as f32;
+    let h = PICTURE.height as f32;
+    for (x, y) in [
+        (PAD + 1., PAD + 1.),
+        (PAD + w - 1., PAD + 1.),
+        (PAD + 1., PAD + h - 1.),
+        (PAD + w - 1., PAD + h - 1.),
+    ] {
+        let corner = rgb(&shot, x, y);
+        assert!(
+            !near(corner, edge, 60),
+            "({x}, {y}) is cut off by the radius: {corner:?} vs the edge {edge:?}"
+        );
+    }
 }
 
 #[test]

@@ -10,8 +10,8 @@ use es_overlays::deck::layout::{
 use es_overlays::deck::view::{DeckSettings, DeckView};
 use es_ui::tokens::ThemeMode;
 use gpui::{
-    AnyView, AppContext as _, Context, Entity, IntoElement, ParentElement as _, Render,
-    Styled as _, Window, div, rgb,
+    AnyView, AppContext as _, Context, Entity, IntoElement, Modifiers, MouseExitEvent,
+    ParentElement as _, PlatformInput, Render, Styled as _, Window, div, point, px, rgb,
 };
 use std::cell::RefCell;
 use std::path::PathBuf;
@@ -325,6 +325,43 @@ fn hovering_a_card_shows_its_tools_and_holds_the_deck() {
     r.s.app.cx.update(|cx| {
         assert_eq!(view.read(cx).hovered(), None);
         assert!(!deck.read(cx).hovered());
+    });
+}
+
+#[test]
+fn leaving_the_deck_surface_from_a_card_lets_its_timers_run_again() {
+    let mut r = rig(3, true);
+    let c = r.card(2);
+    let (x, y) = ((c.x0 + 90.) as f32, (c.y0 + 100.) as f32);
+    r.point(x, y);
+    let view = r.view.clone();
+    let deck = r.deck.clone();
+    r.s.app
+        .cx
+        .update(|cx| assert_eq!(view.read(cx).hovered(), Some(Uuid::from_u128(3))));
+    r.s.send(PlatformInput::MouseExited(MouseExitEvent {
+        position: point(px(x), px(y)),
+        pressed_button: None,
+        modifiers: Modifiers::default(),
+    }));
+    r.next_frame();
+    r.next_frame();
+    r.s.app.cx.update(|cx| {
+        assert_eq!(
+            view.read(cx).hovered(),
+            None,
+            "the last pointer position is still on the card, but the pointer is on another surface"
+        );
+        assert!(!deck.read(cx).hovered(), "the dismiss timers run again");
+    });
+
+    r.point(x, y);
+    r.s.app.cx.update(|cx| {
+        assert_eq!(
+            view.read(cx).hovered(),
+            Some(Uuid::from_u128(3)),
+            "coming back onto the same card hovers it again"
+        );
     });
 }
 

@@ -79,13 +79,17 @@ pub fn anchored(frame: Rect, size: Size) -> Rect {
     Rect::from_origin_size(frame.origin(), size)
 }
 
-/// From the global pointer, never from surface-local deltas, which lag the surface's own moves.
+/// Both pointers in one frame that does not move with the surface.
 pub fn dragged(press_origin: Point, press_pointer: Point, pointer: Point) -> Point {
     press_origin + (pointer - press_pointer)
 }
 
 pub fn next_opacity(opacity: f32, lines: f32) -> f32 {
     (opacity + lines * OPACITY_STEP).clamp(MIN_OPACITY, 1.)
+}
+
+fn local(p: gpui::Point<Pixels>) -> Point {
+    Point::new(f64::from(f32::from(p.x)), f64::from(f32::from(p.y)))
 }
 
 fn lines(delta: ScrollDelta) -> f32 {
@@ -104,9 +108,13 @@ pub enum PinEvent {
     Close,
 }
 
+/// The pointer on the output, where the compositor can be asked.
+pub type PointerGlobal = Rc<dyn Fn() -> Option<Point>>;
+
 #[derive(Clone, Copy)]
 struct Press {
-    pointer: Point,
+    local: Point,
+    global: Option<Point>,
     origin: Point,
 }
 
@@ -115,7 +123,7 @@ pub struct PinView {
     initial: Size,
     scale: f64,
     origin: Point,
-    shown_at: Rc<Cell<Point>>,
+    pointer: PointerGlobal,
     opacity: f32,
     hovered: bool,
     showings: usize,
@@ -126,13 +134,18 @@ pub struct PinView {
 impl EventEmitter<PinEvent> for PinView {}
 
 impl PinView {
-    pub fn new(image: Arc<RenderImage>, initial: Size, origin: Point) -> Self {
+    pub fn new(
+        image: Arc<RenderImage>,
+        initial: Size,
+        origin: Point,
+        pointer: PointerGlobal,
+    ) -> Self {
         PinView {
             image,
             initial,
             scale: 1.,
             origin,
-            shown_at: Rc::new(Cell::new(origin)),
+            pointer,
             opacity: 1.,
             hovered: false,
             showings: 0,
@@ -157,21 +170,13 @@ impl PinView {
         self.menu.is_some()
     }
 
-    /// Where the pointer is on the output, from where the surface was when it was last drawn.
-    fn global(&self, local: gpui::Point<Pixels>) -> Point {
-        let at = self.shown_at.get();
-        Point::new(
-            at.x - SHADOW_PAD + f64::from(f32::from(local.x)),
-            at.y - SHADOW_PAD + f64::from(f32::from(local.y)),
-        )
-    }
-
     fn mouse_down(&mut self, e: &MouseDownEvent, cx: &mut Context<Self>) {
         match e.button {
             MouseButton::Left => {
                 self.menu = None;
                 self.press = Some(Press {
-                    pointer: self.global(e.position),
+                    local: local(e.position),
+                    global: (self.pointer)(),
                     origin: self.origin,
                 });
             }
@@ -189,7 +194,11 @@ impl PinView {
             self.press = None;
             return;
         }
-        let origin = dragged(press.origin, press.pointer, self.global(e.position));
+        // While the button is held, positions stay relative to the surface as it was at the press.
+        let origin = match (press.global, (self.pointer)()) {
+            (Some(from), Some(to)) => dragged(press.origin, from, to),
+            _ => dragged(press.origin, press.local, local(e.position)),
+        };
         if origin != self.origin {
             self.origin = origin;
             cx.emit(PinEvent::Moved(origin));
@@ -273,8 +282,6 @@ impl Render for PinView {
         let size = self.size();
         let pad = px(SHADOW_PAD as f32);
         let view = cx.entity().downgrade();
-        let shown_at = self.shown_at.clone();
-        let drawn = self.origin;
         let close = self.hovered.then(|| {
             animate(
                 div()
@@ -307,8 +314,6 @@ impl Render for PinView {
                 canvas(
                     |_, _, _| {},
                     move |_, _, window, _| {
-                        // The surface's margins change with the frame after a move, so this frame shows `drawn`.
-                        shown_at.set(drawn);
                         let moving = view.clone();
                         window.on_mouse_event(move |e: &MouseMoveEvent, _, _, cx| {
                             let _ = moving.update(cx, |v, cx| v.mouse_move(e, cx));
@@ -358,6 +363,7 @@ impl Render for PinView {
                         div().size_full().rounded(RADIUS).overflow_hidden().child(
                             img(self.image.clone())
                                 .size_full()
+                                .rounded(RADIUS)
                                 .object_fit(ObjectFit::Cover),
                         ),
                     )
@@ -444,7 +450,9 @@ impl Pins {
         let handle =
             self.surfaces
                 .open_surface(SurfaceRole::Pin, &output, surface_size(size), cx)?;
-        let view = cx.new(|_| PinView::new(image, size, origin));
+        let source = self.surfaces.source().clone();
+        let pointer: PointerGlobal = Rc::new(move || source.pointer_global());
+        let view = cx.new(|_| PinView::new(image, size, origin, pointer));
         handle.set_content(view.clone().into(), cx);
         handle.set_position(surface_origin(origin), cx);
         handle.set_input_region(&[picture_region(size)], cx);

@@ -6,15 +6,15 @@ use es_app::errors::{Error, Result};
 use es_app::platform_ui::{
     LayerShellSurfaces, LayerSurfaceHandle, SurfaceHandle as _, SurfaceRole,
 };
-use es_geom::Rect;
+use es_geom::{Point, Rect};
 use es_model::config::Overlay;
 use es_ui::a11y::{Accessible as _, Role};
 use es_ui::theme::UI_FONT;
 use gpui::{
-    App, AppContext as _, Context, Entity, FocusHandle, FontWeight, InteractiveElement as _,
-    IntoElement, ParentElement as _, Render, RenderImage, SharedString,
-    StatefulInteractiveElement as _, Styled as _, Subscription, Window, div,
-    prelude::FluentBuilder as _, px,
+    App, AppContext as _, Context, DispatchPhase, Entity, FocusHandle, FontWeight,
+    InteractiveElement as _, IntoElement, MouseExitEvent, MouseMoveEvent, ParentElement as _,
+    Render, RenderImage, SharedString, StatefulInteractiveElement as _, Styled as _, Subscription,
+    Window, canvas, div, prelude::FluentBuilder as _, px,
 };
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -79,6 +79,7 @@ pub struct DeckView {
     images: HashMap<Uuid, Option<Arc<RenderImage>>>,
     focus: HashMap<Uuid, FocusHandle>,
     hovered: Option<Uuid>,
+    cards: Vec<(Uuid, Rect)>,
     showings: usize,
     focused: Option<Uuid>,
     _observe: Subscription,
@@ -93,6 +94,7 @@ impl DeckView {
             images: HashMap::new(),
             focus: HashMap::new(),
             hovered: None,
+            cards: Vec::new(),
             showings: 0,
             focused: None,
             _observe: observe,
@@ -146,12 +148,14 @@ impl DeckView {
         cx.notify();
     }
 
-    fn set_hovered(&mut self, id: Uuid, hovered: bool, cx: &mut Context<Self>) {
-        let now = match (hovered, self.hovered) {
-            (true, _) => Some(id),
-            (false, Some(h)) if h == id => None,
-            (false, other) => other,
-        };
+    /// Element hover keeps the last position after the pointer leaves, so it would stay on the card.
+    fn pointer_at(&mut self, at: Option<Point>, cx: &mut Context<Self>) {
+        let now = at.and_then(|p| {
+            self.cards
+                .iter()
+                .find(|(_, r)| r.contains(p))
+                .map(|(id, _)| *id)
+        });
         if now != self.hovered {
             if now.is_some() {
                 self.showings += 1;
@@ -233,6 +237,32 @@ impl Render for DeckView {
                 Deck::clear_all,
             ))
         });
+        self.cards = items
+            .iter()
+            .enumerate()
+            .map(|(i, item)| (item.id, geometry.card(i)))
+            .collect();
+        let view = cx.entity().downgrade();
+        let pointer = canvas(
+            |_, _, _| {},
+            move |_, _, window, _| {
+                let moved = view.clone();
+                window.on_mouse_event(move |e: &MouseMoveEvent, phase, _, cx| {
+                    if phase == DispatchPhase::Bubble {
+                        let at = Point::new(f64::from(e.position.x), f64::from(e.position.y));
+                        let _ = moved.update(cx, |v, cx| v.pointer_at(Some(at), cx));
+                    }
+                });
+                let left = view.clone();
+                window.on_mouse_event(move |_: &MouseExitEvent, phase, _, cx| {
+                    if phase == DispatchPhase::Bubble {
+                        let _ = left.update(cx, |v, cx| v.pointer_at(None, cx));
+                    }
+                });
+            },
+        )
+        .absolute()
+        .size_full();
         let cards = items.into_iter().enumerate().map(|(i, item)| {
             let r: Rect = geometry.card(i);
             let id = item.id;
@@ -248,10 +278,6 @@ impl Render for DeckView {
             let on_action = Rc::new(move |action: DeckAction, _: &mut Window, cx: &mut App| {
                 deck.update(cx, |d, cx| d.act(id, action, cx));
             });
-            let view = cx.entity().downgrade();
-            let on_hover = Rc::new(move |hovered: bool, _: &mut Window, cx: &mut App| {
-                let _ = view.update(cx, |v, cx| v.set_hovered(id, hovered, cx));
-            });
             let image = self.images.get(&id).cloned().flatten();
             div()
                 .absolute()
@@ -266,7 +292,6 @@ impl Render for DeckView {
                         self.settings.size.control_scale(),
                         focus,
                         on_action,
-                        on_hover,
                     )
                     .tools(show.then_some(self.showings))
                     .share(self.settings.share),
@@ -277,6 +302,7 @@ impl Render for DeckView {
             .accessible(Role::Group, SharedString::from(fl!("deck-window-title")))
             .relative()
             .size_full()
+            .child(pointer)
             .children(header)
             .children(cards)
     }

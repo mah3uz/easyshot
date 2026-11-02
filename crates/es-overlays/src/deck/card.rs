@@ -71,7 +71,6 @@ fn action_icon(action: DeckAction) -> IconName {
 }
 
 pub type ActionHandler = Rc<dyn Fn(DeckAction, &mut Window, &mut App)>;
-pub type HoverHandler = Rc<dyn Fn(bool, &mut Window, &mut App)>;
 
 /// What a drag out of the deck carries: the file, named after the capture.
 #[derive(Clone)]
@@ -106,7 +105,6 @@ pub struct Card {
     share: bool,
     focus: FocusHandle,
     on_action: ActionHandler,
-    on_hover: HoverHandler,
 }
 
 impl Card {
@@ -119,7 +117,6 @@ impl Card {
         scale: f32,
         focus: FocusHandle,
         on_action: ActionHandler,
-        on_hover: HoverHandler,
     ) -> Self {
         Card {
             item,
@@ -131,7 +128,6 @@ impl Card {
             share: false,
             focus,
             on_action,
-            on_hover,
         }
     }
 
@@ -275,7 +271,6 @@ impl RenderOnce for Card {
         });
         let open = self.on_action.clone();
         let keyed = self.on_action.clone();
-        let hover = self.on_hover.clone();
         let dragged = DraggedCapture {
             file: self.item.file.clone(),
             image: self.image.clone(),
@@ -291,7 +286,6 @@ impl RenderOnce for Card {
             .overflow_hidden()
             .bg(black(0.9))
             .shadow(card_shadow())
-            .on_hover(move |hovered, window, cx| hover(*hovered, window, cx))
             .when(!saving, |card| {
                 card.on_click(move |_, window, cx| open(DeckAction::Edit, window, cx))
                     .on_key_down(move |e: &KeyDownEvent, window, cx| {

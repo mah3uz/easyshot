@@ -116,14 +116,21 @@ fn drive(backend: &Backend, output: &str, shots: &Path, logical: Rect, scale: f6
     to(grab, 0.);
     pause(300);
     cursor("press");
-    for step in 1..=6 {
-        let f = f64::from(step) / 6.;
-        to(grab + (DRAG.0 * f, DRAG.1 * f), 0.);
-        pause(40);
+    // Faster than a frame per step, so motion arrives while a move is still waiting to be drawn.
+    for step in 1..=30 {
+        let f = f64::from(step) / 30.;
+        let at = grab + (DRAG.0 * f, DRAG.1 * f);
+        if let Some(input) = backend.virtual_input.as_ref()
+            && let Err(e) = input.scroll(at, 0.)
+        {
+            eprintln!("virtual pointer: {e}");
+        }
+        pause(4);
     }
+    pause(100);
     cursor("release");
     pause(600);
-    eprintln!("STEP moved");
+    eprintln!("STEP moved expect={:?}", origin + DRAG);
     grim(output, &shots.join("pin-moved.png"));
 }
 

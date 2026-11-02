@@ -22,6 +22,8 @@ pub trait OutputSource {
     fn outputs(&self) -> Vec<OutputInfo>;
     fn pointer_output(&self) -> Option<OutputId>;
     fn focused_output(&self) -> Option<OutputId>;
+    /// In global logical pixels; `None` when the compositor gives no way to ask.
+    fn pointer_global(&self) -> Option<Point>;
 }
 
 impl OutputSource for Backend {
@@ -31,6 +33,10 @@ impl OutputSource for Backend {
 
     fn pointer_output(&self) -> Option<OutputId> {
         self.pointer.as_ref()?.output_under_pointer()
+    }
+
+    fn pointer_global(&self) -> Option<Point> {
+        self.pointer.as_ref()?.pointer_global()
     }
 
     fn focused_output(&self) -> Option<OutputId> {
