@@ -30,23 +30,20 @@ fn swaymsg(command: &str) {
     assert!(status.success(), "swaymsg {command}");
 }
 
-fn wait_for(windows: &dyn WindowList, app_id: &str) -> WindowInfo {
+// A window maps at its own size and shows sway's layout only once the client commits the configure.
+fn wait_for(
+    windows: &dyn WindowList,
+    app_id: &str,
+    settled: impl Fn(&WindowInfo) -> bool,
+) -> WindowInfo {
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
-        if windows
-            .snapshot()
-            .iter()
-            .any(|w| w.app_id == app_id && w.logical.is_some_and(|r| r.width() > 0.0))
-        {
-            // One more beat lets the first configure settle.
-            std::thread::sleep(Duration::from_millis(300));
-            return windows
-                .snapshot()
-                .into_iter()
-                .find(|w| w.app_id == app_id)
-                .unwrap();
+        let seen = windows.snapshot().into_iter().find(|w| w.app_id == app_id);
+        match seen {
+            Some(w) if settled(&w) || Instant::now() >= deadline => return w,
+            None => assert!(Instant::now() < deadline, "{app_id} never mapped"),
+            Some(_) => {}
         }
-        assert!(Instant::now() < deadline, "{app_id} never mapped");
         std::thread::sleep(Duration::from_millis(50));
     }
 }
@@ -60,7 +57,10 @@ fn platform_sway_tree_rect_matches_the_window_capture() {
     };
     let app_id = "es-harness-capture";
     swaymsg(&format!("exec alacritty --class {app_id}"));
-    let info = wait_for(&*windows, app_id);
+    let info = wait_for(&*windows, app_id, |w| {
+        w.logical
+            .is_some_and(|r| (r.width() * SCALE, r.height() * SCALE) == (1920.0, 1080.0))
+    });
     let rect = info.logical.unwrap();
 
     let conn = es_wayland::Connection::connect().unwrap();
@@ -75,18 +75,26 @@ fn platform_sway_tree_rect_matches_the_window_capture() {
         );
         std::thread::sleep(Duration::from_millis(50));
     };
-    let frame = conn
-        .capture_toplevel(&toplevel.id.0, CaptureOpts { cursor: false })
-        .unwrap();
+    // Sway lays the window out before the client commits a buffer at the new size.
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let (frame, captured) = loop {
+        let frame = conn
+            .capture_toplevel(&toplevel.id.0, CaptureOpts { cursor: false })
+            .unwrap();
+        let captured = (
+            f64::from(frame.size_px.0) / frame.scale,
+            f64::from(frame.size_px.1) / frame.scale,
+        );
+        if captured == (rect.width(), rect.height()) || Instant::now() >= deadline {
+            break (frame, captured);
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    };
     swaymsg(&format!("[app_id={app_id}] kill"));
 
     eprintln!(
         "tree rect {rect:?}, capture {:?} at scale {} as {:?}",
         frame.size_px, frame.scale, frame.logical
-    );
-    let captured = (
-        f64::from(frame.size_px.0) / frame.scale,
-        f64::from(frame.size_px.1) / frame.scale,
     );
     assert_eq!(captured, (rect.width(), rect.height()));
     // Alone on its workspace it fills the 1920x1080 output, so a physical rect would be 1.5 times larger.
@@ -108,7 +116,9 @@ fn platform_sway_rule_floats_the_editor() {
     };
     rules.install(&RuleSet::default()).unwrap();
     swaymsg("exec alacritty --class dev.easyshot.editor");
-    let info = wait_for(&*windows, "dev.easyshot.editor");
+    let info = wait_for(&*windows, "dev.easyshot.editor", |w| {
+        w.floating && w.logical.is_some_and(|r| r.width() == 1180.0)
+    });
     swaymsg("[app_id=dev.easyshot.editor] kill");
     eprintln!("editor rect {:?}", info.logical);
     assert!(info.floating, "the rule makes the editor float");
