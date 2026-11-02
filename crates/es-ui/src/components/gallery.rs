@@ -88,6 +88,7 @@ pub fn sections() -> Vec<Section> {
             height: 150.,
             render: controls::shortcut_fields,
         },
+        crate::components::gallery_picks::SECTION,
     ]
 }
 

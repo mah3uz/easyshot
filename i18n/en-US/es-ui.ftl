@@ -71,3 +71,13 @@ controls-shortcut-press = Press Shortcut
 controls-shortcut-clear = Clear shortcut
 controls-shortcut-help = Press to record a shortcut. Escape cancels; use the clear button to remove the shortcut.
 controls-shortcut-help-delete = Press to record a shortcut. Escape cancels; Delete clears the shortcut.
+
+## Picks
+picks-swatch-custom = Custom color
+picks-swatch-custom-choose = Choose a custom color
+picks-stroke-width =
+    { $width ->
+        [one] { $width } pixel
+       *[other] { $width } pixels
+    }
+picks-stroke-width-help = { $width } px

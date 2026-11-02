@@ -20,3 +20,14 @@ pub use slider::{InspectorSlider, SliderEvent};
 pub use tool_button::ToolButton;
 pub use value_format::ValueFormat;
 pub use zoom_capsule::{ZoomCapsule, ZoomCommand};
+
+pub mod backgrounds;
+pub mod gallery_picks;
+pub mod stroke_dots;
+pub mod swatch_strip;
+pub mod tile;
+
+pub use backgrounds::{CheckerBackground, DotGridBackground};
+pub use stroke_dots::{STROKE_WIDTHS, StrokeDots};
+pub use swatch_strip::{SwatchPick, SwatchStrip};
+pub use tile::{Tile, TileGrid};
