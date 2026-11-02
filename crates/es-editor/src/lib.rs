@@ -13,6 +13,7 @@ pub use canvas::EditorCanvas;
 pub use session::doc::{DocEvent, DocModel, Opened};
 pub use session::viewport::{ViewportChanged, ViewportModel};
 pub use session::{EditorSession, EditorSource};
+pub use window::{EditorWindow, EditorWindowEvent, Job, Progress};
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]

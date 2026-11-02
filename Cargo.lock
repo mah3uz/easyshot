@@ -2055,6 +2055,7 @@ dependencies = [
  "es-text",
  "es-ui",
  "futures",
+ "gpui-component",
  "gpui-pre",
  "gpui-pre-platform",
  "i18n-embed",

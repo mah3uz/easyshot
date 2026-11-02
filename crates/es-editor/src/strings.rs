@@ -11,11 +11,12 @@ struct Localizations;
 
 static LOADER: LazyLock<FluentLanguageLoader> = LazyLock::new(|| {
     let loader = fluent_language_loader!();
-    loader.set_use_isolating(false);
     if let Err(error) = loader.load_languages(&Localizations, &[loader.fallback_language().clone()])
     {
         tracing::error!(%error, "cannot load es-editor strings");
     }
+    // Only bundles that exist when it is called take the setting.
+    loader.set_use_isolating(false);
     loader
 });
 
@@ -23,7 +24,6 @@ pub fn loader() -> &'static FluentLanguageLoader {
     &LOADER
 }
 
-#[expect(unused_macros)]
 macro_rules! fl {
     ($message_id:literal) => {
         i18n_embed_fl::fl!($crate::strings::loader(), $message_id)
@@ -33,5 +33,4 @@ macro_rules! fl {
     };
 }
 
-#[expect(unused_imports)]
 pub(crate) use fl;
