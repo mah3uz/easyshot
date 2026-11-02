@@ -189,7 +189,12 @@ fn platform_daemon_region_capture_reaches_the_deck_and_the_save_folder() {
         (455..=457).contains(&w) && (225..=228).contains(&h),
         "304x151 at scale 1.5, got {w}x{h}"
     );
-    assert_eq!(staged_cards(&deck), 0, "a kept capture is not staged:\n{}", log());
+    assert_eq!(
+        staged_cards(&deck),
+        0,
+        "a kept capture is not staged:\n{}",
+        log()
+    );
     assert_eq!(
         files(&root.path().join("data/easyshot/library"), "png").len(),
         1,
