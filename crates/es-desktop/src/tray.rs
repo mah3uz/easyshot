@@ -39,7 +39,7 @@ fn menu_item(item: &TrayItem, labels: &Labels) -> MenuItem<EsTray> {
     if item.separator {
         return MenuItem::Separator;
     }
-    let label = labels(item.label_id);
+    let label = item.label.clone().unwrap_or_else(|| labels(item.label_id));
     let shortcut: Vec<Vec<String>> = item
         .shortcut
         .iter()

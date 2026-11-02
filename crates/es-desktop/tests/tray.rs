@@ -37,6 +37,7 @@ type Layout = (i32, HashMap<String, OwnedValue>, Vec<OwnedValue>);
 fn item(label_id: &'static str, route: Option<Route>) -> TrayItem {
     TrayItem {
         label_id,
+        label: None,
         shortcut: None,
         route,
         children: Vec::new(),

@@ -73,6 +73,8 @@ pub struct TrayModel {
 #[derive(Debug, Clone)]
 pub struct TrayItem {
     pub label_id: &'static str,
+    /// Shown instead of looking up `label_id`, for text that carries a value.
+    pub label: Option<String>,
     pub shortcut: Option<String>,
     pub route: Option<Route>,
     pub children: Vec<TrayItem>,
