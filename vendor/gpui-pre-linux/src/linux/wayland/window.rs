@@ -620,6 +620,13 @@ impl WaylandWindowState {
                 .set_max_size(max_texture_size, max_texture_size);
         }
 
+        // A layer surface has no window frame; client decorations would add shadow padding and a border.
+        let decorations = if matches!(surface_state, WaylandSurfaceState::LayerShell(_)) {
+            WindowDecorations::Server
+        } else {
+            WindowDecorations::Client
+        };
+
         Ok(Self {
             surface_state,
             parent,
@@ -635,7 +642,7 @@ impl WaylandWindowState {
             bounds: options.bounds,
             scale: 1.0,
             input_handler: None,
-            decorations: WindowDecorations::Client,
+            decorations,
             background_appearance: WindowBackgroundAppearance::Opaque,
             fullscreen: false,
             maximized: false,
@@ -2206,6 +2213,10 @@ impl PlatformWindow for WaylandWindow {
             Some(decoration) => {
                 decoration.set_mode(decorations.to_xdg());
                 state.decorations = decorations;
+                update_window(state);
+            }
+            None if state.surface_state.layer_surface().is_some() => {
+                state.decorations = WindowDecorations::Server;
                 update_window(state);
             }
             None => {
