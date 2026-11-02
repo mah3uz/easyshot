@@ -42,3 +42,10 @@ pub fn ensure(paths: &Paths, image: &Path, size: u32) -> crate::Result<PathBuf> 
     crate::atomic::write_atomic(&thumb, &png)?;
     Ok(thumb)
 }
+
+/// A video's thumbnail strip, named like a thumbnail so a re-recorded file never serves a stale strip.
+pub fn strip_path_for(paths: &Paths, video: &Path, tiles: u32, height: u32) -> Option<PathBuf> {
+    let thumb = thumb_path_for(paths, video, height)?;
+    let stem = thumb.file_stem()?.to_string_lossy().into_owned();
+    Some(thumb.with_file_name(format!("{stem}-strip{tiles}.png")))
+}

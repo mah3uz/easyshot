@@ -181,3 +181,24 @@ window-picker-hint = ↑ ↓ to choose  ·  ↩ to capture  ·  space for an are
 
 ## Colour picker
 color-a11y = Pick a colour. Click to copy its hex value, Escape to cancel.
+
+## Trim player
+player-a11y = Video trimmer
+player-video-a11y = Video
+player-play = Play
+player-pause = Pause
+player-time = { $position } / { $duration }
+player-timeline-a11y = Timeline
+player-trim-start-a11y = Trim start
+player-trim-end-a11y = Trim end
+player-kept = { $start } – { $end }  ·  { $kept } s
+player-mode-a11y = Export method
+player-mode-precise = Precise
+player-mode-fast = Fast
+player-remove-audio = Remove Audio
+player-export = Export
+player-export-a11y = Export the trimmed video as MP4
+player-exporting = Exporting… { $percent }%
+player-exported = Saved { $name }
+player-export-failed = Export failed: { $reason }
+player-open-failed = This video cannot be played: { $reason }

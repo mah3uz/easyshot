@@ -15,6 +15,7 @@ es-model.workspace = true
 es-render.workspace = true
 es-record.workspace = true
 es-protocol.workspace = true
+es-store.workspace = true
 es-scroll.workspace = true
 es-app.workspace = true
 es-ui.workspace = true
