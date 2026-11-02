@@ -27,6 +27,7 @@ rustix = { workspace = true, features = ["process", "time", "fs"] }
 gstreamer = { workspace = true, optional = true }
 gstreamer-app = { workspace = true, optional = true }
 evdev = { workspace = true, optional = true }
+tempfile.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
