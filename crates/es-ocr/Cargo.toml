@@ -16,3 +16,6 @@ regex.workspace = true
 image.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
