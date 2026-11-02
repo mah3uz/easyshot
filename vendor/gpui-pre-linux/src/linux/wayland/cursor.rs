@@ -270,6 +270,16 @@ fn custom_image_for_scale(image: &CursorImage, scale: f32, fractional: bool) -> 
     above.or(largest).map(|(index, _)| index)
 }
 
+/// A pool shorter than its buffer is a wl_shm protocol error, which ends the whole connection.
+fn shm_pool_size(width: i32, height: i32, len: usize) -> Option<i32> {
+    let (w, h) = (usize::try_from(width).ok()?, usize::try_from(height).ok()?);
+    let size = w.checked_mul(h)?.checked_mul(4)?;
+    if w == 0 || h == 0 || size != len {
+        return None;
+    }
+    i32::try_from(size).ok()
+}
+
 /// Creates a `width` x `height` ARGB8888 buffer holding `bgra`.
 pub(crate) fn create_shm_buffer(
     shm: &WlShm,
@@ -278,13 +288,21 @@ pub(crate) fn create_shm_buffer(
     height: i32,
     bgra: &[u8],
 ) -> anyhow::Result<WlBuffer> {
+    let size = shm_pool_size(width, height, bgra.len()).ok_or_else(|| {
+        anyhow!(
+            "{} bytes is not a {width}x{height} ARGB8888 image",
+            bgra.len()
+        )
+    })?;
+    // SAFETY: the name is a NUL-terminated static string, the flag is valid, the result is checked.
     let fd = unsafe { libc::memfd_create(c"gpui-shm".as_ptr(), libc::MFD_CLOEXEC) };
     if fd < 0 {
         return Err(std::io::Error::last_os_error().into());
     }
+    // SAFETY: fd is a fresh valid descriptor owned by nothing else, so the File closes it once.
     let mut file = unsafe { File::from_raw_fd(fd) };
     file.write_all(bgra)?;
-    let pool = shm.create_pool(file.as_fd(), bgra.len() as i32, qh, ());
+    let pool = shm.create_pool(file.as_fd(), size, qh, ());
     let buffer = pool.create_buffer(
         0,
         width,
@@ -296,4 +314,24 @@ pub(crate) fn create_shm_buffer(
     );
     pool.destroy();
     Ok(buffer)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::shm_pool_size;
+
+    #[test]
+    fn shm_pool_size_needs_exactly_four_bytes_per_pixel() {
+        assert_eq!(shm_pool_size(3, 2, 24), Some(24));
+        assert_eq!(shm_pool_size(3, 2, 23), None);
+        assert_eq!(shm_pool_size(3, 2, 25), None);
+        assert_eq!(shm_pool_size(0, 2, 0), None);
+        assert_eq!(shm_pool_size(-3, -2, 24), None);
+        assert_eq!(shm_pool_size(i32::MAX, i32::MAX, 0), None);
+        assert_eq!(
+            shm_pool_size(32768, 16384, 1 << 31),
+            None,
+            "larger than an i32 pool"
+        );
+    }
 }
