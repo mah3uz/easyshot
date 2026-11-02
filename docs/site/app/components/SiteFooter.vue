@@ -54,7 +54,6 @@ const cols = [
     </div>
     <div class="container-x flex flex-wrap items-center justify-between gap-3 border-t border-line py-6 text-[13px] text-fg-3">
       <span>© {{ year }} easyshot contributors</span>
-      <span>Not affiliated with CleanShot or Better Shot.</span>
     </div>
   </footer>
 </template>

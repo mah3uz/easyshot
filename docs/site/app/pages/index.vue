@@ -33,10 +33,6 @@ const faq = [
     q: 'What does recording need?',
     a: 'gpu-screen-recorder (preferred) or wf-recorder. Without one, the record items are disabled and tell you what to install. Text capture needs Tesseract.',
   },
-  {
-    q: 'Is this affiliated with CleanShot or Better Shot?',
-    a: 'No. easyshot is an independent project that brings the same kind of workflow to Linux on Wayland.',
-  },
 ]
 
 const why = [
