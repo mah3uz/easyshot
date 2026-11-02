@@ -1,5 +1,5 @@
 pub(crate) mod menus;
-mod style_bar;
+pub(crate) mod style_bar;
 mod text_style;
 pub mod tools;
 

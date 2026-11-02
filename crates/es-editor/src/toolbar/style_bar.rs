@@ -49,7 +49,7 @@ fn facets(editor: &Editor) -> Option<Facets> {
     (f.colour || f.stroke || f.text || f.strength || f.selection).then_some(f)
 }
 
-fn swatch_title(swatch: &Swatch) -> String {
+pub(crate) fn swatch_title(swatch: &Swatch) -> String {
     match swatch.id.as_str() {
         "black" => fl!("editor-swatch-black"),
         "red" => fl!("editor-swatch-red"),
@@ -65,7 +65,7 @@ fn swatch_title(swatch: &Swatch) -> String {
     }
 }
 
-pub(super) fn colour(swatch: &Swatch) -> Hsla {
+pub(crate) fn colour(swatch: &Swatch) -> Hsla {
     Rgba {
         r: swatch.red as f32,
         g: swatch.green as f32,
@@ -75,7 +75,7 @@ pub(super) fn colour(swatch: &Swatch) -> Hsla {
     .into()
 }
 
-fn custom(colour: Hsla) -> Swatch {
+pub(crate) fn custom(colour: Hsla) -> Swatch {
     let rgba = Rgba::from(colour);
     Swatch {
         id: "custom".into(),

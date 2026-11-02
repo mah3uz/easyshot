@@ -17,9 +17,11 @@ use tiny_skia::Pixmap;
 /// Quiet time after the last change before the exact composite is rendered.
 pub const SETTLE_DELAY: Duration = Duration::from_millis(120);
 
-/// The camera and the scene blur act on the whole composed card, so the canvas shows them as one image.
+/// The camera, the scene blur and the watermark act on the whole composed canvas, so the canvas shows them as one image.
 pub fn active(settings: &BackgroundSettings) -> bool {
-    settings.camera.has_effect() || settings.progressive_blur.is_active()
+    settings.camera.has_effect()
+        || settings.progressive_blur.is_active()
+        || settings.watermark.is_visible()
 }
 
 #[derive(Debug, Clone, PartialEq)]

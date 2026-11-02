@@ -274,6 +274,7 @@ editor-watermark-size = Size
 editor-watermark-angle = Angle
 editor-watermark-opacity = Opacity
 editor-watermark-color = Color
+editor-swatch-mercury = Mercury
 
 ## Inspector: slider value field
 editor-slider-value-help = Enter an exact value for { $title }

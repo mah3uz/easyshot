@@ -90,11 +90,20 @@ impl Inspector {
             LookModel::drive_canvas(&look, canvas, cx),
             cx.observe(&look, |_, _, cx| cx.notify()),
         ];
+        let mut bodies: [Option<AnyView>; SECTIONS] = Default::default();
+        bodies[index(Section::Border)] = Some(
+            cx.new(|cx| border::BorderBody::new(look.clone(), cx))
+                .into(),
+        );
+        bodies[index(Section::Watermark)] = Some(
+            cx.new(|cx| watermark::WatermarkBody::new(look.clone(), cx))
+                .into(),
+        );
         Self {
             look,
             presets,
             expanded,
-            bodies: Default::default(),
+            bodies,
             scroll: ScrollHandle::new(),
             _subscriptions: subscriptions,
         }
@@ -112,6 +121,10 @@ impl Inspector {
     pub fn set_body(&mut self, section: Section, body: AnyView, cx: &mut Context<Self>) {
         self.bodies[index(section)] = Some(body);
         cx.notify();
+    }
+
+    pub fn body(&self, section: Section) -> Option<&AnyView> {
+        self.bodies[index(section)].as_ref()
     }
 
     pub fn is_expanded(&self, section: Section) -> bool {
