@@ -184,9 +184,11 @@ pub fn open_player(video: std::path::PathBuf, paths: es_store::Paths, cx: &mut A
         commands: Arc::new(es_record::project::SystemRunner),
         ffmpeg: Arc::new(SystemFfmpeg),
     };
-    cx.open_window(gpui::WindowOptions::default(), |_, cx| {
-        cx.new(|cx| PlayerWindow::new(config, cx))
-    })
-    .map(|_| ())
-    .map_err(|e| Error::Protocol(e.to_string()))
+    let options = gpui::WindowOptions {
+        app_id: Some(es_protocol::PLAYER_APP_ID.into()),
+        ..Default::default()
+    };
+    cx.open_window(options, |_, cx| cx.new(|cx| PlayerWindow::new(config, cx)))
+        .map(|_| ())
+        .map_err(|e| Error::Protocol(e.to_string()))
 }
