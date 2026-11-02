@@ -40,7 +40,12 @@ Settings > Shortcuts shows the snippet to paste for your compositor.
 - **Text (OCR).** Reads text from a region, with or without line breaks, and reads QR
   codes.
 - **Colour picker.** Copies the colour as `#RRGGBB`.
-- **Scrolling capture.** Captures a scrolling page.
+- **Scrolling capture.** Select an area, then scroll the page under it. easyshot joins what
+  scrolls into view into one tall image, up to 30000 pixels. A bar under the area shows the
+  size so far, with Stop and, where your compositor allows it, Auto Scroll, which scrolls for
+  you and stops at the end of the page. A preview beside the area shows the image as it
+  grows. Press the scrolling-capture shortcut again to stop. Escape does not cancel it; use
+  the ✕ on the bar. If the area fills the whole screen, the bar sits over it and is captured.
 - **Variants.** Region capture also comes as "& Copy", "& Save", "& Annotate" and "& Pin".
 
 If you start a capture while another is running, it waits its turn.

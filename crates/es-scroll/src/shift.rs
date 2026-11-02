@@ -1,7 +1,8 @@
 use crate::Frame;
 
 pub const MIN_NCC: f64 = 0.9;
-const SAMPLE_COLUMNS: usize = 128;
+const SAMPLE_COLUMNS: usize = 1024;
+const BANDS: usize = 32;
 const MIN_VARIANCE: f64 = 1e-3;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -10,20 +11,25 @@ pub struct Exclusions {
     pub right: usize,
 }
 
-fn profile(frame: &Frame, ex: Exclusions) -> Vec<f64> {
+// Text lines differ in a glyph or two, which a whole-row mean averages away; side-by-side bands keep it.
+fn profile(frame: &Frame, ex: Exclusions) -> (Vec<f64>, usize) {
     let usable = frame.width.saturating_sub(ex.right);
     let step = (usable / SAMPLE_COLUMNS).max(1);
-    (ex.top.min(frame.height)..frame.height)
-        .map(|y| {
-            let row = frame.row(y);
-            let (sum, n) = (0..usable).step_by(step).fold((0.0, 0.0), |(s, n), x| {
-                let p = &row[x * 4..x * 4 + 3];
-                let lum = 29.0 * f64::from(p[0]) + 150.0 * f64::from(p[1]) + 77.0 * f64::from(p[2]);
-                (s + lum / 256.0, n + 1.0)
-            });
-            if n > 0.0 { sum / n } else { 0.0 }
-        })
-        .collect()
+    let samples = usable.div_ceil(step).max(1);
+    let bands = BANDS.min(samples);
+    let mut out = Vec::with_capacity(frame.height.saturating_sub(ex.top) * bands);
+    for y in ex.top.min(frame.height)..frame.height {
+        let row = frame.row(y);
+        let mut sums = [(0.0, 0.0); BANDS];
+        for (i, x) in (0..usable).step_by(step).enumerate() {
+            let p = &row[x * 4..x * 4 + 3];
+            let lum = 29.0 * f64::from(p[0]) + 150.0 * f64::from(p[1]) + 77.0 * f64::from(p[2]);
+            let s = &mut sums[i * bands / samples];
+            *s = (s.0 + lum / 256.0, s.1 + 1.0);
+        }
+        out.extend(sums[..bands].iter().map(|&(s, n)| s / f64::max(n, 1.0)));
+    }
+    (out, bands)
 }
 
 fn ncc(a: &[f64], b: &[f64]) -> f64 {
@@ -48,20 +54,20 @@ pub fn shift(prev: &Frame, next: &Frame, ex: Exclusions) -> Option<usize> {
     if prev.width != next.width || prev.height != next.height {
         return None;
     }
-    let mut p = profile(prev, ex);
-    let mut n = profile(next, ex);
-    let len = p.len();
+    let (mut p, bands) = profile(prev, ex);
+    let (mut n, _) = profile(next, ex);
+    let len = p.len() / bands;
     let min_overlap = (len / 10).max(8);
     if len < min_overlap {
         return None;
     }
     for v in [&mut p, &mut n] {
-        let mean = v.iter().sum::<f64>() / len as f64;
+        let mean = v.iter().sum::<f64>() / v.len() as f64;
         v.iter_mut().for_each(|x| *x -= mean);
     }
     let mut best = (MIN_NCC, None);
     for dy in 0..=len - min_overlap {
-        let r = ncc(&p[dy..], &n[..len - dy]);
+        let r = ncc(&p[dy * bands..], &n[..(len - dy) * bands]);
         if r > best.0 {
             best = (r, Some(dy));
         }

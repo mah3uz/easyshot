@@ -1,9 +1,11 @@
 use super::color::{ColorEvent, ColorPicker};
 use super::geometry;
 use super::picker::WindowPicker;
+use super::scroll_flow::{self, Control};
 use super::selector::{RegionSelector, SelectorEvent, SelectorStyle};
 use super::window::{PickEvent, WindowSelector, window_frame};
 use super::windows;
+use es_app::capture_coordinator::Hook;
 use es_app::errors::{Error, Result};
 use es_app::platform_ui::{
     LayerShellSurfaces, LayerSurfaceHandle, SelectMode, Selection, SelectionFlow, SurfaceHandle,
@@ -42,6 +44,7 @@ pub struct LayerShellSelectionFlow {
     options: Options,
     recall: Recall,
     remember: Remember,
+    scroll: Control,
 }
 
 impl LayerShellSelectionFlow {
@@ -52,6 +55,7 @@ impl LayerShellSelectionFlow {
             options: Rc::new(|_| FlowOptions::default()),
             recall: Rc::new(|_| None),
             remember: Rc::new(|_, _| {}),
+            scroll: Control::default(),
         }
     }
 
@@ -67,6 +71,16 @@ impl LayerShellSelectionFlow {
         self
     }
 
+    /// Finishes the running scroll capture as Stop does.
+    pub fn scroll_stop(&self) -> Hook {
+        let control = self.scroll.clone();
+        Rc::new(move |_| {
+            if let Some(tx) = control.borrow().as_ref() {
+                let _ = tx.send(super::scroll::Command::Stop);
+            }
+        })
+    }
+
     fn duplicate(&self) -> Self {
         LayerShellSelectionFlow {
             surfaces: self.surfaces.clone(),
@@ -74,6 +88,7 @@ impl LayerShellSelectionFlow {
             options: self.options.clone(),
             recall: self.recall.clone(),
             remember: self.remember.clone(),
+            scroll: self.scroll.clone(),
         }
     }
 }
@@ -84,6 +99,7 @@ enum View {
     Text,
     Window,
     Color,
+    Scroll,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -184,9 +200,9 @@ impl Open {
         let frame = o.frame.clone();
         let pid = std::process::id();
         Some(match view {
-            View::Region | View::Text => {
+            View::Region | View::Text | View::Scroll => {
                 let text = view == View::Text;
-                let pre = (!text)
+                let pre = (view == View::Region)
                     .then(|| preselect(setup.last.as_ref(), &o.output))
                     .flatten();
                 let release = text || setup.options.capture_on_release;
@@ -318,7 +334,7 @@ fn view_for(mode: SelectMode) -> Option<View> {
         SelectMode::Text => Some(View::Text),
         SelectMode::Window => Some(View::Window),
         SelectMode::Color => Some(View::Color),
-        SelectMode::Scroll => None,
+        SelectMode::Scroll => Some(View::Scroll),
     }
 }
 
@@ -383,12 +399,19 @@ impl SelectionFlow for LayerShellSelectionFlow {
                         } else {
                             View::Region
                         };
-                        if view != next && view != View::Text && view != View::Color {
+                        if view != next && matches!(view, View::Region | View::Window) {
                             view = next;
                             cx.update(|cx| open.show(view, &setup, cx));
                         }
                     }
                     Pick::Color(c) => return Ok(Selection::Color(c)),
+                    Pick::Region(local) if view == View::Scroll => {
+                        drop(open);
+                        let (surfaces, backend) = (this.surfaces.clone(), this.backend.clone());
+                        let control = this.scroll.clone();
+                        return scroll_flow::capture(surfaces, backend, control, output, local, cx)
+                            .await;
+                    }
                     Pick::Region(local) => {
                         let cropped = geometry::crop(&frame, local)
                             .ok_or_else(|| Error::Internal("empty selection".into()))?;

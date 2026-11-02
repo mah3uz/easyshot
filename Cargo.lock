@@ -2126,6 +2126,7 @@ dependencies = [
  "es-model",
  "es-record",
  "es-render",
+ "es-scroll",
  "es-testkit",
  "es-ui",
  "futures",

@@ -4,6 +4,7 @@ use es_geom::{Point, Rect};
 use es_model::platform::WindowInfo;
 use es_overlays::capture::LayerShellSelectionFlow;
 use es_overlays::capture::color::hex;
+use es_overlays::capture::scroll_hud::{HUD, hud_origin};
 use gpui::{App, QuitMode};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
@@ -17,12 +18,16 @@ const FROM: (i32, i32) = (101, 51);
 const TO: (i32, i32) = (304, 152);
 const TERMINAL_BG: &str = "#3A7BD5";
 const COLOR_INSET: f64 = 40.0;
+const SCROLL_AREA: (i32, i32, i32, i32) = (8, 40, 640, 520);
+const SCROLL_LINES: u32 = 150;
+const STOP_PILL: (f64, f64) = (364.0, 18.0);
 
 #[derive(Clone, Copy, PartialEq)]
 enum Mode {
     Region,
     Window,
     Color,
+    Scroll,
 }
 
 fn fail(message: impl std::fmt::Display) -> ! {
@@ -63,16 +68,21 @@ fn grim(output: &str, path: &Path) {
     clippy::zombie_processes,
     reason = "main kills and waits for the terminal"
 )]
-fn terminal(backend: &Backend) -> (Child, WindowInfo) {
-    sway(&["for_window [app_id=\"Alacritty\"] floating enable"]);
+fn terminal(backend: &Backend, mode: Mode) -> (Child, WindowInfo) {
+    let pager = format!("seq -f 'line %04g' 1 {SCROLL_LINES} | less");
+    let run: &[&str] = if mode == Mode::Scroll {
+        &["sh", "-c", &pager]
+    } else {
+        sway(&["for_window [app_id=\"Alacritty\"] floating enable"]);
+        &["sleep", "600"]
+    };
     let mut child = Command::new("alacritty")
         .args([
             "-o",
             &format!("colors.primary.background=\"{TERMINAL_BG}\""),
             "-e",
-            "sleep",
-            "600",
         ])
+        .args(run)
         .spawn()
         .unwrap_or_else(|e| fail(format!("alacritty: {e}")));
     let deadline = Instant::now() + Duration::from_secs(10);
@@ -96,7 +106,8 @@ fn terminal(backend: &Backend) -> (Child, WindowInfo) {
 }
 
 // `swaymsg seat cursor set` sends no motion while a button is held, so motion comes from the virtual pointer.
-fn drive(backend: &Backend, output: &str, shots: &Path, mode: Mode, target: Option<Rect>) {
+fn drive(backend: &Backend, output: (&str, Rect), shots: &Path, mode: Mode, target: Option<Rect>) {
+    let (output, visible) = output;
     let pause = |ms| thread::sleep(Duration::from_millis(ms));
     let to = |x: i32, y: i32| {
         if let Some(input) = backend.virtual_input.as_ref()
@@ -122,6 +133,40 @@ fn drive(backend: &Backend, output: &str, shots: &Path, mode: Mode, target: Opti
             to((r.x1 - COLOR_INSET) as i32, (r.y1 - COLOR_INSET) as i32);
             pause(400);
             grim(output, &shots.join("harness-color.png"));
+            click();
+        }
+        (Mode::Scroll, _) => {
+            let (x0, y0, x1, y1) = SCROLL_AREA;
+            to(x0, y0);
+            cursor("press button1");
+            for step in 1..=4 {
+                to(x0 + (x1 - x0) * step / 4, y0 + (y1 - y0) * step / 4);
+            }
+            cursor("release button1");
+            pause(300);
+            to((x0 + x1) / 2, (y0 + y1) / 2);
+            for _ in 0..2 {
+                click();
+            }
+            pause(4000);
+            let centre = Point::new(f64::from(x0 + x1) / 2., f64::from(y0 + y1) / 2.);
+            for step in 0..45 {
+                if let Some(input) = backend.virtual_input.as_ref()
+                    && let Err(e) = input.scroll(centre, 15.0)
+                {
+                    eprintln!("virtual wheel: {e}");
+                }
+                pause(350);
+                if step == 20 {
+                    grim(output, &shots.join("harness-scroll-hud.png"));
+                }
+            }
+            pause(800);
+            let area = Rect::new(f64::from(x0), f64::from(y0), f64::from(x1), f64::from(y1));
+            let hud = hud_origin(area, visible);
+            debug_assert!(STOP_PILL.0 < HUD.0);
+            to((hud.x + STOP_PILL.0) as i32, (hud.y + STOP_PILL.1) as i32);
+            pause(200);
             click();
         }
         _ => {
@@ -167,8 +212,46 @@ fn shown_before(output: &str, shots: &Path, r: Rect, scale: f64) -> String {
     format!("#{red:02X}{green:02X}{blue:02X}")
 }
 
-fn check(mode: Mode, selection: &Selection, target: Option<Rect>, scale: f64, shown: &str) -> bool {
+fn stitched(shots: &Path, logical: Rect, frame: &es_model::platform::Frame, scale: f64) -> bool {
+    let (w, h) = frame.size_px;
+    let rgba: Vec<u8> = frame
+        .bgra
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .flat_map(|&[b, g, r, a]| [r, g, b, a])
+        .collect();
+    let path = shots.join("harness-scroll-stitched.png");
+    if let Some(image) = image::RgbaImage::from_raw(w, h, rgba)
+        && let Err(e) = image.save(&path)
+    {
+        eprintln!("write {}: {e}", path.display());
+    }
+    let (x0, y0, x1, y1) = SCROLL_AREA;
+    let area_px = (
+        (f64::from(x1 - x0) * scale).round() as u32,
+        (f64::from(y1 - y0) * scale).round() as u32,
+    );
+    eprintln!(
+        "STITCHED {} px={:?} logical={logical:?} area_px={area_px:?}",
+        path.display(),
+        frame.size_px
+    );
+    w.abs_diff(area_px.0) <= 1 && h > area_px.1 * 2
+}
+
+fn check(
+    mode: Mode,
+    selection: &Selection,
+    target: Option<Rect>,
+    scale: f64,
+    shown: &str,
+    shots: &Path,
+) -> bool {
     match (mode, selection) {
+        (Mode::Scroll, Selection::Region { logical, frame, .. }) => {
+            stitched(shots, *logical, frame, scale)
+        }
         (
             Mode::Region,
             Selection::Region {
@@ -210,11 +293,12 @@ fn main() {
     let shots = std::env::args()
         .nth(1)
         .map(PathBuf::from)
-        .unwrap_or_else(|| fail("usage: selector SCREENSHOT_DIR [region|window|color]"));
+        .unwrap_or_else(|| fail("usage: selector SCREENSHOT_DIR [region|window|color|scroll]"));
     let mode = match std::env::args().nth(2).as_deref() {
         None | Some("region") => Mode::Region,
         Some("window") => Mode::Window,
         Some("color") => Mode::Color,
+        Some("scroll") => Mode::Scroll,
         Some(other) => fail(format!("unknown mode {other}")),
     };
     let probe = Probe::gather().unwrap_or_else(|e| fail(e));
@@ -247,7 +331,7 @@ fn main() {
     let mut child = None;
     let mut target = None;
     if mode != Mode::Region {
-        let (c, w) = terminal(&backend);
+        let (c, w) = terminal(&backend, mode);
         eprintln!("TERMINAL {} {:?} logical={:?}", w.id.0, w.app_id, w.logical);
         target = w.logical;
         child = Some(c);
@@ -258,8 +342,9 @@ fn main() {
         _ => String::new(),
     };
     thread::spawn({
-        let (backend, output) = (backend.clone(), test_output.0.clone());
-        move || drive(&backend, &output, &shots, mode, target)
+        let (backend, output, shots) = (backend.clone(), test_output.0.clone(), shots.clone());
+        let visible = info.logical;
+        move || drive(&backend, (&output, visible), &shots, mode, target)
     });
     gpui_platform::application()
         .with_assets(es_ui::assets::Assets)
@@ -279,15 +364,15 @@ fn main() {
                     Mode::Region => SelectMode::Region,
                     Mode::Window => SelectMode::Window,
                     Mode::Color => SelectMode::Color,
+                    Mode::Scroll => SelectMode::Scroll,
                 },
                 cx,
             );
-            let unsupported = flow.run(SelectMode::Scroll, cx);
             cx.spawn(async move |cx| {
-                let code = match (task.await, unsupported.await) {
-                    (Ok(selection), Err(_)) if check(mode, &selection, target, scale, &shown) => 0,
-                    (other, unsupported) => {
-                        eprintln!("unexpected: {other:?} / scroll mode {unsupported:?}");
+                let code = match task.await {
+                    Ok(selection) if check(mode, &selection, target, scale, &shown, &shots) => 0,
+                    other => {
+                        eprintln!("unexpected: {other:?}");
                         1
                     }
                 };
