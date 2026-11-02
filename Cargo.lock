@@ -2301,6 +2301,7 @@ name = "es-ui"
 version = "0.1.0"
 dependencies = [
  "es-geom",
+ "es-protocol",
  "es-testkit",
  "gpui-component",
  "gpui-kit-assets",

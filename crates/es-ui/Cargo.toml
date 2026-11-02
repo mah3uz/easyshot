@@ -11,6 +11,7 @@ workspace = true
 
 [dependencies]
 es-geom.workspace = true
+es-protocol.workspace = true
 gpui.workspace = true
 gpui-component.workspace = true
 gpui-kit-assets.workspace = true

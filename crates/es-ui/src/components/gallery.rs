@@ -6,6 +6,7 @@ use gpui::{
 use gpui_component::{Icon, Root};
 
 use crate::{
+    components::gallery_controls as controls,
     fonts,
     icons::IconName,
     theme::{self, UI_FONT, tokens},
@@ -56,6 +57,36 @@ pub fn sections() -> Vec<Section> {
             name: "icons",
             height: 820.,
             render: icons,
+        },
+        Section {
+            name: "buttons",
+            height: 440.,
+            render: controls::buttons,
+        },
+        Section {
+            name: "tool-buttons",
+            height: 200.,
+            render: controls::tool_buttons,
+        },
+        Section {
+            name: "capsules",
+            height: 280.,
+            render: controls::capsules,
+        },
+        Section {
+            name: "segmented",
+            height: 300.,
+            render: controls::segmented,
+        },
+        Section {
+            name: "slider",
+            height: 400.,
+            render: controls::sliders,
+        },
+        Section {
+            name: "shortcut-field",
+            height: 150.,
+            render: controls::shortcut_fields,
         },
     ]
 }

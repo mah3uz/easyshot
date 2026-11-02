@@ -50,3 +50,24 @@ transfer-sharing-settings = Sharing Settings
 transfer-cancel = Cancel
 transfer-cancel-sharing = Cancel sharing
 transfer-dismiss = Dismiss
+
+## Controls
+controls-slider-value = { $title } value
+controls-slider-value-help = Enter an exact value for { $title }
+controls-slider-hint = Drag horizontally to adjust, or edit the value field
+controls-unit-percent = %
+controls-unit-pixels = px
+controls-unit-points = pt
+controls-unit-degrees = °
+controls-unit-times = ×
+controls-unit-seconds = s
+controls-zoom-a11y = Canvas zoom, { $percent } percent
+controls-zoom-percent = { $percent }%
+controls-zoom-in = Zoom In
+controls-zoom-out = Zoom Out
+controls-zoom-fit = Fit Canvas
+controls-shortcut-placeholder = Record Shortcut
+controls-shortcut-press = Press Shortcut
+controls-shortcut-clear = Clear shortcut
+controls-shortcut-help = Press to record a shortcut. Escape cancels; use the clear button to remove the shortcut.
+controls-shortcut-help-delete = Press to record a shortcut. Escape cancels; Delete clears the shortcut.
