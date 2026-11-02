@@ -86,6 +86,16 @@ impl DocModel {
         &self.background
     }
 
+    /// Not undoable; only the look model calls it.
+    pub(crate) fn set_background(
+        &mut self,
+        background: BackgroundSettings,
+        cx: &mut Context<Self>,
+    ) {
+        self.background = background;
+        cx.notify();
+    }
+
     pub fn display(&self) -> &PathBuf {
         &self.display
     }

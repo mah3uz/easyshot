@@ -1,13 +1,13 @@
 use std::rc::Rc;
 
 use gpui::{
-    Anchor, App, Div, ElementId, InteractiveElement, Interactivity, IntoElement, ParentElement,
-    Pixels, RenderOnce, SharedString, Stateful, StatefulInteractiveElement, StyleRefinement,
-    Styled, Window, div, prelude::FluentBuilder, px,
+    Anchor, AnyElement, App, Context, Div, ElementId, InteractiveElement, Interactivity,
+    IntoElement, ParentElement, Pixels, RenderOnce, SharedString, Stateful,
+    StatefulInteractiveElement, StyleRefinement, Styled, Window, div, prelude::FluentBuilder, px,
 };
 use gpui_component::{
     Icon, Selectable,
-    menu::{DropdownMenu, PopupMenuItem},
+    menu::{DropdownMenu, PopupMenu, PopupMenuItem},
     tooltip::Tooltip,
 };
 
@@ -30,6 +30,8 @@ const GAP: Pixels = px(7.);
 type SelectHandler = Rc<dyn Fn(Option<usize>, &mut Window, &mut App)>;
 type IndexHandler = Rc<dyn Fn(usize, &mut Window, &mut App)>;
 type ActionHandler = Rc<dyn Fn(&mut Window, &mut App)>;
+type MenuBuilder = Rc<dyn Fn(PopupMenu, &mut Window, &mut Context<PopupMenu>) -> PopupMenu>;
+type AddWrapper = Box<dyn FnOnce(AnyElement) -> AnyElement>;
 
 /// The menu keeps its trigger's open state through `Selectable`, which a plain `Div` lacks.
 #[derive(IntoElement)]
@@ -83,6 +85,10 @@ pub struct PresetBar {
     on_select: Option<SelectHandler>,
     on_add: Option<ActionHandler>,
     on_delete: Option<IndexHandler>,
+    help: Option<SharedString>,
+    value: Option<SharedString>,
+    menu: Option<MenuBuilder>,
+    wrap_add: Option<AddWrapper>,
 }
 
 impl PresetBar {
@@ -96,6 +102,10 @@ impl PresetBar {
             on_select: None,
             on_add: None,
             on_delete: None,
+            help: None,
+            value: None,
+            menu: None,
+            wrap_add: None,
         }
     }
 
@@ -133,6 +143,32 @@ impl PresetBar {
         self.on_delete = Some(Rc::new(handler));
         self
     }
+
+    pub fn help(mut self, help: impl Into<SharedString>) -> Self {
+        self.help = Some(help.into());
+        self
+    }
+
+    /// The accessible value; the title by default.
+    pub fn value(mut self, value: impl Into<SharedString>) -> Self {
+        self.value = Some(value.into());
+        self
+    }
+
+    /// Replaces the default menu of saved presets.
+    pub fn menu(
+        mut self,
+        builder: impl Fn(PopupMenu, &mut Window, &mut Context<PopupMenu>) -> PopupMenu + 'static,
+    ) -> Self {
+        self.menu = Some(Rc::new(builder));
+        self
+    }
+
+    /// Lets the caller anchor something to the add button, such as a popover.
+    pub fn wrap_add(mut self, wrap: impl FnOnce(AnyElement) -> AnyElement + 'static) -> Self {
+        self.wrap_add = Some(Box::new(wrap));
+        self
+    }
 }
 
 impl RenderOnce for PresetBar {
@@ -152,7 +188,11 @@ impl RenderOnce for PresetBar {
         };
         let (hover_fill, press_fill) = (t.hover_fill, t.press_fill);
         let live = !self.disabled && self.preview == Interaction::Rest;
-        let help: SharedString = fl!("panels-presets-help").into();
+        let help: SharedString = self
+            .help
+            .clone()
+            .unwrap_or_else(|| fl!("panels-presets-help").into());
+        let value = self.value.clone().unwrap_or_else(|| title.clone());
 
         let base = div()
             .id("menu")
@@ -173,7 +213,7 @@ impl RenderOnce for PresetBar {
             })
             .typeset(t.type_scale.tool_button)
             .accessible(Role::ComboBox, fl!("panels-presets-a11y"))
-            .aria_value(title.clone())
+            .aria_value(value)
             .tooltip(move |window, cx| Tooltip::new(help.clone()).build(window, cx))
             .when(!self.disabled, |d| d.track_focus(&focus).tab_index(0))
             .when(live, |d| {
@@ -191,11 +231,15 @@ impl RenderOnce for PresetBar {
 
         let presets = self.presets.clone();
         let on_select = self.on_select.clone();
+        let custom = self.menu.clone();
         let menu: gpui::AnyElement = if self.disabled {
             base.opacity(0.48).into_any_element()
         } else {
             Trigger { base, open: false }
-                .dropdown_menu_with_anchor(Anchor::TopLeft, move |menu, _, _| {
+                .dropdown_menu_with_anchor(Anchor::TopLeft, move |menu, window, cx| {
+                    if let Some(custom) = &custom {
+                        return custom(menu, window, cx);
+                    }
                     let item = |label: SharedString, pick: Option<usize>| {
                         let on_select = on_select.clone();
                         PopupMenuItem::new(label).checked(pick == applied).on_click(
@@ -233,7 +277,12 @@ impl RenderOnce for PresetBar {
             .disabled(self.disabled)
             .when_some(self.on_add, |b, on_add| {
                 b.on_click(move |_, window, cx| on_add(window, cx))
-            });
+            })
+            .into_any_element();
+        let add = match self.wrap_add {
+            Some(wrap) => wrap(add),
+            None => add,
+        };
 
         div()
             .id(self.id)

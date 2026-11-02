@@ -2066,6 +2066,7 @@ dependencies = [
  "rayon",
  "rust-embed",
  "smallvec",
+ "tempfile",
  "thiserror 2.0.21",
  "time",
  "tiny-skia 0.12.0",

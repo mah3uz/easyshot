@@ -83,13 +83,17 @@ impl EditorSession {
         })
     }
 
-    pub fn new(opened: Opened, text: Arc<BundledText>, cx: &mut App) -> Self {
+    pub fn new(mut opened: Opened, text: Arc<BundledText>, cx: &mut App) -> Self {
+        let services = cx.try_global::<Services>();
+        let paths = services.map(|s| s.stores.paths.clone());
+        let config = services.map(|s| s.settings.read(cx).config().clone());
+        look::opening_look(&mut opened.document, paths.as_ref(), config.as_deref());
         let doc = cx.new(|_| DocModel::new(opened, text, &StylePreset::default()));
         let viewport = cx.new(|cx| ViewportModel::new(doc.clone(), cx));
         Self {
+            look: cx.new(|cx| LookModel::new(doc.clone(), paths, cx)),
             doc,
             viewport,
-            look: cx.new(|_| LookModel {}),
             crop: cx.new(|_| CropModel {}),
             io: cx.new(|_| EditorIo {}),
         }

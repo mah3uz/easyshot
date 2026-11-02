@@ -40,3 +40,4 @@ rust-embed = { workspace = true }
 gpui = { workspace = true, features = ["test-support", "bench-support"] }
 gpui_platform = { workspace = true, features = ["test-support", "bench-support"] }
 es-testkit.workspace = true
+tempfile.workspace = true

@@ -163,6 +163,10 @@ impl EditorCanvas {
         self.redaction_painter = Some(painter);
     }
 
+    pub fn background(&self) -> &BackgroundSettings {
+        &self.background
+    }
+
     pub fn set_background(&mut self, settings: BackgroundSettings, cx: &mut Context<Self>) {
         if settings == self.background {
             return;

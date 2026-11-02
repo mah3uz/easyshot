@@ -17,6 +17,7 @@ use gpui::{
 };
 use gpui_component::{Icon, Sizable, spinner::Spinner};
 
+use crate::inspector::Inspector;
 use crate::toolbar::{ToolRow, ToolRowEvent};
 use crate::{EditorCanvas, EditorSession, EditorSource, Result, strings::fl};
 
@@ -135,6 +136,9 @@ impl EditorWindow {
             Ok(session) => {
                 let canvas = cx.new(|cx| EditorCanvas::new(&session, cx));
                 let tool_row = cx.new(|cx| ToolRow::new(&session, cx));
+                let look = session.look.clone();
+                let inspector = cx.new(|cx| Inspector::new(look, &canvas, cx));
+                self.inspector = Some(inspector.into());
                 self._subscriptions = vec![
                     cx.observe(&session.doc, |_, _, cx| cx.notify()),
                     cx.observe(&session.viewport, |_, _, cx| cx.notify()),
@@ -244,6 +248,10 @@ impl EditorWindow {
 
     pub fn toolbar(&self) -> Option<Entity<ToolRow>> {
         self.tool_row.clone()?.downcast::<ToolRow>().ok()
+    }
+
+    pub fn inspector(&self) -> Option<Entity<Inspector>> {
+        self.inspector.clone()?.downcast::<Inspector>().ok()
     }
 
     pub fn set_tool_row(&mut self, view: AnyView, cx: &mut Context<Self>) {

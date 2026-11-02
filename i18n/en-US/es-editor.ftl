@@ -137,6 +137,9 @@ editor-preset-error-wallpaper = The selected wallpaper can’t be found. Choose 
 editor-preset-error-duplicate = A preset with this name already exists.
 editor-preset-delete-title = Delete Preset?
 editor-preset-delete-message = “{ $name }” will be removed from your saved presets. The current canvas settings won’t change.
+editor-preset-delete-confirm = Delete
+editor-preset-cancel = Cancel
+editor-preset-save = Save
 
 ## Inspector: sections
 editor-section-background = Background
@@ -213,7 +216,7 @@ editor-bg-gradient-coral-rose = Coral / Rose
 editor-bg-gradient-aqua-cyan = Aqua / Cyan
 editor-bg-gradient-dusty-mauve = Dusty Mauve
 editor-bg-wallpaper-recent = Recent
-editor-bg-wallpaper-system = macOS
+editor-bg-wallpaper-system = Built-in
 editor-bg-wallpaper-add-help = Choose wallpaper
 editor-bg-wallpaper-panel-title = Choose Background Wallpaper
 
