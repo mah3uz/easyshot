@@ -205,3 +205,96 @@ fn the_test_interface_is_not_served_on_the_real_name() {
         assert!(reply.is_err());
     });
 }
+
+async fn bystander(bus: &PrivateBus) -> zbus::Connection {
+    zbus::connection::Builder::address(bus.address.as_str())
+        .expect("address")
+        .build()
+        .await
+        .expect("connect")
+}
+
+async fn pause(ms: u64) {
+    let (tx, rx) = async_channel::bounded::<()>(1);
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(ms));
+        let _ = tx.send_blocking(());
+    });
+    let _ = rx.recv().await;
+}
+
+#[test]
+fn job_results_reach_only_the_caller() {
+    run(async {
+        use futures::{FutureExt, StreamExt};
+        let bus = PrivateBus::start();
+        let no_args = RouteArgs::default();
+        let svc = service(&bus.endpoint()).await;
+        let incoming = svc.incoming();
+        let client = connect(&bus).await;
+        let other = bystander(&bus).await;
+        let rule = zbus::MatchRule::builder()
+            .msg_type(zbus::message::Type::Signal)
+            .interface(es_protocol::INTERFACE)
+            .expect("interface")
+            .member("JobFinished")
+            .expect("member")
+            .build();
+        let mut overheard = zbus::MessageStream::for_match_rule(rule, &other, None)
+            .await
+            .expect("match")
+            .fuse();
+
+        let run = client.run("gallery", &no_args, never());
+        let app = async {
+            let Incoming::Command { job, .. } = incoming.recv().await.expect("command") else {
+                panic!("expected a command");
+            };
+            svc.finish(job, JobStatus::Error, "/home/someone/private.png")
+                .await
+                .expect("finish");
+        };
+        let (outcome, ()) = futures::join!(run, app);
+        assert_eq!(
+            outcome.expect("outcome").result,
+            "/home/someone/private.png"
+        );
+        futures::select! {
+            msg = overheard.next() => panic!("a bystander saw the result: {msg:?}"),
+            () = pause(300).fuse() => {}
+        }
+    });
+}
+
+#[test]
+fn only_the_caller_can_cancel_its_job() {
+    run(async {
+        let bus = PrivateBus::start();
+        let no_args = RouteArgs::default();
+        let svc = service(&bus.endpoint()).await;
+        let incoming = svc.incoming();
+        let client = connect(&bus).await;
+        let other = bystander(&bus).await;
+
+        let run = client.run("record", &no_args, never());
+        let app = async {
+            let Incoming::Command { job, .. } = incoming.recv().await.expect("command") else {
+                panic!("expected a command");
+            };
+            let reply = other
+                .call_method(
+                    Some(es_protocol::BUS_NAME),
+                    es_protocol::OBJECT_PATH,
+                    Some(es_protocol::INTERFACE),
+                    "Cancel",
+                    &(job,),
+                )
+                .await;
+            assert!(reply.is_err(), "a stranger cancelled the job");
+            assert!(incoming.try_recv().is_err());
+            svc.finish(job, JobStatus::Ok, "").await.expect("finish");
+        };
+        let (outcome, ()) = futures::join!(run, app);
+        assert_eq!(outcome.expect("outcome").status, JobStatus::Ok);
+    });
+}

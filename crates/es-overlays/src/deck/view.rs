@@ -66,7 +66,7 @@ impl DeckSettings {
 
 /// GPUI images are straight-alpha BGRA.
 pub fn load_thumbnail(path: &Path) -> Option<Arc<RenderImage>> {
-    let mut rgba = image::open(path).ok()?.into_rgba8();
+    let mut rgba = es_store::decode::open_image(path).ok()?.into_rgba8();
     for px in rgba.pixels_mut() {
         px.0.swap(0, 2);
     }

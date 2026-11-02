@@ -4,6 +4,7 @@ pub mod commit;
 pub mod config;
 pub mod datefmt;
 pub mod deck;
+pub mod decode;
 pub mod document;
 pub mod error;
 pub mod export;

@@ -234,7 +234,7 @@ pub(crate) fn compose(raw: &Pixmap, look: &BackgroundSettings) -> Result<Option<
         return Ok(None);
     }
     let wallpaper = match &look.style {
-        BackgroundStyle::Wallpaper { path } => std::fs::read(path).ok(),
+        BackgroundStyle::Wallpaper { path } => es_store::wallpapers::read(path),
         _ => None,
     };
     ExportCache::default()

@@ -193,12 +193,13 @@ pub fn on_action(
 }
 
 pub fn open_with_default_app(path: &Path) {
-    let spawned = std::process::Command::new("xdg-open")
-        .arg(path)
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .spawn();
+    let spawned = es_desktop::spawn_reaped(
+        std::process::Command::new("xdg-open")
+            .arg(path)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null()),
+    );
     if let Err(e) = spawned {
         tracing::warn!(error = %e, "xdg-open");
     }

@@ -57,7 +57,8 @@ Rejected: a SIGTERM-only snapshot.
 The `easyshot://` URL scheme accepts exactly eight routes with no arguments;
 D-Bus `Command` parses into the closed `Route`; the session bus only; directories 0700 and
 files 0600. Why: a URL or bus call from outside must not be able to do more than those
-eight routes allow. Rejected: accepting the full route vocabulary, or arguments, over URLs.
+eight routes allow. A `record` link opens the area selection, so a link cannot start a
+recording on its own. Rejected: accepting the full route vocabulary, or arguments, over URLs.
 
 ### Compositor targets and providers
 v1: Hyprland (primary), sway 1.12 and niri 26.04, plus any compositor that passes the

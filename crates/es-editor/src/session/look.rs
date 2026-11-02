@@ -80,6 +80,15 @@ fn open_library(paths: Option<&Paths>) -> Option<BackgroundPresetFile> {
     }
 }
 
+/// A sidecar may come from anyone, so an untrusted wallpaper path opens as missing.
+pub fn distrust_wallpaper(document: &mut AnnotationDocument, paths: Option<&Paths>) {
+    if let BackgroundStyle::Wallpaper { path } = &mut document.background.style
+        && !paths.is_some_and(|p| es_store::wallpapers::trusted(p, path))
+    {
+        *path = std::path::PathBuf::new();
+    }
+}
+
 /// A document with nothing to render was never beautified, so it opens with the look for new captures.
 pub fn opening_look(
     document: &mut AnnotationDocument,
@@ -315,5 +324,46 @@ impl LookModel {
         cx.emit(LookEvent::PresetsChanged);
         cx.notify();
         Ok(out)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used)]
+    use super::*;
+    use std::path::{Path, PathBuf};
+
+    fn pointing_at(path: &Path, paths: Option<&Paths>) -> PathBuf {
+        let mut doc = AnnotationDocument::default();
+        doc.background.style = BackgroundStyle::Wallpaper {
+            path: path.to_path_buf(),
+        };
+        distrust_wallpaper(&mut doc, paths);
+        match doc.background.style {
+            BackgroundStyle::Wallpaper { path } => path,
+            other => panic!("the style changed: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_sidecar_wallpaper_outside_the_store_opens_as_missing() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = Paths::rooted(dir.path());
+        let stored = es_store::wallpapers::install_built_in(&paths, "w.jpg", b"jpg").unwrap();
+        let private = dir.path().join("private.png");
+        std::fs::write(&private, b"png").unwrap();
+
+        assert_eq!(pointing_at(&stored, Some(&paths)), stored);
+        assert_eq!(pointing_at(&private, Some(&paths)), PathBuf::new());
+        assert_eq!(
+            pointing_at(Path::new("/dev/zero"), Some(&paths)),
+            PathBuf::new()
+        );
+        assert_eq!(pointing_at(&stored, None), PathBuf::new());
+        let mut doc = AnnotationDocument::default();
+        doc.background.style = BackgroundStyle::Wallpaper {
+            path: PathBuf::new(),
+        };
+        assert!(wallpaper_missing(&doc.background));
     }
 }

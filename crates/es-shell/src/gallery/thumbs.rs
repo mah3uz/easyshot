@@ -55,7 +55,7 @@ pub fn load(paths: &Paths, file: &Path) -> Option<Arc<RenderImage>> {
     let thumb = es_store::thumbs::ensure(paths, file, THUMB_SIZE)
         .inspect_err(|e| tracing::debug!(error = %e, "no thumbnail"))
         .ok()?;
-    let mut rgba = image::open(thumb).ok()?.into_rgba8();
+    let mut rgba = es_store::decode::open_image(&thumb).ok()?.into_rgba8();
     // GPUI images are BGRA.
     for px in rgba.pixels_mut() {
         px.0.swap(0, 2);

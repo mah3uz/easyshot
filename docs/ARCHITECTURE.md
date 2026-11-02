@@ -64,8 +64,10 @@ One binary, `easyshot`.
   CLI.
 
 `Command` returns a `job_id` at once. The CLI waits on `JobFinished(job_id, status,
-result)` with no timeout; Ctrl+C calls `Cancel(job_id)`. If the daemon disappears the CLI
-exits with code 3. The bus is the session bus only; directories are created 0700 and files
+result)` with no timeout; Ctrl+C calls `Cancel(job_id)`. `JobFinished` is sent only to the
+connection that issued the command, and only that connection may cancel the job. Routes are
+parsed off the bus executor; `open` reads the file through a non-blocking, no-follow handle
+that must be a regular file. If the daemon disappears the CLI exits with code 3. The bus is the session bus only; directories are created 0700 and files
 0600.
 
 Routes are one closed vocabulary (`es-protocol::Route`) shared by the CLI, URLs, tray,
@@ -73,6 +75,13 @@ D-Bus, shortcuts and notifications. The URL scheme accepts exactly eight routes 
 arguments (`capture/region`, `capture/fullscreen`, `capture/window`, `capture/scroll`,
 `record`, `ocr`, `color-picker`, `settings`). D-Bus `Command` rejects anything outside the
 closed `Route`; `open <path>` canonicalises the path and requires a regular image file.
+
+Every recorder helper runs in its own process group beside a `/bin/sh` watcher in that
+group. The watcher reads a pipe only the daemon writes: a newline after the helper is reaped
+ends it; end of file means the daemon died, so it sends SIGINT to the group and SIGKILL ten
+seconds later. A parent-death signal is not used because the kernel drops it on exec of a
+binary with file capabilities, as gpu-screen-recorder often is. gpu-screen-recorder's IPC
+socket lives in a fresh 0700 folder.
 
 ## 4. Crate graph
 
@@ -216,6 +225,12 @@ Format rules:
 - The config file is watched; edits are reloaded, validated and applied live.
 
 The keys and defaults of `config.toml` are the `es_model::Config` type.
+
+A wallpaper path in a document opened from disk is kept only when it names a file in the
+wallpapers folder or one the user picked (the recent list in `state.json`); otherwise it opens
+as a missing wallpaper. `es_store::wallpapers::read` reads only a regular file of at most
+64 MiB through a non-blocking, no-follow handle. Images from disk decode through
+`es_store::decode` (32768 px a side, 256 MiB per decode).
 
 ## 8. App structure (es-app)
 

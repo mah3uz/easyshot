@@ -44,7 +44,7 @@ static URL_ROUTES: &[(&str, Route)] = &[
     ("capture/fullscreen", Route::CaptureFullscreen),
     ("capture/window", Route::CaptureWindow),
     ("capture/scroll", Route::CaptureScroll),
-    ("record", Route::Record),
+    ("record", Route::RecordArea),
     ("ocr", Route::Ocr),
     ("color-picker", Route::ColorPicker),
     ("settings", Route::Settings(None)),
@@ -196,14 +196,24 @@ impl Route {
             return Err(bad("path is empty"));
         }
         let canonical = path.canonicalize().map_err(|e| bad(&e.to_string()))?;
-        if !canonical.is_file() {
-            return Err(bad("not a regular file"));
+        if !has_image_extension(&canonical) {
+            return Err(bad("not a PNG or JPEG image"));
         }
-        if !has_image_extension(&canonical) || !has_image_magic(&canonical) {
+        let mut file = open_regular(&canonical).ok_or_else(|| bad("not a regular file"))?;
+        if !has_image_magic(&mut file) {
             return Err(bad("not a PNG or JPEG image"));
         }
         Ok(Route::Open(canonical))
     }
+}
+
+/// Non-blocking and no-follow, so a FIFO or link swapped in after `canonicalize` cannot hang us.
+fn open_regular(path: &Path) -> Option<std::fs::File> {
+    use rustix::fs::{FileType, Mode, OFlags};
+    let flags = OFlags::RDONLY | OFlags::NONBLOCK | OFlags::NOFOLLOW | OFlags::CLOEXEC;
+    let fd = rustix::fs::open(path, flags, Mode::empty()).ok()?;
+    let stat = rustix::fs::fstat(&fd).ok()?;
+    (FileType::from_raw_mode(stat.st_mode) == FileType::RegularFile).then(|| fd.into())
 }
 
 impl fmt::Display for Route {
@@ -218,11 +228,8 @@ fn has_image_extension(path: &Path) -> bool {
         .is_some_and(|e| IMAGE_EXTENSIONS.iter().any(|x| e.eq_ignore_ascii_case(x)))
 }
 
-fn has_image_magic(path: &Path) -> bool {
+fn has_image_magic(file: &mut std::fs::File) -> bool {
     let mut head = [0u8; 4];
-    let Ok(mut file) = std::fs::File::open(path) else {
-        return false;
-    };
     let n = file.read(&mut head).unwrap_or(0);
     head[..n].starts_with(PNG_MAGIC) || head[..n].starts_with(JPEG_MAGIC)
 }
@@ -331,6 +338,28 @@ mod tests {
     }
 
     #[test]
+    fn open_refuses_a_fifo_without_blocking() {
+        use rustix::fs::{CWD, FileType, Mode, mknodat};
+        let dir = tempfile::tempdir().unwrap();
+        let fifo = dir.path().join("trap.png");
+        mknodat(CWD, &fifo, FileType::Fifo, Mode::RUSR | Mode::WUSR, 0).unwrap();
+        let (tx, rx) = std::sync::mpsc::channel();
+        let args = path_args(&fifo);
+        std::thread::spawn(move || tx.send(Route::parse("open", &args)));
+        let parsed = rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .expect("parsing a FIFO must not block");
+        assert!(matches!(parsed, Err(Error::InvalidArgs { .. })));
+    }
+
+    #[test]
+    fn a_link_never_records_without_a_selection() {
+        for (_, route) in URL_ROUTES {
+            assert_ne!(route, &Route::Record);
+        }
+    }
+
+    #[test]
     fn open_rejects_missing_wrong_or_extra_arguments() {
         assert!(Route::parse("open", &no_args()).is_err());
         let mut args = RouteArgs::default();
@@ -372,7 +401,10 @@ mod tests {
             Route::from_url("EASYSHOT://CAPTURE/region").unwrap(),
             Route::CaptureRegion
         );
-        assert_eq!(Route::from_url("EasyShot://RECORD").unwrap(), Route::Record);
+        assert_eq!(
+            Route::from_url("EasyShot://RECORD").unwrap(),
+            Route::RecordArea
+        );
         assert!(Route::from_url("easyshot://capture/REGION").is_err());
     }
 

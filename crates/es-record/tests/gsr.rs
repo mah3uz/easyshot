@@ -217,6 +217,24 @@ fn stop_goes_over_ipc_and_the_final_path_comes_from_stdout() {
 }
 
 #[test]
+fn the_ipc_socket_lives_in_a_fresh_private_folder() {
+    use std::os::unix::fs::PermissionsExt;
+    let rig = Rig::new();
+    let h = rig
+        .recorder(false, "")
+        .start(spec(rig.tmp.path(), output("DP-2")))
+        .unwrap();
+    let a = argv(&rig.lines());
+    let sock = a.split(' ').skip_while(|w| *w != "-ipc").nth(1).unwrap();
+    let folder = Path::new(sock).parent().unwrap().to_path_buf();
+    assert_ne!(folder, rig.tmp.path());
+    let mode = std::fs::metadata(&folder).unwrap().permissions().mode();
+    assert_eq!(mode & 0o777, 0o700);
+    block_on(h.stop()).unwrap();
+    assert!(!folder.exists());
+}
+
+#[test]
 fn the_stop_ladder_escalates_to_sigint_and_leaves_nothing_running() {
     let rig = Rig::new();
     let h = rig

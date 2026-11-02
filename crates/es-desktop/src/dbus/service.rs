@@ -1,10 +1,12 @@
 use super::{Endpoint, Incoming, JobId, ServiceError};
 use es_protocol::{ArgValue, JobStatus, OBJECT_PATH, Route, RouteArgs};
 use futures::future::BoxFuture;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 use zbus::fdo::{self, RequestNameFlags, RequestNameReply};
+use zbus::message::Header;
+use zbus::names::{BusName, OwnedUniqueName};
 use zbus::zvariant::{OwnedValue, Value};
 use zbus::{Connection, object_server::SignalEmitter};
 
@@ -30,9 +32,9 @@ impl Callbacks {
     }
 }
 
-type Live = Arc<Mutex<HashSet<JobId>>>;
+type Live = Arc<Mutex<HashMap<JobId, OwnedUniqueName>>>;
 
-fn lock(live: &Live) -> std::sync::MutexGuard<'_, HashSet<JobId>> {
+fn lock(live: &Live) -> std::sync::MutexGuard<'_, HashMap<JobId, OwnedUniqueName>> {
     live.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
@@ -45,10 +47,16 @@ struct CommandIface {
 
 #[zbus::interface(name = "dev.easyshot.Easyshot")]
 impl CommandIface {
-    async fn command(&self, route: String, args: HashMap<String, OwnedValue>) -> fdo::Result<u64> {
-        let parsed = parse_route(&route, &args)?;
+    async fn command(
+        &self,
+        #[zbus(header)] header: Header<'_>,
+        route: String,
+        args: HashMap<String, OwnedValue>,
+    ) -> fdo::Result<u64> {
+        let caller = sender(&header)?;
+        let parsed = parse_off_the_bus(route, args).await?;
         let job = self.next.fetch_add(1, Ordering::Relaxed);
-        lock(&self.live).insert(job);
+        lock(&self.live).insert(job, caller);
         let route = Incoming::Command { job, route: parsed };
         if self.tx.send(route).await.is_err() {
             lock(&self.live).remove(&job);
@@ -57,8 +65,9 @@ impl CommandIface {
         Ok(job)
     }
 
-    async fn cancel(&self, job_id: u64) -> fdo::Result<()> {
-        if !lock(&self.live).contains(&job_id) {
+    async fn cancel(&self, #[zbus(header)] header: Header<'_>, job_id: u64) -> fdo::Result<()> {
+        let caller = sender(&header)?;
+        if lock(&self.live).get(&job_id) != Some(&caller) {
             return Err(fdo::Error::InvalidArgs(format!("unknown job {job_id}")));
         }
         self.tx
@@ -78,6 +87,24 @@ impl CommandIface {
         status: &str,
         result: &str,
     ) -> zbus::Result<()>;
+}
+
+fn sender(header: &Header<'_>) -> fdo::Result<OwnedUniqueName> {
+    header
+        .sender()
+        .map(|s| s.to_owned().into())
+        .ok_or_else(|| fdo::Error::AccessDenied("a command needs a sender".into()))
+}
+
+/// `open` touches the file system; a slow disk must not stall the bus executor.
+async fn parse_off_the_bus(route: String, args: HashMap<String, OwnedValue>) -> fdo::Result<Route> {
+    let (tx, rx) = async_channel::bounded(1);
+    std::thread::spawn(move || {
+        let _ = tx.send_blocking(parse_route(&route, &args));
+    });
+    rx.recv()
+        .await
+        .map_err(|_| fdo::Error::Failed("the route could not be checked".into()))?
 }
 
 fn parse_route(route: &str, args: &HashMap<String, OwnedValue>) -> fdo::Result<Route> {
@@ -152,10 +179,11 @@ impl Service {
         status: JobStatus,
         result: &str,
     ) -> Result<(), ServiceError> {
-        if !lock(&self.live).remove(&job) {
+        let Some(caller) = lock(&self.live).remove(&job) else {
             return Err(ServiceError::UnknownJob(job));
-        }
-        let emitter = SignalEmitter::new(&self.conn, OBJECT_PATH)?;
+        };
+        let emitter = SignalEmitter::new(&self.conn, OBJECT_PATH)?
+            .set_destination(BusName::Unique(caller.into()));
         CommandIface::job_finished(&emitter, job, status.as_str(), result).await?;
         Ok(())
     }
