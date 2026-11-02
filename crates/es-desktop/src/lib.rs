@@ -1,3 +1,5 @@
+pub mod dbus;
+
 use es_protocol::{Route, ShortcutEntry};
 use futures::future::BoxFuture;
 use std::path::PathBuf;

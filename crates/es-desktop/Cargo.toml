@@ -27,3 +27,4 @@ rodio = { workspace = true, optional = true }
 
 [features]
 sound = ["dep:rodio"]
+test-hooks = []
