@@ -6,6 +6,7 @@ _repo=mah3uz/easyshot
 pkgver=0.1.0
 pkgrel=1
 pkgdesc='Screenshot, annotation and screen-recording app for Linux/Wayland (prebuilt)'
+install=easyshot.install
 arch=('x86_64')
 url="https://github.com/$_repo"
 license=('MIT')

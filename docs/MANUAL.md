@@ -25,14 +25,22 @@ On Arch Linux there are two AUR packages: `easyshot`, which builds the release f
 and `easyshot-bin`, which installs the prebuilt release. They conflict with each other, so
 install one. Neither is published yet, and there are no packages for other distributions.
 
+Installing the package enables `easyshot.service` for every user and starts it for each user
+who is logged in. Updating or reinstalling it restarts the daemon, or starts it if it was
+not running. Removing the package stops it.
+
 ## Running it
 
 easyshot runs as one background program, the daemon, started by a systemd user unit
 (`easyshot.service`) or by XDG autostart. Commands like `easyshot capture region` talk to
 it, and start it if it is not running.
 
-The first command you run starts the daemon through D-Bus activation. To have it running for
-the whole session, run `systemctl --user enable --now easyshot.service`. The package installs
+With the package installed, the daemon starts with each graphical session. To stop it from
+starting for your user only, run `systemctl --user mask --now easyshot.service`; a plain
+`disable` does not override the package's enable for all users. `systemctl --user unmask
+easyshot.service` undoes it. Without the package, the first command you run starts the daemon
+through D-Bus activation, and `systemctl --user enable --now easyshot.service` keeps it
+running for the whole session. The package installs
 a desktop entry (Easyshot in your application menu opens Settings) and registers
 `easyshot://` links, which open through `easyshot open`.
 

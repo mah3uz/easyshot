@@ -8,6 +8,9 @@
 - `aur/easyshot/` builds the release's vendored source tarball offline. It needs `rustup`
   because the source pins a newer Rust than the repositories carry.
 
+Each AUR directory carries the same `easyshot.install` (`release.sh` fails if they differ):
+it enables the user unit for all users and starts, restarts or stops it for logged-in users.
+
 The two AUR packages conflict with each other and provide `easyshot`. Neither is published
 yet.
 

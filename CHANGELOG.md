@@ -16,6 +16,8 @@
 
 ### Improvements
 
+- The Arch package enables the daemon's systemd user service and starts it for logged-in users on install; an update restarts it.
+
 - Deck cards show the capture inside your default look, and saved captures reopen in the editor with that look still editable.
 - `easyshot deck toggle` hides and shows the deck.
 - Captures from a rotated or flipped output are saved upright.

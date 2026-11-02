@@ -18,7 +18,7 @@ package profile="release":
     rm -rf dist/build && mkdir -p dist/build
     packaging/stage.sh target/{{ profile }} . "dist/build/$name"
     tar -C dist/build -czf "dist/build/$name.tar.gz" "$name"
-    cp $src/PKGBUILD dist/build/
+    cp $src/PKGBUILD $src/easyshot.install dist/build/
     # The package a release serves, made from this tarball in place of the release's.
     (cd dist/build && PKGDEST=$PWD makepkg -f --skipchecksums)
     mv dist/build/easyshot-bin-*.pkg.tar.zst dist/

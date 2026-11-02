@@ -15,6 +15,7 @@ git rev-parse -q --verify "refs/tags/$tag^{commit}" >/dev/null || fail "tag $tag
 for pkg in easyshot easyshot-bin; do
   [[ $(sed -n 's/^pkgver=//p' "packaging/aur/$pkg/PKGBUILD") == "$ver" ]] || fail "packaging/aur/$pkg/PKGBUILD has a different pkgver than $ver"
 done
+cmp -s packaging/aur/easyshot/easyshot.install packaging/aur/easyshot-bin/easyshot.install || fail "the two easyshot.install files differ"
 
 name=easyshot-$ver-x86_64-unknown-linux-gnu
 vendored=easyshot-$ver-vendored.tar.zst
