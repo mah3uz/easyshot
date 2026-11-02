@@ -2227,11 +2227,19 @@ dependencies = [
  "es-store",
  "es-testkit",
  "es-ui",
+ "futures",
+ "gpui-component",
  "gpui-pre",
  "gpui-pre-platform",
+ "i18n-embed",
+ "i18n-embed-fl",
+ "image",
+ "rust-embed",
+ "tempfile",
  "thiserror 2.0.21",
  "time",
  "tracing",
+ "uuid",
 ]
 
 [[package]]

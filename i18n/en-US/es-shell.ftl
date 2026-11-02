@@ -425,7 +425,7 @@ perm-status-denied = Denied
 perm-status-restricted = Restricted on this computer
 
 ## Media Gallery
-gallery-section-local = On this computer
+gallery-section-local = Library
 gallery-section-cloud = Cloud Shares
 gallery-all-media = All Media
 gallery-screenshots = Screenshots
@@ -458,7 +458,7 @@ gallery-item-a11y-select = Select
 gallery-item-a11y-source-unavailable = Local source unavailable
 gallery-menu-open = Open
 gallery-menu-edit = Edit
-gallery-menu-reveal = Reveal in Finder
+gallery-menu-reveal = Show in Folder
 gallery-menu-copy-link = Copy Link
 gallery-menu-link-copied = Link Copied
 gallery-menu-open-cloud = Open Cloud
@@ -484,6 +484,13 @@ gallery-empty-cloud-title = No cloud shares yet
 gallery-empty-cloud-body = Share a screenshot or video from its editor to see it here.
 gallery-empty-search-title = No matching media
 gallery-empty-search-body = Try another name or media type.
+gallery-window-title = Media Gallery
+gallery-view-icons = Icons
+gallery-view-list = List
+gallery-banner-dismiss = Dismiss
+gallery-cancel = Cancel
+gallery-date-pattern = MMM d, yyyy
+gallery-date-full-pattern = MMM d, yyyy, HH:mm
 
 ## Onboarding
 onboarding-window-title = Welcome to { -app-name }

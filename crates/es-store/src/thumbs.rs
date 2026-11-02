@@ -23,3 +23,22 @@ pub fn thumb_path_for(paths: &Paths, image: &Path, size: u32) -> Option<PathBuf>
     let modified = std::fs::metadata(image).and_then(|m| m.modified()).ok()?;
     Some(thumb_path(paths, image, modified, size))
 }
+
+/// Returns the cached thumbnail, decoding and writing it first when the cache has none.
+pub fn ensure(paths: &Paths, image: &Path, size: u32) -> crate::Result<PathBuf> {
+    let modified = std::fs::metadata(image)
+        .and_then(|m| m.modified())
+        .map_err(crate::error::io(image))?;
+    let thumb = thumb_path(paths, image, modified, size);
+    if thumb.is_file() {
+        return Ok(thumb);
+    }
+    let invalid = |e: image::ImageError| crate::error::io(image)(std::io::Error::other(e));
+    let small = image::open(image).map_err(invalid)?.thumbnail(size, size);
+    let mut png = Vec::new();
+    small
+        .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+        .map_err(invalid)?;
+    crate::atomic::write_atomic(&thumb, &png)?;
+    Ok(thumb)
+}

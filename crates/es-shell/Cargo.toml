@@ -18,6 +18,13 @@ es-desktop.workspace = true
 es-app.workspace = true
 es-ui.workspace = true
 gpui.workspace = true
+gpui-component.workspace = true
+image.workspace = true
+uuid.workspace = true
+futures.workspace = true
+i18n-embed.workspace = true
+i18n-embed-fl.workspace = true
+rust-embed.workspace = true
 time.workspace = true
 async-channel.workspace = true
 thiserror.workspace = true
@@ -27,3 +34,4 @@ tracing.workspace = true
 gpui = { workspace = true, features = ["test-support", "bench-support"] }
 gpui_platform = { workspace = true, features = ["test-support", "bench-support"] }
 es-testkit.workspace = true
+tempfile.workspace = true

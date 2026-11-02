@@ -195,3 +195,23 @@ fn thumbnail_path_follows_path_mtime_and_size() {
     assert!(file.ends_with("-120.png") && file.len() == 40 + "-120.png".len());
     assert_eq!(a.parent().unwrap(), paths.thumbs_dir());
 }
+
+#[test]
+fn a_thumbnail_is_written_once_to_the_cache_and_fits_the_size() {
+    let (_d, paths) = setup();
+    let image = capture(&paths, "wide", 0);
+    let thumb = es_store::thumbs::ensure(&paths, &image, 4).unwrap();
+    assert_eq!(
+        thumb,
+        es_store::thumbs::thumb_path_for(&paths, &image, 4).unwrap()
+    );
+    let (w, h) = image::image_dimensions(&thumb).unwrap();
+    assert_eq!(w.max(h), 4, "{w}x{h} fits a 4 px box");
+    std::fs::write(&thumb, b"cached").unwrap();
+    es_store::thumbs::ensure(&paths, &image, 4).unwrap();
+    assert_eq!(
+        std::fs::read(&thumb).unwrap(),
+        b"cached",
+        "a cached thumbnail is served, not rewritten"
+    );
+}
