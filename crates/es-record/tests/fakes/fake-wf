@@ -1,0 +1,8 @@
+#!/bin/sh
+echo "argv $*" >> "$FAKE_LOG"
+while [ $# -gt 0 ]; do
+  if [ "$1" = "-f" ]; then out="$2"; fi
+  shift
+done
+trap 'echo "seg-data" > "$out"; exit 0' INT
+while true; do sleep 0.02; done

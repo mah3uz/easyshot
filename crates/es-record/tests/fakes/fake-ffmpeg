@@ -1,0 +1,4 @@
+#!/bin/sh
+echo "ffmpeg $*" >> "$FAKE_LOG"
+for last; do :; done
+cat "$(dirname "$last")"/segment-*.mkv > "$last"

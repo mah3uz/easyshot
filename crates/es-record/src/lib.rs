@@ -3,6 +3,18 @@ use es_model::platform::{OutputId, WindowInfo};
 use futures::future::BoxFuture;
 use std::path::PathBuf;
 
+pub mod audio;
+pub mod gsr;
+pub mod process;
+pub mod units;
+pub mod wf;
+
+pub use audio::{AudioDevice, AudioKind, list_audio_devices, parse_pactl_sources};
+pub use gsr::GsrRecorder;
+pub use process::{Clock, SystemClock, Timing};
+pub use units::{RegionUnits, decide_units, parse_monitor_list};
+pub use wf::WfRecorder;
+
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
