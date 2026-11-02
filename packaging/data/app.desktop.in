@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Easyshot
+Comment=Screenshots, annotation and screen recording
+Exec=easyshot settings
+Icon=@APP_ID@
+Terminal=false
+Categories=Utility;Graphics;
+StartupNotify=false

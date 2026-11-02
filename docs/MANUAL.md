@@ -25,6 +25,11 @@ easyshot runs as one background program, the daemon, started by a systemd user u
 (`easyshot.service`) or by XDG autostart. Commands like `easyshot capture region` talk to
 it, and start it if it is not running.
 
+The first command you run starts the daemon through D-Bus activation. To have it running for
+the whole session, run `systemctl --user enable --now easyshot.service`. The package installs
+a desktop entry (Easyshot in your application menu opens Settings) and registers
+`easyshot://` links, which open through `easyshot open`.
+
 easyshot cannot register global keyboard shortcuts for you on Hyprland or wlroots
 compositors. You bind keys in your own compositor config to call `easyshot <command>`.
 Settings > Shortcuts shows the snippet to paste for your compositor. In niri, paste it inside

@@ -19,3 +19,12 @@ install -Dm644 "$icons/hicolor/symbolic/apps/easyshot-symbolic.svg" \
 "$bin/easyshot" completions bash > "$dest/completions/easyshot.bash"
 "$bin/easyshot" completions zsh > "$dest/completions/easyshot.zsh"
 "$bin/easyshot" completions fish > "$dest/completions/easyshot.fish"
+
+data=$src/packaging/data
+sub() { sed "s/@APP_ID@/$app_id/g" "$1" > "$2"; }
+mkdir -p "$dest"/{applications,systemd,dbus,metainfo}
+sub "$data/app.desktop.in" "$dest/applications/$app_id.desktop"
+sub "$data/open.desktop.in" "$dest/applications/$app_id.open.desktop"
+sub "$data/easyshot.service.in" "$dest/systemd/easyshot.service"
+sub "$data/dbus.service.in" "$dest/dbus/$app_id.service"
+sub "$data/metainfo.xml.in" "$dest/metainfo/$app_id.metainfo.xml"

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Easyshot link handler
+Exec=easyshot open %u
+Icon=@APP_ID@
+Terminal=false
+NoDisplay=true
+MimeType=x-scheme-handler/easyshot;
+StartupNotify=false

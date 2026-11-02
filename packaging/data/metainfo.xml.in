@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>@APP_ID@</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT AND Apache-2.0 AND Unicode-3.0 AND BSD-3-Clause AND BSD-2-Clause AND ISC AND Zlib AND 0BSD AND CC0-1.0 AND MPL-2.0 AND Unlicense AND OFL-1.1</project_license>
+  <name>Easyshot</name>
+  <summary>Screenshots, annotation and screen recording for Wayland</summary>
+  <description>
+    <p>Easyshot captures a region, a window or a screen, lets you annotate the result in an editor, records the screen, and reads text from images. It runs on Wayland compositors such as Hyprland, sway and niri.</p>
+  </description>
+  <developer id="dev.easyshot">
+    <name>Mahfuz Shaikh</name>
+  </developer>
+  <launchable type="desktop-id">@APP_ID@.desktop</launchable>
+  <url type="homepage">https://github.com/mah3uz/easyshot</url>
+  <provides>
+    <binary>easyshot</binary>
+  </provides>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="2026-11-02"/>
+  </releases>
+</component>

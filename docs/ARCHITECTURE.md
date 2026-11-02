@@ -314,6 +314,11 @@ and stripped symbols; `[profile.fast]` is release without LTO for local installs
 iterations; it builds the pixel crates (tiny-skia, png, image, libblur, es-render and the
 others listed in `Cargo.toml`) with one codegen unit, so its timings match a shipped build.
 
+The install files (desktop entry, `easyshot://` handler, systemd user unit, D-Bus activation
+file, AppStream metainfo) are templates in `packaging/data/`; `packaging/stage.sh` fills in the
+app ID from `scripts/app-id.sh` and the PKGBUILD installs them. None has been run on a
+live session: they are checked only by the desktop-file, AppStream and systemd validators.
+
 Decoded wallpapers live in one `WallpaperCache` (4 images, 192 MB), and the pictures the
 editor shows count against one 256 MB `ImageBudget` (LRU); both are shared by every window
 through the `ImageStores` global. An evicted picture is dropped by its window on its next
