@@ -18,10 +18,6 @@ const faq = [
     a: 'Version 1 targets Hyprland 0.57+, sway 1.12 and niri 26.04. Other Wayland compositors with layer-shell and a capture protocol should work for basic capture. KDE and GNOME are not supported.',
   },
   {
-    q: 'Does it work today?',
-    a: 'Yes, from source, but it is early software. It runs end to end and has had its first real session on Hyprland; sway has been tested headless, and niri not yet. Expect rough edges, and please report what you find. The <a class="text-accent underline" href="/how-to">how-to</a> shows how to build it.',
-  },
-  {
     q: 'How do I install it?',
     a: 'Packages for the AUR (<code>easyshot</code> and <code>easyshot-bin</code>), Debian/Ubuntu (.deb), Fedora (.rpm) and Nix come with the first release. Until then, build it with <code>cargo build --release -p easyshot</code>, or on Arch run <code>just install</code> from a checkout. See <a class="text-accent underline" href="/#install">Install</a>.',
   },
