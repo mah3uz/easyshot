@@ -106,3 +106,21 @@ logo:
 # Benchmarks (GPUI BenchContext)
 bench:
     cargo bench --workspace
+
+# Run the website's dev server (docs/site); arguments go to nuxt dev, e.g. `just site-dev --port 4000`
+[working-directory: 'docs/site']
+site-dev *ARGS:
+    [ -d node_modules ] || npm ci
+    npx nuxt dev {{ ARGS }}
+
+# Build the website into docs/site/.output/public
+[working-directory: 'docs/site']
+site-build:
+    [ -d node_modules ] || npm ci
+    npm run build
+
+# Build the website and deploy it to Cloudflare Workers (needs `npx wrangler login` once)
+[working-directory: 'docs/site']
+site-deploy:
+    [ -d node_modules ] || npm ci
+    npm run deploy

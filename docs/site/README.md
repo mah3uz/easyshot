@@ -41,6 +41,8 @@ applied by a small script in `<head>` before the first paint.
 
 ## Work on it
 
+From the repository root, `just site-dev` runs the dev server (arguments go to `nuxt dev`), `just site-build` builds the static site, and `just site-deploy` builds and deploys it to Cloudflare (run `npx wrangler login` once first). Each installs the packages first if `node_modules` is missing. Or, inside `docs/site`:
+
 ```bash
 cd docs/site
 npm install

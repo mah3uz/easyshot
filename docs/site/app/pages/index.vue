@@ -11,7 +11,7 @@ usePageSeo({
 const faq = [
   {
     q: 'Is easyshot free?',
-    a: 'Yes. It is free and open source under the MIT licence. There is no account, no subscription and no paid tier.',
+    a: 'Yes. It is free and open source. There is no account, no subscription and no paid tier.',
   },
   {
     q: 'Which desktops does it work on?',
@@ -36,7 +36,7 @@ const faq = [
 ]
 
 const why = [
-  { icon: 'heart', title: 'Free and open source', text: 'MIT licensed. Read the code, change it, ship it.' },
+  { icon: 'heart', title: 'Free and open source', text: 'Read the code, change it, ship it.' },
   { icon: 'shield-check', title: 'Private by default', text: 'No account and no uploads. Crash reports stay on your disk.' },
   { icon: 'zap', title: 'Native and fast', text: 'Written in Rust with GPUI, rendered on your GPU.' },
   { icon: 'keyboard', title: 'Keyboard first', text: 'Every action has a command, and your compositor binds the keys.' },
@@ -66,7 +66,6 @@ useHead({
             'Screenshots, annotation and screen recording for Linux on Wayland. A free, open-source alternative to CleanShot.',
           url: siteUrl,
           image: `${siteUrl}/og.png`,
-          license: 'https://opensource.org/licenses/MIT',
           codeRepository: repo,
           offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
         },
@@ -98,7 +97,7 @@ useHead({
         <img src="/logo.svg" alt="easyshot logo" width="96" height="96" class="rise size-20 drop-shadow-[0_20px_30px_rgba(19,136,166,.35)] sm:size-24" />
         <a :href="repo" rel="noopener" class="rise group inline-flex items-center gap-2 rounded-full border border-line bg-surface py-1.5 pr-3.5 pl-1.5 text-[13.5px] text-fg-2 shadow-soft transition hover:border-accent" style="--d: 0.08s">
           <span class="rounded-full bg-accent-soft px-2 py-0.5 text-xs font-semibold text-accent">Open source</span>
-          Free, MIT licensed, built with Rust
+          Free, built with Rust
           <Icon name="arrow-up-right" :size="14" class="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
         </a>
         <h1 class="rise max-w-[900px] text-[clamp(42px,7.4vw,84px)] leading-[1.02]" style="--d: 0.16s">

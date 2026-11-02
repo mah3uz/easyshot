@@ -42,7 +42,7 @@ const cols = [
         <p class="max-w-[300px] text-[14.5px] leading-relaxed text-fg-2">
           Free and open-source screenshots, annotation and screen recording for Linux on Wayland.
         </p>
-        <p class="text-[13px] text-fg-3">MIT licence · Made with Rust and GPUI</p>
+        <p class="text-[13px] text-fg-3">Made with Rust and GPUI</p>
       </div>
       <nav v-for="c in cols" :key="c.title" :aria-label="c.title" class="grid content-start gap-3">
         <h2 class="font-sans text-[13px] font-semibold tracking-wide text-fg-3 uppercase">{{ c.title }}</h2>
