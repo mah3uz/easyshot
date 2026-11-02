@@ -140,7 +140,7 @@ pub fn frame_rgba(frame: &Frame) -> Result<RgbaImage> {
     RgbaImage::from_raw(w, h, rgba).ok_or_else(|| Error::Internal("empty frame".into()))
 }
 
-fn pixmap(image: &RgbaImage) -> Result<Pixmap> {
+pub(crate) fn pixmap(image: &RgbaImage) -> Result<Pixmap> {
     let size = IntSize::from_wh(image.width(), image.height())
         .ok_or_else(|| Error::Internal("empty frame".into()))?;
     Pixmap::from_vec(image.as_raw().clone(), size)
@@ -194,15 +194,15 @@ struct Prepared {
     library: Option<Result<HistoryEntry>>,
 }
 
-struct Work {
-    paths: Paths,
-    config: Arc<Config>,
-    file_stem: String,
-    kind: StoredKind,
-    save: bool,
+pub(crate) struct Work {
+    pub(crate) paths: Paths,
+    pub(crate) config: Arc<Config>,
+    pub(crate) file_stem: String,
+    pub(crate) kind: StoredKind,
+    pub(crate) save: bool,
 }
 
-fn save_to_folder(work: &Work, pixmap: &Pixmap) -> Result<PathBuf> {
+pub(crate) fn save_to_folder(work: &Work, pixmap: &Pixmap) -> Result<PathBuf> {
     let cfg = &work.config.general;
     let dir = es_store::paths::save_dir(&work.config)
         .ok_or_else(|| Error::NotFound("a save folder".into()))?;
@@ -225,7 +225,7 @@ fn save_to_folder(work: &Work, pixmap: &Pixmap) -> Result<PathBuf> {
     Ok(target)
 }
 
-fn retain(work: &Work, png: &[u8], saved: Option<&PathBuf>) -> Result<HistoryEntry> {
+pub(crate) fn retain(work: &Work, png: &[u8], saved: Option<&PathBuf>) -> Result<HistoryEntry> {
     let library = work.paths.library_dir();
     let name = format!("{}.png", work.file_stem);
     let target = unique_path(&name, &library, "-", |p| {

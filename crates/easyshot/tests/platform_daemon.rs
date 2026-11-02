@@ -98,6 +98,17 @@ fn start_daemon(root: &Path) -> Daemon {
     Daemon(child)
 }
 
+fn count_app_id(node: &serde_json::Value, app_id: &str) -> usize {
+    let own = usize::from(node["app_id"].as_str() == Some(app_id));
+    ["nodes", "floating_nodes"]
+        .iter()
+        .filter_map(|k| node[k].as_array())
+        .flatten()
+        .map(|n| count_app_id(n, app_id))
+        .sum::<usize>()
+        + own
+}
+
 fn output_origin() -> Point {
     let outputs: serde_json::Value =
         serde_json::from_str(&swaymsg(&["-t", "get_outputs", "-r"])).unwrap();
@@ -179,5 +190,27 @@ fn platform_daemon_region_capture_reaches_the_deck_and_the_save_folder() {
         "304x151 at scale 1.5, got {w}x{h}"
     );
     assert_eq!(staged_cards(&deck), 1, "one card staged:\n{}", log());
+
+    // Small card, 20 px margin, bottom-right of the 1280x720 logical output: the Edit button is
+    // the bottom-left corner tool and only exists while the card is hovered.
+    let editors = || {
+        let tree: serde_json::Value =
+            serde_json::from_str(&swaymsg(&["-t", "get_tree", "-r"])).unwrap();
+        count_app_id(&tree, "dev.easyshot.editor")
+    };
+    assert_eq!(editors(), 0);
+    to(1130., 640.);
+    sleep(Duration::from_millis(400));
+    to(1097., 683.);
+    sleep(Duration::from_millis(400));
+    swaymsg(&["seat", "seat0", "cursor", "press", "button1"]);
+    swaymsg(&["seat", "seat0", "cursor", "release", "button1"]);
+    let opened = until(20, || (editors() == 1).then_some(()));
+    assert!(opened.is_some(), "no editor window:\n{}", log());
+    swaymsg(&["[app_id=dev.easyshot.editor] kill"]);
+    assert!(
+        until(10, || (editors() == 0).then_some(())).is_some(),
+        "editor window stayed open"
+    );
     drop(daemon);
 }

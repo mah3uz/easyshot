@@ -1,7 +1,11 @@
 mod bus;
 mod capture;
+mod pickers;
 mod recovery;
 mod routes;
+mod windows;
+#[cfg(test)]
+mod wiring_tests;
 
 use anyhow::{Context as _, Result, bail};
 use es_app::capture_coordinator::CaptureCoordinator;
@@ -14,13 +18,15 @@ use es_app::platform_ui::{BackendClipboardSink, LayerShellSurfaces, ToastSurface
 use es_app::services::Services;
 use es_app::settings_model::SettingsModel;
 use es_app::toast::install_toasts;
-use es_app::windows::Windows;
+use es_app::windows::{WindowKey, WindowKind, Windows};
 use es_backend::{Backend, Probe};
+use es_desktop::dbus::Endpoint;
 use es_desktop::{Labels, Notification, NotificationId, Notifier};
 use es_model::platform::OutputId;
 use es_overlays::capture::{FlowOptions, LayerShellSelectionFlow};
 use es_overlays::deck::view::{DeckSettings, DeckSurface};
 use es_overlays::pin::Pins;
+use es_shell::gallery::DesktopFiles;
 use es_store::{ConfigFile, Paths};
 use gpui::{App, AppContext as _, Global, QuitMode, Task};
 use std::rc::Rc;
@@ -28,6 +34,7 @@ use std::sync::Arc;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt as _;
 use tracing_subscriber::util::SubscriberInitExt as _;
+use windows::Wiring;
 
 const MIN_RAYON_THREADS: usize = 6;
 const LOG_FILES_KEPT: usize = 7;
@@ -40,7 +47,6 @@ struct Daemon {
     _bus: Option<bus::Bridge>,
     _tasks: Vec<Task<()>>,
     _subscriptions: Vec<gpui::Subscription>,
-    recovered_edits: Vec<es_editor::session::journal::Recovered>,
 }
 
 impl Global for Daemon {}
@@ -173,6 +179,9 @@ pub fn run(_args: DaemonArgs) -> Result<()> {
         .ensure_all()
         .context("creating easyshot's directories")?;
     let _log = init_logging(&paths);
+    if let Err(e) = es_shell::onboarding::prepare_for_launch(&paths) {
+        tracing::warn!(error = %e, "first-launch check");
+    }
     let config = ConfigFile::load(&paths.config_file()).context("reading the settings")?;
     let (backend, test_output) = detect_backend()?;
     size_rayon_pool();
@@ -247,6 +256,34 @@ fn start(
         capture::copy_file(clipboard.clone()),
     ));
 
+    let test_mode = test_mode_requested();
+    let wiring = Wiring::new(
+        paths.clone(),
+        settings.clone(),
+        history.clone(),
+        clipboard.clone(),
+        if test_mode {
+            Rc::new(pickers::Declining)
+        } else {
+            Rc::new(pickers::PortalChooser(backend.clone()))
+        },
+        Arc::new(DesktopFiles::new(Endpoint::session())),
+        if test_mode {
+            pickers::declining_folder_picker()
+        } else {
+            pickers::folder_picker()
+        },
+        backend.caps,
+        es_shell::settings::from_backend(backend.clone()),
+        {
+            let backend = backend.clone();
+            Rc::new(move || backend.capture.outputs())
+        },
+        Some(surfaces.clone()),
+        windows.clone(),
+    );
+    wiring.register();
+
     let coordinator = CaptureCoordinator::new(jobs.clone());
     let opts = settings.clone();
     let flow = Rc::new(
@@ -283,22 +320,23 @@ fn start(
         clipboard: clipboard.clone(),
         recognize: pipeline::tesseract(),
         pin: capture::pinner(pins.clone()),
-        open_editor: Rc::new(|file, _| {
-            tracing::error!(file = %file.display(), "the editor window is not wired yet");
-            Err(es_app::errors::Error::Unsupported)
-        }),
+        open_editor: {
+            let wiring = wiring.clone();
+            Rc::new(move |file, cx| wiring.open_editor_for(&file, cx))
+        },
     })));
 
-    routes::register_windows(&windows);
     let dispatcher = RouteDispatcher::new(jobs.clone(), coordinator, windows);
-    dispatcher.set_action_handler(routes::actions(deck.clone()));
-    let subscriptions = vec![routes::deck_events(
-        &deck,
-        paths.clone(),
-        clipboard,
-        pins.clone(),
-        cx,
-    )];
+    wiring.set_dispatcher(dispatcher.clone());
+    let action_deps = routes::ActionDeps {
+        deck: deck.clone(),
+        history: history.clone(),
+        wiring: wiring.clone(),
+        pins: pins.clone(),
+        paths: paths.clone(),
+    };
+    let subscriptions = vec![routes::deck_events(&action_deps, clipboard, cx)];
+    dispatcher.set_action_handler(routes::actions(action_deps));
 
     let (events_tx, events_rx) = async_channel::unbounded::<PlatformEvent>();
     let mut tasks = vec![spawn_pump(
@@ -311,7 +349,15 @@ fn start(
     tasks.extend(bus::platform_sources(backend, &history, &events_tx, cx));
     let bridge = bus::Bridge::start(backend, events_tx, dispatcher, jobs, finished, cx)?;
 
-    let recovered_edits = recovery::run(paths, &deck, cx);
+    let recovered = recovery::run(paths, &deck, cx);
+    reopen_recovered(&wiring, recovered, cx);
+    if first_launch_pending(paths)
+        && let Err(e) = wiring
+            .windows
+            .open(WindowKind::Onboarding, WindowKey::Single, cx)
+    {
+        tracing::warn!(error = %e, "onboarding");
+    }
     cx.set_global(Daemon {
         _surfaces: surfaces,
         _deck_surface: deck_surface,
@@ -319,11 +365,33 @@ fn start(
         _bus: Some(bridge),
         _tasks: tasks,
         _subscriptions: subscriptions,
-        recovered_edits,
     });
-    tracing::info!(
-        pending_recovered_edits = cx.global::<Daemon>().recovered_edits.len(),
-        "easyshot daemon ready"
-    );
+    tracing::info!("easyshot daemon ready");
     Ok(())
+}
+
+fn first_launch_pending(paths: &Paths) -> bool {
+    !test_mode_requested()
+        && es_store::state::open(paths)
+            .is_ok_and(|state| es_shell::onboarding::should_present(&state.value))
+}
+
+fn reopen_recovered(
+    wiring: &Wiring,
+    recovered: Vec<es_editor::session::journal::Recovered>,
+    cx: &mut App,
+) {
+    let mut opened = 0;
+    for found in recovered {
+        match wiring.recover(&found.entry.display, found.path, cx) {
+            Ok(()) => opened += 1,
+            Err(e) => tracing::warn!(error = %e, "recovered edits not reopened"),
+        }
+    }
+    if opened > 0 {
+        es_app::toast::show_toast(
+            es_app::toast::Toast::new("toast-recovered-edits", es_app::toast::IconName::Info),
+            cx,
+        );
+    }
 }

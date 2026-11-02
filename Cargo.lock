@@ -1812,6 +1812,7 @@ dependencies = [
  "es-testkit",
  "es-ui",
  "futures",
+ "gpui-component",
  "gpui-pre",
  "gpui-pre-platform",
  "image",

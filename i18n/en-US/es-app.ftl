@@ -107,3 +107,6 @@ toast-unsupported-message = Your system or compositor doesn’t support this.
 notify-config-invalid = Settings file has an error
 notify-config-invalid-body = Line { $line }, column { $col }: { $message } Your settings are unchanged until it is fixed.
 notify-settings-save-failed = Couldn’t save settings
+toast-save-failed = Save Failed
+toast-recovered-edits = Recovered unsaved edits
+picker-folder-title = Choose a folder

@@ -11,6 +11,7 @@ pub enum WindowKind {
     Gallery,
     Editor,
     CaptureBar,
+    Onboarding,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

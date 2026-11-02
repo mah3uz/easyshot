@@ -1,5 +1,6 @@
 pub mod capture_coordinator;
 pub mod deck;
+pub mod deck_save;
 pub mod dispatcher;
 pub mod errors;
 pub mod events;
