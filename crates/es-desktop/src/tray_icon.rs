@@ -1,8 +1,8 @@
 use crate::tray::IconPixmap;
 use resvg::{tiny_skia, usvg};
 
-const SVG: &str = include_str!("../assets/tray-symbolic.svg");
-pub const SIZES: [u32; 2] = [22, 44];
+const SVG: &str = include_str!("../../../assets/icons/app/easyshot.svg");
+pub const SIZES: [u32; 4] = [16, 22, 32, 44];
 const RED: [u8; 3] = [0xe5, 0x48, 0x4d];
 const AMBER: [u8; 3] = [0xe5, 0xa5, 0x0a];
 
@@ -27,7 +27,7 @@ fn render(size: u32) -> Option<IconPixmap> {
     })
 }
 
-/// The symbolic mark at the sizes the status notifier host picks from, as straight-alpha ARGB32.
+/// The full-colour app icon at the sizes the status notifier host picks from, as straight-alpha ARGB32.
 pub fn tray_icons() -> Vec<IconPixmap> {
     SIZES.iter().filter_map(|s| render(*s)).collect()
 }
@@ -68,14 +68,13 @@ pub fn with_dot(icon: &IconPixmap, paused: bool) -> IconPixmap {
 mod tests {
     use super::*;
 
-    fn alpha_at(icon: &IconPixmap, x: i32, y: i32) -> u8 {
-        icon.argb[(y * icon.width + x) as usize * 4]
-    }
-
     #[test]
-    fn the_mark_renders_at_both_sizes_and_is_not_blank() {
+    fn the_icon_renders_at_every_size_and_is_not_blank() {
         let icons = tray_icons();
-        assert_eq!(icons.iter().map(|i| i.width).collect::<Vec<_>>(), [22, 44]);
+        assert_eq!(
+            icons.iter().map(|i| i.width).collect::<Vec<_>>(),
+            [16, 22, 32, 44]
+        );
         for icon in &icons {
             assert_eq!(icon.argb.len(), (icon.width * icon.height * 4) as usize);
             assert!(icon.argb.chunks(4).any(|p| p[0] > 200));
@@ -84,12 +83,7 @@ mod tests {
 
     #[test]
     fn the_dot_is_red_in_the_corner_and_amber_when_paused() {
-        let idle = &tray_icons()[0];
-        assert_eq!(
-            alpha_at(idle, 18, 18),
-            0,
-            "the corner is empty without the dot"
-        );
+        let idle = &tray_icons()[1];
         let red = with_dot(idle, false);
         let at = (18 * red.width + 18) as usize * 4;
         assert_eq!(red.argb[at..at + 4], [255, RED[0], RED[1], RED[2]]);
@@ -98,7 +92,7 @@ mod tests {
         assert_eq!(
             red.argb[..4],
             idle.argb[..4],
-            "the rest of the mark is untouched"
+            "the rest of the icon is untouched"
         );
     }
 }

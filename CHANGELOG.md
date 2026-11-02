@@ -27,6 +27,7 @@
 
 ### Bug fixes
 
+- The tray icon now shows on bars that draw symbolic icons black.
 - An `easyshot://record` link asks for an area instead of recording the whole screen at once.
 - A screen recording stops when easyshot is killed, instead of running on unseen.
 - A document from someone else can no longer use a file outside your wallpapers as its background.

@@ -88,7 +88,7 @@ impl ksni::Tray for EsTray {
     }
 
     fn icon_name(&self) -> String {
-        es_protocol::ICON_NAME_SYMBOLIC.into()
+        String::new()
     }
 
     fn icon_pixmap(&self) -> Vec<Icon> {

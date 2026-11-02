@@ -107,7 +107,7 @@ fn the_tray_registers_shows_the_menu_and_routes_clicks() {
 
             let tray = run(KsniTray::start(
                 Arc::new(|id| format!("label:{id}")),
-                Vec::new(),
+                es_desktop::tray_icons(),
             ))
             .expect("tray starts");
             let service = run(registered.recv()).expect("registered");
@@ -155,7 +155,18 @@ fn the_tray_registers_shows_the_menu_and_routes_clicks() {
             assert_eq!(run(activations.recv()).expect("route"), Route::CaptureBar);
 
             let icon: String = run(sni.get_property("IconName")).expect("icon");
-            assert_eq!(icon, es_protocol::ICON_NAME_SYMBOLIC);
+            assert_eq!(icon, "", "an empty name makes every host use the pixmap");
+            let idle: Vec<(i32, i32, Vec<u8>)> =
+                run(sni.get_property("IconPixmap")).expect("pixmap");
+            assert_eq!(
+                idle.iter().map(|p| p.0).collect::<Vec<_>>(),
+                [16, 22, 32, 44]
+            );
+            assert!(
+                idle.iter()
+                    .all(|(w, h, d)| d.len() == (w * h * 4) as usize
+                        && d.chunks(4).any(|p| p[0] > 0))
+            );
 
             tray.set_recording(Some(RecordingTrayState {
                 elapsed: Duration::from_secs(75),
@@ -166,6 +177,9 @@ fn the_tray_registers_shows_the_menu_and_routes_clicks() {
                 (t != "Easyshot").then_some(t)
             }));
             assert_eq!(title, "Easyshot 01:15");
+            let recording: Vec<(i32, i32, Vec<u8>)> =
+                run(sni.get_property("IconPixmap")).expect("pixmap");
+            assert_ne!(recording, idle, "the recording dot is drawn on the pixmap");
         },
     );
 }

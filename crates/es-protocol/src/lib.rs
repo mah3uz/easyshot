@@ -32,7 +32,6 @@ pub const GALLERY_APP_ID: &str = app_id!("gallery");
 pub const ONBOARDING_APP_ID: &str = app_id!("onboarding");
 pub const PLAYER_APP_ID: &str = app_id!("player");
 pub const ICON_NAME: &str = app_id!();
-pub const ICON_NAME_SYMBOLIC: &str = concat!(app_id!(), "-symbolic");
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
