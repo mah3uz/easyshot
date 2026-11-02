@@ -1,5 +1,8 @@
 use es_geom::{Point, Rect, Rgba};
-use gpui::{Bounds, Hsla, Pixels, px};
+use gpui::{Bounds, Hsla, Pixels, RenderImage, px};
+use image::{Frame, RgbaImage};
+use std::sync::Arc;
+use tiny_skia::Pixmap;
 
 pub fn hsla(c: Rgba) -> Hsla {
     gpui::Rgba {
@@ -21,6 +24,27 @@ pub fn bounds(r: Rect) -> Bounds<Pixels> {
         px_point(r.origin()),
         gpui::size(px(r.width() as f32), px(r.height() as f32)),
     )
+}
+
+/// Premultiplied RGBA into GPUI's straight-alpha BGRA.
+pub fn render_image(pixmap: &Pixmap) -> Option<Arc<RenderImage>> {
+    let mut data = pixmap.data().to_vec();
+    for px in data.as_chunks_mut::<4>().0 {
+        let a = px[3];
+        let un = |c: u8| {
+            if a == 0 {
+                0
+            } else {
+                ((u16::from(c) * 255 + u16::from(a) / 2) / u16::from(a)).min(255) as u8
+            }
+        };
+        let (r, g, b) = (un(px[0]), un(px[1]), un(px[2]));
+        px[0] = b;
+        px[1] = g;
+        px[2] = r;
+    }
+    let image = RgbaImage::from_raw(pixmap.width(), pixmap.height(), data)?;
+    Some(Arc::new(RenderImage::new([Frame::new(image)])))
 }
 
 #[cfg(test)]

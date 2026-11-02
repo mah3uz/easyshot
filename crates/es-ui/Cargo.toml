@@ -13,13 +13,16 @@ workspace = true
 es-geom.workspace = true
 es-model.workspace = true
 es-protocol.workspace = true
+es-text.workspace = true
 gpui.workspace = true
 gpui-component.workspace = true
 gpui-kit-assets.workspace = true
 i18n-embed.workspace = true
+image.workspace = true
 i18n-embed-fl.workspace = true
 rust-embed.workspace = true
 thiserror.workspace = true
+tiny-skia.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]

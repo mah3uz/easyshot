@@ -7,6 +7,7 @@ pub mod layout;
 pub mod progressive_blur;
 pub mod shadow;
 pub mod wallpaper;
+pub mod wallpaper_cache;
 pub mod watermark;
 
 pub use compose::{compose, compose_with_wallpaper};

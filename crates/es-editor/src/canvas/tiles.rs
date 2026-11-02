@@ -116,6 +116,11 @@ impl BaseTiles {
         )
     }
 
+    /// Hands back one tile's image; it is built again the next time the tile is visible.
+    pub fn release(&mut self, index: usize) -> Option<Arc<RenderImage>> {
+        self.images.get_mut(index)?.take()
+    }
+
     pub fn into_images(self) -> impl Iterator<Item = Arc<RenderImage>> {
         self.images.into_iter().flatten()
     }

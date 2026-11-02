@@ -1,6 +1,7 @@
 use fast_image_resize::images::{Image, ImageRef};
 use fast_image_resize::{FilterType, PixelType, ResizeAlg, ResizeOptions, Resizer};
 use image::{RgbaImage, imageops};
+use tiny_skia::Pixmap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImageTransform {
@@ -55,4 +56,32 @@ pub fn resize(img: &RgbaImage, width: u32, height: u32) -> Option<RgbaImage> {
     let options = ResizeOptions::new().resize_alg(ResizeAlg::Convolution(FilterType::Bilinear));
     Resizer::new().resize(&src, &mut dst, &options).ok()?;
     RgbaImage::from_raw(width, height, dst.into_vec())
+}
+
+/// Catmull-Rom resize of premultiplied pixels into all of `dst`, from the `crop` (x, y, w, h) of `src` or all of it.
+pub fn resize_premultiplied(
+    src: &Pixmap,
+    dst: &mut Pixmap,
+    crop: Option<(f64, f64, f64, f64)>,
+) -> Option<()> {
+    let image = ImageRef::new(src.width(), src.height(), src.data(), PixelType::U8x4).ok()?;
+    let (w, h) = (dst.width(), dst.height());
+    let mut out = Image::from_slice_u8(w, h, dst.data_mut(), PixelType::U8x4).ok()?;
+    let mut options = ResizeOptions::new()
+        .resize_alg(ResizeAlg::Convolution(FilterType::CatmullRom))
+        .use_alpha(false);
+    if let Some((x, y, cw, ch)) = crop {
+        options = options.crop(x, y, cw, ch);
+    }
+    Resizer::new().resize(&image, &mut out, &options).ok()?;
+    // Catmull-Rom can overshoot a colour past its alpha, which premultiplied pixels must never exceed.
+    for px in dst.data_mut().as_chunks_mut::<4>().0 {
+        let a = px[3];
+        if a != 255 {
+            for c in &mut px[..3] {
+                *c = (*c).min(a);
+            }
+        }
+    }
+    Some(())
 }

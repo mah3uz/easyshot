@@ -1,6 +1,6 @@
 use crate::deck::Deck;
 use crate::history::History;
-use crate::image_budget::ImageBudget;
+use crate::image_budget::ImageStores;
 use crate::jobs::{JobFinished, Jobs};
 use crate::settings_model::SettingsModel;
 use crate::strings::loader;
@@ -38,7 +38,7 @@ pub struct Services {
     pub deck: Entity<Deck>,
     pub jobs: Jobs,
     pub windows: Windows,
-    pub images: ImageBudget,
+    pub images: ImageStores,
     pub strings: Strings,
     pub stores: Stores,
 }
@@ -63,7 +63,7 @@ impl Services {
             deck,
             jobs,
             windows,
-            images: ImageBudget::default(),
+            images: ImageStores::default(),
             strings: Strings,
             stores: Stores { paths },
         };

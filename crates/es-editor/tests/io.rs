@@ -274,7 +274,10 @@ fn an_export_draws_its_wallpaper_like_the_canvas_does() {
     let (with, look) = export_with_wallpaper(&mut f, &red, "with.png");
     assert_eq!(with, [230, 20, 20, 255], "the wallpaper fills the margin");
     let key = UnderlayKey::new(&look, (1200, 640), 1300.0, 1.0).unwrap();
-    let c = render(&key).unwrap().pixel(2, 2).unwrap();
+    let c = render(&key, &Default::default())
+        .unwrap()
+        .pixel(2, 2)
+        .unwrap();
     assert_eq!(
         [c.red(), c.green(), c.blue(), c.alpha()],
         with,

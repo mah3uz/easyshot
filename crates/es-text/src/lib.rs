@@ -4,7 +4,7 @@ mod layout;
 mod lru;
 
 pub use engine::{LINE_HEIGHT_MULTIPLE, MIN_WIDTH, TextEngine, line_height};
-pub use fonts::FontSet;
+pub use fonts::{BUNDLED, FontSet};
 pub use layout::{LineBox, Outline, PlacedGlyph, TextLayout};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]

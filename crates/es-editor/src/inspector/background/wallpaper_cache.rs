@@ -5,6 +5,7 @@ use std::{
     sync::Arc,
 };
 
+use crate::budget::Lease;
 use es_store::Paths;
 use gpui::{Context, RenderImage};
 use image::{DynamicImage, Frame, imageops::FilterType};
@@ -94,6 +95,10 @@ impl WallpaperCache {
 
     /// Starts decoding the sources not seen yet; observers hear when each one lands.
     pub fn request(&mut self, sources: impl IntoIterator<Item = Source>, cx: &mut Context<Self>) {
+        let lease = Lease::new(cx.entity_id().as_u64());
+        for name in lease.evicted(cx, "thumb/") {
+            self.thumbs.retain(|source, _| thumb_name(source) != name);
+        }
         for source in sources {
             if self.thumbs.contains_key(&source) {
                 continue;
@@ -106,6 +111,9 @@ impl WallpaperCache {
             cx.spawn(async move |this, cx| {
                 let thumb = decoding.await;
                 let _ = this.update(cx, |cache, cx| {
+                    if let Thumb::Ready(image) = &thumb {
+                        Lease::new(cx.entity_id().as_u64()).hold(cx, &thumb_name(&source), image);
+                    }
                     cache.thumbs.insert(source, thumb);
                     cx.notify();
                 });
@@ -118,6 +126,10 @@ impl WallpaperCache {
     pub fn forget(&mut self, path: &Path) {
         self.thumbs.remove(&Source::File(path.to_path_buf()));
     }
+}
+
+fn thumb_name(source: &Source) -> String {
+    format!("thumb/{source:?}")
 }
 
 fn thumbnail(source: &Source) -> Thumb {

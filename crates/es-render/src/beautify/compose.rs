@@ -71,6 +71,13 @@ pub fn compose_scaled(
     Some(canvas)
 }
 
+/// The size of the canvas `compose_scaled` and `stage` make around an image of this size.
+pub fn canvas_size(image: (u32, u32), settings: &BackgroundSettings) -> (u32, u32) {
+    layout(f64::from(image.0), f64::from(image.1), settings)
+        .pixel_aligned()
+        .canvas_pixels()
+}
+
 fn image_layout(image: &Pixmap, settings: &BackgroundSettings) -> Layout {
     layout(
         f64::from(image.width()),
@@ -92,12 +99,13 @@ pub fn stage(
     image: &Pixmap,
     annotations: &DrawList,
     settings: &BackgroundSettings,
+    wallpaper: Option<&Pixmap>,
     page_scale: (f64, f64),
 ) -> Option<Stage> {
     let lay = image_layout(image, settings);
     let (width, height) = lay.canvas_pixels();
     let mut background = Pixmap::new(width, height)?;
-    draw_background_with(&mut background, &settings.style, None);
+    draw_background_with(&mut background, &settings.style, wallpaper);
     let mut card = Pixmap::new(width, height)?;
     let camera = settings.camera.has_effect();
     paint_card(

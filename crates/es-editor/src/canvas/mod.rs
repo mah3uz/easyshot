@@ -16,13 +16,16 @@ pub mod underlay;
 pub use element::CanvasElement;
 pub use text_edit::{CARET_BLINK, TextEditState};
 
+use crate::budget::Lease;
 use crate::session::EditorSession;
 use crate::session::crop::CropModel;
 use crate::session::doc::DocModel;
 use crate::session::viewport::{ViewportModel, WHEEL_ZOOM_RATE};
 use es_anno::{DrawItem, Viewport};
+use es_app::image_budget::ImageStores;
 use es_geom::Point;
 use es_model::{AnnoShapeId, BackgroundSettings};
+use es_render::beautify::wallpaper_cache::WallpaperCache;
 use es_ui::cursors::Cursors;
 use gpui::{
     App, Bounds, Context, CursorStyle, Entity, FocusHandle, InteractiveElement, IntoElement,
@@ -88,6 +91,8 @@ pub struct EditorCanvas {
     underlay_pending: Option<UnderlayKey>,
     underlay_task: Option<Task<()>>,
     effects: effects::Effects,
+    wallpapers: Arc<WallpaperCache>,
+    lease: Lease,
     retired: Vec<Arc<RenderImage>>,
     redaction_painter: Option<RedactionPainter>,
     redactions: Rc<RefCell<Redactions>>,
@@ -127,6 +132,11 @@ impl EditorCanvas {
             underlay_pending: None,
             underlay_task: None,
             effects: effects::Effects::default(),
+            wallpapers: cx
+                .try_global::<ImageStores>()
+                .map(|s| s.wallpapers.clone())
+                .unwrap_or_default(),
+            lease: Lease::new(cx.entity_id().as_u64()),
             retired: Vec::new(),
             redaction_painter: Some(painter),
             redactions,

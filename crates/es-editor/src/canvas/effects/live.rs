@@ -1,11 +1,13 @@
 use super::{SceneKey, scaled_base};
+use crate::canvas::underlay::cached_wallpaper;
 use es_anno::DrawList;
 use es_geom::Rect;
 use es_model::{BackgroundSettings, BlurEdgeMode, CameraSettings, ProgressiveBlurSettings};
 use es_render::beautify::blit;
 use es_render::beautify::camera::{Quality, projection, warp};
-use es_render::beautify::compose::{Stage, blur_scope, paint_watermark, stage};
+use es_render::beautify::compose::{Stage, blur_scope, canvas_size, paint_watermark, stage};
 use es_render::beautify::progressive_blur::{blend_preview, focus_mask, preview_levels};
+use es_render::beautify::wallpaper_cache::WallpaperCache;
 use image::RgbaImage;
 use std::borrow::Cow;
 use tiny_skia::{BlendMode, IntRect, Pixmap, PixmapPaint, Transform};
@@ -50,10 +52,17 @@ pub struct LiveStage {
 }
 
 impl LiveStage {
-    pub fn new(base: &RgbaImage, list: &DrawList, key: &SceneKey) -> Option<Self> {
+    pub fn new(
+        base: &RgbaImage,
+        list: &DrawList,
+        key: &SceneKey,
+        wallpapers: &WallpaperCache,
+    ) -> Option<Self> {
         let (image, page_scale) = scaled_base(base, key.scale * LIVE_SCALE)?;
         let settings = &key.settings;
-        let stage = stage(&image, list, settings, page_scale)?;
+        let canvas = canvas_size((image.width(), image.height()), settings);
+        let wallpaper = cached_wallpaper(wallpapers, &settings.style, canvas);
+        let stage = stage(&image, list, settings, wallpaper.as_deref(), page_scale)?;
         Some(Self {
             key: key.clone(),
             stage,

@@ -1,13 +1,97 @@
 use gpui::{
-    AnyElement, App, Bounds, Div, Hsla, IntoElement, ParentElement, Pixels, Refineable, RenderOnce,
-    StyleRefinement, Styled, Window, canvas, div, fill, point, px, size,
+    AnyElement, App, Bounds, Corners, Div, Global, Hsla, IntoElement, ParentElement, Pixels,
+    Refineable, RenderImage, RenderOnce, StyleRefinement, Styled, Window, canvas, div, fill, point,
+    px, size,
 };
+use std::sync::Arc;
+use tiny_skia::{Color, FillRule, Paint, PathBuilder, Pixmap, Transform};
 
-use crate::{convert::hsla, theme::tokens, tokens::LIGHT};
+use crate::{
+    convert::{hsla, render_image},
+    theme::tokens,
+    tokens::LIGHT,
+};
 
 pub const DOT_SPACING: Pixels = px(16.);
 pub const DOT_DIAMETER: Pixels = px(1.6);
 pub const CHECKER_CELL: Pixels = px(10.);
+/// Logical pixels per side of the repeated dot image; a whole number of dot steps.
+pub const DOT_TILE: f32 = 512.0;
+
+fn skia_color(c: Hsla) -> Color {
+    let c = c.to_rgb();
+    Color::from_rgba(c.r, c.g, c.b, c.a).unwrap_or(Color::TRANSPARENT)
+}
+
+/// One tile of the dot grid, filled with `base` when given and transparent otherwise.
+pub fn dot_tile(scale_factor: f32, base: Option<Hsla>, dot: Hsla) -> Option<Arc<RenderImage>> {
+    let side = (DOT_TILE * scale_factor).round().max(1.0) as u32;
+    let mut pixmap = Pixmap::new(side, side)?;
+    if let Some(base) = base {
+        pixmap.fill(skia_color(base));
+    }
+    let step = f32::from(DOT_SPACING) * scale_factor;
+    let r = f32::from(DOT_DIAMETER) * scale_factor / 2.0;
+    let mut pb = PathBuilder::new();
+    let mut y = step / 2.0;
+    while y < side as f32 {
+        let mut x = step / 2.0;
+        while x < side as f32 {
+            pb.push_circle(x, y, r);
+            x += step;
+        }
+        y += step;
+    }
+    let path = pb.finish()?;
+    let mut paint = Paint::default();
+    paint.set_color(skia_color(dot));
+    paint.anti_alias = true;
+    pixmap.fill_path(
+        &path,
+        &paint,
+        FillRule::Winding,
+        Transform::identity(),
+        None,
+    );
+    render_image(&pixmap)
+}
+
+/// The rectangles a dot tile is painted at to cover `bounds`.
+pub fn dot_cells(bounds: Bounds<Pixels>) -> Vec<Bounds<Pixels>> {
+    let mut out = Vec::new();
+    let tile = px(DOT_TILE);
+    let mut y = px(0.);
+    while y < bounds.size.height {
+        let mut x = px(0.);
+        while x < bounds.size.width {
+            out.push(Bounds::new(bounds.origin + point(x, y), size(tile, tile)));
+            x += tile;
+        }
+        y += tile;
+    }
+    out
+}
+
+/// The tile the last dot grid was drawn with, so a frame paints an image instead of thousands of quads.
+#[derive(Default)]
+struct DotTile(Option<((u32, Hsla), Arc<RenderImage>)>);
+
+impl Global for DotTile {}
+
+fn cached_dot_tile(window: &mut Window, cx: &mut App, dot: Hsla) -> Option<Arc<RenderImage>> {
+    let key = (window.scale_factor().to_bits(), dot);
+    let cache = cx.default_global::<DotTile>();
+    if let Some((k, image)) = &cache.0
+        && *k == key
+    {
+        return Some(image.clone());
+    }
+    let image = dot_tile(window.scale_factor(), None, dot)?;
+    if let Some((_, old)) = cache.0.replace((key, image.clone())) {
+        let _ = window.drop_image(old);
+    }
+    Some(image)
+}
 
 fn painted(
     style: &StyleRefinement,
@@ -56,28 +140,23 @@ impl ParentElement for DotGridBackground {
 }
 
 impl RenderOnce for DotGridBackground {
-    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let t = tokens(cx);
-        let dot = t.text_tertiary;
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        let (workspace, dot) = {
+            let t = tokens(cx);
+            (t.workspace, t.text_tertiary)
+        };
+        let tile = cached_dot_tile(window, cx, dot);
         painted(
             &self.style,
             self.children,
-            t.workspace,
+            workspace,
             move |bounds, window| {
-                let step = f32::from(DOT_SPACING);
-                let d = DOT_DIAMETER;
-                let (w, h) = (f32::from(bounds.size.width), f32::from(bounds.size.height));
-                let mut y = step / 2.;
-                while y < h {
-                    let mut x = step / 2.;
-                    while x < w {
-                        let origin = bounds.origin + point(px(x), px(y)) - point(d / 2., d / 2.);
-                        window.paint_quad(
-                            fill(Bounds::new(origin, size(d, d)), dot).corner_radii(d / 2.),
-                        );
-                        x += step;
-                    }
-                    y += step;
+                let Some(tile) = tile else {
+                    return;
+                };
+                for at in dot_cells(bounds) {
+                    let _ =
+                        window.paint_image(bounds, at, Corners::default(), tile.clone(), 0, false);
                 }
             },
         )

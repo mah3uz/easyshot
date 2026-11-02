@@ -3,13 +3,15 @@ use cosmic_text::{Attrs, Family, FontSystem, Style, Weight};
 
 use crate::FontFamily;
 
-const BUNDLED: &[&[u8]] = &[
+/// Every bundled face; the interface registers the same bytes with its own text system.
+pub const BUNDLED: &[&[u8]] = &[
     include_bytes!("../../../assets/fonts/Inter-Regular.ttf"),
     include_bytes!("../../../assets/fonts/Inter-Bold.ttf"),
     include_bytes!("../../../assets/fonts/Inter-Italic.ttf"),
     include_bytes!("../../../assets/fonts/Inter-BoldItalic.ttf"),
     include_bytes!("../../../assets/fonts/InterTight-Regular.ttf"),
     include_bytes!("../../../assets/fonts/InterTight-Bold.ttf"),
+    include_bytes!("../../../assets/fonts/InterTight-SemiBold.ttf"),
     include_bytes!("../../../assets/fonts/InterTight-Italic.ttf"),
     include_bytes!("../../../assets/fonts/InterTight-BoldItalic.ttf"),
     include_bytes!("../../../assets/fonts/Nunito[wght].ttf"),

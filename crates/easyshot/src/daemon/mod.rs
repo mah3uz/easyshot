@@ -271,6 +271,7 @@ fn start(
         paths.clone(),
     );
     let jobs = services.jobs.clone();
+    cx.set_global(services.images.clone());
     cx.set_global(services);
 
     let pinned = PinnedOutput::default();

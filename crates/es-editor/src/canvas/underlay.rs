@@ -5,8 +5,8 @@ use es_render::beautify::gradients::draw_background_with;
 use es_render::beautify::layout;
 use es_render::beautify::shadow::{paint_shadow, shadow_layer};
 use es_render::beautify::wallpaper::decode_wallpaper;
+use es_render::beautify::wallpaper_cache::WallpaperCache;
 use gpui::RenderImage;
-use image::{Frame, RgbaImage};
 use std::sync::Arc;
 use tiny_skia::Pixmap;
 
@@ -46,8 +46,22 @@ pub fn stepped_scale(device_scale: f64, canvas_edge: f64) -> f64 {
     stepped.min(1.0).min(MAX_EDGE / canvas_edge.max(1.0))
 }
 
+/// The wallpaper a style names, decoded once and kept in a size that covers `canvas`.
+pub fn cached_wallpaper(
+    cache: &WallpaperCache,
+    style: &BackgroundStyle,
+    canvas: (u32, u32),
+) -> Option<Arc<Pixmap>> {
+    let BackgroundStyle::Wallpaper { path } = style else {
+        return None;
+    };
+    cache.get(path, canvas, || {
+        wallpaper_bytes(path).and_then(|b| decode_wallpaper(&b))
+    })
+}
+
 /// Background, shadow and border, the layers that sit under the image card.
-pub fn render(key: &UnderlayKey) -> Option<Pixmap> {
+pub fn render(key: &UnderlayKey, wallpapers: &WallpaperCache) -> Option<Pixmap> {
     let (w, h) = (
         f64::from(key.image.0) * key.scale,
         f64::from(key.image.1) * key.scale,
@@ -56,13 +70,8 @@ pub fn render(key: &UnderlayKey) -> Option<Pixmap> {
     let (cw, ch) = lay.canvas_pixels();
     let mut target = Pixmap::new(cw, ch)?;
     let s = &key.settings;
-    let wallpaper = match &s.style {
-        BackgroundStyle::Wallpaper { path } => {
-            wallpaper_bytes(path).and_then(|b| decode_wallpaper(&b))
-        }
-        _ => None,
-    };
-    draw_background_with(&mut target, &s.style, wallpaper.as_ref());
+    let wallpaper = cached_wallpaper(wallpapers, &s.style, (cw, ch));
+    draw_background_with(&mut target, &s.style, wallpaper.as_deref());
     let f = frame(&lay);
     if s.is_enabled() || s.camera.has_effect() {
         let edge = lay.card.width().min(lay.card.height());
@@ -78,21 +87,5 @@ pub fn render(key: &UnderlayKey) -> Option<Pixmap> {
 
 /// Premultiplied RGBA into GPUI's straight-alpha BGRA.
 pub fn render_image(pixmap: &Pixmap) -> Option<Arc<RenderImage>> {
-    let mut data = pixmap.data().to_vec();
-    for px in data.as_chunks_mut::<4>().0 {
-        let a = px[3];
-        let un = |c: u8| {
-            if a == 0 {
-                0
-            } else {
-                ((u16::from(c) * 255 + u16::from(a) / 2) / u16::from(a)).min(255) as u8
-            }
-        };
-        let (r, g, b) = (un(px[0]), un(px[1]), un(px[2]));
-        px[0] = b;
-        px[1] = g;
-        px[2] = r;
-    }
-    let image = RgbaImage::from_raw(pixmap.width(), pixmap.height(), data)?;
-    Some(Arc::new(RenderImage::new([Frame::new(image)])))
+    es_ui::convert::render_image(pixmap)
 }

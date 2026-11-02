@@ -63,6 +63,7 @@ impl EditorCanvas {
         let mut stats = FrameStats::default();
         let released_before = self.stats.images_released;
         let mut retired = std::mem::take(&mut self.retired);
+        self.release_evicted(&mut retired, cx);
         let t = es_ui::theme::tokens(cx);
         let accent = t.accent;
         let grid_key = GridKey {
@@ -94,6 +95,7 @@ impl EditorCanvas {
             if let Some(old) = self.tiles.replace(fresh) {
                 retired.extend(old.into_images());
             }
+            self.lease.release_group(cx, "tile/");
         }
 
         let image_rect = Rect::new(
@@ -133,6 +135,7 @@ impl EditorCanvas {
                     bottom_right: pick(right && bottom, radii[2]),
                     bottom_left: pick(left && bottom, radii[3]),
                 };
+                self.lease.hold(cx, &format!("tile/{i}"), &image);
                 tiles_out.push((window_rect(bounds.origin, screen), corners, image));
             }
         }
@@ -146,6 +149,10 @@ impl EditorCanvas {
             vp.scale * f64::from(sf),
         );
         self.request_underlay(key, &mut retired, cx);
+        match &self.underlay {
+            Some((_, image)) => self.lease.hold(cx, "underlay", image),
+            None => self.lease.release(cx, "underlay"),
+        }
         let underlay = self
             .underlay
             .as_ref()
@@ -221,6 +228,10 @@ impl EditorCanvas {
         self.stats = stats;
         self.start_text_shadows(cx);
         let effects = self.effects_frame(bounds, &math, f64::from(sf), &mut retired, cx);
+        match self.effects.held_image() {
+            Some(image) => self.lease.hold(cx, "composite", image),
+            None => self.lease.release(cx, "composite"),
+        }
         let flat = effects.is_none();
         let watermark = self.watermark_frame(bounds, &math, f64::from(sf), flat, &mut retired, cx);
         if !flat {
@@ -302,6 +313,24 @@ impl EditorCanvas {
         spot.placed.clone()
     }
 
+    /// Drops the images the shared budget gave up; they are built again when next needed.
+    fn release_evicted(&mut self, retired: &mut Vec<Arc<RenderImage>>, cx: &mut Context<Self>) {
+        for name in self.lease.evicted(cx, "tile/") {
+            let index = name.strip_prefix("tile/").and_then(|i| i.parse().ok());
+            if let (Some(tiles), Some(index)) = (self.tiles.as_mut(), index) {
+                retired.extend(tiles.release(index));
+            }
+        }
+        if !self.lease.evicted(cx, "underlay").is_empty()
+            && let Some((_, old)) = self.underlay.take()
+        {
+            retired.push(old);
+        }
+        if !self.lease.evicted(cx, "composite").is_empty() {
+            self.effects.drop_shown(retired);
+        }
+    }
+
     fn request_underlay(
         &mut self,
         key: Option<UnderlayKey>,
@@ -325,9 +354,10 @@ impl EditorCanvas {
             return;
         }
         let job = key.clone();
-        let rendering = cx
-            .background_executor()
-            .spawn(async move { underlay::render(&job).and_then(|p| underlay::render_image(&p)) });
+        let wallpapers = self.wallpapers.clone();
+        let rendering = cx.background_executor().spawn(async move {
+            underlay::render(&job, &wallpapers).and_then(|p| underlay::render_image(&p))
+        });
         let task = cx.spawn(async move |this, cx| {
             let image = rendering.await;
             let _ = this.update(cx, |canvas, cx| {

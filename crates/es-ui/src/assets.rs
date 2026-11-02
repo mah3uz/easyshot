@@ -6,7 +6,6 @@ use rust_embed::RustEmbed;
 #[derive(RustEmbed)]
 #[folder = "../../assets"]
 #[include = "icons/**"]
-#[include = "fonts/**"]
 #[exclude = "icons/app/hicolor/**"]
 struct Embedded;
 

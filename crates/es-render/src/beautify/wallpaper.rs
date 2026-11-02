@@ -1,25 +1,33 @@
-use tiny_skia::{FilterQuality, Pixmap, PixmapPaint, Transform};
+use crate::image_ops::resize_premultiplied;
+use tiny_skia::Pixmap;
 
 /// Scales to cover the target and centres, cropping the overflow; the aspect ratio is kept.
 pub fn draw_wallpaper(target: &mut Pixmap, image: &Pixmap) {
-    let (tw, th) = (target.width() as f32, target.height() as f32);
-    let (iw, ih) = (image.width() as f32, image.height() as f32);
-    if tw <= 0.0 || th <= 0.0 || iw <= 0.0 || ih <= 0.0 {
+    let (tw, th) = (target.width(), target.height());
+    let (iw, ih) = (image.width(), image.height());
+    if tw == 0 || th == 0 || iw == 0 || ih == 0 {
         return;
     }
-    let scale = (tw / iw).max(th / ih);
-    let (dx, dy) = ((tw - iw * scale) / 2.0, (th - ih * scale) / 2.0);
-    target.draw_pixmap(
-        0,
-        0,
-        image.as_ref(),
-        &PixmapPaint {
-            quality: FilterQuality::Bicubic,
-            ..PixmapPaint::default()
-        },
-        Transform::from_row(scale, 0.0, 0.0, scale, dx, dy),
-        None,
+    let scale = (f64::from(tw) / f64::from(iw)).max(f64::from(th) / f64::from(ih));
+    let (cw, ch) = (f64::from(tw) / scale, f64::from(th) / scale);
+    let crop = (
+        (f64::from(iw) - cw) / 2.0,
+        (f64::from(ih) - ch) / 2.0,
+        cw,
+        ch,
     );
+    if resize_premultiplied(image, target, Some(crop)).is_none() {
+        tracing::warn!("the wallpaper could not be scaled");
+    }
+}
+
+/// The picture scaled by `factor` (at most 1), for keeping a smaller copy of a large wallpaper.
+pub fn shrink(image: &Pixmap, factor: f64) -> Option<Pixmap> {
+    let w = ((f64::from(image.width()) * factor).round() as u32).max(1);
+    let h = ((f64::from(image.height()) * factor).round() as u32).max(1);
+    let mut out = Pixmap::new(w, h)?;
+    resize_premultiplied(image, &mut out, None)?;
+    Some(out)
 }
 
 const MAX_WALLPAPER_SIDE: u32 = 16_384;

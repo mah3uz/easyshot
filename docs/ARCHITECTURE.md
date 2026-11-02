@@ -111,7 +111,7 @@ Layer 2  IO and system mechanisms — no GPUI
   es-backend   capability traits, Caps, the provider registry, compositor modules,
                test-mode decorators, doctor report                                       → es-wayland, es-desktop, es-record, es-protocol, es-geom
 Layer 3  GPUI
-  es-ui        tokens, theme, components, motion, icons, strings, a11y helpers           → es-geom, gpui-kit
+  es-ui        tokens, theme, components, motion, icons, strings, a11y helpers           → es-geom, es-text, gpui-kit
   es-app       Services global, PlatformEvent pump, RouteDispatcher, Jobs, Windows,
                CaptureCoordinator, platform_ui seams, toasts, errors::present            → layers 0–2, es-ui
   es-editor    EditorSession entities, canvas, toolbar, inspector, footer                → es-app, es-ui, es-anno, es-render, es-text
@@ -311,7 +311,13 @@ This flow is the design; none of it has run.
 Rust 1.98.1, pinned in `rust-toolchain.toml`. `[profile.dev.package."*"] opt-level = 2`,
 because GPUI is too slow unoptimised. `[profile.release]` uses thin LTO, one codegen unit
 and stripped symbols; `[profile.fast]` is release without LTO for local installs and bench
-iterations.
+iterations; it builds the pixel crates (tiny-skia, png, image, libblur, es-render and the
+others listed in `Cargo.toml`) with one codegen unit, so its timings match a shipped build.
+
+Decoded wallpapers live in one `WallpaperCache` (4 images, 192 MB), and the pictures the
+editor shows count against one 256 MB `ImageBudget` (LRU); both are shared by every window
+through the `ImageStores` global. An evicted picture is dropped by its window on its next
+frame and built again when needed; a picture held again before that frame stays.
 
 Test environments are described in `CONTRIBUTING.md`: unit tests per crate, headless GPUI
 windows (through the dev-only `es-testkit`), a Hyprland headless output, headless sway and

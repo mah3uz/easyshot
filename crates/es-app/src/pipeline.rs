@@ -15,8 +15,9 @@ use es_model::{
     AnnotationDocument, BackgroundSettings, BackgroundStyle, CaptureKind as StoredKind, Config,
     HistoryEntry, resolve_new_capture_look,
 };
+use es_render::beautify::compose_with_wallpaper;
+use es_render::beautify::wallpaper::decode_wallpaper;
 use es_render::encode::{PngProfile, encode_jpeg, encode_png};
-use es_render::export::ExportCache;
 use es_store::atomic::write_atomic;
 use es_store::naming::{self, Kind, exists, unique_path};
 use es_store::temp::{self, TempKind};
@@ -234,13 +235,14 @@ pub(crate) fn compose(raw: &Pixmap, look: &BackgroundSettings) -> Result<Option<
         return Ok(None);
     }
     let wallpaper = match &look.style {
-        BackgroundStyle::Wallpaper { path } => es_store::wallpapers::read(path),
+        BackgroundStyle::Wallpaper { path } => {
+            es_store::wallpapers::read(path).and_then(|bytes| decode_wallpaper(&bytes))
+        }
         _ => None,
     };
-    ExportCache::default()
-        .composed(raw, &DrawList::default(), look, wallpaper.as_deref())
-        .map(Some)
-        .map_err(|e| Error::Internal(e.to_string()))
+    compose_with_wallpaper(raw, &DrawList::default(), look, wallpaper.as_ref())
+        .map(|pixmap| Some(Arc::new(pixmap)))
+        .ok_or_else(|| Error::Internal("the composed image could not be allocated".into()))
 }
 
 pub(crate) fn save_to_folder(work: &Work, pixmap: &Pixmap) -> Result<PathBuf> {

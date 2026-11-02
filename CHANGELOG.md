@@ -21,6 +21,8 @@
 - Pixelate and Blur redactions keep a minimum strength tied to the text height, so covered text cannot be read back.
 - Starting a camera or blur drag no longer freezes the editor for a moment, and the exact picture arrives sooner after you let go.
 - The watermark stays on the canvas while you edit annotations.
+- Wallpaper backgrounds draw several times faster, and changing padding or zoom no longer decodes the wallpaper again.
+- The editor keeps the pictures it shows within a memory budget shared by all its windows.
 
 ### Bug fixes
 
@@ -31,3 +33,4 @@
 - A capture you only pinned or opened in the editor no longer comes back as a deck card after a restart.
 - Smart Redaction in the editor now scans the image and adds the redactions.
 - Text read by OCR is no longer written to the log.
+- With a wallpaper background, the camera, blur and watermark previews showed a gradient instead of the wallpaper.

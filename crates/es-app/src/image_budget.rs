@@ -1,5 +1,7 @@
+use es_render::beautify::wallpaper_cache::WallpaperCache;
+use gpui::Global;
 use std::collections::HashMap;
-use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 pub const DEFAULT_CAP_BYTES: usize = 256 * 1024 * 1024;
 
@@ -27,6 +29,10 @@ impl Lru {
 
     pub fn contains(&self, key: &str) -> bool {
         self.items.contains_key(key)
+    }
+
+    pub fn keys(&self) -> impl Iterator<Item = &String> {
+        self.items.keys()
     }
 
     fn tick(&mut self) -> u64 {
@@ -76,14 +82,26 @@ impl Lru {
     }
 }
 
+/// Both are shared by every window; a window finds them with `try_global`.
+#[derive(Clone, Default)]
+pub struct ImageStores {
+    pub budget: Arc<ImageBudget>,
+    pub wallpapers: Arc<WallpaperCache>,
+}
+
+impl Global for ImageStores {}
+
 pub struct ImageBudget {
     lru: Mutex<Lru>,
+    /// Keys evicted and not yet collected by their owner; a window drops its own images when it next paints.
+    evicted: Mutex<Vec<String>>,
 }
 
 impl ImageBudget {
     pub fn new(cap: usize) -> Self {
         Self {
             lru: Mutex::new(Lru::new(cap)),
+            evicted: Mutex::new(Vec::new()),
         }
     }
 
@@ -92,7 +110,41 @@ impl ImageBudget {
     }
 
     pub fn insert(&self, key: &str, bytes: usize) -> Vec<String> {
-        self.lru().insert(key, bytes)
+        let evicted = self.lru().insert(key, bytes);
+        let mut pending = self.pending();
+        // An image held again after its eviction is in use, so its owner must not drop it.
+        pending.retain(|k| k != key);
+        pending.extend(evicted.iter().cloned());
+        evicted
+    }
+
+    fn pending(&self) -> MutexGuard<'_, Vec<String>> {
+        self.evicted.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// Removes and returns the evicted keys that start with `prefix`.
+    pub fn take_evicted(&self, prefix: &str) -> Vec<String> {
+        let mut pending = self.pending();
+        if pending.is_empty() {
+            return Vec::new();
+        }
+        let (mine, rest) = std::mem::take(&mut *pending)
+            .into_iter()
+            .partition(|k| k.starts_with(prefix));
+        *pending = rest;
+        mine
+    }
+
+    pub fn remove_prefix(&self, prefix: &str) {
+        let mut lru = self.lru();
+        let keys: Vec<String> = lru
+            .keys()
+            .filter(|k| k.starts_with(prefix))
+            .cloned()
+            .collect();
+        for key in keys {
+            lru.remove(&key);
+        }
     }
 
     pub fn touch(&self, key: &str) {

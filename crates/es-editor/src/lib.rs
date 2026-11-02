@@ -1,3 +1,4 @@
+pub mod budget;
 pub mod canvas;
 pub mod close_guard;
 pub mod cursor;

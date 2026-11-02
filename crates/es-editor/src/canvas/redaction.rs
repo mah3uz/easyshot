@@ -1,4 +1,5 @@
 use super::{EditorCanvas, RedactionPainter, underlay};
+use crate::budget::Lease;
 use crate::session::doc::DocModel;
 use es_anno::draw::RedactionKind;
 use es_anno::{DrawItem, Viewport};
@@ -86,9 +87,9 @@ impl Redactions {
     }
 
     /// Lines the slots up with this frame's redactions, keeping a slot whose patch still matches.
-    fn align(&mut self, keys: &[Key]) {
+    fn align(&mut self, keys: &[Key]) -> bool {
         if self.slots.len() == keys.len() {
-            return;
+            return false;
         }
         let mut old = std::mem::take(&mut self.slots);
         for key in keys {
@@ -100,6 +101,14 @@ impl Redactions {
         }
         self.retired
             .extend(old.into_iter().filter_map(|s| s.current.map(|p| p.image)));
+        true
+    }
+
+    /// Hands back the patch in a slot the shared budget gave up.
+    fn release(&mut self, slot: usize) {
+        if let Some(patch) = self.slots.get_mut(slot).and_then(|s| s.current.take()) {
+            self.retired.push(patch.image);
+        }
     }
 }
 
@@ -219,6 +228,7 @@ pub(super) fn painter(
     doc: Entity<DocModel>,
     canvas: WeakEntity<EditorCanvas>,
 ) -> RedactionPainter {
+    let lease = Lease::new(canvas.entity_id().as_u64());
     Box::new(move |items, vp, bounds, window, cx| {
         let (base, revision) = {
             let d = doc.read(cx);
@@ -235,7 +245,17 @@ pub(super) fn painter(
             if s.base.as_ref().is_some_and(|(r, _)| *r != revision) {
                 s.base = None;
             }
-            s.align(&keys);
+            if s.align(&keys) {
+                lease.release_group(cx, "patch/");
+            }
+            for name in lease.evicted(cx, "patch/") {
+                if let Some(slot) = name.strip_prefix("patch/").and_then(|i| i.parse().ok()) {
+                    s.release(slot);
+                }
+            }
+            for image in s.retired.drain(..) {
+                drop_image(window, image);
+            }
             let s = &mut *s;
             s.painted.clear();
             for (i, (slot, key)) in s.slots.iter().zip(&keys).enumerate() {
@@ -245,6 +265,7 @@ pub(super) fn painter(
                 }
                 if let Some(p) = &slot.current {
                     s.painted.push(p.id);
+                    lease.hold(cx, &format!("patch/{i}"), &p.image);
                     paint.push((screen_bounds(bounds, vp, p.page), p.image.clone()));
                 }
             }

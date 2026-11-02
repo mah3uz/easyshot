@@ -127,3 +127,40 @@ strip = "symbols"
 inherits = "release"
 lto = "off"
 codegen-units = 16
+
+# Benches run under `fast`; without one codegen unit the SIMD wrappers in the pixel crates are not inlined and run 3-7x slower than a shipped build.
+[profile.fast.package.tiny-skia]
+codegen-units = 1
+opt-level = 3
+
+[profile.fast.package.tiny-skia-path]
+codegen-units = 1
+opt-level = 3
+
+[profile.fast.package.png]
+codegen-units = 1
+opt-level = 3
+
+[profile.fast.package.fdeflate]
+codegen-units = 1
+opt-level = 3
+
+[profile.fast.package.image]
+codegen-units = 1
+opt-level = 3
+
+[profile.fast.package.zune-jpeg]
+codegen-units = 1
+opt-level = 3
+
+[profile.fast.package.libblur]
+codegen-units = 1
+opt-level = 3
+
+[profile.fast.package.fast_image_resize]
+codegen-units = 1
+opt-level = 3
+
+[profile.fast.package.es-render]
+codegen-units = 1
+opt-level = 3

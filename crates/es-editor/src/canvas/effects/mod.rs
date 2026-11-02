@@ -1,12 +1,15 @@
 mod live;
 mod mark;
+#[cfg(test)]
+mod wallpaper_tests;
 
 use super::{EditorCanvas, underlay};
 use crate::session::viewport::ViewMath;
 use es_anno::{BuildContext, DrawList, build_draw_list};
 use es_model::{AnnoShapeId, BackgroundSettings};
-use es_render::beautify::compose::compose_scaled;
+use es_render::beautify::compose::{canvas_size, compose_scaled};
 use es_render::beautify::layout;
+use es_render::beautify::wallpaper_cache::WallpaperCache;
 use gpui::{Bounds, Context, Pixels, RenderImage, Task, point, px, size};
 use image::{Frame, RgbaImage};
 use live::LiveStage;
@@ -132,6 +135,14 @@ impl Effects {
         self.shown = Some(shown);
     }
 
+    pub(super) fn held_image(&self) -> Option<&Arc<RenderImage>> {
+        self.shown.as_ref().map(|s| &s.image.image)
+    }
+
+    pub(super) fn drop_shown(&mut self, retired: &mut Vec<Arc<RenderImage>>) {
+        self.retire(retired);
+    }
+
     fn clear(&mut self, retired: &mut Vec<Arc<RenderImage>>) {
         self.retire(retired);
         self.pending = None;
@@ -202,9 +213,16 @@ fn bgra(pixmap: &Pixmap) -> Option<Arc<RenderImage>> {
     Some(Arc::new(RenderImage::new([Frame::new(image)])))
 }
 
-fn render_settled(base: &RgbaImage, list: &DrawList, key: &SceneKey) -> Option<Placed> {
+fn render_settled(
+    base: &RgbaImage,
+    list: &DrawList,
+    key: &SceneKey,
+    wallpapers: &WallpaperCache,
+) -> Option<Placed> {
     let (image, scale) = scaled_base(base, key.scale)?;
-    let out = compose_scaled(&image, list, &key.settings, None, scale)?;
+    let canvas = canvas_size((image.width(), image.height()), &key.settings);
+    let wallpaper = underlay::cached_wallpaper(wallpapers, &key.settings.style, canvas);
+    let out = compose_scaled(&image, list, &key.settings, wallpaper.as_deref(), scale)?;
     let size = (f64::from(image.width()), f64::from(image.height()));
     let lay = layout(size.0, size.1, &key.settings).pixel_aligned();
     Placed::new(&out, (lay.image.x0, lay.image.y0), scale)
@@ -319,7 +337,8 @@ impl EditorCanvas {
             if !fresh && self.effects.pending.as_ref() != Some(&key) {
                 let list = build_draw_list(document, &BuildContext::new(&**doc.text()));
                 let base = doc.base().clone();
-                self.schedule(key.clone(), base, list, cx);
+                let wallpapers = self.wallpapers.clone();
+                self.schedule(key.clone(), base, list, wallpapers, cx);
             }
             // A composite of other annotations would show shapes that are gone, so the flat canvas stays until it lands.
             if !self
@@ -355,8 +374,9 @@ impl EditorCanvas {
         let list = build_draw_list(doc.editor().doc(), &BuildContext::new(&**doc.text()));
         let base = doc.base().clone();
         let job = key.clone();
+        let wallpapers = self.wallpapers.clone();
         let building = cx.background_executor().spawn(async move {
-            let mut stage = LiveStage::new(&base, &list, &job)?;
+            let mut stage = LiveStage::new(&base, &list, &job, &wallpapers)?;
             let _ = stage.frame(&job.settings);
             Some(stage)
         });
@@ -383,6 +403,7 @@ impl EditorCanvas {
         key: SceneKey,
         base: Arc<RgbaImage>,
         list: DrawList,
+        wallpapers: Arc<WallpaperCache>,
         cx: &mut Context<Self>,
     ) {
         self.effects.pending = Some(key.clone());
@@ -391,7 +412,7 @@ impl EditorCanvas {
             let job = key.clone();
             let image = cx
                 .background_executor()
-                .spawn(async move { render_settled(&base, &list, &job) })
+                .spawn(async move { render_settled(&base, &list, &job, &wallpapers) })
                 .await;
             let _ = this.update(cx, |canvas, cx| {
                 let e = &mut canvas.effects;
