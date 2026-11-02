@@ -1,0 +1,20 @@
+{
+  "name": "easyshot-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt generate",
+    "preview": "wrangler dev",
+    "deploy": "nuxt generate && wrangler deploy",
+    "og": "node scripts/og.mjs"
+  },
+  "dependencies": {
+    "nuxt": "4.6.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.3",
+    "tailwindcss": "4.3.3",
+    "wrangler": "4.151.0"
+  }
+}

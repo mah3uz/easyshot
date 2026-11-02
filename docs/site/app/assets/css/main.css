@@ -1,0 +1,296 @@
+@import 'tailwindcss';
+
+/* easyshot site. Colours are tokens: light on :root, dark redefined below.
+   Dark mode is the deep teal of the logo's back face (#043040), never black. */
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+:root {
+  --bg: #f6fafb;
+  --bg-2: #edf4f6;
+  --surface: #ffffff;
+  --surface-2: #f2f7f8;
+  --line: rgba(7, 47, 60, 0.1);
+  --line-strong: rgba(7, 47, 60, 0.18);
+  --fg: #0a2631;
+  --fg-2: #44606b;
+  --fg-3: #7590a0;
+  --accent: #14a39a;
+  --accent-2: #1388a6;
+  --accent-soft: rgba(33, 189, 176, 0.12);
+  --grad: linear-gradient(135deg, #62edd4 0%, #21bdb0 45%, #1388a6 100%);
+  --grad-text: linear-gradient(120deg, #0f8f88 0%, #1388a6 60%, #3b6fd1 100%);
+  --sh-sm: 0 1px 2px rgba(4, 48, 64, 0.06), 0 1px 1px rgba(4, 48, 64, 0.04);
+  --sh: 0 10px 30px -12px rgba(4, 48, 64, 0.22), 0 2px 6px rgba(4, 48, 64, 0.06);
+  --sh-lg: 0 40px 90px -30px rgba(4, 48, 64, 0.38), 0 12px 30px -12px rgba(4, 48, 64, 0.16);
+  --glow: rgba(33, 189, 176, 0.25);
+  --code-bg: #0b3341;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #04212b;
+    --bg-2: #062a36;
+    --surface: #08303d;
+    --surface-2: #0b3846;
+    --line: rgba(160, 230, 225, 0.1);
+    --line-strong: rgba(160, 230, 225, 0.2);
+    --fg: #e8f7f6;
+    --fg-2: #a3c3c8;
+    --fg-3: #6f959c;
+    --accent: #3fd9c4;
+    --accent-2: #21bdb0;
+    --accent-soft: rgba(98, 237, 212, 0.12);
+    --grad-text: linear-gradient(120deg, #8ff5e3 0%, #3fd9c4 45%, #5fb8ff 100%);
+    --sh-sm: 0 1px 2px rgba(0, 12, 18, 0.4);
+    --sh: 0 12px 34px -12px rgba(0, 12, 18, 0.7), 0 2px 6px rgba(0, 12, 18, 0.3);
+    --sh-lg: 0 50px 100px -30px rgba(0, 10, 16, 0.85), 0 16px 40px -16px rgba(0, 10, 16, 0.6);
+    --glow: rgba(63, 217, 196, 0.22);
+    --code-bg: #031a22;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #04212b;
+  --bg-2: #062a36;
+  --surface: #08303d;
+  --surface-2: #0b3846;
+  --line: rgba(160, 230, 225, 0.1);
+  --line-strong: rgba(160, 230, 225, 0.2);
+  --fg: #e8f7f6;
+  --fg-2: #a3c3c8;
+  --fg-3: #6f959c;
+  --accent: #3fd9c4;
+  --accent-2: #21bdb0;
+  --accent-soft: rgba(98, 237, 212, 0.12);
+  --grad-text: linear-gradient(120deg, #8ff5e3 0%, #3fd9c4 45%, #5fb8ff 100%);
+  --sh-sm: 0 1px 2px rgba(0, 12, 18, 0.4);
+  --sh: 0 12px 34px -12px rgba(0, 12, 18, 0.7), 0 2px 6px rgba(0, 12, 18, 0.3);
+  --sh-lg: 0 50px 100px -30px rgba(0, 10, 16, 0.85), 0 16px 40px -16px rgba(0, 10, 16, 0.6);
+  --glow: rgba(63, 217, 196, 0.22);
+  --code-bg: #031a22;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-2: var(--bg-2);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-fg-2: var(--fg-2);
+  --color-fg-3: var(--fg-3);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+  --color-accent-soft: var(--accent-soft);
+  --color-code: var(--code-bg);
+  --shadow-soft: var(--sh-sm);
+  --shadow-card: var(--sh);
+  --shadow-float: var(--sh-lg);
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Inter Tight', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@theme {
+  --color-teal-hi: #62edd4;
+  --color-teal: #21bdb0;
+  --color-teal-deep: #1388a6;
+  --color-teal-ink: #043040;
+  --animate-float: float 7s ease-in-out infinite;
+  --animate-shine: shine 6s linear infinite;
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+  @keyframes shine {
+    to {
+      background-position: 200% center;
+    }
+  }
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+    scroll-padding-top: 88px;
+  }
+  body {
+    @apply bg-bg text-fg font-sans antialiased;
+    overflow-x: hidden;
+    transition:
+      background-color 0.4s var(--ease-out-soft),
+      color 0.4s var(--ease-out-soft);
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display font-bold text-balance;
+    letter-spacing: -0.025em;
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 8px;
+  }
+  ::selection {
+    background: var(--accent-soft);
+  }
+  kbd {
+    @apply inline-flex h-[26px] min-w-[26px] items-center justify-center rounded-[7px] border border-b-2 border-line-strong bg-surface px-[7px] font-mono text-[12.5px] font-medium text-fg;
+  }
+}
+
+@layer components {
+  .container-x {
+    @apply mx-auto w-full max-w-[1180px] px-4 sm:px-6;
+  }
+  .eyebrow {
+    @apply inline-flex items-center gap-2 text-[13px] font-semibold tracking-[0.04em] text-accent uppercase;
+  }
+  .grad-text {
+    background: var(--grad-text);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .btn {
+    @apply inline-flex h-12 cursor-pointer items-center justify-center gap-2.5 rounded-full border border-transparent px-[22px] text-[15px] font-semibold whitespace-nowrap;
+    transition:
+      transform 0.35s var(--ease-out-soft),
+      box-shadow 0.35s var(--ease-out-soft),
+      border-color 0.25s;
+  }
+  .btn:hover {
+    transform: translateY(-2px);
+  }
+  .btn:active {
+    transform: scale(0.98);
+  }
+  .btn-primary {
+    background: var(--grad);
+    color: #032830;
+    box-shadow:
+      0 10px 30px -10px var(--glow),
+      inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  }
+  .btn-primary:hover {
+    box-shadow:
+      0 18px 40px -10px var(--glow),
+      inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  }
+  .btn-ghost {
+    @apply border-line-strong bg-surface text-fg shadow-soft hover:border-accent;
+  }
+  .btn-sm {
+    @apply h-[38px] px-4 text-sm;
+  }
+  .card {
+    @apply rounded-[18px] border border-line bg-surface shadow-soft;
+    transition:
+      transform 0.5s var(--ease-out-soft),
+      box-shadow 0.5s var(--ease-out-soft),
+      border-color 0.3s;
+  }
+  .card-hover:hover {
+    @apply -translate-y-1 border-line-strong shadow-card;
+  }
+  .icon-tile {
+    @apply grid size-11 place-items-center rounded-xl bg-accent-soft text-accent;
+  }
+  .code-block {
+    @apply relative overflow-x-auto rounded-[14px] border border-teal-hi/15 bg-code px-[18px] py-4 font-mono text-[13.5px] leading-[1.7] text-[#d9f5f1];
+  }
+  .code-block .c {
+    color: #6f9aa3;
+  }
+  .code-block .p {
+    color: #62edd4;
+    user-select: none;
+  }
+}
+
+/* Scroll reveal. Only hidden once the head script has marked the page as running JS. */
+.js [data-reveal] {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 0.9s var(--ease-out-soft),
+    transform 0.9s var(--ease-out-soft);
+  transition-delay: var(--d, 0s);
+}
+html [data-reveal].is-in {
+  opacity: 1;
+  transform: none;
+}
+
+/* Hero entrance, CSS only, so it plays before hydration. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+.rise {
+  animation: rise 1s var(--ease-out-soft) both;
+  animation-delay: var(--d, 0s);
+}
+
+.page-enter-active,
+.page-leave-active {
+  transition:
+    opacity 0.35s var(--ease-out-soft),
+    transform 0.35s var(--ease-out-soft);
+}
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.page-leave-to {
+  opacity: 0;
+}
+
+/* Smooth colour change when the theme is switched. */
+.theme-switching *,
+.theme-switching *::before,
+.theme-switching *::after {
+  transition:
+    background-color 0.4s var(--ease-out-soft),
+    border-color 0.4s var(--ease-out-soft),
+    color 0.4s var(--ease-out-soft) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .js [data-reveal] {
+    opacity: 1;
+    transform: none;
+  }
+}

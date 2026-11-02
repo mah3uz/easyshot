@@ -1,0 +1,82 @@
+<script setup lang="ts">
+const { repo } = useRuntimeConfig().public
+const scrolled = ref(false)
+const open = ref(false)
+const route = useRoute()
+
+const links = [
+  { to: '/#features', label: 'Features' },
+  { to: '/#annotate', label: 'Annotate' },
+  { to: '/#record', label: 'Record' },
+  { to: '/how-to', label: 'How-to' },
+  { to: '/#install', label: 'Install' },
+  { to: '/#faq', label: 'FAQ' },
+]
+
+const onScroll = () => (scrolled.value = window.scrollY > 8)
+onMounted(() => {
+  onScroll()
+  window.addEventListener('scroll', onScroll, { passive: true })
+})
+onBeforeUnmount(() => window.removeEventListener('scroll', onScroll))
+watch(() => route.fullPath, () => (open.value = false))
+</script>
+
+<template>
+  <header
+    class="fixed inset-x-0 top-0 z-50 transition-all duration-500 ease-out-soft"
+    :class="scrolled || open ? 'border-b border-line bg-bg/75 backdrop-blur-xl backdrop-saturate-150' : 'border-b border-transparent'"
+  >
+    <nav class="container-x flex h-[68px] items-center justify-between gap-4" aria-label="Main">
+      <NuxtLink to="/" class="group flex items-center gap-2.5" aria-label="easyshot home">
+        <img src="/logo.svg" alt="" width="32" height="32" class="size-8 transition-transform duration-500 ease-out-soft group-hover:-rotate-6 group-hover:scale-110" />
+        <span class="font-display text-[19px] font-bold tracking-tight">easyshot</span>
+      </NuxtLink>
+
+      <ul class="hidden items-center gap-1 md:flex">
+        <li v-for="l in links" :key="l.to">
+          <NuxtLink
+            :to="l.to"
+            class="rounded-full px-3.5 py-2 text-[14.5px] font-medium text-fg-2 transition-colors hover:bg-surface-2 hover:text-fg"
+          >
+            {{ l.label }}
+          </NuxtLink>
+        </li>
+      </ul>
+
+      <div class="flex items-center gap-2">
+        <ThemeToggle />
+        <a :href="repo" class="btn btn-ghost btn-sm hidden sm:inline-flex" rel="noopener" target="_blank">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+          GitHub
+        </a>
+        <button
+          type="button"
+          class="grid size-[38px] place-items-center rounded-full border border-line bg-surface md:hidden"
+          :aria-expanded="open"
+          aria-controls="mobile-nav"
+          aria-label="Menu"
+          @click="open = !open"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path :d="open ? 'M6 6l12 12M18 6 6 18' : 'M4 7h16M4 12h16M4 17h16'" class="transition-all" />
+          </svg>
+        </button>
+      </div>
+    </nav>
+
+    <Transition
+      enter-active-class="transition duration-400 ease-out-soft"
+      enter-from-class="opacity-0 -translate-y-2"
+      leave-active-class="transition duration-200"
+      leave-to-class="opacity-0"
+    >
+      <ul v-if="open" id="mobile-nav" class="container-x grid gap-1 pb-5 md:hidden">
+        <li v-for="l in links" :key="l.to">
+          <NuxtLink :to="l.to" class="block rounded-xl px-3 py-3 text-base font-medium hover:bg-surface-2">{{ l.label }}</NuxtLink>
+        </li>
+        <li><a :href="repo" class="block rounded-xl px-3 py-3 text-base font-medium hover:bg-surface-2" rel="noopener">GitHub</a></li>
+      </ul>
+    </Transition>
+  </header>
+</template>

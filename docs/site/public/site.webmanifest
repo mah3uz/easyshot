@@ -1,0 +1,11 @@
+{
+  "name": "easyshot",
+  "short_name": "easyshot",
+  "icons": [
+    { "src": "/logo-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/apple-touch-icon.png", "sizes": "256x256", "type": "image/png" }
+  ],
+  "theme_color": "#04212b",
+  "background_color": "#04212b",
+  "display": "standalone"
+}
