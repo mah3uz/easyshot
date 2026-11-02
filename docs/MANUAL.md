@@ -19,6 +19,12 @@ and keeps a history.
 
 `easyshot doctor` reports what your compositor and tools provide.
 
+## Installing it
+
+On Arch Linux there are two AUR packages: `easyshot`, which builds the release from source,
+and `easyshot-bin`, which installs the prebuilt release. They conflict with each other, so
+install one. Neither is published yet, and there are no packages for other distributions.
+
 ## Running it
 
 easyshot runs as one background program, the daemon, started by a systemd user unit

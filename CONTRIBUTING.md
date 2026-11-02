@@ -62,6 +62,12 @@ with pacman (it asks for sudo); `just uninstall` removes it. `just package [prof
 builds it, into `dist/`, from the same `packaging/aur/easyshot-bin/PKGBUILD` a release uses.
 A release build sets `EASYSHOT_RELEASE=1` so its version carries no commit hash.
 
+`just release`, run on a clean tree once the tag `v<version>` exists, builds that tag from a
+`git archive` export into `dist/`: the binary tarball, the vendored source tarball and
+`SHA256SUMS` (signed with minisign when `~/.minisign/easyshot.key` exists), fills both AUR
+packages' checksums and `.SRCINFO`, and prints the release notes. It uploads and pushes
+nothing; `packaging/README.md` lists the steps after it.
+
 ## Patches to vendored GPUI
 
 `vendor/gpui-pre/` and `vendor/gpui-pre-linux/` are copied as-is from crates.io. Our

@@ -24,6 +24,14 @@ package profile="release":
     mv dist/build/easyshot-bin-*.pkg.tar.zst dist/
     rm -rf dist/build
 
+# One release's section of CHANGELOG.md, as its release notes; `Unreleased` shows what is coming
+release-notes v:
+    scripts/release-notes.sh {{ v }}
+
+# Build the tag v<version> into dist/: tarballs, checksums, signature and the AUR packages' checksums
+release:
+    scripts/release.sh
+
 # On Arch Linux: build the package from the working tree and install it with pacman
 install: (package "fast")
     #!/usr/bin/env bash
