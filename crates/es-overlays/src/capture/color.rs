@@ -107,9 +107,38 @@ impl ColorPicker {
     }
 
     fn key(&mut self, e: &KeyDownEvent, cx: &mut Context<Self>) {
-        if e.keystroke.key == "escape" {
-            cx.emit(ColorEvent::Cancel);
-        }
+        let step = if e.keystroke.modifiers.shift { 10 } else { 1 };
+        let (dx, dy) = match e.keystroke.key.as_str() {
+            "escape" => return cx.emit(ColorEvent::Cancel),
+            "enter" | "space" => {
+                if let Some(c) = self.pointer.and_then(|p| self.color_at(p)) {
+                    cx.emit(ColorEvent::Picked(c));
+                }
+                return;
+            }
+            "left" => (-step, 0),
+            "right" => (step, 0),
+            "up" => (0, -step),
+            "down" => (0, step),
+            _ => return,
+        };
+        self.nudge(dx, dy);
+        cx.notify();
+    }
+
+    fn nudge(&mut self, dx: i64, dy: i64) {
+        let (w, h) = self.frame.size_px;
+        let start = self.pointer.unwrap_or(self.bounds.center());
+        let Some((x, y)) = pixel_at(&self.frame, start) else {
+            return;
+        };
+        let x = (x + dx).clamp(0, i64::from(w) - 1) as f64;
+        let y = (y + dy).clamp(0, i64::from(h) - 1) as f64;
+        let (lw, lh) = (self.frame.logical.width(), self.frame.logical.height());
+        self.pointer = Some(Point::new(
+            (x + 0.5) * lw / f64::from(w),
+            (y + 0.5) * lh / f64::from(h),
+        ));
     }
 
     fn loupe(&self) -> Option<Loupe> {

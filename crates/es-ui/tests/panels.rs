@@ -82,21 +82,21 @@ fn a_section_folds_by_click_and_by_keyboard_and_unmounts_its_content() {
         "a collapsed section draws no content"
     );
 
-    click(&mut app, 40., 19.);
-    assert!(expanded(&mut app), "clicking the title expands");
+    key(&mut app, "tab");
+    activate(&mut app, "enter");
+    assert!(
+        expanded(&mut app),
+        "Tab in a fresh window reaches the title, and Enter unfolds it"
+    );
     assert!(
         drawn_now(&mut app, &drawn),
         "the content is drawn once expanded"
     );
-
-    key(&mut app, "tab");
-    activate(&mut app, "enter");
-    assert!(
-        !expanded(&mut app),
-        "Enter on the title, reached by Tab, folds it"
-    );
     activate(&mut app, "space");
-    assert!(expanded(&mut app), "Space unfolds it");
+    assert!(!expanded(&mut app), "Space folds it");
+
+    click(&mut app, 40., 19.);
+    assert!(expanded(&mut app), "clicking the title expands");
 
     click(&mut app, WIDTH - 20., 19.);
     assert!(!expanded(&mut app), "the chevron folds it too");

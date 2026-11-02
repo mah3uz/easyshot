@@ -71,3 +71,58 @@ fn picks_the_exact_pixel_at_scale_1() {
 fn picks_the_exact_pixel_at_scale_1_5() {
     picks_the_pixel_under_the_pointer(1.5, "color-loupe-1.5x");
 }
+
+#[test]
+fn arrows_move_the_sample_by_a_frame_pixel_and_enter_picks() {
+    let scale = 1.5;
+    let frozen = frame(W, H, scale, unique);
+    let mut s = Surface::open(W, H, |cx| ColorPicker::new(frozen, cx));
+    let (events, _sub) = s.record::<ColorEvent>();
+    s.key("enter");
+    assert!(
+        events.borrow().is_empty(),
+        "Enter picks nothing before there is a sample"
+    );
+    let (x, y) = (200.4_f32, 150.7_f32);
+    s.hover(x, y, false);
+    let (px, py) = (
+        (f64::from(x) * scale).floor() as u32,
+        (f64::from(y) * scale).floor() as u32,
+    );
+    s.key("right");
+    s.key("enter");
+    s.key("shift-down");
+    s.key("left");
+    s.key("space");
+    s.key("escape");
+    assert_eq!(
+        *events.borrow(),
+        vec![
+            ColorEvent::Picked(rgba(unique(px + 1, py))),
+            ColorEvent::Picked(rgba(unique(px, py + 10))),
+            ColorEvent::Cancel,
+        ],
+        "Right moves one frame pixel, Shift+Down ten, Enter and Space pick, Esc cancels"
+    );
+}
+
+#[test]
+fn arrows_start_from_the_middle_and_stop_at_the_edge() {
+    let frozen = frame(W, H, 1.0, unique);
+    let mut s = Surface::open(W, H, |cx| ColorPicker::new(frozen, cx));
+    let (events, _sub) = s.record::<ColorEvent>();
+    s.key("down");
+    s.key("enter");
+    for _ in 0..40 {
+        s.key("shift-right");
+    }
+    s.key("enter");
+    let (mx, my) = ((W / 2.) as u32, (H / 2.) as u32);
+    assert_eq!(
+        *events.borrow(),
+        vec![
+            ColorEvent::Picked(rgba(unique(mx, my + 1))),
+            ColorEvent::Picked(rgba(unique(W as u32 - 1, my + 1))),
+        ]
+    );
+}

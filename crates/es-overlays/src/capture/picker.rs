@@ -24,6 +24,10 @@ pub struct WindowPicker {
     bounds: Rect,
     /// None on the outputs that only show the frozen screen behind the list.
     items: Option<Arc<[Candidate]>>,
+    query: String,
+    /// Indices into `items` that match the query, in list order.
+    shown: Vec<usize>,
+    /// An index into `shown`.
     selected: usize,
     scroll: ScrollHandle,
     focus: FocusHandle,
@@ -40,10 +44,13 @@ impl Focusable for WindowPicker {
 
 impl WindowPicker {
     pub fn new(frame: &Frame, items: Option<Vec<Candidate>>, cx: &mut Context<Self>) -> Self {
+        let shown = (0..items.as_ref().map_or(0, Vec::len)).collect();
         WindowPicker {
             tiles: tiles(frame).into(),
             bounds: Rect::from_origin_size((0.0, 0.0), frame.logical.size()),
             items: items.map(Into::into),
+            query: String::new(),
+            shown,
             selected: 0,
             scroll: ScrollHandle::new(),
             focus: cx.focus_handle(),
@@ -52,11 +59,51 @@ impl WindowPicker {
     }
 
     pub fn selected(&self) -> Option<&Candidate> {
-        self.items.as_ref()?.get(self.selected)
+        self.items.as_ref()?.get(*self.shown.get(self.selected)?)
     }
 
     fn len(&self) -> usize {
-        self.items.as_ref().map_or(0, |i| i.len())
+        self.shown.len()
+    }
+
+    fn set_query(&mut self, query: String, cx: &mut Context<Self>) {
+        let needle = query.to_lowercase();
+        self.shown = self.items.as_ref().map_or_else(Vec::new, |items| {
+            (0..items.len())
+                .filter(|&i| {
+                    let c = &items[i];
+                    c.app.to_lowercase().contains(&needle)
+                        || c.title.to_lowercase().contains(&needle)
+                })
+                .collect()
+        });
+        self.query = query;
+        self.selected = 0;
+        self.scroll.scroll_to_item(0);
+        cx.notify();
+    }
+
+    fn typed(&mut self, e: &KeyDownEvent, cx: &mut Context<Self>) {
+        let m = &e.keystroke.modifiers;
+        if m.control || m.alt || m.platform || m.function {
+            return;
+        }
+        let key = e.keystroke.key.as_str();
+        // Some keyboards and synthetic input leave `key_char` empty for plain keys.
+        let plain = match key {
+            "space" => Some(" "),
+            k if k.chars().count() == 1 => Some(k),
+            _ => None,
+        };
+        if let Some(text) = e
+            .keystroke
+            .key_char
+            .as_deref()
+            .or(plain)
+            .filter(|t| !t.is_empty() && !t.chars().any(char::is_control))
+        {
+            self.set_query(format!("{}{text}", self.query), cx);
+        }
     }
 
     fn select(&mut self, index: usize, cx: &mut Context<Self>) {
@@ -79,21 +126,29 @@ impl WindowPicker {
 
     fn key(&mut self, e: &KeyDownEvent, cx: &mut Context<Self>) {
         let last = self.len().saturating_sub(1);
+        let filtering = !self.query.is_empty();
         match e.keystroke.key.as_str() {
+            "escape" if filtering => self.set_query(String::new(), cx),
             "escape" => cx.emit(PickEvent::Cancel),
-            "space" => cx.emit(PickEvent::Region),
+            "space" if !filtering => cx.emit(PickEvent::Region),
+            "backspace" => {
+                let mut query = self.query.clone();
+                query.pop();
+                self.set_query(query, cx);
+            }
             "up" => self.select(self.selected.saturating_sub(1), cx),
             "down" => self.select((self.selected + 1).min(last), cx),
             "home" => self.select(0, cx),
             "end" => self.select(last, cx),
             "enter" | "kp_enter" => self.choose(self.selected, cx),
-            _ => {}
+            _ => self.typed(e, cx),
         }
     }
 
     fn panel(&self, items: &[Candidate], cx: &mut Context<Self>) -> impl IntoElement {
         let accent = paint::accent(cx);
-        let rows = items.iter().enumerate().map(|(i, c)| {
+        let rows = self.shown.iter().enumerate().map(|(i, &item)| {
+            let c = &items[item];
             let chosen = i == self.selected;
             div()
                 .id(("window-row", i))
@@ -116,12 +171,16 @@ impl WindowPicker {
                         .child(describe(c)),
                 )
         });
-        let list = if items.is_empty() {
+        let list = if self.shown.is_empty() {
             div()
                 .py(px(16.))
                 .text_center()
                 .text_color(white(0.6))
-                .child(fl!("window-picker-empty"))
+                .child(if items.is_empty() {
+                    fl!("window-picker-empty")
+                } else {
+                    fl!("window-picker-no-match")
+                })
                 .into_any_element()
         } else {
             div()
@@ -152,7 +211,11 @@ impl WindowPicker {
                     .pt(px(4.))
                     .font_weight(FontWeight::SEMIBOLD)
                     .text_color(white(1.))
-                    .child(fl!("window-picker-title")),
+                    .child(if self.query.is_empty() {
+                        fl!("window-picker-title")
+                    } else {
+                        fl!("window-picker-filter", query = self.query.as_str())
+                    }),
             )
             .child(list)
             .child(

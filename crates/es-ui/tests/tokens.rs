@@ -58,8 +58,12 @@ fn light_chrome_is_white_and_the_workspace_grey() {
     assert_eq!(solid(l.track), 0xE0E0E0);
     assert_eq!(solid(l.segment_track), 0xE0E0E0);
     assert_eq!(solid(l.value_box), 0xD3D3D3);
-    assert_eq!(solid(l.fill), 0x9F9F9F);
-    assert_eq!(solid(l.selected_segment), 0xFFFFFF);
+    assert_eq!(
+        solid(l.fill),
+        0xD2D2D2,
+        "a value fill is a light tint of the track, never a block that reads as disabled"
+    );
+    assert_eq!(solid(l.selected_segment), 0xD2D2D2);
     assert_eq!(solid(l.dropdown), 0xFFFFFF);
     assert_eq!(alpha_of(l.separator, 0x000000), 0.10);
     assert_eq!(alpha_of(l.border, 0x000000), 0.10);

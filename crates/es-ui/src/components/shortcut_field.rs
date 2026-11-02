@@ -98,7 +98,7 @@ impl ShortcutField {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
-        let focus = cx.focus_handle();
+        let focus = cx.focus_handle().tab_stop(true);
         let _subscriptions = [
             cx.on_focus(&focus, window, Self::begin_recording),
             cx.on_blur(&focus, window, |this, _, cx| this.cancel_recording(cx)),

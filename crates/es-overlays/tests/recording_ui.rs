@@ -123,6 +123,24 @@ fn every_capture_bar_item_emits_its_route() {
 }
 
 #[test]
+fn escape_closes_a_fresh_capture_bar_without_a_click() {
+    let mut s = Surface::open(BAR.width as f32, BAR.height as f32, |cx| {
+        CaptureBar::new(vec![output("A", 0., 1280., 720.)], devices(), cx)
+    });
+    let (events, _sub) = s.record::<BarEvent>();
+    s.key("escape");
+    assert_eq!(
+        events
+            .borrow()
+            .iter()
+            .map(|e| format!("{e:?}"))
+            .collect::<Vec<_>>(),
+        ["Close"],
+        "the bar takes keyboard focus when it opens, so Esc reaches it"
+    );
+}
+
+#[test]
 fn timer_and_recording_open_their_popups_above_the_bar() {
     let h = 480.;
     let mut s = Surface::open(BAR.width as f32, h, |cx| {

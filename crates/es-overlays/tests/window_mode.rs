@@ -2,7 +2,7 @@ mod window_mode_support;
 
 use es_geom::Rect;
 use es_model::platform::{OutputId, WindowId, WindowInfo};
-use es_overlays::capture::window::window_frame;
+use es_overlays::capture::window::{describe, window_frame};
 use es_overlays::capture::windows::{self, Candidate};
 use es_overlays::capture::{PickEvent, WindowPicker, WindowSelector};
 use window_mode_support::{Surface, bluish, frame, near, rgb};
@@ -134,6 +134,64 @@ fn when_the_window_cannot_be_captured_alone_its_rectangle_is_cut_from_the_frozen
     assert!(
         window_frame(Err("no toplevel capture"), &frozen, None).is_err(),
         "with no geometry there is nothing to crop"
+    );
+}
+
+#[test]
+fn the_list_names_apps_and_filters_as_you_type() {
+    let mut all = snapshot();
+    for w in &mut all {
+        w.logical = None;
+    }
+    let floating = all
+        .iter_mut()
+        .find(|w| w.id.0 == "floating")
+        .expect("in the snapshot");
+    floating.app_id = "org.mozilla.firefox".into();
+    floating.title = "Release notes".into();
+    let items = windows::listed(&all, std::process::id());
+    let fox = items
+        .iter()
+        .find(|c| c.app_id == "org.mozilla.firefox")
+        .expect("listed");
+    assert_eq!(
+        describe(fox),
+        "Firefox — Release notes",
+        "a reverse-domain id with no desktop entry reads as its last part"
+    );
+    assert_eq!(windows::fallback_name("foot"), "Foot");
+
+    let frozen = frame(W, H, 2., grey);
+    let mut s = Surface::open(W, H, |cx| WindowPicker::new(&frozen, Some(items), cx));
+    let (events, _sub) = s.record::<PickEvent>();
+    for k in ["b", "a", "c", "k"] {
+        s.key(k);
+    }
+    s.key("enter");
+    for k in [
+        "backspace",
+        "backspace",
+        "backspace",
+        "backspace",
+        "s",
+        "e",
+        "space",
+        "n",
+    ] {
+        s.key(k);
+    }
+    s.app.screenshot("window-picker-filter");
+    s.key("enter");
+    s.key("escape");
+    s.key("escape");
+    let picked = |id: &str| PickEvent::Window {
+        id: WindowId(id.into()),
+        local: None,
+    };
+    assert_eq!(
+        *events.borrow(),
+        vec![picked("back"), picked("floating"), PickEvent::Cancel],
+        "typing narrows the list by app or title, Space types while filtering, the first Esc only clears"
     );
 }
 

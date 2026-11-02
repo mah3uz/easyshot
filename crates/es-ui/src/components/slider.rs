@@ -110,7 +110,7 @@ impl InspectorSlider {
             range,
             format,
             disabled: false,
-            track_focus: cx.focus_handle(),
+            track_focus: cx.focus_handle().tab_stop(true),
             field,
             baseline: String::new(),
             hovered: false,

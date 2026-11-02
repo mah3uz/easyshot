@@ -96,6 +96,7 @@ pub fn sections() -> Vec<Section> {
 pub fn init(cx: &mut App) {
     fonts::register(cx);
     theme::install(cx);
+    crate::a11y::bind_focus_keys(cx);
 }
 
 pub fn root(sections: Vec<Section>, window: &mut Window, cx: &mut App) -> Entity<Root> {

@@ -31,13 +31,13 @@ pub enum PickEvent {
 }
 
 pub fn describe(c: &Candidate) -> String {
-    match (c.app_id.is_empty(), c.title.is_empty()) {
+    match (c.app.is_empty(), c.title.is_empty()) {
         (false, false) => fl!(
             "window-item",
-            app = c.app_id.as_str(),
+            app = c.app.as_str(),
             title = c.title.as_str()
         ),
-        (false, true) => c.app_id.clone(),
+        (false, true) => c.app.clone(),
         (true, false) => c.title.clone(),
         (true, true) => fl!("window-untitled"),
     }

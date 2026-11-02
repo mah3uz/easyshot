@@ -12,6 +12,7 @@ use crate::{fl, fonts, theme};
 pub fn init(cx: &mut App) {
     fonts::register(cx);
     theme::install(cx);
+    crate::a11y::bind_focus_keys(cx);
 }
 
 pub fn root(window: &mut Window, cx: &mut App) -> Entity<Root> {

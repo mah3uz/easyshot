@@ -2158,6 +2158,7 @@ dependencies = [
  "async-channel",
  "es-app",
  "es-backend",
+ "es-desktop",
  "es-geom",
  "es-model",
  "es-protocol",

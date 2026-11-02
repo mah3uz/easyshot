@@ -82,6 +82,7 @@ pub struct CaptureBar {
     screenshot_timer: u32,
     options: Entity<RecordingOptions>,
     focus: FocusHandle,
+    focused: bool,
     _options: Subscription,
 }
 
@@ -117,6 +118,7 @@ impl CaptureBar {
             screenshot_timer: 0,
             options,
             focus: cx.focus_handle(),
+            focused: false,
             _options: sub,
         }
     }
@@ -268,7 +270,11 @@ fn words(id: &str) -> (String, String) {
 }
 
 impl Render for CaptureBar {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        if !self.focused {
+            self.focused = true;
+            window.focus(&self.focus, cx);
+        }
         let t = tokens(cx).clone();
         let mut bar = div()
             .id("capture-bar")

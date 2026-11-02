@@ -177,7 +177,9 @@ window-item = { $app } — { $title }
 window-untitled = Untitled window
 window-picker-title = Choose a window
 window-picker-empty = No app windows found
-window-picker-hint = ↑ ↓ to choose  ·  ↩ to capture  ·  space for an area  ·  esc
+window-picker-no-match = No windows match
+window-picker-filter = Windows matching “{ $query }”
+window-picker-hint = type to filter  ·  ↑ ↓ to choose  ·  ↩ to capture  ·  space for an area  ·  esc
 
 ## Colour picker
 color-a11y = Pick a colour. Click to copy its hex value, Escape to cancel.

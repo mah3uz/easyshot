@@ -117,7 +117,7 @@ pub(crate) fn focus_halo(t: &Tokens, radius: Pixels) -> Div {
 
 pub(crate) fn keyed_focus(id: &ElementId, window: &mut Window, cx: &mut App) -> FocusHandle {
     window
-        .use_keyed_state(id.clone(), cx, |_, cx| cx.focus_handle())
+        .use_keyed_state(id.clone(), cx, |_, cx| cx.focus_handle().tab_stop(true))
         .read(cx)
         .clone()
 }

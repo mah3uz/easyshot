@@ -5,9 +5,25 @@ use es_model::platform::{OutputId, WindowId, WindowInfo};
 pub struct Candidate {
     pub id: WindowId,
     pub app_id: String,
+    /// The app's display name, from its desktop entry when it has one.
+    pub app: String,
     pub title: String,
     /// Logical, relative to the output's top-left; None when the compositor gives no geometry.
     pub local: Option<Rect>,
+}
+
+fn app_name(app_id: &str) -> String {
+    es_desktop::app_name(app_id).unwrap_or_else(|| fallback_name(app_id))
+}
+
+/// The last part of a reverse-domain id, capitalised: `org.mozilla.firefox` reads "Firefox".
+pub fn fallback_name(app_id: &str) -> String {
+    let last = app_id.rsplit('.').next().unwrap_or(app_id);
+    let mut chars = last.chars();
+    chars
+        .next()
+        .map(|c| c.to_uppercase().chain(chars).collect())
+        .unwrap_or_default()
 }
 
 fn rank(w: &WindowInfo) -> (bool, u32) {
@@ -40,6 +56,7 @@ pub fn on_output(
             (here && local.area() > 0.0).then(|| Candidate {
                 id: w.id.clone(),
                 app_id: w.app_id.clone(),
+                app: app_name(&w.app_id),
                 title: w.title.clone(),
                 local: Some(local),
             })
@@ -53,6 +70,7 @@ pub fn listed(snapshot: &[WindowInfo], own_pid: u32) -> Vec<Candidate> {
         .map(|w| Candidate {
             id: w.id.clone(),
             app_id: w.app_id.clone(),
+            app: app_name(&w.app_id),
             title: w.title.clone(),
             local: None,
         })
