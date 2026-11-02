@@ -81,11 +81,17 @@ pub enum Removal {
 }
 
 impl Removal {
-    /// The capture was let go of rather than kept somewhere, so its staged files can be discarded.
+    /// The capture was let go of, or handed on as a copy, so its staged files can be discarded.
     pub fn discards(self) -> bool {
         matches!(
             self,
-            Removal::Dismissed | Removal::Evicted | Removal::Expired | Removal::Cleared
+            Removal::Dismissed
+                | Removal::Evicted
+                | Removal::Expired
+                | Removal::Cleared
+                | Removal::Copied
+                | Removal::Edited
+                | Removal::Pinned
         )
     }
 }
@@ -142,6 +148,7 @@ pub struct Deck {
     entries: Vec<Entry>,
     policy: DeckPolicy,
     hovered: bool,
+    hidden: bool,
     focused: Option<Uuid>,
     ticking: bool,
 }
@@ -190,6 +197,7 @@ impl Deck {
         if let Some(i) = self.position(item.id) {
             self.entries.remove(i);
         }
+        self.hidden = false;
         self.entries.push(Entry {
             item,
             idle: Duration::ZERO,
@@ -317,6 +325,16 @@ impl Deck {
         self.hovered
     }
 
+    /// The cards stay but are not shown, and their timers wait; a new capture shows the deck again.
+    pub fn is_hidden(&self) -> bool {
+        self.hidden
+    }
+
+    pub fn toggle_hidden(&mut self, cx: &mut Context<Self>) {
+        self.hidden = !self.hidden;
+        cx.notify();
+    }
+
     fn dismisses(&self, item: &DeckItem) -> bool {
         item.auto_dismiss
             && self.policy.delay.is_some()
@@ -343,7 +361,7 @@ impl Deck {
                 continue;
             }
             let entry = &mut self.entries[i];
-            if self.hovered || self.focused == Some(entry.item.id) {
+            if self.hovered || self.hidden || self.focused == Some(entry.item.id) {
                 entry.idle = Duration::ZERO;
                 continue;
             }

@@ -241,3 +241,28 @@ fn marking_a_commit_flags_the_history_entry_and_adds_unknown_ones() {
     assert_eq!(history.by_file(&image).unwrap().pixel_size, (20, 20));
     assert_eq!(history.entries().len(), 1);
 }
+
+#[test]
+fn a_new_capture_with_an_edit_is_reopenable_with_its_document_and_raw_pixels() {
+    let (_dir, paths) = setup();
+    let mut document = AnnotationDocument::default();
+    document.background.padding = 0.31;
+
+    let image = es_store::commit_new(
+        &paths,
+        "Shot.png",
+        &png_bytes(12, 10, 200),
+        Some((&png_bytes(10, 8, 7), document)),
+    )
+    .unwrap();
+
+    assert!(image.starts_with(paths.library_dir()));
+    assert!(sidecar_path(&image).exists());
+    let reopened = reopen(&image);
+    assert_eq!(reopened.document.unwrap().background.padding, 0.31);
+    assert_eq!(reopened.source, base_path(&image));
+    assert_eq!(read(&reopened.source), png_bytes(10, 8, 7));
+    let again = es_store::commit_new(&paths, "Shot.png", &png_bytes(12, 10, 200), None).unwrap();
+    assert_ne!(again, image, "a taken name is not overwritten");
+    assert!(!sidecar_path(&again).exists());
+}

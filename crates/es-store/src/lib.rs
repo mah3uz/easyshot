@@ -20,7 +20,7 @@ pub mod thumbs;
 pub mod wallpapers;
 pub mod watch;
 
-pub use commit::{Commit, Reopened, commit, reopen};
+pub use commit::{Commit, Reopened, commit, commit_new, reopen};
 pub use config::ConfigFile;
 pub use deck::{Deck, StageRequest};
 pub use error::{Error, Result};

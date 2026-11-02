@@ -6,13 +6,20 @@ use crate::jobs::run_cpu;
 use crate::platform_ui::{ClipboardSink, SelectMode, Selection, SelectionFlow};
 use crate::settings_model::SettingsModel;
 use crate::toast::{IconName, Toast, show_toast};
+use es_anno::draw::DrawList;
+use es_backend::wayland::normalise_frame;
 use es_geom::Rgba;
 use es_model::capture::{Step, after_capture_plan};
-use es_model::platform::{ClipItem, Frame};
-use es_model::{CaptureKind as StoredKind, Config, HistoryEntry};
+use es_model::platform::{ClipItem, Frame, Transform};
+use es_model::{
+    AnnotationDocument, BackgroundSettings, BackgroundStyle, CaptureKind as StoredKind, Config,
+    HistoryEntry, resolve_new_capture_look,
+};
 use es_render::encode::{PngProfile, encode_jpeg, encode_png};
+use es_render::export::ExportCache;
 use es_store::atomic::write_atomic;
 use es_store::naming::{self, Kind, exists, unique_path};
+use es_store::temp::{self, TempKind};
 use es_store::{ExportFormat, Paths, StageRequest};
 use gpui::{App, Entity, Task};
 use image::RgbaImage;
@@ -125,8 +132,16 @@ fn copy_color(deps: &Rc<PipelineDeps>, color: Rgba, cx: &mut App) -> Task<Result
     })
 }
 
-/// Opaque RGBA; compositors hand out XRGB whose alpha byte is undefined.
+/// Opaque RGBA, turned upright by the output's transform; compositors hand out XRGB whose alpha
+/// byte is undefined.
 pub fn frame_rgba(frame: &Frame) -> Result<RgbaImage> {
+    let upright;
+    let frame = if frame.transform == Transform::Normal {
+        frame
+    } else {
+        upright = normalise_frame(frame.clone());
+        &upright
+    };
     let (w, h) = frame.size_px;
     let len = w as usize * h as usize * 4;
     let bgra = frame
@@ -187,7 +202,10 @@ fn read_text(
 }
 
 struct Prepared {
-    manifest: es_model::DeckManifest,
+    /// Present when the plan shows a card.
+    card: Option<DeckItem>,
+    /// Where a capture that is shown, saved and kept nowhere lives until its pin or editor is done.
+    transient: Option<PathBuf>,
     png: Arc<[u8]>,
     image: Arc<RgbaImage>,
     saved: Option<Result<PathBuf>>,
@@ -200,6 +218,29 @@ pub(crate) struct Work {
     pub(crate) file_stem: String,
     pub(crate) kind: StoredKind,
     pub(crate) save: bool,
+    pub(crate) show: bool,
+}
+
+pub(crate) fn new_capture_look(paths: &Paths, config: &Config) -> BackgroundSettings {
+    let presets = es_store::presets::open_backgrounds(paths)
+        .map(|f| f.value)
+        .unwrap_or_default();
+    resolve_new_capture_look(config, &presets)
+}
+
+/// The capture inside its look, or `None` when the look draws nothing.
+pub(crate) fn compose(raw: &Pixmap, look: &BackgroundSettings) -> Result<Option<Arc<Pixmap>>> {
+    if !look.has_renderable_content() {
+        return Ok(None);
+    }
+    let wallpaper = match &look.style {
+        BackgroundStyle::Wallpaper { path } => std::fs::read(path).ok(),
+        _ => None,
+    };
+    ExportCache::default()
+        .composed(raw, &DrawList::default(), look, wallpaper.as_deref())
+        .map(Some)
+        .map_err(|e| Error::Internal(e.to_string()))
 }
 
 pub(crate) fn save_to_folder(work: &Work, pixmap: &Pixmap) -> Result<PathBuf> {
@@ -225,13 +266,24 @@ pub(crate) fn save_to_folder(work: &Work, pixmap: &Pixmap) -> Result<PathBuf> {
     Ok(target)
 }
 
-pub(crate) fn retain(work: &Work, png: &[u8], saved: Option<&PathBuf>) -> Result<HistoryEntry> {
-    let library = work.paths.library_dir();
-    let name = format!("{}.png", work.file_stem);
-    let target = unique_path(&name, &library, "-", |p| {
-        exists(p) || exists(&es_store::library::base_path(p))
+/// Adds the capture to the library; `look` carries the raw pixels and the look applied to them, so
+/// the editor reopens it with the look still editable.
+pub(crate) fn retain(
+    work: &Work,
+    png: &[u8],
+    look: Option<(&[u8], BackgroundSettings)>,
+    saved: Option<&PathBuf>,
+) -> Result<HistoryEntry> {
+    let edit = look.map(|(raw, background)| {
+        (
+            raw,
+            AnnotationDocument {
+                background,
+                ..AnnotationDocument::default()
+            },
+        )
     });
-    write_atomic(&target, png)?;
+    let target = es_store::commit_new(&work.paths, &format!("{}.png", work.file_stem), png, edit)?;
     let mut entry = es_store::library::entry_for_file(&target)
         .ok_or_else(|| Error::Store(format!("unreadable capture {}", target.display())))?;
     entry.kind = work.kind;
@@ -241,17 +293,68 @@ pub(crate) fn retain(work: &Work, png: &[u8], saved: Option<&PathBuf>) -> Result
 
 fn prepare(work: &Work, frame: &Frame) -> Result<Prepared> {
     let image = frame_rgba(frame)?;
-    let pixmap = pixmap(&image)?;
-    let png: Arc<[u8]> = encode_png(&pixmap, PngProfile::Fast)
-        .map_err(|e| encoding(&e))?
-        .into();
+    let raw = pixmap(&image)?;
+    let raw_png = encode_png(&raw, PngProfile::Fast).map_err(|e| encoding(&e))?;
+    let look = new_capture_look(&work.paths, &work.config);
+    let composed = compose(&raw, &look)?;
+    let shown = composed.as_deref().unwrap_or(&raw);
+    let png: Arc<[u8]> = match &composed {
+        Some(p) => encode_png(p, PngProfile::Fast)
+            .map_err(|e| encoding(&e))?
+            .into(),
+        None => raw_png.clone().into(),
+    };
+    let edit = composed.is_some().then_some((&raw_png[..], look));
+    let saved = work.save.then(|| save_to_folder(work, shown));
+    let library = (!work.config.capture.keep_in_deck_until_saved).then(|| {
+        retain(
+            work,
+            &png,
+            edit,
+            saved.as_ref().and_then(|s| s.as_ref().ok()),
+        )
+    });
+    let kept = matches!(library, Some(Ok(_))) || matches!(saved, Some(Ok(_)));
+    let card = if work.show {
+        let kept_card = library
+            .as_ref()
+            .and_then(|l| l.as_ref().ok())
+            .and_then(|entry| library_card(work, entry));
+        match kept_card {
+            Some(card) => Some(card),
+            None => Some(staged_card(work, &png, &raw_png)?),
+        }
+    } else {
+        None
+    };
+    let transient = (card.is_none() && !kept)
+        .then(|| {
+            temp::create(
+                &work.paths,
+                TempKind::Unstaged,
+                &format!("{}.png", work.file_stem),
+                &png,
+            )
+        })
+        .transpose()?;
+    Ok(Prepared {
+        card,
+        transient,
+        png,
+        image: Arc::new(image),
+        saved,
+        library,
+    })
+}
+
+fn staged_card(work: &Work, png: &[u8], raw_png: &[u8]) -> Result<DeckItem> {
     let manifest = es_store::Deck::new(&work.paths).stage(
         &StageRequest {
             file_name: &format!("{}.png", work.file_stem),
             kind: work.kind,
             history_id: None,
-            image: &png,
-            raw: &png,
+            image: png,
+            raw: raw_png,
             thumb_size: THUMB_SIZE,
         },
         OffsetDateTime::now_utc(),
@@ -259,15 +362,23 @@ fn prepare(work: &Work, frame: &Frame) -> Result<Prepared> {
     if let Err(e) = es_store::thumbs::ensure(&work.paths, &manifest.staged, THUMB_SIZE) {
         tracing::warn!(error = %e, "deck thumbnail");
     }
-    let saved = work.save.then(|| save_to_folder(work, &pixmap));
-    let library = (!work.config.capture.keep_in_deck_until_saved)
-        .then(|| retain(work, &png, saved.as_ref().and_then(|s| s.as_ref().ok())));
-    Ok(Prepared {
-        manifest,
-        png,
-        image: Arc::new(image),
-        saved,
-        library,
+    Ok(DeckItem::staged(&manifest))
+}
+
+fn library_card(work: &Work, entry: &HistoryEntry) -> Option<DeckItem> {
+    let thumb = es_store::thumbs::ensure(&work.paths, &entry.file, THUMB_SIZE)
+        .map_err(|e| tracing::warn!(error = %e, "deck thumbnail"))
+        .ok()?;
+    Some(DeckItem {
+        id: entry.id,
+        name: entry.name.clone(),
+        file: entry.file.clone(),
+        thumb,
+        kind: entry.kind,
+        video: false,
+        staged: false,
+        status: crate::deck::ItemStatus::Idle,
+        auto_dismiss: true,
     })
 }
 
@@ -308,6 +419,7 @@ fn screenshot(
         file_stem: next_stem(&deps.paths, &config),
         kind,
         save: plan.contains(&Step::Save),
+        show: plan.contains(&Step::ShowPreview),
         config,
     };
     let prepared = run_cpu(cx, move || prepare(&work, &frame));
@@ -359,7 +471,9 @@ async fn finish(
     let kept: PathBuf = library
         .clone()
         .or_else(|| saved.clone())
-        .unwrap_or_else(|| p.manifest.staged.clone());
+        .or_else(|| p.card.as_ref().map(|c| c.file.clone()))
+        .or_else(|| p.transient.clone())
+        .unwrap_or_default();
     for step in plan {
         match step {
             Step::Save => {}
@@ -376,9 +490,9 @@ async fn finish(
                 }
             }
             Step::ShowPreview => {
-                let mut item = DeckItem::staged(&p.manifest);
-                item.staged = library.is_none();
-                cx.update(|cx| deps.deck.update(cx, |deck, cx| deck.show(item, cx)));
+                if let Some(item) = p.card.clone() {
+                    cx.update(|cx| deps.deck.update(cx, |deck, cx| deck.show(item, cx)));
+                }
             }
             Step::Pin => {
                 let (file, image) = (kept.clone(), p.image.clone());
@@ -397,21 +511,7 @@ async fn finish(
     if saved.is_some() && !plan.contains(&Step::ShowPreview) && !plan.contains(&Step::Copy) {
         cx.update(|cx| show_toast(Toast::new("toast-saved", IconName::Check), cx));
     }
-    let shown = plan.contains(&Step::ShowPreview);
-    if !shown && (library.is_some() || saved.is_some()) && kept != p.manifest.staged {
-        let paths = deps.paths.clone();
-        let id = p.manifest.id;
-        cx.background_executor()
-            .spawn(async move { discard_staged(&paths, id) })
-            .detach();
-    }
     first.map_or(Ok(()), Err)
-}
-
-fn discard_staged(paths: &Paths, id: uuid::Uuid) {
-    if let Err(e) = es_store::Deck::new(paths).remove(id) {
-        tracing::warn!(error = %e, "deck staging not removed");
-    }
 }
 
 fn reported(task: Task<Result<Selection>>, op: Op, cx: &mut App) -> Task<Result<Selection>> {

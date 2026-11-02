@@ -189,7 +189,13 @@ fn platform_daemon_region_capture_reaches_the_deck_and_the_save_folder() {
         (455..=457).contains(&w) && (225..=228).contains(&h),
         "304x151 at scale 1.5, got {w}x{h}"
     );
-    assert_eq!(staged_cards(&deck), 1, "one card staged:\n{}", log());
+    assert_eq!(staged_cards(&deck), 0, "a kept capture is not staged:\n{}", log());
+    assert_eq!(
+        files(&root.path().join("data/easyshot/library"), "png").len(),
+        1,
+        "one library entry:\n{}",
+        log()
+    );
 
     // Small card, 20 px margin, bottom-right of the 1280x720 logical output: the Edit button is
     // the bottom-left corner tool and only exists while the card is hovered.

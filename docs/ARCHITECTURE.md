@@ -272,9 +272,20 @@ The keys and defaults of `config.toml` are the `es_model::Config` type.
    and opens the selector through `Surfaces` and `SelectionFlow`. The frame is frozen.
 4. The user selects a region. The frame is cropped (`es-render`).
 5. `after_capture_plan` returns the steps for the variant and config; `pipeline.rs`
-   executes them: stage in `es-store`, save, copy, open the editor or pin.
-6. The deck shows a card for the staged item.
-7. `JobFinished` returns to the waiting CLI.
+   executes them. The frame is first turned upright by its output transform. When the
+   new-capture look (`resolve_new_capture_look`) draws anything, `es-render` composes the
+   image inside it; the card, the clipboard and the save folder get that image and the raw
+   pixels are kept beside it.
+6. The library is written only through `es_store::commit` / `commit_new`: the image, its
+   `.base.png` raw pixels and the sidecar holding the look, so the editor reopens it with the
+   look editable. The pipeline (`pipeline.rs`) and a deck card's Save (`deck_save.rs`) both
+   use it; a capture without a look is a plain image. The deck stages a capture only to show
+   a card that is not yet in the library. A capture that is only pinned or opened in the
+   editor lives in `$XDG_CACHE_HOME/easyshot/unstaged/` instead, as do the copies a card
+   hands to the editor or a pin, so nothing unsaved returns as a card after a restart.
+   The daemon purges that directory of files a day old at start.
+7. The deck shows a card.
+8. `JobFinished` returns to the waiting CLI.
 
 This flow is the design; none of it has run.
 

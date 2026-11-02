@@ -170,7 +170,18 @@ fn copy_edit_and_pin_ask_the_app_then_remove_the_card(cx: &mut TestAppContext) {
             ("shot4".into(), Removal::Dismissed)
         ]
     );
-    assert!(!Removal::Copied.discards() && Removal::Dismissed.discards());
+    assert!(
+        [
+            Removal::Copied,
+            Removal::Edited,
+            Removal::Pinned,
+            Removal::Dismissed
+        ]
+        .iter()
+        .all(|r| r.discards()),
+        "a card handed on as a copy leaves nothing staged behind"
+    );
+    assert!(!Removal::Saved.discards());
 }
 
 #[gpui::test]
@@ -317,4 +328,28 @@ fn deck_with_never(cx: &mut TestAppContext) -> (Entity<Deck>, Log) {
     let policy = DeckPolicy::from_settings(&overlay, &Default::default());
     assert_eq!(policy.delay, None);
     deck(cx, policy)
+}
+
+#[gpui::test]
+fn a_hidden_deck_keeps_its_cards_and_their_timers_until_a_capture_shows_it_again(
+    cx: &mut TestAppContext,
+) {
+    let (deck, _) = deck(cx, five_seconds());
+    show(&deck, 1, cx);
+    deck.update(cx, |d, cx| d.toggle_hidden(cx));
+    assert!(deck.read_with(cx, |d, _| d.is_hidden()));
+    cx.executor().advance_clock(Duration::from_secs(60));
+    assert_eq!(
+        deck.read_with(cx, |d, _| d.len()),
+        1,
+        "timers wait while hidden"
+    );
+    deck.update(cx, |d, cx| d.toggle_hidden(cx));
+    assert!(!deck.read_with(cx, |d, _| d.is_hidden()));
+    deck.update(cx, |d, cx| d.toggle_hidden(cx));
+    show(&deck, 2, cx);
+    assert!(
+        !deck.read_with(cx, |d, _| d.is_hidden()),
+        "a new card shows the deck"
+    );
 }

@@ -12,9 +12,9 @@ use es_app::settings_model::SettingsModel;
 use es_app::toast::{MemorySink, install_toasts};
 use es_desktop::RecordingNotifier;
 use es_geom::{Rect, Rgba};
-use es_model::Config;
 use es_model::capture::CaptureVariant;
 use es_model::platform::{ClipItem, Frame, Transform};
+use es_model::{BackgroundColor, BackgroundPreset, BackgroundStyle, Config};
 use es_protocol::JobStatus;
 use es_store::{ConfigFile, Paths};
 use gpui::{App, AppContext as _, Entity, Task, TestAppContext};
@@ -118,6 +118,19 @@ fn rig(cx: &mut TestAppContext) -> Rig {
     rig_with(cx, FakeClipboard::default(), "")
 }
 
+fn rotated_frame() -> Arc<Frame> {
+    let bgra = vec![0, 0, 255, 0, 255, 0, 0, 0];
+    Arc::new(Frame {
+        output: None,
+        size_px: (2, 1),
+        logical: Rect::new(0., 0., 2., 1.),
+        scale: 1.,
+        bgra: bgra.into(),
+        transform: Transform::R90,
+        captured_at: Instant::now(),
+    })
+}
+
 fn frame() -> Arc<Frame> {
     let (w, h) = (4u32, 2u32);
     let bgra: Vec<u8> = (0..w * h).flat_map(|_| [0x00, 0x80, 0xFF, 0x00]).collect();
@@ -155,6 +168,27 @@ fn images(dir: &Path) -> Vec<PathBuf> {
 }
 
 impl Rig {
+    fn use_red_look(&self) {
+        let mut file = es_store::presets::open_backgrounds(&self.paths).unwrap();
+        let mut preset = BackgroundPreset::default();
+        preset.background.style = BackgroundStyle::Solid(BackgroundColor {
+            id: "red".into(),
+            title: "Red".into(),
+            red: 1.,
+            green: 0.,
+            blue: 0.,
+            alpha: 1.,
+        });
+        file.value.active_preset_id = Some(preset.id);
+        file.value.presets.push(preset);
+        file.save().unwrap();
+    }
+
+    fn only_card(&self, cx: &mut TestAppContext) -> es_app::deck::DeckItem {
+        self.deck
+            .read_with(cx, |d, _| d.items().next().cloned().unwrap())
+    }
+
     fn configure(&self, cx: &mut TestAppContext, f: impl FnOnce(&mut Config)) {
         let save_dir = self.save_dir.clone();
         self.settings.update(cx, |s, cx| {
@@ -401,4 +435,108 @@ fn a_missing_capture_capability_is_shown_and_the_queue_keeps_serving(cx: &mut Te
         rig.toast_titles(),
         ["Not available here", "Not available here"]
     );
+}
+
+#[gpui::test]
+fn the_card_shows_the_capture_inside_the_new_capture_look_and_keeps_the_raw_base(
+    cx: &mut TestAppContext,
+) {
+    let rig = rig(cx);
+    rig.use_red_look();
+    rig.run(cx, CaptureKind::Window, CaptureVariant::Normal)
+        .unwrap();
+    let item = rig.only_card(cx);
+    let (w, h) = image::image_dimensions(&item.file).unwrap();
+    assert!(w > 4 && h > 2, "padding grows the card image: {w}x{h}");
+    let corner = image::open(&item.file).unwrap().to_rgba8();
+    assert_eq!(
+        corner.get_pixel(0, 0).0[0],
+        0xFF,
+        "the red backdrop reaches the corner"
+    );
+    let raw = item.file.with_file_name(format!("{}.raw.png", item.name));
+    assert_eq!(image::image_dimensions(&raw).unwrap(), (4, 2));
+    assert!(item.thumb.exists());
+}
+
+#[gpui::test]
+fn without_a_look_the_card_image_is_the_raw_capture(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    rig.run(cx, CaptureKind::Window, CaptureVariant::Normal)
+        .unwrap();
+    let item = rig.only_card(cx);
+    let raw = item.file.with_file_name(format!("{}.raw.png", item.name));
+    assert_eq!(
+        std::fs::read(&item.file).unwrap(),
+        std::fs::read(raw).unwrap()
+    );
+}
+
+#[gpui::test]
+fn a_kept_capture_is_one_library_entry_that_reopens_with_its_look(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    rig.use_red_look();
+    rig.configure(cx, |c| c.capture.keep_in_deck_until_saved = false);
+    rig.run(cx, CaptureKind::Window, CaptureVariant::Normal)
+        .unwrap();
+    let library = es_store::library::scan(&rig.paths.library_dir());
+    assert_eq!(
+        library.len(),
+        1,
+        "the base and sidecar are not entries of their own"
+    );
+    assert_eq!(rig.history.read_with(cx, |h, _| h.entries().len()), 1);
+    let file = &library[0].file;
+    assert!(es_store::document::sidecar_path(file).exists());
+    let reopened = es_store::reopen(file);
+    let document = reopened.document.unwrap();
+    assert!(matches!(
+        document.background.style,
+        BackgroundStyle::Solid(_)
+    ));
+    assert_eq!(image::image_dimensions(&reopened.source).unwrap(), (4, 2));
+    assert!(image::image_dimensions(file).unwrap().0 > 4);
+    assert_eq!(
+        rig.only_card(cx).file,
+        *file,
+        "the card shows the library file"
+    );
+    assert_eq!(rig.staged_dirs(), 0);
+}
+
+#[gpui::test]
+fn a_frame_is_turned_upright_by_its_output_transform(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    rig.configure(cx, |c| c.after_capture.screenshot.save = true);
+    let selection = Selection::Window {
+        id: es_model::platform::WindowId("w".into()),
+        frame: rotated_frame(),
+    };
+    rig.run_with(cx, CaptureKind::Window, CaptureVariant::Normal, selection)
+        .unwrap();
+    let saved = files(&rig.save_dir);
+    let pixels = image::open(&saved[0]).unwrap().to_rgba8();
+    assert_eq!(
+        pixels.dimensions(),
+        (1, 2),
+        "two pixels wide became two tall"
+    );
+    assert_eq!(pixels.get_pixel(0, 0).0, [0xFF, 0, 0, 0xFF]);
+    assert_eq!(pixels.get_pixel(0, 1).0, [0, 0, 0xFF, 0xFF]);
+}
+
+#[gpui::test]
+fn a_pin_that_is_never_saved_is_not_staged_so_it_cannot_return_as_a_card(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    rig.run(cx, CaptureKind::Region, CaptureVariant::RegionPin)
+        .unwrap();
+    assert_eq!(rig.deck_len(cx), 0);
+    let pinned = rig.pins.borrow().clone();
+    assert_eq!(pinned.len(), 1);
+    assert!(pinned[0].exists() && pinned[0].starts_with(rig.paths.unstaged_dir()));
+    assert_eq!(rig.staged_dirs(), 0);
+    let restored = es_store::Deck::new(&rig.paths)
+        .restore(time::OffsetDateTime::now_utc())
+        .unwrap();
+    assert!(restored.is_empty());
 }

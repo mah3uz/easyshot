@@ -64,7 +64,11 @@ opens the editor. Each capture also appears as a card in a floating preview deck
 - cards disappear on their own, and pause while you hover over them;
 - Save All and Clear All.
 
-Cards on the deck survive a restart if they are younger than 24 hours.
+Cards on the deck survive a restart if they are younger than 24 hours. A card shows the
+capture inside your default look, and the editor opens it with that look still editable.
+`easyshot deck toggle` hides the deck and shows it again; hidden cards do not disappear on
+their own, and the next capture shows the deck. A pin that you never save is gone when you
+close it or restart.
 
 ## Pinned screenshots
 

@@ -356,7 +356,8 @@ impl DeckSurface {
     }
 
     fn sync(&self, cx: &mut App) -> Result<()> {
-        let count = self.deck.read(cx).len();
+        let deck = self.deck.read(cx);
+        let count = if deck.is_hidden() { 0 } else { deck.len() };
         if count == 0 {
             if let Some(shown) = self.shown.borrow_mut().take() {
                 shown.handle.close(cx);

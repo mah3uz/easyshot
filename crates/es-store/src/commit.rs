@@ -28,6 +28,40 @@ fn copy_atomic(from: &Path, to: &Path) -> Result<()> {
     write_atomic(to, &std::fs::read(from).map_err(io(from))?)
 }
 
+fn library_target(paths: &Paths, name: &str) -> PathBuf {
+    unique_path(name, &paths.library_dir(), "-", |p| {
+        exists(p) || exists(&base_path(p)) || exists(&sidecar_path(p))
+    })
+}
+
+fn write_sidecar(display: &Path, base_dest: &Path, mut document: AnnotationDocument) -> Result<()> {
+    document.base_image_file_name = base_dest
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    document::create(display, document).save()
+}
+
+/// Adds a new capture held in memory to the library under a free name. With `edit`, the raw pixels
+/// and the document come along so the editor reopens the look; without it the image stands alone.
+pub fn commit_new(
+    paths: &Paths,
+    name: &str,
+    rendered_png: &[u8],
+    edit: Option<(&[u8], AnnotationDocument)>,
+) -> Result<PathBuf> {
+    let display = library_target(paths, name);
+    if let Some((base_png, document)) = edit {
+        let base_dest = base_path(&display);
+        write_atomic(&base_dest, base_png)?;
+        write_atomic(&display, rendered_png)?;
+        write_sidecar(&display, &base_dest, document)?;
+    } else {
+        write_atomic(&display, rendered_png)?;
+    }
+    Ok(display)
+}
+
 /// Writes base, flattened image, then sidecar, each atomically; returns the image path in the library.
 pub fn commit(paths: &Paths, commit: Commit<'_>) -> Result<PathBuf> {
     let library = paths.library_dir();
@@ -42,9 +76,7 @@ pub fn commit(paths: &Paths, commit: Commit<'_>) -> Result<PathBuf> {
                 || "capture.png".to_owned(),
                 |n| n.to_string_lossy().into_owned(),
             );
-        unique_path(&name, &library, "-", |p| {
-            exists(p) || exists(&base_path(p)) || exists(&sidecar_path(p))
-        })
+        library_target(paths, &name)
     };
     let base_dest = base_path(&display);
     if commit.base != base_dest {
@@ -57,12 +89,7 @@ pub fn commit(paths: &Paths, commit: Commit<'_>) -> Result<PathBuf> {
         }
     }
     write_atomic(&display, commit.rendered_png)?;
-    let mut document = commit.document;
-    document.base_image_file_name = base_dest
-        .file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_default();
-    document::create(&display, document).save()?;
+    write_sidecar(&display, &base_dest, commit.document)?;
     Ok(display)
 }
 

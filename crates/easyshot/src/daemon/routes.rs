@@ -17,12 +17,6 @@ use gpui::{App, Entity, Subscription};
 use gpui::{ClipboardEntry, ImageFormat};
 use std::rc::Rc;
 
-fn not_wired(what: &str, cx: &mut App) -> Error {
-    tracing::error!(what, "not wired into the daemon yet");
-    show_toast(Toast::error("toast-unsupported"), cx);
-    Error::Unsupported
-}
-
 pub struct ActionDeps {
     pub deck: Entity<Deck>,
     pub history: Entity<History>,
@@ -101,6 +95,7 @@ pub fn actions(d: ActionDeps) -> ActionHandler {
             Action::Quit => d.wiring.quit(cx),
             Action::DeckSaveAll => d.deck.update(cx, |d, cx| d.save_all(cx)),
             Action::DeckCloseAll => d.deck.update(cx, |d, cx| d.clear_all(cx)),
+            Action::DeckToggle => d.deck.update(cx, |d, cx| d.toggle_hidden(cx)),
             Action::RecordStop => d.recordings.stop(cx)?,
             Action::RecordPause => d.recordings.toggle_pause(cx)?,
             Action::RecordRestart => d.recordings.restart(cx)?,
@@ -114,7 +109,6 @@ pub fn actions(d: ActionDeps) -> ActionHandler {
             }
             Action::RestoreLast => restore_last(&d, cx)?,
             Action::EditClipboard => edit_clipboard(&d, cx)?,
-            other => return Err(not_wired(&format!("{other:?}"), cx)),
         }
         Ok(())
     })
@@ -164,13 +158,17 @@ pub fn deck_events(d: &ActionDeps, clipboard: Rc<dyn ClipboardSink>, cx: &mut Ap
         DeckEvent::Requested { item, action } => match action {
             DeckAction::Copy => copy_card(&item.file, &clipboard, cx),
             DeckAction::Pin => {
-                if let Err(e) = pin_file(&pins, &item.file, cx) {
+                let pinned =
+                    deck_save::pinnable(&paths, item).and_then(|file| pin_file(&pins, &file, cx));
+                if let Err(e) = pinned {
                     tracing::warn!(error = %e, "pin from the deck");
                     show_toast(Toast::error("toast-error-generic"), cx);
                 }
             }
             DeckAction::Edit => {
-                if let Err(e) = wiring.open_editor_for(&item.file, cx) {
+                let opened = deck_save::editable(&paths, item)
+                    .and_then(|file| wiring.open_editor_for(&file, cx));
+                if let Err(e) = opened {
                     tracing::warn!(error = %e, "edit from the deck");
                     show_toast(Toast::error("toast-error-generic"), cx);
                 }

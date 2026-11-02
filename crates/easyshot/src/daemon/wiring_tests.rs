@@ -13,15 +13,19 @@ use es_app::toast::{MemorySink, install_toasts};
 use es_app::windows::{WindowKey, WindowKind, Windows};
 use es_backend::{BindHelper, BindSyntax, Caps, Trigger};
 use es_desktop::{Notification, NotificationId, Notifier};
+use es_editor::EditorWindow;
 use es_editor::session::journal::{self, Entry};
 use es_model::AnnotationDocument;
 use es_model::platform::ClipItem;
 use es_overlays::record::bar::BarEvent;
 use es_protocol::Route;
-use es_shell::gallery::{FileResult, GalleryFiles};
+use es_shell::gallery::{FileResult, Gallery, GalleryFiles};
+use es_shell::onboarding::Onboarding;
+use es_shell::settings::SettingsWindow;
 use es_store::{ConfigFile, Paths};
 use futures::future::BoxFuture;
 use gpui::{App, AppContext as _, Task, TestAppContext};
+use gpui_component::Root;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -142,14 +146,36 @@ fn is_open(rig: &Rig, kind: WindowKind, key: &WindowKey, cx: &mut TestAppContext
     cx.update(|cx| rig.wiring.windows.is_open(kind, key, cx))
 }
 
+/// How many open windows hold a `T` as their content; the registry only records what was asked for.
+fn showing<T: 'static>(cx: &mut TestAppContext) -> usize {
+    cx.update(|cx| {
+        cx.windows()
+            .into_iter()
+            .filter_map(|w| w.downcast::<Root>())
+            .filter(|w| {
+                w.read(cx)
+                    .is_ok_and(|root| root.view().clone().downcast::<T>().is_ok())
+            })
+            .count()
+    })
+}
+
 #[gpui::test]
 fn settings_and_gallery_routes_open_their_windows_once(cx: &mut TestAppContext) {
     let rig = rig(cx);
     open(&rig, Route::Settings(None), cx);
     assert!(is_open(&rig, WindowKind::Settings, &WindowKey::Single, cx));
     assert!(!is_open(&rig, WindowKind::Gallery, &WindowKey::Single, cx));
+    assert_eq!(
+        (showing::<SettingsWindow>(cx), showing::<Gallery>(cx)),
+        (1, 0)
+    );
     open(&rig, Route::Gallery, cx);
     assert!(is_open(&rig, WindowKind::Gallery, &WindowKey::Single, cx));
+    assert_eq!(
+        (showing::<SettingsWindow>(cx), showing::<Gallery>(cx)),
+        (1, 1)
+    );
     assert_eq!(cx.update(|cx| cx.windows().len()), 2);
     open(&rig, Route::Settings(None), cx);
     open(&rig, Route::Gallery, cx);
@@ -169,6 +195,7 @@ fn open_route_gives_one_editor_per_file(cx: &mut TestAppContext) {
     open(&rig, Route::Open(a.clone()), cx);
     open(&rig, Route::Open(a.clone()), cx);
     assert_eq!(rig.wiring.editor_count(), 1);
+    assert_eq!(showing::<EditorWindow>(cx), 1);
     assert!(is_open(&rig, WindowKind::Editor, &WindowKey::Path(a), cx));
     open(&rig, Route::Open(b), cx);
     assert_eq!(rig.wiring.editor_count(), 2);
@@ -190,6 +217,7 @@ fn onboarding_opens_through_the_registry(cx: &mut TestAppContext) {
         &WindowKey::Single,
         cx
     ));
+    assert_eq!(showing::<Onboarding>(cx), 1);
 }
 
 #[gpui::test]
