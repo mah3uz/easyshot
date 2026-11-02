@@ -59,6 +59,7 @@ fn fixture(caps: Caps, binds: Option<Arc<dyn BindHelper>>, prepare: impl FnOnce(
             binds,
             clipboard: Rc::new(sink),
             outputs: vec!["DP-1".into(), "HDMI-A-1".into()],
+            version: "v9.9.9".to_owned(),
         };
         let v = cx.new(|cx| SettingsWindow::new(deps, window, cx));
         view = Some(v.clone());

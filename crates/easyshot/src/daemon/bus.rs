@@ -170,7 +170,7 @@ pub(super) fn tray_input(history: &Entity<History>, cx: &App) -> es_shell::tray:
         .collect();
     es_shell::tray::TrayInput {
         screenshots: recent,
-        version: env!("CARGO_PKG_VERSION").to_owned(),
+        version: env!("EASYSHOT_VERSION").to_owned(),
         ..Default::default()
     }
 }

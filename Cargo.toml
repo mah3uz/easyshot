@@ -89,6 +89,7 @@ futures = "0.3"
 ctrlc = "3"
 smallvec = { version = "1", features = ["serde"] }
 clap = { version = "4", features = ["derive"] }
+clap_complete = "4"
 thiserror = "2"
 tempfile = "3"
 anyhow = "1"

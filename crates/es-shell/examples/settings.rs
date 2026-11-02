@@ -30,6 +30,7 @@ fn main() {
                 binds: None,
                 clipboard: Rc::new(SystemClipboard),
                 outputs: Vec::new(),
+                version: env!("CARGO_PKG_VERSION").to_owned(),
             };
             if let Err(error) = settings::open(deps, cx) {
                 eprintln!("{error}");

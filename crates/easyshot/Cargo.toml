@@ -33,6 +33,7 @@ rayon = { workspace = true, optional = true }
 time = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
 clap.workspace = true
+clap_complete.workspace = true
 anyhow.workspace = true
 tokio.workspace = true
 tracing.workspace = true

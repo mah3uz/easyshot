@@ -185,6 +185,12 @@ JPEG in the editor.
 
 Exit codes: 0 done, 1 error, 2 cancelled, 3 the daemon is not running or went away.
 
+`easyshot --version` prints the version and, for a build from a git checkout, the commit it
+was built from: `v0.1.0+1a2b3c4d`, with `-dirty` when the checkout had uncommitted changes.
+
+`easyshot completions bash|zsh|fish` prints a completion script for that shell. The Arch
+package installs all three.
+
 Commands:
 
 - `capture region|fullscreen|window|previous|timed|scroll`; `capture region` also takes one

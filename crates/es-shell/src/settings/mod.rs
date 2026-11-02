@@ -131,6 +131,7 @@ pub struct SettingsDeps {
     pub clipboard: Rc<dyn ClipboardSink>,
     /// Output names for "A specific screen".
     pub outputs: Vec<String>,
+    pub version: String,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -201,6 +202,7 @@ pub struct SettingsWindow {
     history: Option<Entity<History>>,
     caps: Caps,
     outputs: Vec<String>,
+    version: String,
     page: Page,
     problem: Option<ConfigProblem>,
     save_failed: Option<String>,
@@ -329,6 +331,7 @@ impl SettingsWindow {
             history: deps.history,
             caps: deps.caps,
             outputs: deps.outputs,
+            version: deps.version,
             page: Page::Home,
             problem,
             save_failed: None,

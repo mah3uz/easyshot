@@ -57,6 +57,11 @@ The full gate (`just check`) is run once on the combined branch before merging.
 Keep to two concurrent cargo builds on a shared machine. A local, gitignored
 `.cargo/config.toml` may set `sccache` and `jobs`.
 
+On Arch Linux, `just install` builds the package from your working tree and installs it
+with pacman (it asks for sudo); `just uninstall` removes it. `just package [profile]` only
+builds it, into `dist/`, from the same `packaging/aur/easyshot-bin/PKGBUILD` a release uses.
+A release build sets `EASYSHOT_RELEASE=1` so its version carries no commit hash.
+
 ## Patches to vendored GPUI
 
 `vendor/gpui-pre/` and `vendor/gpui-pre-linux/` are copied as-is from crates.io. Our

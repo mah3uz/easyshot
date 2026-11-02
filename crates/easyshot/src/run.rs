@@ -35,8 +35,8 @@ pub fn execute(
         match request {
             Request::Route(route) => send(&route, env, cancel, out, err).await,
             Request::Doctor { json, bundle } => doctor(json, bundle, env, out, err).await,
-            Request::Daemon => {
-                let _ = writeln!(err, "easyshot: the daemon is started by main, not sent");
+            Request::Daemon | Request::Completions(_) => {
+                let _ = writeln!(err, "easyshot: handled by main, not sent");
                 EXIT_ERROR
             }
         }

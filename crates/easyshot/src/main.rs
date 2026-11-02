@@ -41,7 +41,7 @@ fn long_version() -> &'static str {
     Box::leak(
         format!(
             "{}\nfeatures: {}",
-            env!("CARGO_PKG_VERSION"),
+            env!("EASYSHOT_VERSION"),
             enabled.join(", ")
         )
         .into_boxed_str(),
@@ -49,7 +49,10 @@ fn long_version() -> &'static str {
 }
 
 fn main() -> ExitCode {
-    let matches = Cli::command().long_version(long_version()).get_matches();
+    let matches = Cli::command()
+        .version(env!("EASYSHOT_VERSION"))
+        .long_version(long_version())
+        .get_matches();
     let cli = match Cli::from_arg_matches(&matches) {
         Ok(cli) => cli,
         Err(e) => e.exit(),
@@ -63,6 +66,15 @@ fn main() -> ExitCode {
     };
     if request == Request::Daemon {
         return daemon_main();
+    }
+    if let Request::Completions(shell) = request {
+        clap_complete::generate(
+            shell,
+            &mut Cli::command(),
+            "easyshot",
+            &mut std::io::stdout(),
+        );
+        return ExitCode::SUCCESS;
     }
     let (cancel_tx, cancel_rx) = async_channel::bounded::<()>(1);
     let _ = ctrlc::set_handler(move || {

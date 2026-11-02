@@ -61,6 +61,8 @@ pub enum Command {
     },
     /// Run the daemon
     Daemon,
+    /// Print a shell completion script
+    Completions { shell: clap_complete::Shell },
 }
 
 #[derive(Args, Debug)]
@@ -111,6 +113,7 @@ pub enum Request {
     Route(Route),
     Doctor { json: bool, bundle: bool },
     Daemon,
+    Completions(clap_complete::Shell),
 }
 
 fn parse_page(name: &str) -> std::result::Result<SettingsPage, String> {
@@ -160,6 +163,7 @@ impl Cli {
                 bundle: *bundle,
             },
             Command::Daemon => Request::Daemon,
+            Command::Completions { shell } => Request::Completions(*shell),
         })
     }
 }
@@ -326,5 +330,30 @@ mod tests {
             }
         );
         assert_eq!(request(&["daemon"]).unwrap(), Request::Daemon);
+    }
+
+    #[test]
+    fn completions_cover_every_subcommand_and_are_not_routes() {
+        use clap::CommandFactory;
+        for shell in [
+            clap_complete::Shell::Bash,
+            clap_complete::Shell::Zsh,
+            clap_complete::Shell::Fish,
+        ] {
+            assert_eq!(
+                request(&["completions", &shell.to_string()]).unwrap(),
+                Request::Completions(shell)
+            );
+            let mut script = Vec::new();
+            clap_complete::generate(shell, &mut Cli::command(), "easyshot", &mut script);
+            let script = String::from_utf8(script).unwrap();
+            for sub in Cli::command().get_subcommands() {
+                assert!(
+                    script.contains(sub.get_name()),
+                    "{shell}: {} missing",
+                    sub.get_name()
+                );
+            }
+        }
     }
 }

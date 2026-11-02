@@ -8,6 +8,35 @@ default:
 build:
     cargo build --release -p easyshot
 
+# Build the Arch package from the working tree into dist/, as a release's would be built from its tarball
+package profile="release":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cargo build --profile {{ profile }} --locked -p easyshot --features sound,player,portal-recorder
+    src=packaging/aur/easyshot-bin
+    name=easyshot-$(sed -n 's/^pkgver=//p' $src/PKGBUILD)-x86_64-unknown-linux-gnu
+    rm -rf dist/build && mkdir -p dist/build
+    packaging/stage.sh target/{{ profile }} . "dist/build/$name"
+    tar -C dist/build -czf "dist/build/$name.tar.gz" "$name"
+    cp $src/PKGBUILD dist/build/
+    # The package a release serves, made from this tarball in place of the release's.
+    (cd dist/build && PKGDEST=$PWD makepkg -f --skipchecksums)
+    mv dist/build/easyshot-bin-*.pkg.tar.zst dist/
+    rm -rf dist/build
+
+# On Arch Linux: build the package from the working tree and install it with pacman
+install: (package "fast")
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Built without link-time optimisation, as the benches build: a change is ready in minutes, not many.
+    src=packaging/aur/easyshot-bin/PKGBUILD
+    sudo pacman -U "dist/easyshot-bin-$(sed -n 's/^pkgver=//p' $src)-$(sed -n 's/^pkgrel=//p' $src)-x86_64.pkg.tar.zst"
+    easyshot --version
+
+# Remove the installed package. Settings and captures are left alone
+uninstall:
+    sudo pacman -R easyshot-bin
+
 # Run the app from this checkout (release); arguments go to easyshot
 run *ARGS: build
     ./target/release/easyshot {{ ARGS }}

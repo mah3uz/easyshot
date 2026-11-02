@@ -197,7 +197,7 @@ pub fn run(_args: DaemonArgs) -> Result<()> {
     let ring = crash::LogRing::default();
     let _log = init_logging(&paths, &ring);
     let crash_context = crash::Context {
-        version: env!("CARGO_PKG_VERSION").to_owned(),
+        version: env!("EASYSHOT_VERSION").to_owned(),
         features: crate::enabled_features(),
         providers: Default::default(),
     };

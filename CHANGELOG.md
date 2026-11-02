@@ -4,6 +4,7 @@
 
 ### New
 
+- Shell completions for bash, zsh and fish (`easyshot completions <shell>`).
 - The `easyshot` command line: capture, record, OCR, settings and the other commands, plus `easyshot doctor` with `--json` and `--bundle`.
 - Crop, rotate and flip the image in the editor; annotations follow, and each step can be undone.
 - Scrolling capture: select an area, scroll, and get one tall image.

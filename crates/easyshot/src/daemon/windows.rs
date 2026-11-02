@@ -238,6 +238,7 @@ fn open_settings(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>> {
         binds: w.binds.clone(),
         clipboard: Rc::new(settings::SystemClipboard),
         outputs: (w.outputs)().into_iter().map(|o| o.id.0).collect(),
+        version: env!("EASYSHOT_VERSION").to_owned(),
     };
     let window = opened(settings::open(deps, cx))?;
     let view = window

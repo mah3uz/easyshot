@@ -331,7 +331,7 @@ impl SettingsWindow {
                         .child(fl!("about-title")),
                 )
                 .child(caption(
-                    fl!("about-version-short", version = env!("CARGO_PKG_VERSION")),
+                    fl!("about-version-short", version = self.version.clone()),
                     cx,
                 ))
                 .child(
