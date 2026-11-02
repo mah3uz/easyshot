@@ -71,7 +71,7 @@ pub fn after_capture_plan(variant: CaptureVariant, cfg: &Config) -> Vec<Step> {
     let mut plan = Vec::new();
 
     let save = match variant {
-        CaptureVariant::Normal => rules.save,
+        CaptureVariant::Normal => cfg.general.auto_save && rules.save,
         CaptureVariant::RegionSave => true,
         CaptureVariant::RegionCopy | CaptureVariant::RegionAnnotate | CaptureVariant::RegionPin => {
             false

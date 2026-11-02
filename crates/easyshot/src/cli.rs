@@ -218,6 +218,20 @@ mod tests {
     }
 
     #[test]
+    fn every_catalogue_snippet_command_parses_back_to_its_route() {
+        for entry in es_protocol::CATALOGUE {
+            let es_protocol::Target::Route(expected) = &entry.target else {
+                continue;
+            };
+            if matches!(expected, Route::Open(_)) {
+                continue;
+            }
+            let args = expected.command_args();
+            assert_eq!(&route(&args), expected, "{}: {args:?}", entry.id);
+        }
+    }
+
+    #[test]
     fn every_subcommand_maps_to_its_route() {
         let table: &[(&[&str], Route)] = &[
             (&["capture", "region"], Route::CaptureRegion),

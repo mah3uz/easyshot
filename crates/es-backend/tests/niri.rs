@@ -276,7 +276,8 @@ fn niri_snippet_is_kdl_and_existing_binds_come_from_the_config() {
             (Trigger("Mod+O".into()), Route::Open("/tmp/a.png".into())),
             (Trigger("Mod+Shift+O".into()), Route::Ocr),
         ]),
-        "Mod+Shift+4 { spawn \"easyshot\" \"capture\" \"region\"; }\n\
+        "// Paste inside your binds { } block\n\
+         Mod+Shift+4 { spawn \"easyshot\" \"capture\" \"region\"; }\n\
          Mod+Shift+O { spawn \"easyshot\" \"ocr\"; }\n"
     );
     assert!(matches!(binds.existing_binds(), Err(Error::NotFound(_))));

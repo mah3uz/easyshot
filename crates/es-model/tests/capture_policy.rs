@@ -19,6 +19,18 @@ fn fresh_install_saves_copies_and_shows_the_card() {
 }
 
 #[test]
+fn auto_save_off_keeps_the_card_but_writes_no_file() {
+    let p = plan(CaptureVariant::Normal, |c| c.general.auto_save = false);
+    assert_eq!(p, [Step::Copy, Step::ShowPreview]);
+}
+
+#[test]
+fn auto_save_off_leaves_the_explicit_save_variant_saving() {
+    let p = plan(CaptureVariant::RegionSave, |c| c.general.auto_save = false);
+    assert!(p.contains(&Step::Save));
+}
+
+#[test]
 fn an_upgrade_that_never_enabled_saving_does_not_save() {
     let p = plan(CaptureVariant::Normal, |c| {
         c.after_capture.screenshot.save = false

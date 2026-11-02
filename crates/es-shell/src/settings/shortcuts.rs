@@ -369,7 +369,7 @@ impl SettingsWindow {
             let t = tokens(cx);
             let title = loader().get(r.entry.title_id);
             let route = route_of(r.entry)
-                .map(|route| fl!("shortcuts-route", route = route.as_str().replace('/', " ")));
+                .map(|route| fl!("shortcuts-route", route = route.command_args().join(" ")));
             let mark = match self.shortcuts.status.get(r.entry.id) {
                 Some(BindStatus::Bound) => {
                     Some(status_mark(true, fl!("shortcuts-status-bound"), cx).into_any_element())

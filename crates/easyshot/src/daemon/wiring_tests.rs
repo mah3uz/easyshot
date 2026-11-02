@@ -342,3 +342,19 @@ fn audio_devices_come_through_the_runner_and_fail_to_none() {
     );
     assert!(devices_from(Rc::new(NoAudio))().is_empty());
 }
+
+#[test]
+fn editors_open_fullscreen_only_when_the_setting_is_on() {
+    let bounds = gpui::Bounds::new(
+        gpui::point(gpui::px(0.), gpui::px(0.)),
+        gpui::size(gpui::px(1.), gpui::px(1.)),
+    );
+    assert!(matches!(
+        super::windows::editor_bounds(true, bounds),
+        gpui::WindowBounds::Fullscreen(_)
+    ));
+    assert!(matches!(
+        super::windows::editor_bounds(false, bounds),
+        gpui::WindowBounds::Windowed(_)
+    ));
+}

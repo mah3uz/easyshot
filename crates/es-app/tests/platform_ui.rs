@@ -274,3 +274,46 @@ fn toast_icons_reach_the_card() {
         Some(es_ui::icons::IconName::TriangleAlert)
     );
 }
+
+struct TwoOutputs;
+
+impl es_app::platform_ui::OutputSource for TwoOutputs {
+    fn outputs(&self) -> Vec<es_model::platform::OutputInfo> {
+        ["DP-1", "HDMI-1"]
+            .iter()
+            .map(|name| es_model::platform::OutputInfo {
+                id: out(name),
+                description: String::new(),
+                logical: Rect::new(0., 0., 100., 100.),
+                physical: (100, 100),
+                scale: 1.0,
+                transform: es_model::platform::Transform::Normal,
+                refresh_mhz: 60_000,
+                focused: None,
+            })
+            .collect()
+    }
+    fn pointer_output(&self) -> Option<OutputId> {
+        Some(out("DP-1"))
+    }
+    fn focused_output(&self) -> Option<OutputId> {
+        Some(out("DP-1"))
+    }
+    fn pointer_global(&self) -> Option<Point> {
+        None
+    }
+}
+
+#[test]
+fn the_selector_opens_on_the_pinned_screen_only_when_it_is_chosen_and_connected() {
+    use es_app::platform_ui::{OutputSource, PinnedOutput, PinnedOutputSource};
+    let pinned = PinnedOutput::default();
+    let source = PinnedOutputSource::new(Arc::new(TwoOutputs), pinned.clone());
+    assert_eq!(source.pointer_output(), Some(out("DP-1")));
+    pinned.set(false, "HDMI-1");
+    assert_eq!(source.pointer_output(), Some(out("HDMI-1")));
+    pinned.set(true, "HDMI-1");
+    assert_eq!(source.pointer_output(), Some(out("DP-1")));
+    pinned.set(false, "unplugged");
+    assert_eq!(source.pointer_output(), Some(out("DP-1")));
+}

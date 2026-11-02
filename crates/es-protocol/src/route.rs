@@ -150,6 +150,26 @@ impl Route {
         }
     }
 
+    /// The words after `easyshot` on a command line that runs this route.
+    pub fn command_args(&self) -> Vec<&'static str> {
+        match self {
+            Route::CaptureRegionCopy => vec!["capture", "region", "--copy"],
+            Route::CaptureRegionSave => vec!["capture", "region", "--save"],
+            Route::CaptureRegionAnnotate => vec!["capture", "region", "--annotate"],
+            Route::CaptureRegionPin => vec!["capture", "region", "--pin"],
+            Route::OcrSingleLine => vec!["ocr", "--single-line"],
+            Route::Settings(Some(page)) => vec!["settings", page.as_str()],
+            Route::Settings(None) => vec!["settings"],
+            Route::Open(_) => vec!["open"],
+            other => PLAIN
+                .iter()
+                .find(|(_, r)| r == other)
+                .map_or("", |(name, _)| name)
+                .split('/')
+                .collect(),
+        }
+    }
+
     pub fn args(&self) -> RouteArgs {
         let mut args = RouteArgs::default();
         if let Route::Open(path) = self {

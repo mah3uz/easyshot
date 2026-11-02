@@ -36,6 +36,7 @@ pub struct LayerUi {
     pub surfaces: Rc<LayerShellSurfaces>,
     pub tray: TrayUpdate,
     pub notify: Notify,
+    pub paths: es_store::Paths,
 }
 
 struct LayerShown {
@@ -73,6 +74,15 @@ impl Shown for LayerShown {
 }
 
 impl RecordingUi for LayerUi {
+    fn open_trim(&self, video: std::path::PathBuf, cx: &mut App) {
+        #[cfg(feature = "player")]
+        if let Err(e) = open_player(video, self.paths.clone(), cx) {
+            tracing::warn!(error = %e, "trim viewer");
+        }
+        #[cfg(not(feature = "player"))]
+        let _ = (video, cx, &self.paths);
+    }
+
     fn show(&self, recorded: &Recorded, bar: &Entity<ControlBar>, cx: &mut App) -> Box<dyn Shown> {
         let outputs = self.surfaces.source().outputs();
         let mut shown = LayerShown {

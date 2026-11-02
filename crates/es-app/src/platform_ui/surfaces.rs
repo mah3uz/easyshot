@@ -18,7 +18,7 @@ use std::time::{Duration, Instant};
 // A stale output scale must not leave a surface blank for good.
 const GATE_LIMIT: Duration = Duration::from_millis(250);
 
-pub trait OutputSource {
+pub trait OutputSource: Send + Sync {
     fn outputs(&self) -> Vec<OutputInfo>;
     fn pointer_output(&self) -> Option<OutputId>;
     fn focused_output(&self) -> Option<OutputId>;
