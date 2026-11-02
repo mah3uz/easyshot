@@ -1,6 +1,7 @@
 pub mod crop;
 pub mod doc;
 pub mod io;
+pub mod journal;
 pub mod look;
 pub mod viewport;
 
@@ -70,9 +71,8 @@ impl EditorSession {
                     None => return Task::ready(Err(Error::NotFound(id.to_string()))),
                 }
             }
-            EditorSource::Staged(_) | EditorSource::Recovery(_) => {
-                return Task::ready(Err(Error::Unsupported));
-            }
+            EditorSource::Recovery(journal) => return Self::recover(journal, cx),
+            EditorSource::Staged(_) => return Task::ready(Err(Error::Unsupported)),
         };
         let loading = cx
             .background_executor()
@@ -83,6 +83,34 @@ impl EditorSession {
         })
     }
 
+    fn recover(journal: PathBuf, cx: &mut App) -> Task<Result<Self>> {
+        let loading = cx.background_executor().spawn(async move {
+            let entry = journal::load(&journal)
+                .map_err(|e| Error::Protocol(e.to_string()))?
+                .ok_or_else(|| Error::NotFound(journal.display().to_string()))?;
+            let reopened = es_store::reopen(&entry.display);
+            let mut opened = load(&entry.display)?;
+            if entry.base_image != reopened.source {
+                opened.base = image::open(&entry.base_image)
+                    .map_err(|e| Error::Protocol(e.to_string()))?
+                    .to_rgba8();
+            }
+            let baseline = reopened.document.unwrap_or_default();
+            opened.document = entry.document;
+            let session = journal::session_of(&journal).unwrap_or_default();
+            Ok::<_, Error>((opened, baseline, session, BundledText::bundled()))
+        });
+        cx.spawn(async move |cx| {
+            let (opened, baseline, session, text) = loading.await?;
+            Ok(cx.update(|cx| {
+                let this = Self::new(opened, Arc::new(text), cx);
+                this.io
+                    .update(cx, |io, _| io.adopt_recovery(session, baseline));
+                this
+            }))
+        })
+    }
+
     pub fn new(mut opened: Opened, text: Arc<BundledText>, cx: &mut App) -> Self {
         let services = cx.try_global::<Services>();
         let paths = services.map(|s| s.stores.paths.clone());
@@ -90,12 +118,13 @@ impl EditorSession {
         look::opening_look(&mut opened.document, paths.as_ref(), config.as_deref());
         let doc = cx.new(|_| DocModel::new(opened, text, &StylePreset::default()));
         let viewport = cx.new(|cx| ViewportModel::new(doc.clone(), cx));
+        let io = cx.new(|cx| EditorIo::new(doc.clone(), cx));
         Self {
             look: cx.new(|cx| LookModel::new(doc.clone(), paths, cx)),
             doc,
+            io,
             viewport,
             crop: cx.new(|_| CropModel {}),
-            io: cx.new(|_| EditorIo {}),
         }
     }
 

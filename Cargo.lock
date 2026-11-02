@@ -2065,6 +2065,7 @@ dependencies = [
  "kurbo 0.13.1",
  "rayon",
  "rust-embed",
+ "serde",
  "smallvec",
  "tempfile",
  "thiserror 2.0.21",

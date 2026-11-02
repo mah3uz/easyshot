@@ -51,6 +51,16 @@ pub enum EditorWindowEvent {
     Copy,
 }
 
+impl EditorWindowEvent {
+    pub(crate) fn job(self) -> Job {
+        match self {
+            Self::Save => Job::Save,
+            Self::Export => Job::Export,
+            Self::Copy => Job::Copy,
+        }
+    }
+}
+
 impl From<Job> for EditorWindowEvent {
     fn from(job: Job) -> Self {
         match job {
@@ -88,6 +98,8 @@ pub struct EditorWindow {
     copy: Action,
     error: Option<SharedString>,
     focus_canvas: bool,
+    pub(crate) held: Option<crate::keyboard::Command>,
+    guard_hooked: bool,
     shown_title: SharedString,
     _loading: Option<Task<()>>,
     _subscriptions: Vec<Subscription>,
@@ -109,6 +121,8 @@ impl EditorWindow {
             copy: Action::default(),
             error: None,
             focus_canvas: false,
+            held: None,
+            guard_hooked: false,
             shown_title: SharedString::default(),
             _loading: None,
             _subscriptions: Vec::new(),
@@ -142,6 +156,10 @@ impl EditorWindow {
                 self._subscriptions = vec![
                     cx.observe(&session.doc, |_, _, cx| cx.notify()),
                     cx.observe(&session.viewport, |_, _, cx| cx.notify()),
+                    cx.observe(&session.io, |_, _, cx| cx.notify()),
+                    cx.subscribe_self(|this, event: &EditorWindowEvent, cx| {
+                        this.run_job(event.job(), cx)
+                    }),
                     cx.subscribe(&tool_row, |this, row, event: &ToolRowEvent, cx| {
                         if *event == ToolRowEvent::ToggleInspector {
                             this.toggle_inspector(cx);
@@ -479,8 +497,25 @@ impl Render for EditorWindow {
             window.focus(&focus, cx);
             self.focus_canvas = false;
         }
+        if !self.guard_hooked {
+            self.guard_hooked = true;
+            let this = cx.entity();
+            window.on_window_should_close(cx, move |window, cx| {
+                this.update(cx, |w, cx| w.should_close(window, cx))
+            });
+        }
+        let dialog = self.close_dialog(&t, cx);
         div()
             .id("editor-window")
+            .key_context(crate::keyboard::CONTEXT)
+            .on_action(cx.listener(|w, a: &crate::keyboard::Run, window, cx| {
+                if !w.run_command(a.0, window, cx) {
+                    cx.propagate();
+                }
+            }))
+            .on_key_down(cx.listener(|w, e, _, cx| w.on_editor_key(e, cx)))
+            .on_key_up(cx.listener(|w, _, _, _| w.held = None))
+            .relative()
             .flex()
             .flex_col()
             .size_full()
@@ -500,5 +535,6 @@ impl Render for EditorWindow {
                     .child(self.workspace(&t)),
             )
             .child(self.footer(cx))
+            .children(dialog)
     }
 }

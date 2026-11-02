@@ -306,3 +306,6 @@ editor-close-guard-this-screenshot = this screenshot
 editor-close-guard-info = Your changes since the last save will be lost if you don't save them.
 editor-close-guard-save = Save and Close
 editor-close-guard-discard = Discard Changes
+editor-close-guard-cancel = Cancel
+editor-close-guard-a11y = Unsaved changes
+editor-error-unavailable = Saving and copying are not available here.
