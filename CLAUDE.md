@@ -3,7 +3,9 @@
 Screenshot, annotation and screen-recording app for Linux/Wayland: built with
 Rust. Rust · GPUI · Hyprland, sway and niri first.
 
-Status: the workspace skeleton exists and nothing is implemented yet.
+Status: the libraries, overlays, editor, shell windows and CLI are built and tested on
+their own (headless windows and headless sway); the daemon that connects them is not, so
+the app does not run end to end. Nothing has run on Hyprland or niri.
 
 ## Read first
 
