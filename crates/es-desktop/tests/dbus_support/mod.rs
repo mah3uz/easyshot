@@ -12,8 +12,17 @@ pub struct PrivateBus {
 
 impl PrivateBus {
     pub fn start() -> PrivateBus {
+        // No service directories: a test must never activate a real desktop service.
+        let config = std::path::Path::new(env!("CARGO_TARGET_TMPDIR"))
+            .join(format!("private-bus-{}.conf", std::process::id()));
+        std::fs::write(
+            &config,
+            r#"<busconfig><type>session</type><listen>unix:tmpdir=/tmp</listen><policy context="default"><allow send_destination="*" eavesdrop="true"/><allow eavesdrop="true"/><allow own="*"/></policy></busconfig>"#,
+        )
+        .expect("bus config");
         let mut child = Command::new("dbus-daemon")
-            .args(["--session", "--nofork", "--print-address=1"])
+            .arg(format!("--config-file={}", config.display()))
+            .args(["--nofork", "--print-address=1"])
             .stdout(Stdio::piped())
             .spawn()
             .expect("dbus-daemon is installed");

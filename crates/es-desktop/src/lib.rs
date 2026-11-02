@@ -1,4 +1,23 @@
+mod autostart;
+mod bus;
 pub mod dbus;
+mod files;
+mod noop;
+mod notify;
+mod portal;
+mod sound;
+mod tray;
+
+pub use autostart::{autostart_enabled, autostart_file, set_autostart, set_autostart_in};
+pub use bus::Labels;
+pub use files::{move_to_trash, show_in_file_manager, show_items};
+pub use noop::{RecordingNotifier, RecordingShortcuts, RecordingSound, RecordingTray};
+pub use notify::DesktopNotifier;
+pub use portal::{PortalAppearance, PortalFilePicker, PortalShortcuts, portal_trigger};
+#[cfg(feature = "sound")]
+pub use sound::RodioSound;
+pub use sound::Sound;
+pub use tray::{IconPixmap, KsniTray, watcher_present};
 
 use es_protocol::{Route, ShortcutEntry};
 use futures::future::BoxFuture;
