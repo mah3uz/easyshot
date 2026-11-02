@@ -69,6 +69,7 @@ impl EditorCanvas {
         let pointer = self.pointer_info(e.position, e.modifiers, e.click_count, button, cx);
         self.doc
             .update(cx, |d, cx| d.apply(cx, |ed| ed.pointer_down(pointer)));
+        self.place_caret(e.position, e.modifiers.shift, cx);
         cx.notify();
     }
 

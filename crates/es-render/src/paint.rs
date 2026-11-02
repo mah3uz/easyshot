@@ -1,7 +1,7 @@
-use crate::effects::{gaussian, redaction_patch};
+use crate::effects::{Patch, gaussian, redaction_patch};
 use crate::text::skia_path;
 use es_anno::draw::{DrawItem, DrawList, SPOTLIGHT_DIM};
-use es_geom::{Affine, Cap, FillRule, Join, Rect, Rgba};
+use es_geom::{Affine, BezPath, Cap, FillRule, Join, Rect, Rgba};
 use kurbo::{RoundedRect, RoundedRectRadii, Shape};
 use tiny_skia::{
     BlendMode, Color, LineCap, LineJoin, Paint, Path, Pixmap, PixmapPaint, Stroke, Transform,
@@ -207,36 +207,52 @@ const TEXT_SHADOW_SIGMA: f64 = 1.4;
 const TEXT_SHADOW_DROP: f64 = 1.0;
 
 fn text_shadow(target: &mut Pixmap, glyphs: &Path, ts: Transform, opacity: f64) {
+    if let Some(patch) = shadow_patch(glyphs, ts, opacity, Some((target.width(), target.height())))
+    {
+        patch.draw_onto(target);
+    }
+}
+
+/// The blurred shadow export paints under `glyphs`, in the pixel space `page_to_pixels` maps to.
+pub fn text_shadow_patch(glyphs: &BezPath, page_to_pixels: Affine, opacity: f64) -> Option<Patch> {
+    shadow_patch(
+        &skia_path(glyphs)?,
+        to_transform(page_to_pixels),
+        opacity,
+        None,
+    )
+}
+
+fn shadow_patch(
+    glyphs: &Path,
+    ts: Transform,
+    opacity: f64,
+    within: Option<(u32, u32)>,
+) -> Option<Patch> {
     let scale = f64::from(ts.sx).hypot(f64::from(ts.ky));
     let sigma = TEXT_SHADOW_SIGMA * scale;
     let drop = (TEXT_SHADOW_DROP * scale) as f32;
-    let Some(b) = glyphs.bounds().transform(ts) else {
-        return;
-    };
+    let b = glyphs.bounds().transform(ts)?;
     let pad = (sigma * 3.0).ceil() as i64 + 2;
-    let (tw, th) = (i64::from(target.width()), i64::from(target.height()));
-    let x0 = (b.left().floor() as i64 - pad).clamp(0, tw);
-    let y0 = (b.top().floor() as i64 - pad).clamp(0, th);
-    let x1 = (b.right().ceil() as i64 + pad).clamp(0, tw);
-    let y1 = ((b.bottom().ceil() + drop) as i64 + pad).clamp(0, th);
-    if x1 <= x0 || y1 <= y0 {
-        return;
-    }
-    let Some(mut layer) = Pixmap::new((x1 - x0) as u32, (y1 - y0) as u32) else {
-        return;
+    let clamp = |v: i64, max: u32| match within {
+        Some(_) => v.clamp(0, i64::from(max)),
+        None => v,
     };
+    let (tw, th) = within.unwrap_or((0, 0));
+    let x0 = clamp(b.left().floor() as i64 - pad, tw);
+    let y0 = clamp(b.top().floor() as i64 - pad, th);
+    let x1 = clamp(b.right().ceil() as i64 + pad, tw);
+    let y1 = clamp((b.bottom().ceil() + drop) as i64 + pad, th);
+    if x1 <= x0 || y1 <= y0 {
+        return None;
+    }
+    let mut layer = Pixmap::new((x1 - x0) as u32, (y1 - y0) as u32)?;
     let shadow = paint_for(Rgba::new(0.0, 0.0, 0.0, TEXT_SHADOW_ALPHA), opacity);
     let shifted = ts.post_translate(-(x0 as f32), -(y0 as f32) + drop);
     layer.fill_path(glyphs, &shadow, tiny_skia::FillRule::Winding, shifted, None);
-    let Some(blurred) = gaussian(&layer, sigma) else {
-        return;
-    };
-    target.draw_pixmap(
-        x0 as i32,
-        y0 as i32,
-        blurred.as_ref(),
-        &PixmapPaint::default(),
-        Transform::identity(),
-        None,
-    );
+    Some(Patch {
+        pixmap: gaussian(&layer, sigma)?,
+        x: x0 as i32,
+        y: y0 as i32,
+    })
 }

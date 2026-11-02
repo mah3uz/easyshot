@@ -1,8 +1,8 @@
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use es_geom::Size;
 use es_model::shape::{self, TextProps};
-use es_text::{FontFamily, TextAlign, TextEngine, TextStyle};
+use es_text::{FontFamily, TextAlign, TextEngine, TextLayout, TextStyle};
 
 use crate::{GlyphOutline, GlyphOutliner, TextMeasure};
 
@@ -19,6 +19,12 @@ impl BundledText {
 
     pub fn bundled() -> Self {
         Self::new(TextEngine::bundled())
+    }
+
+    /// The same layout the glyph outlines come from, for caret and selection geometry.
+    pub fn layout(&self, props: &TextProps) -> Arc<TextLayout> {
+        self.engine()
+            .measure(&props.text, &style(props), wrap(props))
     }
 
     fn engine(&self) -> MutexGuard<'_, TextEngine> {

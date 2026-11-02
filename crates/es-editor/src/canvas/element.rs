@@ -115,10 +115,18 @@ impl Element for CanvasElement {
                     }
                 });
             }
-            for p in frame.shapes.into_iter().chain(chrome) {
+            let mut shadows = frame.shadows.into_iter().peekable();
+            for (i, p) in frame.shapes.into_iter().enumerate() {
+                while let Some((_, at, image)) = shadows.next_if(|s| s.0 == i) {
+                    paint_image(window, bounds, at, Corners::default(), image);
+                }
+                window.paint_path(p.path, p.color);
+            }
+            for p in chrome {
                 window.paint_path(p.path, p.color);
             }
         });
+        super::text_edit::register_input(&self.view, bounds, window, cx);
         self.register_pan(hitbox, window, cx);
     }
 }

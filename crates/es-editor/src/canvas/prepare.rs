@@ -2,7 +2,7 @@ use super::grid::{self, GridKey};
 use super::paths::{self, Bucket, Painted, Placement};
 use super::tiles::{self, BaseTiles};
 use super::underlay::{self, UnderlayKey};
-use super::{EditorCanvas, FrameStats, ShapeEntry, SpotEntry};
+use super::{EditorCanvas, FrameStats, ShapeEntry, SpotEntry, text_shadow};
 use es_anno::draw::{SPOTLIGHT_DIM, draw_items};
 use es_anno::{BuildContext, DrawItem, Viewport, build_draw_list};
 use es_geom::{Rect, Rgba, Size};
@@ -19,6 +19,8 @@ pub struct Prepared {
     pub image: Bounds<Pixels>,
     pub spotlight: Vec<Painted>,
     pub shapes: Vec<Painted>,
+    /// Text shadows, each painted just before the shape path at its index.
+    pub shadows: Vec<(usize, Bounds<Pixels>, Arc<RenderImage>)>,
     pub retired: Vec<Arc<RenderImage>>,
 }
 
@@ -57,6 +59,7 @@ impl EditorCanvas {
         let mut stats = FrameStats::default();
         let mut retired = std::mem::take(&mut self.retired);
         let t = es_ui::theme::tokens(cx);
+        let accent = t.accent;
         let grid_key = GridKey {
             scale_factor: sf,
             workspace: t.workspace,
@@ -145,21 +148,22 @@ impl EditorCanvas {
 
         let bucket = Bucket::for_scale(vp.scale, sf);
         let at = Placement::new(bounds.origin, &vp, bucket);
+        self.sync_text_edit(cx);
         let doc = self.doc.read(cx);
         let editor = doc.editor();
         let document = editor.doc();
-        let editing = editor.editing_text_id();
         let live = editor.live_stroke().map(|(id, _)| id);
         let text = doc.text().clone();
         let build = BuildContext::new(&*text);
         let mut redactions = Vec::new();
         let mut holes = Vec::new();
         let mut shapes_out = Vec::new();
+        let mut shadows = Vec::new();
         for shape in document.shapes() {
             let Some(revision) = document.revision(shape.id) else {
                 continue;
             };
-            if Some(shape.id) == editing || Some(shape.id) == live {
+            if Some(shape.id) == live {
                 continue;
             }
             if shape.is_redaction() {
@@ -169,6 +173,14 @@ impl EditorCanvas {
             if shape.is_highlight() {
                 holes.push((shape.id, revision));
                 continue;
+            }
+            if shape.is_text()
+                && let Some((page, image)) = self
+                    .text_shadows
+                    .track(document, shape, revision, bucket, &build)
+            {
+                let screen = text_shadow::on_screen(&vp, page);
+                shadows.push((shapes_out.len(), window_rect(bounds.origin, screen), image));
             }
             let entry = self.shapes.entry(shape.id).or_insert_with(|| ShapeEntry {
                 revision: 0,
@@ -192,13 +204,17 @@ impl EditorCanvas {
             shapes_out.extend(entry.placed.iter().cloned());
         }
         shapes_out.extend(self.live.paths(editor, bucket, at, &mut stats));
+        shapes_out.extend(self.text_edit_overlay(&vp, bounds.origin, bucket, accent, &text, cx));
         if self.shapes.len() > document.shapes().len() {
             self.shapes.retain(|id, _| document.shape(*id).is_some());
         }
+        self.text_shadows
+            .retain(|id| document.shape(id).is_some(), &mut retired);
 
         let spotlight = self.spotlight_paths(doc, &holes, bucket, at, &math.layout.image_radii);
         stats.paths_painted = shapes_out.len() + spotlight.len();
         self.stats = stats;
+        self.start_text_shadows(cx);
         Prepared {
             grid,
             underlay,
@@ -208,6 +224,7 @@ impl EditorCanvas {
             image: window_rect(bounds.origin, image_rect),
             spotlight,
             shapes: shapes_out,
+            shadows,
             retired,
         }
     }

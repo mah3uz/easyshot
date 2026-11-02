@@ -63,3 +63,29 @@ fn the_shadow_fades_with_the_text_opacity() {
     let out = paint(&DrawList { items: vec![group] });
     assert_eq!(out.pixel(30, 41).unwrap().red(), 255);
 }
+
+#[test]
+fn the_shadow_patch_is_the_shadow_export_paints() {
+    let invisible = DrawList {
+        items: vec![DrawItem::Text {
+            glyphs: rect_path(20.0, 20.0, 40.0, 40.0),
+            color: Rgba::new(0.0, 0.0, 0.0, 0.0),
+            underline: vec![],
+        }],
+    };
+    let exported = paint(&invisible);
+    let mut placed = Pixmap::new(60, 60).unwrap();
+    placed.fill(Color::WHITE);
+    es_render::paint::text_shadow_patch(&rect_path(20.0, 20.0, 40.0, 40.0), Affine::IDENTITY, 1.0)
+        .unwrap()
+        .draw_onto(&mut placed);
+    assert_eq!(
+        placed.data(),
+        exported.data(),
+        "a canvas built from the patch shows the export's shadow"
+    );
+    assert!(
+        exported.pixel(30, 41).unwrap().red() < 245,
+        "the shadow is there to compare"
+    );
+}

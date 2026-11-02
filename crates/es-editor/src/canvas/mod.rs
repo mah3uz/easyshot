@@ -6,10 +6,13 @@ mod live;
 pub mod paths;
 mod prepare;
 pub mod redaction;
+mod text_edit;
+pub mod text_shadow;
 pub mod tiles;
 pub mod underlay;
 
 pub use element::CanvasElement;
+pub use text_edit::{CARET_BLINK, TextEditState};
 
 use crate::session::EditorSession;
 use crate::session::doc::DocModel;
@@ -82,6 +85,8 @@ pub struct EditorCanvas {
     redaction_painter: Option<RedactionPainter>,
     redactions: Rc<RefCell<Redactions>>,
     live: LiveCache,
+    text_edit: Option<text_edit::TextEdit>,
+    text_shadows: text_shadow::TextShadows,
     cursors: Cursors,
     cursor: CursorStyle,
     bounds: Bounds<Pixels>,
@@ -116,6 +121,8 @@ impl EditorCanvas {
             redaction_painter: Some(painter),
             redactions,
             live: LiveCache::default(),
+            text_edit: None,
+            text_shadows: Default::default(),
             cursors: crate::cursor::cursors(cx),
             cursor: CursorStyle::Arrow,
             bounds: Bounds::default(),
@@ -211,8 +218,13 @@ impl EditorCanvas {
     }
 
     fn on_key_down(&mut self, e: &KeyDownEvent, _: &mut Window, cx: &mut Context<Self>) {
-        let editing = self.doc.read(cx).editor().editing_text_id().is_some();
-        if e.keystroke.key == "space" && !editing {
+        if self.is_editing_text(cx) {
+            if self.text_key_down(e, cx) {
+                cx.stop_propagation();
+            }
+            return;
+        }
+        if e.keystroke.key == "space" {
             if !self.space_held {
                 self.space_held = true;
                 cx.notify();
