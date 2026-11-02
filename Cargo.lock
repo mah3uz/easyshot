@@ -2124,6 +2124,7 @@ dependencies = [
  "es-backend",
  "es-geom",
  "es-model",
+ "es-protocol",
  "es-record",
  "es-render",
  "es-scroll",

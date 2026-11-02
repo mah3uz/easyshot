@@ -1,0 +1,105 @@
+use es_geom::{Point, Rect, Size};
+use es_model::platform::{OutputId, OutputInfo};
+
+/// Bottom of the bar above the bottom edge of the output, as for the capture bar.
+pub const HOME_LIFT: f64 = 48.0;
+const GAP: f64 = 8.0;
+const EDGE: f64 = 4.0;
+
+/// What a recording records, in global logical points.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Recorded {
+    Area(Rect),
+    Display(OutputId),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Placement {
+    On {
+        output: OutputId,
+        origin: Point,
+    },
+    /// No spot outside the video: the tray carries the controls.
+    Tray,
+}
+
+/// Bottom-centre of the output, where the capture bar opens.
+pub fn home(output: Rect, bar: Size) -> Point {
+    Point::new(
+        output.center().x - bar.width / 2.0,
+        output.y1 - HOME_LIFT - bar.height,
+    )
+}
+
+fn overlaps(a: Rect, b: Rect) -> bool {
+    let i = a.intersect(b);
+    i.width() > 0.0 && i.height() > 0.0
+}
+
+fn bar_at(origin: Point, bar: Size) -> Rect {
+    Rect::new(
+        origin.x,
+        origin.y,
+        origin.x + bar.width,
+        origin.y + bar.height,
+    )
+}
+
+/// Keeps the control bar out of the video: home if that misses the area, else just below it, else
+/// just above it, else home on another output; the bar stays horizontally centred on its output.
+pub fn control_bar(recorded: &Recorded, outputs: &[OutputInfo], bar: Size) -> Placement {
+    let area = match recorded {
+        Recorded::Area(area) => *area,
+        Recorded::Display(id) => match outputs.iter().find(|o| o.id == *id) {
+            Some(o) => o.logical,
+            None => return Placement::Tray,
+        },
+    };
+    let clear = |origin: Point| !overlaps(bar_at(origin, bar), area);
+    let main = outputs.iter().max_by(|a, b| {
+        let (ia, ib) = (a.logical.intersect(area), b.logical.intersect(area));
+        (ia.width().max(0.0) * ia.height().max(0.0))
+            .total_cmp(&(ib.width().max(0.0) * ib.height().max(0.0)))
+    });
+    if let Some(main) = main.filter(|o| overlaps(o.logical, area)) {
+        let out = main.logical;
+        let x = out.center().x - bar.width / 2.0;
+        let candidates = [
+            home(out, bar),
+            Point::new(x, area.y1 + GAP),
+            Point::new(x, area.y0 - GAP - bar.height),
+        ];
+        let inside = |p: Point| p.y >= out.y0 + EDGE && p.y + bar.height <= out.y1 - EDGE;
+        if let Some(origin) = candidates.into_iter().find(|p| inside(*p) && clear(*p)) {
+            return Placement::On {
+                output: main.id.clone(),
+                origin,
+            };
+        }
+    }
+    outputs
+        .iter()
+        .map(|o| (o, home(o.logical, bar)))
+        .find(|(o, p)| Some(&o.id) != main.map(|m| &m.id) && clear(*p))
+        .map_or(Placement::Tray, |(o, origin)| Placement::On {
+            output: o.id.clone(),
+            origin,
+        })
+}
+
+/// Four strips covering the output outside the area; empty ones are dropped.
+pub fn highlight_strips(area: Rect, output: Rect) -> Vec<Rect> {
+    let a = area.intersect(output);
+    if a.width() <= 0.0 || a.height() <= 0.0 {
+        return vec![output];
+    }
+    [
+        Rect::new(output.x0, output.y0, output.x1, a.y0),
+        Rect::new(output.x0, a.y1, output.x1, output.y1),
+        Rect::new(output.x0, a.y0, a.x0, a.y1),
+        Rect::new(a.x1, a.y0, output.x1, a.y1),
+    ]
+    .into_iter()
+    .filter(|r| r.width() > 0.0 && r.height() > 0.0)
+    .collect()
+}

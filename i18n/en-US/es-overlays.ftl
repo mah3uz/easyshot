@@ -49,11 +49,12 @@ pin-close = Close
 pin-a11y = Pinned screenshot
 
 ## Capture bar (picker mode)
+bar-a11y = Capture bar
 bar-caption-area = Area
-bar-caption-screen = Screen
+bar-caption-screen = Fullscreen
 bar-caption-window = Window
 bar-caption-scroll = Scroll
-bar-caption-text = Text
+bar-caption-text = OCR
 bar-caption-color = Color
 bar-caption-timer = Timer
 bar-caption-recording = Recording
@@ -113,6 +114,11 @@ rec-windows-refresh = Refresh Windows
 rec-display-item = { $name } ({ $w }x{ $h })
 rec-display-fallback = Display { $n }
 rec-mic-off = Off
+rec-delay-label = Start delay
+rec-delay-value = { $seconds } s
+rec-delay-a11y = Start delay, { $seconds } seconds
+rec-delay-less = Shorter start delay
+rec-delay-more = Longer start delay
 rec-a11y-display-single = Display - record the whole screen
 rec-a11y-display-multi = Display - choose which screen to record
 rec-a11y-window = Window - choose an app window to record
@@ -139,6 +145,15 @@ rec-bar-start-over-help = Start over
 rec-bar-discard-help = Discard recording
 rec-bar-stop-help = Stop and save the recording
 rec-bar-stop-a11y = Stop and save recording, { $time } elapsed
+rec-bar-a11y = Recording controls
+rec-confirm-restart-title = Start a new recording?
+rec-confirm-restart-message = This recording will be discarded and recording will start again.
+rec-confirm-restart = Start Over
+rec-confirm-discard-title = Discard this recording?
+rec-confirm-discard-message = This recording will be deleted without saving.
+rec-confirm-discard = Discard
+rec-confirm-cancel = Cancel
+rec-tray-notice = Recording — stop from the tray or { $shortcut }
 
 ## Scroll capture HUD
 scroll-title = Scroll Capture

@@ -14,6 +14,7 @@ es-geom.workspace = true
 es-model.workspace = true
 es-render.workspace = true
 es-record.workspace = true
+es-protocol.workspace = true
 es-scroll.workspace = true
 es-app.workspace = true
 es-ui.workspace = true
