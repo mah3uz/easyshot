@@ -132,3 +132,46 @@ pub fn changes(f: impl FnOnce(&mut Changes)) -> Changes {
     f(&mut c);
     c
 }
+
+use es_anno::{PointerButton, PointerInfo, Snapshot};
+
+/// A mouse press at a page point; the common editor shows the page at 1:1 from the origin.
+pub fn at(x: f64, y: f64) -> PointerInfo {
+    PointerInfo {
+        screen: Point::new(x, y),
+        page: Point::new(x, y),
+        shift: false,
+        alt: false,
+        ctrl: false,
+        is_pen: false,
+        pressure: 0.0,
+        click_count: 1,
+        button: PointerButton::Primary,
+    }
+}
+
+/// Down at `from`, through the midpoint, up at `to`; the moves and the release carry `to`'s keys.
+pub fn drag(ed: &mut Editor, from: PointerInfo, to: PointerInfo) {
+    ed.pointer_down(from);
+    let mid = Point::new(
+        (from.page.x + to.page.x) / 2.0,
+        (from.page.y + to.page.y) / 2.0,
+    );
+    ed.pointer_move(PointerInfo {
+        screen: mid,
+        page: mid,
+        ..to
+    });
+    ed.pointer_move(to);
+    ed.pointer_up(to);
+}
+
+/// The gesture made exactly one undo entry: one undo returns to `before`, redo returns to now.
+pub fn one_undo_entry(ed: &mut Editor, before: &Snapshot) {
+    let after = ed.doc().snapshot();
+    assert_ne!(&after, before, "the gesture must change the document");
+    ed.undo();
+    assert_eq!(&ed.doc().snapshot(), before);
+    ed.redo();
+    assert_eq!(ed.doc().snapshot(), after);
+}
