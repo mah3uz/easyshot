@@ -8,7 +8,9 @@ pub mod session;
 pub mod toolbar;
 pub mod window;
 
-pub use session::doc::DocEvent;
+pub use canvas::EditorCanvas;
+pub use session::doc::{DocEvent, DocModel, Opened};
+pub use session::viewport::{ViewportChanged, ViewportModel};
 pub use session::{EditorSession, EditorSource};
 
 #[derive(Debug, thiserror::Error)]

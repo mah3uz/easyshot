@@ -2057,10 +2057,12 @@ dependencies = [
  "futures",
  "gpui-pre",
  "gpui-pre-platform",
+ "image",
  "kurbo 0.13.1",
  "smallvec",
  "thiserror 2.0.21",
  "time",
+ "tiny-skia 0.12.0",
  "tracing",
  "uuid",
 ]

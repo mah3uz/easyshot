@@ -27,6 +27,8 @@ async-channel.workspace = true
 futures.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
+image.workspace = true
+tiny-skia.workspace = true
 
 [dev-dependencies]
 gpui = { workspace = true, features = ["test-support", "bench-support"] }
