@@ -10,11 +10,15 @@
     "og": "node scripts/og.mjs"
   },
   "dependencies": {
-    "nuxt": "4.6.2"
+    "nuxt": "4.6.4"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.3",
     "tailwindcss": "4.3.3",
-    "wrangler": "4.151.0"
+    "wrangler": "4.153.0"
+  },
+  "overrides": {
+    "glob": "14.0.3",
+    "minimatch": "11.0.3"
   }
 }

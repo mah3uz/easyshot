@@ -6,6 +6,8 @@ const siteUrl = process.env.NUXT_PUBLIC_SITE_URL || 'https://easyshot.dev'
 export default defineNuxtConfig({
   compatibilityDate: '2025-10-01',
   devtools: { enabled: false },
+  // Nuxt 4.6.4 resolves an unset host to `{}`, which crashes `nuxt dev`.
+  devServer: { host: process.env.NUXT_HOST || 'localhost' },
   css: ['~/assets/css/main.css'],
   vite: { plugins: [tailwindcss()] },
 
