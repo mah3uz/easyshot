@@ -1,6 +1,8 @@
+use crate::beautify::camera::{self, Quality};
 use crate::beautify::frame::{Frame, frame, paint_border, paint_image};
 use crate::beautify::gradients::draw_background;
 use crate::beautify::layout::{Layout, layout};
+use crate::beautify::progressive_blur;
 use crate::beautify::shadow::{paint_shadow, shadow_layer};
 use crate::paint::paint_draw_list;
 use es_anno::draw::{DrawItem, DrawList};
@@ -34,7 +36,7 @@ pub fn compose(
     let target = staged.as_mut().unwrap_or(&mut canvas);
     paint_card(target, image, annotations, settings, &lay, camera);
     if let Some(layer) = staged {
-        let layer = project_camera_layer(layer, settings);
+        let layer = project_camera_layer(layer, &lay, settings);
         canvas.draw_pixmap(
             0,
             0,
@@ -117,10 +119,12 @@ fn has_redaction(items: &[DrawItem]) -> bool {
     })
 }
 
-fn project_camera_layer(layer: Pixmap, _settings: &BackgroundSettings) -> Pixmap {
-    layer
+fn project_camera_layer(layer: Pixmap, lay: &Layout, settings: &BackgroundSettings) -> Pixmap {
+    camera::project(layer, lay, &settings.camera, Quality::Full)
 }
 
-fn apply_progressive_blur(_canvas: &mut Pixmap, _settings: &BackgroundSettings) {}
+fn apply_progressive_blur(canvas: &mut Pixmap, settings: &BackgroundSettings) {
+    progressive_blur::apply(canvas, &settings.progressive_blur);
+}
 
 fn paint_watermark(_canvas: &mut Pixmap, _settings: &BackgroundSettings) {}
