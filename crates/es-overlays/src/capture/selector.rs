@@ -6,8 +6,8 @@ use es_model::platform::Frame;
 use es_ui::a11y::{Accessible as _, Role};
 use es_ui::theme::UI_FONT;
 use gpui::{
-    App, Bounds, Context, Corners, CursorStyle, EventEmitter, FocusHandle, Focusable, Font,
-    FontFeatures, FontWeight, Hsla, InteractiveElement as _, IntoElement, KeyDownEvent,
+    App, BorderStyle, Bounds, Context, Corners, CursorStyle, EventEmitter, FocusHandle, Focusable,
+    Font, FontFeatures, FontWeight, Hsla, InteractiveElement as _, IntoElement, KeyDownEvent,
     MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, ParentElement as _, Pixels, Render,
     SharedString, StatefulInteractiveElement as _, Styled as _, TextAlign, TextRun, Window, canvas,
     div, fill, hsla, point, px, quad,
@@ -25,6 +25,8 @@ const LABEL_GAP: f32 = 4.0;
 const LABEL_INSET: f32 = 8.0;
 // The live hole stays hidden until the drag is bigger than a click's jitter.
 const LIVE_MIN: f64 = 2.0;
+const TEXT_TINT: f32 = 0.08;
+const TEXT_BORDER: f32 = 1.0;
 
 fn white(a: f32) -> Hsla {
     hsla(0., 0., 1., a)
@@ -42,6 +44,14 @@ pub enum SelectorEvent {
     Capture(Rect),
     Cancel,
     WindowMode,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SelectorStyle {
+    #[default]
+    Region,
+    /// Selecting text to recognise: undimmed, dashed, and with no window mode.
+    Text,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -67,6 +77,7 @@ pub struct RegionSelector {
     gesture: Option<Gesture>,
     pointer: Option<Point>,
     capture_on_release: bool,
+    style: SelectorStyle,
     focus: FocusHandle,
     focused: bool,
 }
@@ -100,9 +111,15 @@ impl RegionSelector {
             gesture: None,
             pointer: None,
             capture_on_release,
+            style: SelectorStyle::Region,
             focus: cx.focus_handle(),
             focused: false,
         }
+    }
+
+    pub fn with_style(mut self, style: SelectorStyle) -> Self {
+        self.style = style;
+        self
     }
 
     pub fn selection(&self) -> Option<Rect> {
@@ -207,7 +224,7 @@ impl RegionSelector {
     fn key(&mut self, e: &KeyDownEvent, cx: &mut Context<Self>) {
         match e.keystroke.key.as_str() {
             "escape" => cx.emit(SelectorEvent::Cancel),
-            "space" => cx.emit(SelectorEvent::WindowMode),
+            "space" if self.style == SelectorStyle::Region => cx.emit(SelectorEvent::WindowMode),
             "enter" | "kp_enter" => {
                 if let Some(sel) = self.selection {
                     cx.emit(SelectorEvent::Capture(sel));
@@ -251,6 +268,7 @@ impl RegionSelector {
             _ => None,
         };
         Scene {
+            text: self.style == SelectorStyle::Text,
             tiles: self.tiles.clone(),
             bounds: self.bounds,
             shown,
@@ -276,6 +294,7 @@ fn hover_cursor(h: Handle) -> CursorStyle {
 }
 
 struct Scene {
+    text: bool,
     tiles: Arc<[Tile]>,
     bounds: Rect,
     shown: Option<Rect>,
@@ -300,6 +319,18 @@ impl Scene {
         }
         let all = self.bounds;
         match self.shown {
+            Some(r) if self.text => {
+                let accent = super::paint::accent(cx);
+                window.paint_quad(quad(
+                    b(r.intersect(all)),
+                    Corners::default(),
+                    accent.opacity(TEXT_TINT),
+                    px(TEXT_BORDER),
+                    accent,
+                    BorderStyle::Dashed,
+                ));
+            }
+            None if self.text => {}
             None => window.paint_quad(fill(b(all), black(DIM))),
             Some(r) => {
                 let r = r.intersect(all);

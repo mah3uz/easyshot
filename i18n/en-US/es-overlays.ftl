@@ -154,3 +154,14 @@ scroll-start-auto-a11y = Start Automatic Scrolling
 scroll-stop-a11y = Stop Scrolling Capture
 scroll-hud-a11y = Scroll Capture, { $w } by { $h } points
 region-a11y = Select an area to capture. Drag to draw it, Return to capture, Escape to cancel.
+
+## Window mode
+window-a11y = Choose a window to capture. Click a window, Space to select an area instead, Escape to cancel.
+window-item = { $app } — { $title }
+window-untitled = Untitled window
+window-picker-title = Choose a window
+window-picker-empty = No app windows found
+window-picker-hint = ↑ ↓ to choose  ·  ↩ to capture  ·  space for an area  ·  esc
+
+## Colour picker
+color-a11y = Pick a colour. Click to copy its hex value, Escape to cancel.

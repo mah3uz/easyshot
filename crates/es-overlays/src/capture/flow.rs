@@ -1,15 +1,19 @@
+use super::color::{ColorEvent, ColorPicker};
 use super::geometry;
-use super::selector::{RegionSelector, SelectorEvent};
+use super::picker::WindowPicker;
+use super::selector::{RegionSelector, SelectorEvent, SelectorStyle};
+use super::window::{PickEvent, WindowSelector, window_frame};
+use super::windows;
 use es_app::errors::{Error, Result};
 use es_app::platform_ui::{
     LayerShellSurfaces, LayerSurfaceHandle, SelectMode, Selection, SelectionFlow, SurfaceHandle,
     SurfaceRole,
 };
 use es_backend::Backend;
-use es_geom::Rect;
+use es_geom::{Rect, Rgba};
 use es_model::LastRegion;
-use es_model::platform::{CaptureOpts, Frame, OutputId};
-use gpui::{App, AppContext as _, AsyncApp, Entity, Subscription, Task};
+use es_model::platform::{CaptureOpts, Frame, OutputId, WindowId, WindowInfo};
+use gpui::{AnyView, App, AppContext as _, AsyncApp, Entity, Subscription, Task};
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -62,18 +66,76 @@ impl LayerShellSelectionFlow {
         self.remember = remember;
         self
     }
+
+    fn duplicate(&self) -> Self {
+        LayerShellSelectionFlow {
+            surfaces: self.surfaces.clone(),
+            backend: self.backend.clone(),
+            options: self.options.clone(),
+            recall: self.recall.clone(),
+            remember: self.remember.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum View {
+    Region,
+    Text,
+    Window,
+    Color,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum Pick {
+    Began,
+    Region(Rect),
+    Window { id: WindowId, local: Option<Rect> },
+    Color(Rgba),
+    Cancel,
+    ToWindow,
+    ToRegion,
+}
+
+enum Content {
+    Region(Entity<RegionSelector>),
+    Window(Entity<WindowSelector>),
+    Picker(Entity<WindowPicker>),
+    Color(Entity<ColorPicker>),
+}
+
+impl Content {
+    fn view(&self) -> AnyView {
+        match self {
+            Content::Region(e) => e.clone().into(),
+            Content::Window(e) => e.clone().into(),
+            Content::Picker(e) => e.clone().into(),
+            Content::Color(e) => e.clone().into(),
+        }
+    }
 }
 
 struct Overlay {
     output: OutputId,
-    selector: Entity<RegionSelector>,
+    /// Global logical rectangle of the output.
+    logical: Rect,
+    frame: Arc<Frame>,
     handle: LayerSurfaceHandle,
+    content: Option<Content>,
+}
+
+struct Setup {
+    options: FlowOptions,
+    last: Option<LastRegion>,
+    windows: Vec<WindowInfo>,
+    geometry: bool,
 }
 
 /// Closes every overlay however the selection ends, including when the task is dropped.
 struct Open {
     overlays: Vec<Overlay>,
-    _subscriptions: Vec<Subscription>,
+    subscriptions: Vec<Subscription>,
+    tx: async_channel::Sender<(usize, Pick)>,
     cx: AsyncApp,
 }
 
@@ -105,20 +167,120 @@ fn remembered(output: &OutputId, local: Rect) -> LastRegion {
     }
 }
 
+fn pick(event: &PickEvent) -> Pick {
+    match event {
+        PickEvent::Window { id, local } => Pick::Window {
+            id: id.clone(),
+            local: *local,
+        },
+        PickEvent::Cancel => Pick::Cancel,
+        PickEvent::Region => Pick::ToRegion,
+    }
+}
+
+impl Open {
+    fn content(&self, view: View, index: usize, setup: &Setup, cx: &mut App) -> Option<Content> {
+        let o = self.overlays.get(index)?;
+        let frame = o.frame.clone();
+        let pid = std::process::id();
+        Some(match view {
+            View::Region | View::Text => {
+                let text = view == View::Text;
+                let pre = (!text)
+                    .then(|| preselect(setup.last.as_ref(), &o.output))
+                    .flatten();
+                let release = text || setup.options.capture_on_release;
+                let style = if text {
+                    SelectorStyle::Text
+                } else {
+                    SelectorStyle::Region
+                };
+                Content::Region(
+                    cx.new(|cx| RegionSelector::new(frame, pre, release, cx).with_style(style)),
+                )
+            }
+            // The list goes on the pointer's output only; the others just show the frozen screen.
+            View::Window if !setup.geometry => {
+                let items = (index == 0).then(|| windows::listed(&setup.windows, pid));
+                Content::Picker(cx.new(|cx| WindowPicker::new(&frame, items, cx)))
+            }
+            View::Window => {
+                let here = windows::on_output(&setup.windows, &o.output, o.logical, pid);
+                Content::Window(cx.new(|cx| WindowSelector::new(frame, here, cx)))
+            }
+            View::Color => Content::Color(cx.new(|cx| ColorPicker::new(frame, cx))),
+        })
+    }
+
+    fn show(&mut self, view: View, setup: &Setup, cx: &mut App) {
+        self.subscriptions.clear();
+        for index in 0..self.overlays.len() {
+            let content = self.content(view, index, setup, cx);
+            if let (Some(o), Some(content)) = (self.overlays.get_mut(index), content) {
+                o.handle.set_content(content.view(), cx);
+                o.content = Some(content);
+            }
+        }
+        let regions: Vec<Entity<RegionSelector>> = self
+            .overlays
+            .iter()
+            .filter_map(|o| match &o.content {
+                Some(Content::Region(e)) => Some(e.clone()),
+                _ => None,
+            })
+            .collect();
+        for (index, o) in self.overlays.iter().enumerate() {
+            let tx = self.tx.clone();
+            let send = move |pick: Pick| {
+                let _ = tx.try_send((index, pick));
+            };
+            let subscription = match &o.content {
+                Some(Content::Region(e)) => {
+                    let (me, others) = (e.clone(), regions.clone());
+                    cx.subscribe(e, move |_, event: &SelectorEvent, cx| {
+                        if *event == SelectorEvent::Began {
+                            for other in others.iter().filter(|o| **o != me) {
+                                other.update(cx, |s, cx| s.clear(cx));
+                            }
+                        }
+                        send(match *event {
+                            SelectorEvent::Began => Pick::Began,
+                            SelectorEvent::Capture(r) => Pick::Region(r),
+                            SelectorEvent::Cancel => Pick::Cancel,
+                            SelectorEvent::WindowMode => Pick::ToWindow,
+                        });
+                    })
+                }
+                Some(Content::Window(e)) => {
+                    cx.subscribe(e, move |_, event: &PickEvent, _| send(pick(event)))
+                }
+                Some(Content::Picker(e)) => {
+                    cx.subscribe(e, move |_, event: &PickEvent, _| send(pick(event)))
+                }
+                Some(Content::Color(e)) => cx.subscribe(e, move |_, event: &ColorEvent, _| {
+                    send(match *event {
+                        ColorEvent::Picked(c) => Pick::Color(c),
+                        ColorEvent::Cancel => Pick::Cancel,
+                    })
+                }),
+                None => continue,
+            };
+            self.subscriptions.push(subscription);
+        }
+    }
+}
+
 impl LayerShellSelectionFlow {
     fn open(
         &self,
         frames: Vec<Frame>,
         cx: &mut App,
-    ) -> Result<(Open, async_channel::Receiver<(usize, SelectorEvent)>)> {
-        let options = (self.options)(cx);
-        let last = options
-            .preselect_previous
-            .then(|| (self.recall)(cx))
-            .flatten();
+    ) -> Result<(Open, async_channel::Receiver<(usize, Pick)>)> {
+        let (tx, rx) = async_channel::unbounded();
         let mut open = Open {
             overlays: Vec::new(),
-            _subscriptions: Vec::new(),
+            subscriptions: Vec::new(),
+            tx,
             cx: cx.to_async(),
         };
         let pointer = self.surfaces.source().pointer_output();
@@ -135,46 +297,36 @@ impl LayerShellSelectionFlow {
                 info.logical.size(),
                 cx,
             )?;
-            let pre = preselect(last.as_ref(), &output);
-            let frame = Arc::new(frame);
-            let selector =
-                cx.new(|cx| RegionSelector::new(frame, pre, options.capture_on_release, cx));
-            handle.set_content(selector.clone().into(), cx);
             open.overlays.push(Overlay {
                 output,
-                selector,
+                logical: info.logical,
+                frame: Arc::new(frame),
                 handle,
+                content: None,
             });
         }
         if open.overlays.is_empty() {
             return Err(Error::NotFound("any output to select on".into()));
         }
-        let (tx, rx) = async_channel::unbounded();
-        let selectors: Vec<Entity<RegionSelector>> =
-            open.overlays.iter().map(|o| o.selector.clone()).collect();
-        for (index, selector) in selectors.iter().enumerate() {
-            let (tx, others) = (tx.clone(), selectors.clone());
-            open._subscriptions
-                .push(cx.subscribe(selector, move |_, event, cx| {
-                    if *event == SelectorEvent::Began {
-                        for (i, other) in others.iter().enumerate() {
-                            if i != index {
-                                other.update(cx, |s, cx| s.clear(cx));
-                            }
-                        }
-                    }
-                    let _ = tx.try_send((index, *event));
-                }));
-        }
         Ok((open, rx))
+    }
+}
+
+fn view_for(mode: SelectMode) -> Option<View> {
+    match mode {
+        SelectMode::Region => Some(View::Region),
+        SelectMode::Text => Some(View::Text),
+        SelectMode::Window => Some(View::Window),
+        SelectMode::Color => Some(View::Color),
+        SelectMode::Scroll => None,
     }
 }
 
 impl SelectionFlow for LayerShellSelectionFlow {
     fn run(&self, mode: SelectMode, cx: &mut App) -> Task<Result<Selection>> {
-        if mode != SelectMode::Region {
+        let Some(first) = view_for(mode) else {
             return Task::ready(Err(Error::Unsupported));
-        }
+        };
         let ids: Vec<OutputId> = self
             .surfaces
             .source()
@@ -183,42 +335,90 @@ impl SelectionFlow for LayerShellSelectionFlow {
             .map(|o| o.id)
             .collect();
         let backend = self.backend.clone();
+        let wants_windows = matches!(first, View::Region | View::Window);
         let frozen = cx.background_spawn(async move {
-            backend
+            let windows = if wants_windows {
+                (backend.windows.snapshot(), backend.windows.has_geometry())
+            } else {
+                (Vec::new(), false)
+            };
+            let frames = backend
                 .capture
-                .capture_outputs(&ids, CaptureOpts { cursor: false })
+                .capture_outputs(&ids, CaptureOpts { cursor: false });
+            (frames, windows)
         });
-        let this = LayerShellSelectionFlow {
-            surfaces: self.surfaces.clone(),
-            backend: self.backend.clone(),
-            options: self.options.clone(),
-            recall: self.recall.clone(),
-            remember: self.remember.clone(),
-        };
+        let options = (self.options)(cx);
+        let last = options
+            .preselect_previous
+            .then(|| (self.recall)(cx))
+            .flatten();
+        let this = self.duplicate();
         cx.spawn(async move |cx| {
-            let frames = frozen.await.map_err(|e| Error::Protocol(e.to_string()))?;
-            let (open, rx) = cx.update(|cx| this.open(frames, cx))?;
+            let (frames, (windows, geometry)) = frozen.await;
+            let frames = frames.map_err(|e| Error::Protocol(e.to_string()))?;
+            if first == View::Window && windows.is_empty() && !geometry {
+                return Err(Error::Unsupported);
+            }
+            let setup = Setup {
+                options,
+                last,
+                windows,
+                geometry,
+            };
+            let (mut open, rx) = cx.update(|cx| this.open(frames, cx))?;
+            let mut view = first;
+            cx.update(|cx| open.show(view, &setup, cx));
             loop {
                 let (index, event) = rx.recv().await.map_err(|_| Error::Cancelled)?;
                 let Some(overlay) = open.overlays.get(index) else {
                     continue;
                 };
+                let (output, frame) = (overlay.output.clone(), overlay.frame.clone());
                 match event {
-                    SelectorEvent::Began | SelectorEvent::WindowMode => {}
-                    SelectorEvent::Cancel => return Ok(Selection::Cancelled),
-                    SelectorEvent::Capture(local) => {
-                        let output = overlay.output.clone();
-                        let frame = cx.update(|cx| overlay.selector.read(cx).frame().clone());
+                    Pick::Began => {}
+                    Pick::Cancel => return Ok(Selection::Cancelled),
+                    Pick::ToWindow | Pick::ToRegion => {
+                        let next = if event == Pick::ToWindow {
+                            View::Window
+                        } else {
+                            View::Region
+                        };
+                        if view != next && view != View::Text && view != View::Color {
+                            view = next;
+                            cx.update(|cx| open.show(view, &setup, cx));
+                        }
+                    }
+                    Pick::Color(c) => return Ok(Selection::Color(c)),
+                    Pick::Region(local) => {
                         let cropped = geometry::crop(&frame, local)
                             .ok_or_else(|| Error::Internal("empty selection".into()))?;
-                        let remember = this.remember.clone();
-                        let last = remembered(&output, local);
                         drop(open);
-                        cx.update(|cx| remember(last, cx));
+                        if view == View::Region {
+                            let remember = this.remember.clone();
+                            let last = remembered(&output, local);
+                            cx.update(|cx| remember(last, cx));
+                        }
                         return Ok(Selection::Region {
                             output,
                             logical: cropped.logical,
                             frame: Arc::new(cropped),
+                        });
+                    }
+                    Pick::Window { id, local } => {
+                        drop(open);
+                        let backend = this.backend.clone();
+                        let wanted = id.clone();
+                        let captured = cx
+                            .background_spawn(async move {
+                                backend
+                                    .capture
+                                    .capture_window(&wanted, CaptureOpts { cursor: false })
+                            })
+                            .await;
+                        let frame = window_frame(captured, &frame, local)?;
+                        return Ok(Selection::Window {
+                            id,
+                            frame: Arc::new(frame),
                         });
                     }
                 }
