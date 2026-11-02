@@ -147,6 +147,24 @@ Settings are stored in `config.toml`; see Files. You can edit it by hand. easysh
 the file and applies changes live. If the file has a syntax error, easyshot keeps running
 on the last good settings, never overwrites your file, and tells you the line and column.
 
+Home shows the capture buttons with their keys, your five most recent captures, and Setup:
+a list of what your compositor and installed tools offer, such as the selection overlay,
+window capture, recording and text recognition.
+
+Every change is applied at once and written to `config.toml` 0.3 seconds after you stop
+changing things.
+
+Shortcuts lists every action. Global actions show the command your compositor runs, such
+as `easyshot capture region`. Click a key field and press a key to record it. For global
+actions, Copy Snippet puts the bind lines for your compositor (Hyprland, sway or niri) on
+the clipboard; paste them into its config yourself. easyshot never edits your compositor
+config. Check reads your compositor's current binds and marks actions that are already
+bound, and keys that run something else. Keys for editor actions are saved under
+`[shortcuts]` in `config.toml`. Global keys are not saved by easyshot: your compositor
+config holds them.
+
+About shows the version, links, and Show Onboarding Again.
+
 Editor settings that exist only in the config file:
 
 - `[editor] nudge_step` (default 1) and `nudge_step_shift` (default 10);
