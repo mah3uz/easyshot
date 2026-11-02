@@ -4,8 +4,9 @@ use crate::window::{EditorWindow, Job};
 use es_anno::StylePatch;
 use es_model::Tool;
 use es_protocol::{CATALOGUE, Modifiers, Scope, Trigger};
-use gpui::{Action, App, Context, KeyBinding, KeyDownEvent, Window};
+use gpui::{Action, App, Context, KeyBinding, KeyBindingContextPredicate, KeyDownEvent, Window};
 use std::collections::BTreeMap;
+use std::rc::Rc;
 
 pub const CONTEXT: &str = "EditorWindow";
 
@@ -211,12 +212,32 @@ pub fn bindings(overrides: &BTreeMap<String, String>) -> Vec<(String, Command)> 
     out
 }
 
+/// Replaces the editor's bindings and keeps all others, so it can run again when the overrides change.
 pub fn bind(cx: &mut App, overrides: &BTreeMap<String, String>) {
-    cx.bind_keys(bindings(overrides).into_iter().map(|(key, command)| {
-        // Bound once per app, so the leak is bounded by the number of keys.
-        let key: &'static str = Box::leak(key.into_boxed_str());
-        KeyBinding::new(key, Run(command), Some(CONTEXT))
-    }));
+    let context = KeyBindingContextPredicate::parse(CONTEXT).ok().map(Rc::new);
+    let editor: Vec<KeyBinding> = bindings(overrides)
+        .into_iter()
+        .filter_map(|(key, command)| {
+            KeyBinding::load(
+                &key,
+                Box::new(Run(command)),
+                context.clone(),
+                false,
+                None,
+                cx,
+            )
+            .ok()
+        })
+        .collect();
+    let kept: Vec<KeyBinding> = cx
+        .key_bindings()
+        .borrow()
+        .bindings()
+        .filter(|b| !b.action().as_any().is::<Run>())
+        .cloned()
+        .collect();
+    cx.clear_key_bindings();
+    cx.bind_keys(kept.into_iter().chain(editor));
 }
 
 impl EditorWindow {

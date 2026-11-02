@@ -4,6 +4,7 @@ mod capture;
 mod crash;
 #[cfg(feature = "test-hooks")]
 mod inject;
+mod look;
 mod pickers;
 mod recording;
 mod recovery;
@@ -57,6 +58,7 @@ struct Daemon {
     _tasks: Vec<Task<()>>,
     _subscriptions: Vec<gpui::Subscription>,
     _pin_watch: gpui::Subscription,
+    _look: gpui::Subscription,
 }
 
 impl Global for Daemon {}
@@ -247,8 +249,8 @@ fn start(
     test_output: Option<OutputId>,
     cx: &mut App,
 ) -> Result<()> {
-    es_ui::hello::init(cx);
     let settings = cx.new(|_| SettingsModel::new(config));
+    let look = look::install(&settings, backend.appearance.as_deref(), cx);
     if let Some(e) = settings.read(cx).load_error() {
         tracing::warn!(error = %e, "settings file has an error; using defaults");
     }
@@ -448,6 +450,10 @@ fn start(
         notification_action: Some(Rc::new(move |(id, action), _| {
             crash::on_action(&crash_notice, &crash::open_with_default_app, id, &action)
         })),
+        appearance: Some({
+            let settings = settings.clone();
+            Rc::new(move |event, cx| look::desktop_changed(event, &settings, cx))
+        }),
         #[cfg(feature = "test-hooks")]
         test_inject: test_mode.then(|| {
             Rc::new(|text: String, cx: &mut App| inject::dispatch(&text, cx))
@@ -494,6 +500,7 @@ fn start(
         _tasks: tasks,
         _subscriptions: subscriptions,
         _pin_watch: pin_watch,
+        _look: look,
     });
     tracing::info!("easyshot daemon ready");
     Ok(())

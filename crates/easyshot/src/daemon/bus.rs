@@ -131,7 +131,7 @@ fn forward<T: 'static>(
     })
 }
 
-/// Tray menu, portal shortcuts and notification actions all arrive as platform events.
+/// Tray menu, portal shortcuts, notification actions and the desktop's appearance all arrive as platform events.
 pub fn platform_sources(
     backend: &Arc<Backend>,
     history: &Entity<History>,
@@ -152,6 +152,14 @@ pub fn platform_sources(
             cx,
         ),
     ];
+    if let Some(appearance) = &backend.appearance {
+        tasks.push(forward(
+            appearance.changes(),
+            events,
+            PlatformEvent::Appearance,
+            cx,
+        ));
+    }
     if let Some(tray) = &backend.tray {
         let input = tray_input(history, cx);
         es_shell::tray::show(tray.as_ref(), &input);

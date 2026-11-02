@@ -103,9 +103,9 @@ fn rig_with(cx: &mut TestAppContext, binds: Option<Arc<dyn BindHelper>>) -> Rig 
     let paths = Paths::rooted(dir.path());
     paths.ensure_all().unwrap();
     cx.update(|cx| {
-        es_ui::hello::init(cx);
         let config = ConfigFile::load(&paths.config_file()).unwrap();
         let settings = cx.new(|_| SettingsModel::new(config));
+        std::mem::forget(super::look::install(&settings, None, cx));
         let history = cx.new(|_| History::open(&paths, 10).unwrap());
         let windows = Windows::default();
         let wiring = Wiring::new(
@@ -200,6 +200,36 @@ fn open_route_gives_one_editor_per_file(cx: &mut TestAppContext) {
     open(&rig, Route::Open(b), cx);
     assert_eq!(rig.wiring.editor_count(), 2);
     assert_eq!(cx.update(|cx| cx.windows().len()), 2);
+}
+
+#[gpui::test]
+fn keys_reach_an_editor_the_daemon_opens(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    let file = rig.dir.path().join("a.png");
+    png(&file);
+    open(&rig, Route::Open(file), cx);
+    let (window, editor) = cx.update(|cx| {
+        cx.windows()
+            .into_iter()
+            .filter_map(|w| w.downcast::<Root>())
+            .find_map(|w| {
+                let view = w.read(cx).ok()?.view().clone();
+                Some((w, view.downcast::<EditorWindow>().ok()?))
+            })
+            .unwrap()
+    });
+    let tool = |cx: &mut TestAppContext| {
+        editor.read_with(cx, |w, cx| {
+            w.session().unwrap().doc.read(cx).editor().tool()
+        })
+    };
+    cx.executor()
+        .advance_clock(std::time::Duration::from_millis(50));
+    cx.run_until_parked();
+    cx.simulate_keystrokes(window.into(), "o");
+    assert_eq!(tool(cx), es_model::Tool::Ellipse);
+    cx.simulate_keystrokes(window.into(), "a");
+    assert_eq!(tool(cx), es_model::Tool::Arrow);
 }
 
 #[gpui::test]

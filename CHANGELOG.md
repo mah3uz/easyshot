@@ -31,6 +31,9 @@
 
 - The tray icon now shows on bars that draw symbolic icons black.
 - Panning with Space or the middle button stops when you let go or release Space, even if the release happens outside the canvas.
+- The editor's keyboard shortcuts work: Delete, undo, redo and the other edit keys, including keys you change in Settings > Shortcuts.
+- The theme setting changes the look of every open window at once, and "System" follows your desktop's light or dark setting.
+- Reduce Motion follows your desktop's animation setting.
 - An `easyshot://record` link asks for an area instead of recording the whole screen at once.
 - A screen recording stops when easyshot is killed, instead of running on unseen.
 - A document from someone else can no longer use a file outside your wallpapers as its background.
