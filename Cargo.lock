@@ -1963,6 +1963,7 @@ name = "es-app"
 version = "0.1.0"
 dependencies = [
  "async-channel",
+ "bitflags 2.13.2",
  "es-anno",
  "es-backend",
  "es-desktop",
@@ -1982,8 +1983,12 @@ dependencies = [
  "gpui-component",
  "gpui-pre",
  "gpui-pre-platform",
+ "i18n-embed",
+ "i18n-embed-fl",
+ "rust-embed",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror 2.0.21",
  "time",
  "tokio",

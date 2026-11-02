@@ -9,5 +9,6 @@ pub mod jobs;
 pub mod platform_ui;
 pub mod services;
 pub mod settings_model;
+pub mod strings;
 pub mod toast;
 pub mod windows;

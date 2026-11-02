@@ -99,3 +99,11 @@ alert-recovered-message = The playable footage was preserved in History and can 
 alert-camera-video-failed-title = The camera video could not be added
 alert-camera-video-failed-message = Your screen, camera, and audio masters are safe in the recording project, but { -app-name } could not create the combined video: { $error }
 alert-failure-message = { $detail } { $error }
+
+## Errors
+toast-error-generic = Something went wrong
+toast-unsupported = Not available here
+toast-unsupported-message = Your system or compositor doesn’t support this.
+notify-config-invalid = Settings file has an error
+notify-config-invalid-body = Line { $line }, column { $col }: { $message } Your settings are unchanged until it is fixed.
+notify-settings-save-failed = Couldn’t save settings
