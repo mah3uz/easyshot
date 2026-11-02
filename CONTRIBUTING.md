@@ -3,8 +3,9 @@
 Read `CLAUDE.md` first: it lists where each kind of fact lives and the invariants. A change
 to code and the document that describes it go in the same commit.
 
-easyshot is not usable yet. Only the workspace skeleton exists, so most of what follows
-describes how work is meant to be done as the crates fill in.
+easyshot runs end to end; `CLAUDE.md` says what has been run where. The app ID is
+`dev.easyshot.app`, and the daemon is `easyshot daemon`, run by the user unit
+`easyshot.service`.
 
 ## Never touch the live session
 
@@ -41,8 +42,12 @@ pasting into other apps, GSR recordings with KMS, compositor binds and Orca.
 Run the tests of the crate you changed, not the whole workspace:
 
 ```
-cargo test -p <crate>
+cargo nextest run -p <crate>
+just test-changed
 ```
+
+`just test-changed` runs the packages changed against `main`; `just test` runs everything
+(nextest plus doc tests).
 
 Layer 0, 1 and 2 crates test without a display. Window tests run in their own process under
 nextest with a 60 s slow-timeout and one retry, because a window test can hang as it ends.
@@ -50,12 +55,14 @@ The dependency profile uses `opt-level = 2`; without it window tests are about t
 slower. Each window test's helper ends the window's own threads before the app, then calls
 `run_until_parked`.
 
-The full gate (`just check`) is run once on the combined branch before merging.
+The full gate (`just check`: lint, layers, grep-guard, i18n-check, gpui-guard, tests, the sway, niri and
+Hyprland platform harnesses, a release build and `just release-check`) is run
+once on the combined branch before merging.
 
 ## Builds
 
-Keep to two concurrent cargo builds on a shared machine. A local, gitignored
-`.cargo/config.toml` may set `sccache` and `jobs`.
+Rust is pinned by `rust-toolchain.toml`. `just build` makes the release binary, `just run
+<args>` runs it from the checkout and `just dev` runs a debug build.
 
 On Arch Linux, `just install` builds the package from your working tree and installs it
 with pacman (it asks for sudo); `just uninstall` removes it. `just package [profile]` only
