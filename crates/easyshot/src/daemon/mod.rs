@@ -21,7 +21,8 @@ use es_app::events::{EventHandlers, PlatformEvent, spawn_pump};
 use es_app::history::History;
 use es_app::pipeline::{self, PipelineDeps, Reporting};
 use es_app::platform_ui::{
-    BackendClipboardSink, LayerShellSurfaces, SelectMode, SelectionFlow as _, ToastSurface,
+    BackendClipboardSink, LayerShellSurfaces, PinnedOutput, PinnedOutputSource, SelectMode,
+    SelectionFlow as _, ToastSurface,
 };
 use es_app::services::Services;
 use es_app::settings_model::SettingsModel;
@@ -55,6 +56,7 @@ struct Daemon {
     _bus: Option<bus::Bridge>,
     _tasks: Vec<Task<()>>,
     _subscriptions: Vec<gpui::Subscription>,
+    _pin_watch: gpui::Subscription,
 }
 
 impl Global for Daemon {}
@@ -271,7 +273,20 @@ fn start(
     let jobs = services.jobs.clone();
     cx.set_global(services);
 
-    let surfaces = Rc::new(LayerShellSurfaces::new(backend.clone(), test_output));
+    let pinned = PinnedOutput::default();
+    let apply_pin = {
+        let pinned = pinned.clone();
+        move |c: &es_model::Config| {
+            pinned.set(c.capture.selector_follows_pointer, &c.capture.pinned_output)
+        }
+    };
+    apply_pin(&cfg);
+    let pin_watch = cx.observe(&settings, {
+        let apply_pin = apply_pin.clone();
+        move |s, cx| apply_pin(s.read(cx).config())
+    });
+    let source = Arc::new(PinnedOutputSource::new(backend.clone(), pinned));
+    let surfaces = Rc::new(LayerShellSurfaces::new(source, test_output));
     if let Err(e) = surfaces.warm_up(cx) {
         tracing::warn!(error = %e, "surface warm-up");
     }
@@ -387,6 +402,7 @@ fn start(
             surfaces: surfaces.clone(),
             tray: tray_update(backend.clone(), history.clone()),
             notify: notice(backend.clone()),
+            paths: paths.clone(),
         }),
         clock: Arc::new(es_record::SystemClock::default()),
         runner: Arc::new(es_record::project::SystemRunner),
@@ -461,6 +477,14 @@ fn start(
     {
         tracing::warn!(error = %e, "onboarding");
     }
+    if cfg.general.show_capture_bar_at_launch
+        && !test_mode
+        && let Err(e) = wiring
+            .windows
+            .open(WindowKind::CaptureBar, WindowKey::Single, cx)
+    {
+        tracing::warn!(error = %e, "capture bar at launch");
+    }
     cx.set_global(Daemon {
         _surfaces: surfaces,
         _deck_surface: deck_surface,
@@ -468,6 +492,7 @@ fn start(
         _bus: Some(bridge),
         _tasks: tasks,
         _subscriptions: subscriptions,
+        _pin_watch: pin_watch,
     });
     tracing::info!("easyshot daemon ready");
     Ok(())

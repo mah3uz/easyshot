@@ -37,6 +37,7 @@ impl CommandRunner for NoTools {
 #[derive(Default)]
 struct Log {
     tray: Vec<Option<RecordingTrayState>>,
+    trimmed: Vec<std::path::PathBuf>,
     shown: usize,
     closed: usize,
 }
@@ -59,6 +60,9 @@ impl RecordingUi for FakeUi {
     }
     fn tray(&self, state: Option<RecordingTrayState>, _: &mut App) {
         self.0.borrow_mut().tray.push(state);
+    }
+    fn open_trim(&self, video: std::path::PathBuf, _: &mut App) {
+        self.0.borrow_mut().trimmed.push(video);
     }
 }
 
@@ -240,4 +244,26 @@ async fn a_recovered_recording_becomes_a_card(cx: &mut TestAppContext) {
     assert!(cards[0].video);
     assert_eq!(cards[0].file, dir.join("screen.mkv"));
     assert_eq!(cards[0].thumb, dir.join("poster.jpg"));
+}
+
+async fn stopped_recording_trimmed(open_editor_after: bool, cx: &mut TestAppContext) -> usize {
+    let rig = rig(cx);
+    let settings = cx.update(|_| rig.recordings.0.deps.settings.clone());
+    cx.update(|cx| {
+        settings.update(cx, |s, cx| {
+            s.update(|c| c.recording.open_editor_after = open_editor_after, cx)
+        })
+    });
+    cx.update(|cx| rig.recordings.start(display(), cx)).unwrap();
+    cx.run_until_parked();
+    rig.advance(3);
+    cx.update(|cx| rig.recordings.stop(cx)).unwrap();
+    cx.run_until_parked();
+    rig.log.borrow().trimmed.len()
+}
+
+#[gpui::test]
+async fn stop_opens_the_trim_viewer_only_when_asked(cx: &mut TestAppContext) {
+    assert_eq!(stopped_recording_trimmed(true, cx).await, 1);
+    assert_eq!(stopped_recording_trimmed(false, cx).await, 0);
 }

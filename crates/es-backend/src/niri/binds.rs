@@ -32,11 +32,14 @@ pub(crate) fn snippet(binds: &[(Trigger, Route)]) -> String {
     // A route with arguments has no fixed command line to bind.
     for (trigger, route) in binds.iter().filter(|(_, r)| r.args().0.is_empty()) {
         let mut spawn = quote("easyshot");
-        for word in route.as_str().split('/') {
+        for word in route.command_args() {
             spawn.push(' ');
             spawn.push_str(&quote(word));
         }
         out.push_str(&format!("{} {{ spawn {spawn}; }}\n", trigger.0));
+    }
+    if !out.is_empty() {
+        out.insert_str(0, "// Paste inside your binds { } block\n");
     }
     out
 }

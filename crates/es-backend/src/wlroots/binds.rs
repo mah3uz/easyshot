@@ -7,7 +7,7 @@ pub(crate) fn snippet(binds: &[(Trigger, Route)]) -> String {
     let mut out = String::new();
     // A route with arguments has no fixed command line to bind.
     for (trigger, route) in binds.iter().filter(|(_, r)| r.args().0.is_empty()) {
-        let command = route.as_str().replace('/', " ");
+        let command = route.command_args().join(" ");
         out.push_str(&format!("bindsym {} exec easyshot {command}\n", trigger.0));
     }
     out

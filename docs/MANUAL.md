@@ -22,12 +22,13 @@ and keeps a history.
 ## Running it
 
 easyshot runs as one background program, the daemon, started by a systemd user unit
-(`easyshot.service`) or by XDG autostart. Commands like `easyshot capture/region` talk to
+(`easyshot.service`) or by XDG autostart. Commands like `easyshot capture region` talk to
 it, and start it if it is not running.
 
 easyshot cannot register global keyboard shortcuts for you on Hyprland or wlroots
 compositors. You bind keys in your own compositor config to call `easyshot <command>`.
-Settings > Shortcuts shows the snippet to paste for your compositor.
+Settings > Shortcuts shows the snippet to paste for your compositor. In niri, paste it inside
+your `binds { }` block. Every command in the snippet is one `easyshot --help` lists.
 
 ## Capturing
 
@@ -158,6 +159,15 @@ window capture, recording and text recognition.
 
 Every change is applied at once and written to `config.toml` 0.3 seconds after you stop
 changing things.
+
+Turn off Settings > General > Save screenshots automatically and a capture is kept only as a
+card in the deck until you save or export it. Capture Region & Save still writes a file. In
+Settings > Capture, "Show the selector on" a specific screen puts the selector's keyboard
+focus on that screen; if it is unplugged, the pointer's screen is used.
+
+Show the capture bar at launch opens the bar when the daemon starts. Open editors in full
+screen opens each editor window fullscreen. Open the editor when I stop (Recording) opens the
+trim viewer as soon as a recording ends, and the card still appears.
 
 Shortcuts lists every action. Global actions show the command your compositor runs, such
 as `easyshot capture region`. Click a key field and press a key to record it. For global

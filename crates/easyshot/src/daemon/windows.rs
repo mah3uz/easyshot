@@ -307,6 +307,14 @@ fn open_gallery(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>> {
     Ok(handle(opened(window)?))
 }
 
+pub(super) fn editor_bounds(fullscreen: bool, bounds: Bounds<gpui::Pixels>) -> WindowBounds {
+    if fullscreen {
+        WindowBounds::Fullscreen(bounds)
+    } else {
+        WindowBounds::Windowed(bounds)
+    }
+}
+
 fn open_editor(w: &Rc<Wiring>, key: &WindowKey, cx: &mut App) -> Result<Rc<dyn WindowHandle>> {
     let WindowKey::Path(file) = key else {
         return Err(Error::Unsupported);
@@ -316,11 +324,12 @@ fn open_editor(w: &Rc<Wiring>, key: &WindowKey, cx: &mut App) -> Result<Rc<dyn W
         None => EditorSource::File(file.clone()),
     };
     let opening = EditorSession::open(source, cx);
+    let bounds = Bounds::new(point(px(0.), px(0.)), size(px(1080.), px(720.)));
     let options = WindowOptions {
-        window_bounds: Some(WindowBounds::Windowed(Bounds::new(
-            point(px(0.), px(0.)),
-            size(px(1080.), px(720.)),
-        ))),
+        window_bounds: Some(editor_bounds(
+            w.settings.read(cx).config().general.editor_opens_fullscreen,
+            bounds,
+        )),
         window_min_size: Some(size(px(980.), px(640.))),
         window_decorations: Some(WindowDecorations::Client),
         app_id: Some("dev.easyshot.editor".into()),

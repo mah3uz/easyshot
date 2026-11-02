@@ -42,6 +42,7 @@ pub trait Shown {
 pub trait RecordingUi {
     fn show(&self, recorded: &Recorded, bar: &Entity<ControlBar>, cx: &mut App) -> Box<dyn Shown>;
     fn tray(&self, state: Option<RecordingTrayState>, cx: &mut App);
+    fn open_trim(&self, video: std::path::PathBuf, cx: &mut App);
 }
 
 pub type RecorderFor = Rc<dyn Fn(&str) -> Result<Arc<dyn Recorder>>>;
@@ -425,7 +426,12 @@ impl Recordings {
             cx.update(|cx| {
                 me.end_session(cx);
                 match completed {
-                    Ok(done) => me.show_card(done.item, cfg.recording.save, cx),
+                    Ok(done) => {
+                        if cfg.recording.open_editor_after {
+                            deps.ui.open_trim(done.item.file.clone(), cx);
+                        }
+                        me.show_card(done.item, cfg.recording.save, cx)
+                    }
                     Err(e) => {
                         tracing::error!(error = %e, "recording not kept");
                         show_toast(Toast::error("toast-recording-save-failed"), cx);

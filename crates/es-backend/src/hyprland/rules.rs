@@ -61,7 +61,7 @@ impl WindowRules for HyprRules {
 }
 
 fn command(route: &Route) -> String {
-    format!("easyshot {}", route.as_str().replace('/', " "))
+    format!("easyshot {}", route.command_args().join(" "))
 }
 
 fn split(trigger: &Trigger) -> (Vec<&str>, &str) {

@@ -136,9 +136,7 @@ fn runs(command: &str, route: &Route) -> bool {
     let Some(start) = words.iter().position(|w| w.ends_with("easyshot")) else {
         return false;
     };
-    let wanted = route.as_str();
-    let wanted: Vec<&str> = wanted.split('/').collect();
-    words[start + 1..] == wanted[..]
+    words[start + 1..] == route.command_args()[..]
 }
 
 /// What `existing` says about one action: run by some bind, or its trigger taken by another command.

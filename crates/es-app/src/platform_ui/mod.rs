@@ -1,9 +1,11 @@
 mod clipboard;
 pub mod layer;
+mod pinned;
 mod surfaces;
 mod toast_surface;
 
 pub use clipboard::{BackendClipboardSink, with_file_items};
+pub use pinned::{PinnedOutput, PinnedOutputSource};
 pub use surfaces::{Gate, LayerShellSurfaces, LayerSurfaceHandle, OutputSource};
 pub use toast_surface::{ToastSurface, card_icon};
 
