@@ -34,6 +34,21 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum BackendError {
     #[error("provider unavailable: {0}")]
     Unavailable(String),
+    #[error("test mode needs EASYSHOT_TEST_OUTPUT")]
+    NoTestOutput,
     #[error(transparent)]
     Backend(#[from] Error),
+}
+
+impl From<es_wayland::Error> for Error {
+    fn from(e: es_wayland::Error) -> Self {
+        match e {
+            es_wayland::Error::Unsupported(_) => Error::Unsupported,
+            es_wayland::Error::Timeout => Error::Timeout,
+            es_wayland::Error::UnknownOutput(id) | es_wayland::Error::UnknownToplevel(id) => {
+                Error::NotFound(id)
+            }
+            other => Error::Protocol(other.to_string()),
+        }
+    }
 }

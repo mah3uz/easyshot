@@ -1,7 +1,10 @@
 mod backend;
+mod doctor;
 mod error;
 mod probe;
 pub mod registry;
+#[cfg(feature = "test-hooks")]
+pub mod test_mode;
 mod traits;
 
 pub mod desktop;
@@ -14,8 +17,13 @@ pub mod wayland;
 pub mod wlroots;
 
 pub use backend::{Backend, Caps, CompositorInfo, OverlayKind, ProviderReport, ReportEntry};
+pub use doctor::doctor_json;
 pub use error::{BackendError, Error, Result};
-pub use probe::{DbusNames, Env, PortalIfaces, Probe, Provider, TestConfig, Tools, WlGlobals};
+#[cfg(feature = "test-hooks")]
+pub use probe::TestConfig;
+pub use probe::{
+    DbusNames, Env, GST_ELEMENTS, PortalIfaces, Probe, Provider, TOOL_PACKAGES, Tools, WlGlobals,
+};
 pub use traits::{
     BindHelper, BindSyntax, Capture, Clipboard, PointerQuery, RuleSet, Trigger, VirtualInput,
     WindowList, WindowRules,

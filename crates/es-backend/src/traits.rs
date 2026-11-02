@@ -5,6 +5,7 @@ use es_model::platform::{
     WindowInfo,
 };
 use es_protocol::Route;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, Default)]
 pub struct RuleSet {}
@@ -59,4 +60,16 @@ pub trait Clipboard: Send + Sync {
 
 pub trait VirtualInput: Send + Sync {
     fn scroll(&self, at: Point, dy: f64) -> Result<()>;
+}
+
+impl<T: WindowList + ?Sized> WindowList for Arc<T> {
+    fn snapshot(&self) -> Vec<WindowInfo> {
+        (**self).snapshot()
+    }
+    fn has_geometry(&self) -> bool {
+        (**self).has_geometry()
+    }
+    fn events(&self) -> async_channel::Receiver<WindowEvent> {
+        (**self).events()
+    }
 }
