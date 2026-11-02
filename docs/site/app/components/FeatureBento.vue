@@ -25,7 +25,7 @@ const tiles = [
       <div class="pointer-events-none relative mb-5 h-[92px]" aria-hidden="true">
         <!-- area -->
         <div v-if="t.art === 'area'" class="absolute inset-0 overflow-hidden rounded-xl bg-[url(/img/landscape.svg)] bg-cover">
-          <img :src="photoUrl('valley', 640)" alt="" class="absolute inset-0 size-full object-cover" loading="lazy" width="640" height="360" referrerpolicy="no-referrer" onerror="this.style.display='none'" />
+          <img :src="photoUrl('valley', 640)" alt="" class="absolute inset-0 size-full object-cover" loading="lazy" width="640" height="360" onerror="this.style.display='none'" />
           <div class="absolute inset-[18%_30%_18%_22%] rounded border-[1.5px] border-white shadow-[0_0_0_999px_rgba(3,30,40,.35)] transition-all duration-700 ease-out-soft group-hover:inset-[12%_18%_12%_14%]" />
           <span class="absolute right-3 bottom-2 rounded bg-teal-ink/80 px-1.5 font-mono text-[10px] text-white">640 × 360</span>
         </div>
@@ -53,7 +53,7 @@ const tiles = [
         </div>
         <!-- pin -->
         <div v-else-if="t.art === 'pin'" class="absolute inset-0 grid place-items-center">
-          <img :src="photoUrl('fog', 400)" alt="" class="aspect-[16/10] w-28 rounded-lg bg-[url(/img/landscape.svg)] bg-cover object-cover shadow-card ring-2 ring-white transition-transform duration-500 ease-out-soft group-hover:-translate-y-1.5 group-hover:-rotate-3" loading="lazy" width="400" height="250" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='/img/landscape.svg'" />
+          <img :src="photoUrl('fog', 400)" alt="" class="aspect-[16/10] w-28 rounded-lg bg-[url(/img/landscape.svg)] bg-cover object-cover shadow-card ring-2 ring-white transition-transform duration-500 ease-out-soft group-hover:-translate-y-1.5 group-hover:-rotate-3" loading="lazy" width="400" height="250" onerror="this.onerror=null;this.src='/img/landscape.svg'" />
         </div>
         <!-- timer -->
         <div v-else-if="t.art === 'timer'" class="absolute inset-0 flex items-center gap-2">
@@ -68,7 +68,7 @@ const tiles = [
         </div>
         <!-- deck -->
         <div v-else-if="t.art === 'deck'" class="absolute inset-0 flex items-end gap-2">
-          <img v-for="(k, n) in (['forest', 'lake', 'valley'] as const)" :key="k" :src="photoUrl(k, 400)" alt="" loading="lazy" width="400" height="250" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='/img/landscape.svg'" class="aspect-[16/10] w-[30%] max-w-28 rounded-lg border border-line bg-[url(/img/landscape.svg)] bg-cover object-cover shadow-card transition-transform duration-500 ease-out-soft group-hover:-translate-y-2" :style="{ transitionDelay: `${n * 60}ms` }" />
+          <img v-for="(k, n) in (['forest', 'lake', 'valley'] as const)" :key="k" :src="photoUrl(k, 400)" alt="" loading="lazy" width="400" height="250" onerror="this.onerror=null;this.src='/img/landscape.svg'" class="aspect-[16/10] w-[30%] max-w-28 rounded-lg border border-line bg-[url(/img/landscape.svg)] bg-cover object-cover shadow-card transition-transform duration-500 ease-out-soft group-hover:-translate-y-2" :style="{ transitionDelay: `${n * 60}ms` }" />
         </div>
       </div>
       <div class="grid gap-1.5">

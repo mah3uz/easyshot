@@ -19,7 +19,7 @@ const faq = [
   },
   {
     q: 'Does it work today?',
-    a: 'Yes, from source. It has been installed and used on Hyprland, and tested in headless sway. It has not run on niri yet. The <a class="text-accent underline" href="/how-to">how-to</a> shows how to build it.',
+    a: 'Yes, from source, but it is early software. It runs end to end and has had its first real session on Hyprland; sway has been tested headless, and niri not yet. Expect rough edges, and please report what you find. The <a class="text-accent underline" href="/how-to">how-to</a> shows how to build it.',
   },
   {
     q: 'How do I install it?',

@@ -27,7 +27,7 @@ const p = computed(() => photos[props.photo])
         height="900"
         :loading="eager ? 'eager' : 'lazy'"
         decoding="async"
-        referrerpolicy="no-referrer"
+       
         onerror="this.style.display='none'"
       />
       <slot />

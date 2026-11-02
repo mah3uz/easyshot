@@ -9,7 +9,7 @@ const { chromium } = require('playwright')
 const root = fileURLToPath(new URL('..', import.meta.url))
 const logo = readFileSync(`${root}public/logo.svg`, 'utf8')
 const wall = readFileSync(`${root}public/img/wall-3.webp`).toString('base64')
-const land = readFileSync(`${root}public/img/landscape.svg`).toString('base64')
+const photo = readFileSync(`${root}public/img/photos/lake-1080.webp`).toString('base64')
 
 const html = `<!doctype html><html><head><meta charset="utf-8">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500&family=Inter+Tight:wght@700;800&display=swap" rel="stylesheet">
@@ -29,7 +29,7 @@ p{margin-top:26px;font-size:24px;line-height:1.45;color:#a3c3c8}
 .frame{position:absolute;left:680px;top:110px;width:620px;height:420px;border-radius:26px;overflow:hidden;border:1px solid rgba(160,230,225,.2);box-shadow:0 50px 100px -30px rgba(0,10,16,.9);background:url(data:image/webp;base64,${wall}) center/cover}
 .win{position:absolute;left:44px;top:50px;width:420px;border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 30px 60px -20px rgba(3,30,40,.6)}
 .bar{height:28px;background:#eef3f5;display:flex;align-items:center;gap:6px;padding:0 10px}.bar i{width:9px;height:9px;border-radius:50%}
-.ph{aspect-ratio:16/9;background:url(data:image/svg+xml;base64,${land}) center/cover}
+.ph{aspect-ratio:16/9;background:url(data:image/webp;base64,${photo}) center/cover}
 .ft{height:40px;display:flex;align-items:center;gap:8px;padding:0 12px;font-size:12px;color:#0a2631}.ft .av{width:20px;height:20px;border-radius:50%;background:linear-gradient(135deg,#62edd4,#1388a6)}.ft .px{margin-left:auto;width:120px;height:12px;border-radius:4px;background:repeating-linear-gradient(90deg,#c5d6db 0 6px,#a9c1c8 6px 12px)}
 .sel{position:absolute;left:80px;top:96px;width:280px;height:170px;border:2px solid #fff;border-radius:3px;box-shadow:0 0 0 999px rgba(3,30,40,.42)}
 </style></head><body>
@@ -40,7 +40,7 @@ p{margin-top:26px;font-size:24px;line-height:1.45;color:#a3c3c8}
 <p>Capture, annotate and record your screen. Free and open source for Linux.</p>
 <div class="pills"><b>Hyprland</b><b>sway</b><b>niri</b></div>
 </div>
-<div class="frame"><div class="win"><div class="bar"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div><div class="ph"></div><div class="ft"><span class="av"></span><b>Lake at dusk</b><span class="px"></span></div></div><div class="sel"></div></div>
+<div class="frame"><div class="win"><div class="bar"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div><div class="ph"></div><div class="ft"><span class="av"></span><b>Mountain lake</b><span class="px"></span></div></div><div class="sel"></div></div>
 </body></html>`
 
 const browser = await chromium.launch()

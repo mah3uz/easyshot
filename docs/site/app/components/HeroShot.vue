@@ -17,7 +17,7 @@
         width="1600"
         height="900"
         fetchpriority="high"
-        referrerpolicy="no-referrer"
+       
         onerror="this.style.display='none'"
       />
 

@@ -17,16 +17,16 @@ wallpapers (`assets/wallpapers/`), and icons from its Lucide set (`assets/icons/
 
 ## Photos
 
-The pictures inside the mock-ups are Unsplash photos, listed by ID in `app/utils/photos.ts`
-and hotlinked from `images.unsplash.com`, which the
-[Unsplash licence](https://unsplash.com/license) allows. Every photo sits on a drawn
-landscape, `public/img/landscape.svg`, so a photo that fails to load leaves that instead of a
-broken image. To swap one, change its ID; to self-host, download the files into
-`public/img/` and change `photoUrl()`.
+The pictures inside the mock-ups are six Unsplash photos, used under the
+[Unsplash licence](https://unsplash.com/license). They are listed with their Unsplash IDs in
+`app/utils/photos.ts` and served from `public/img/photos/` as WebP at 400, 640, 1080, 1600
+and 2200 px wide (`<name>-<width>.webp`), picked with `srcset`. Each sits on a drawn
+landscape, `public/img/landscape.svg`, shown if a file fails to load.
 
-The photos were chosen by ID and have not been looked at: the machine that built the site
-could not reach `images.unsplash.com`. Check each one in a browser, and add photographer
-credits (not required by the licence, but good manners) once you have.
+To add or swap one, download it from
+`https://images.unsplash.com/photo-<id>?fm=jpg&fit=crop&w=2200&h=1238&q=82`, write the five
+WebP sizes with the same names, and add it to `photos.ts`. The licence does not require
+credit; photographer names can be added from each photo's Unsplash page.
 
 ## Theme
 
