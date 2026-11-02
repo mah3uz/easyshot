@@ -6,7 +6,7 @@ use es_geom::{PVec, Point, Rect};
 use es_model::AnnoShapeId;
 
 impl Editor {
-    /// A shape under the pointer wins over the selection's frame, which wins over a marquee.
+    /// A handle wins over a shape, a shape over the selection's frame, the frame over a marquee.
     pub(super) fn begin_select(
         &mut self,
         p: PVec,
@@ -14,6 +14,10 @@ impl Editor {
         pointer: &PointerInfo,
         ch: &mut Changes,
     ) {
+        if let Some(handle) = self.handle_at(pointer.screen) {
+            self.begin_handle(handle, p, ch);
+            return;
+        }
         if let Some(id) = hit {
             if pointer.click_count >= 2 && !pointer.shift && self.is_text_shape(id) {
                 absorb(ch, self.begin_text(id));
@@ -126,7 +130,15 @@ impl Editor {
         }
     }
 
-    pub(super) fn select_hover_cursor(&self, page: Point, hit: Option<AnnoShapeId>) -> CursorKind {
+    pub(super) fn select_hover_cursor(
+        &self,
+        screen: Point,
+        page: Point,
+        hit: Option<AnnoShapeId>,
+    ) -> CursorKind {
+        if let Some(handle) = self.handle_at(screen) {
+            return self.handle_cursor(handle);
+        }
         if hit.is_some() || self.in_selection_frame(PVec::new(page.x, page.y)) {
             CursorKind::OpenHand
         } else {

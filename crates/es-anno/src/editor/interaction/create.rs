@@ -5,8 +5,8 @@ use crate::{Changes, PointerInfo};
 use es_geom::PVec;
 use es_geom::freehand::{LiveStroke, StrokeOptions};
 use es_model::{
-    AnnoShape, AnnoShapeId, ArrowProps, Arrowhead, DrawProps, FillStyle, GeoKind, GeoProps,
-    HighlightProps, NumberedProps, RedactionKind, RedactionProps, ShapeKind, Tool,
+    AnnoShape, AnnoShapeId, ArrowProps, ArrowTerminal, Arrowhead, DrawProps, FillStyle, GeoKind,
+    GeoProps, HighlightProps, NumberedProps, RedactionKind, RedactionProps, ShapeKind, Tool,
 };
 use std::f64::consts::PI;
 
@@ -180,7 +180,8 @@ impl Editor {
         self.set_selection([id], ch);
     }
 
-    pub(super) fn begin_arrow(&mut self, p: PVec, ch: &mut Changes) {
+    /// A press on a shape binds the new arrow's start to it.
+    pub(super) fn begin_arrow(&mut self, p: PVec, pointer: &PointerInfo, ch: &mut Changes) {
         let (head_start, head_end) = if self.tool == Tool::Line {
             (Arrowhead::None, Arrowhead::None)
         } else {
@@ -196,7 +197,12 @@ impl Editor {
             ..ArrowProps::default()
         };
         let id = self.add_shape(AnnoShape::new(p.x, p.y, ShapeKind::Arrow(props)), ch);
-        self.interaction = Interaction::CreatingArrow { id };
+        self.place_terminal(id, ArrowTerminal::Start, PVec::ZERO, p, pointer.alt, ch);
+        self.interaction = Interaction::CreatingArrow {
+            id,
+            origin: p,
+            last: p,
+        };
     }
 
     /// Shift snaps the line to the nearest 15 degrees around its start.
@@ -219,19 +225,23 @@ impl Editor {
         } else {
             local
         };
-        self.edit(ch, |doc| {
-            doc.update(id, |s| {
-                if let ShapeKind::Arrow(a) = &mut s.kind {
-                    a.end = PVec::new(end.x, end.y);
-                }
-            })
-        });
+        let end = PVec::new(end.x, end.y);
+        self.place_terminal(id, ArrowTerminal::End, end, p, pointer.alt, ch);
     }
 
-    /// An arrow too short to see is dropped, which also takes back its undo entry.
-    pub(super) fn finish_arrow(&mut self, id: AnnoShapeId, ch: &mut Changes) {
+    /// Drops an arrow too short to see, or a click whose bound start already jumped to a centre.
+    pub(super) fn finish_arrow(
+        &mut self,
+        id: AnnoShapeId,
+        origin: PVec,
+        last: PVec,
+        ch: &mut Changes,
+    ) {
         let too_short = match self.doc.shape(id).map(|s| &s.kind) {
-            Some(ShapeKind::Arrow(a)) => PVec::dist_min(a.start, a.end, MIN_ARROW_LENGTH),
+            Some(ShapeKind::Arrow(a)) => {
+                PVec::dist_min(a.start, a.end, MIN_ARROW_LENGTH)
+                    || PVec::dist_min(origin, last, MIN_ARROW_LENGTH)
+            }
             _ => return,
         };
         if too_short {

@@ -36,7 +36,7 @@ fn a_click_selects_the_topmost_shape_under_the_pointer_and_empty_space_clears() 
     let mut ed = editor(vec![a, b], vec![]);
     click(&mut ed, at(30.0, 30.0));
     assert_eq!(selected(&ed), set(&[bi]));
-    click(&mut ed, at(5.0, 5.0));
+    click(&mut ed, at(2.0, 2.0));
     assert_eq!(selected(&ed), set(&[ai]));
     click(&mut ed, at(500.0, 500.0));
     assert!(selected(&ed).is_empty());

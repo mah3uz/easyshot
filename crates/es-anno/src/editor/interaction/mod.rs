@@ -1,11 +1,14 @@
+mod arrow;
 mod create;
+mod cursor;
+mod handles;
 mod select;
 
-use super::Editor;
+use super::{Editor, SelectionBounds};
 use crate::{Changes, CursorKind, PointerButton, PointerInfo};
 use es_geom::freehand::LiveStroke;
 use es_geom::{PVec, Point, Rect};
-use es_model::{AnnoShapeId, Tool};
+use es_model::{AnnoShape, AnnoShapeId, Tool};
 
 #[derive(Debug, Default)]
 pub enum Interaction {
@@ -17,6 +20,8 @@ pub enum Interaction {
     },
     CreatingArrow {
         id: AnnoShapeId,
+        origin: PVec,
+        last: PVec,
     },
     Drawing {
         id: AnnoShapeId,
@@ -30,6 +35,22 @@ pub enum Interaction {
     Brushing {
         origin: PVec,
         corner: PVec,
+    },
+    Resizing {
+        handle: Handle,
+        bounds: SelectionBounds,
+        initial: Vec<AnnoShape>,
+        cursor: CursorKind,
+    },
+    Rotating {
+        center: PVec,
+        start_angle: f64,
+        initial: Vec<AnnoShape>,
+    },
+    DraggingArrowHandle {
+        id: AnnoShapeId,
+        handle: Handle,
+        cursor: CursorKind,
     },
 }
 
@@ -94,7 +115,7 @@ impl Editor {
             }
             Tool::NumberedCircle => self.create_numbered(p, &mut ch),
             Tool::Freehand => self.begin_drawing(p, &pointer, &mut ch),
-            Tool::Line | Tool::Arrow => self.begin_arrow(p, &mut ch),
+            Tool::Line | Tool::Arrow => self.begin_arrow(p, &pointer, &mut ch),
             Tool::Rectangle
             | Tool::FilledRectangle
             | Tool::Ellipse
@@ -116,9 +137,13 @@ impl Editor {
                 self.resize_new_box(id, origin, p, &pointer, &mut ch);
                 self.interaction = Interaction::CreatingBox { id, origin };
             }
-            Interaction::CreatingArrow { id } => {
+            Interaction::CreatingArrow { id, origin, .. } => {
                 self.move_new_arrow_end(id, p, &pointer, &mut ch);
-                self.interaction = Interaction::CreatingArrow { id };
+                self.interaction = Interaction::CreatingArrow {
+                    id,
+                    origin,
+                    last: p,
+                };
             }
             Interaction::Drawing {
                 id,
@@ -136,6 +161,36 @@ impl Editor {
                 ch.needs_redraw = true;
                 self.interaction = Interaction::Brushing { origin, corner: p };
             }
+            Interaction::Resizing {
+                handle,
+                bounds,
+                initial,
+                cursor,
+            } => {
+                self.resize(handle, &bounds, &initial, p, &pointer, &mut ch);
+                self.interaction = Interaction::Resizing {
+                    handle,
+                    bounds,
+                    initial,
+                    cursor,
+                };
+            }
+            Interaction::Rotating {
+                center,
+                start_angle,
+                initial,
+            } => {
+                self.rotate(center, start_angle, &initial, p, &pointer, &mut ch);
+                self.interaction = Interaction::Rotating {
+                    center,
+                    start_angle,
+                    initial,
+                };
+            }
+            Interaction::DraggingArrowHandle { id, handle, cursor } => {
+                self.drag_arrow_handle(id, handle, p, &pointer, &mut ch);
+                self.interaction = Interaction::DraggingArrowHandle { id, handle, cursor };
+            }
         }
         ch
     }
@@ -149,9 +204,14 @@ impl Editor {
             Interaction::CreatingBox { id, origin } => {
                 self.finish_box(id, origin, &pointer, &mut ch)
             }
-            Interaction::CreatingArrow { id } => self.finish_arrow(id, &mut ch),
+            Interaction::CreatingArrow { id, origin, last } => {
+                self.finish_arrow(id, origin, p.unwrap_or(last), &mut ch)
+            }
             Interaction::Drawing { id, .. } => self.finish_drawing(id, &mut ch),
-            Interaction::Translating { .. } => {}
+            Interaction::Translating { .. }
+            | Interaction::Resizing { .. }
+            | Interaction::Rotating { .. }
+            | Interaction::DraggingArrowHandle { .. } => {}
             Interaction::Brushing { origin, corner } => {
                 self.finish_brush(origin, p.unwrap_or(corner), &pointer, &mut ch)
             }
@@ -182,10 +242,6 @@ impl Editor {
         }
     }
 
-    pub fn handle_at(&self, _screen: Point) -> Option<Handle> {
-        todo!()
-    }
-
     /// The canvas shows an arrow outside its boundary frame; this covers the inside.
     pub fn cursor_for(&self, screen: Point) -> CursorKind {
         match &self.interaction {
@@ -194,6 +250,9 @@ impl Editor {
             | Interaction::Drawing { .. } => CursorKind::AnnotationPlus,
             Interaction::Translating { .. } => CursorKind::ClosedHand,
             Interaction::Brushing { .. } => CursorKind::Arrow,
+            Interaction::Resizing { cursor, .. }
+            | Interaction::DraggingArrowHandle { cursor, .. } => *cursor,
+            Interaction::Rotating { center, .. } => self.rotating_cursor(*center, screen),
             Interaction::Idle => {
                 let page = self.viewport.screen_to_page(screen);
                 let hit = self.hit_shape(page);
@@ -201,7 +260,7 @@ impl Editor {
                     return CursorKind::IBeam;
                 }
                 match self.tool {
-                    Tool::Select => self.select_hover_cursor(page, hit),
+                    Tool::Select => self.select_hover_cursor(screen, page, hit),
                     Tool::Text if hit.is_some_and(|id| self.is_text_shape(id)) => CursorKind::IBeam,
                     _ => CursorKind::AnnotationPlus,
                 }
