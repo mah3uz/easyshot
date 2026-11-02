@@ -2129,6 +2129,7 @@ dependencies = [
  "es-testkit",
  "es-ui",
  "futures",
+ "gpui-component",
  "gpui-pre",
  "gpui-pre-platform",
  "gstreamer",
@@ -2138,9 +2139,14 @@ dependencies = [
  "i18n-embed-fl",
  "image",
  "rust-embed",
+ "serde_json",
+ "tempfile",
  "thiserror 2.0.21",
  "time",
  "tracing",
+ "uuid",
+ "wayland-client",
+ "wayland-protocols-wlr",
 ]
 
 [[package]]

@@ -17,6 +17,7 @@ es-record.workspace = true
 es-app.workspace = true
 es-ui.workspace = true
 gpui.workspace = true
+gpui-component.workspace = true
 time.workspace = true
 async-channel.workspace = true
 futures.workspace = true
@@ -27,6 +28,8 @@ image = { workspace = true }
 i18n-embed = { workspace = true }
 i18n-embed-fl = { workspace = true }
 rust-embed = { workspace = true }
+serde_json.workspace = true
+uuid.workspace = true
 gstreamer = { workspace = true, optional = true }
 gstreamer-app = { workspace = true, optional = true }
 gstreamer-video = { workspace = true, optional = true }
@@ -36,6 +39,9 @@ gpui = { workspace = true, features = ["test-support", "bench-support"] }
 gpui_platform = { workspace = true, features = ["test-support", "bench-support"] }
 es-testkit.workspace = true
 es-backend = { workspace = true, features = ["test-hooks"] }
+tempfile.workspace = true
+wayland-client.workspace = true
+wayland-protocols-wlr.workspace = true
 
 [features]
 player = ["dep:gstreamer", "dep:gstreamer-app", "dep:gstreamer-video"]

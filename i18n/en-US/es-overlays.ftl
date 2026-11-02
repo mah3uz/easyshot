@@ -46,6 +46,7 @@ deck-share-upload-failed-title = Upload failed
 pin-copy-image = Copy Image
 pin-copy-video = Copy Video
 pin-close = Close
+pin-a11y = Pinned screenshot
 
 ## Capture bar (picker mode)
 bar-caption-area = Area
