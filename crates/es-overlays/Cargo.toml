@@ -22,6 +22,11 @@ async-channel.workspace = true
 futures.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
+es-backend = { workspace = true }
+image = { workspace = true }
+i18n-embed = { workspace = true }
+i18n-embed-fl = { workspace = true }
+rust-embed = { workspace = true }
 gstreamer = { workspace = true, optional = true }
 gstreamer-app = { workspace = true, optional = true }
 gstreamer-video = { workspace = true, optional = true }
@@ -30,6 +35,7 @@ gstreamer-video = { workspace = true, optional = true }
 gpui = { workspace = true, features = ["test-support", "bench-support"] }
 gpui_platform = { workspace = true, features = ["test-support", "bench-support"] }
 es-testkit.workspace = true
+es-backend = { workspace = true, features = ["test-hooks"] }
 
 [features]
 player = ["dep:gstreamer", "dep:gstreamer-app", "dep:gstreamer-video"]

@@ -2113,6 +2113,7 @@ version = "0.1.0"
 dependencies = [
  "async-channel",
  "es-app",
+ "es-backend",
  "es-geom",
  "es-model",
  "es-record",
@@ -2125,6 +2126,10 @@ dependencies = [
  "gstreamer",
  "gstreamer-app",
  "gstreamer-video",
+ "i18n-embed",
+ "i18n-embed-fl",
+ "image",
+ "rust-embed",
  "thiserror 2.0.21",
  "time",
  "tracing",

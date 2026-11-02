@@ -153,3 +153,4 @@ scroll-pause-auto-a11y = Pause Automatic Scrolling
 scroll-start-auto-a11y = Start Automatic Scrolling
 scroll-stop-a11y = Stop Scrolling Capture
 scroll-hud-a11y = Scroll Capture, { $w } by { $h } points
+region-a11y = Select an area to capture. Drag to draw it, Return to capture, Escape to cancel.
