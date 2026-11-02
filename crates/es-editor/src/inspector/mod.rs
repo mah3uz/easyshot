@@ -95,7 +95,6 @@ impl Inspector {
             LookModel::drive_canvas(&look, canvas, cx),
             cx.observe(&look, |_, _, cx| cx.notify()),
         ];
-        let mut bodies: [Option<AnyView>; SECTIONS] = Default::default();
         bodies[index(Section::Border)] = Some(
             cx.new(|cx| border::BorderBody::new(look.clone(), cx))
                 .into(),
