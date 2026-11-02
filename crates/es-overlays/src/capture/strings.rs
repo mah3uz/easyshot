@@ -11,11 +11,12 @@ struct Localizations;
 
 static LOADER: LazyLock<FluentLanguageLoader> = LazyLock::new(|| {
     let loader = fluent_language_loader!();
-    loader.set_use_isolating(false);
     if let Err(error) = loader.load_languages(&Localizations, &[loader.fallback_language().clone()])
     {
         tracing::error!(%error, "cannot load es-overlays strings");
     }
+    // Only bundles that exist when it is called take the setting.
+    loader.set_use_isolating(false);
     loader
 });
 
@@ -33,3 +34,12 @@ macro_rules! fl {
 }
 
 pub(crate) use fl;
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn arguments_are_not_wrapped_in_isolation_marks() {
+        let text = i18n_embed_fl::fl!(super::loader(), "region-size", w = 3, h = 4);
+        assert_eq!(text, "3 × 4");
+    }
+}
