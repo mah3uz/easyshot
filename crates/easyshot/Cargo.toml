@@ -31,6 +31,7 @@ gpui = { workspace = true, optional = true }
 gpui_platform = { workspace = true, optional = true }
 rayon = { workspace = true, optional = true }
 time = { workspace = true, optional = true }
+uuid = { workspace = true, optional = true }
 clap.workspace = true
 anyhow.workspace = true
 tokio.workspace = true
@@ -51,7 +52,7 @@ tempfile.workspace = true
 image.workspace = true
 
 [features]
-gui = ["dep:gpui", "dep:gpui_platform", "dep:es-ui", "dep:es-app", "dep:es-editor", "dep:es-overlays", "dep:es-shell", "dep:gpui-component", "dep:rayon", "dep:time"]
+gui = ["dep:gpui", "dep:gpui_platform", "dep:es-ui", "dep:es-app", "dep:es-editor", "dep:es-overlays", "dep:es-shell", "dep:gpui-component", "dep:rayon", "dep:time", "dep:uuid"]
 default = ["gui", "es-backend/hyprland", "es-backend/wlroots", "es-backend/niri"]
 hyprland = ["es-backend/hyprland"]
 wlroots = ["es-backend/wlroots"]

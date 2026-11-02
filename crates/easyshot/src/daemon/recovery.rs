@@ -6,7 +6,12 @@ use std::path::Path;
 use time::OffsetDateTime;
 
 /// Restores deck cards, finishes interrupted recordings and collects editor journals for reopening.
-pub fn run(paths: &Paths, deck: &Entity<Deck>, cx: &mut App) -> Vec<Recovered> {
+pub fn run(
+    paths: &Paths,
+    deck: &Entity<Deck>,
+    recordings: &super::recording::Recordings,
+    cx: &mut App,
+) -> Vec<Recovered> {
     match es_store::Deck::new(paths).restore(OffsetDateTime::now_utc()) {
         Ok(items) => deck.update(cx, |deck, cx| {
             for manifest in &items {
@@ -15,19 +20,29 @@ pub fn run(paths: &Paths, deck: &Entity<Deck>, cx: &mut App) -> Vec<Recovered> {
         }),
         Err(e) => tracing::warn!(error = %e, "deck staging not restored"),
     }
-    let recordings = paths.recordings_dir();
-    cx.background_executor()
-        .spawn(async move {
-            match es_record::recovery::recover(&recordings, &es_record::project::SystemRunner) {
-                Ok(report) => tracing::info!(
+    let recordings_dir = paths.recordings_dir();
+    let found = cx.background_executor().spawn(async move {
+        match es_record::recovery::recover(&recordings_dir, &es_record::project::SystemRunner) {
+            Ok(report) => {
+                tracing::info!(
                     recovered = report.recovered.len(),
                     unplayable = report.unplayable.len(),
                     "recording recovery"
-                ),
-                Err(e) => tracing::warn!(error = %e, "recording recovery"),
+                );
+                report.recovered
             }
-        })
-        .detach();
+            Err(e) => {
+                tracing::warn!(error = %e, "recording recovery");
+                Vec::new()
+            }
+        }
+    });
+    let shown = recordings.clone();
+    cx.spawn(async move |cx| {
+        let found = found.await;
+        cx.update(|cx| shown.show_recovered(&found, cx));
+    })
+    .detach();
     sweep_orphans(paths);
     journal::recover(paths)
 }

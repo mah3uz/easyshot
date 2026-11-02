@@ -24,6 +24,7 @@ thiserror.workspace = true
 tracing.workspace = true
 directories.workspace = true
 rodio = { workspace = true, optional = true }
+resvg = { version = "0.45.1", default-features = false }
 
 [features]
 sound = ["dep:rodio"]

@@ -1,6 +1,7 @@
 mod bus;
 mod capture;
 mod pickers;
+mod recording;
 mod recovery;
 mod routes;
 mod windows;
@@ -8,13 +9,15 @@ mod windows;
 mod wiring_tests;
 
 use anyhow::{Context as _, Result, bail};
-use es_app::capture_coordinator::CaptureCoordinator;
+use es_app::capture_coordinator::{CaptureCoordinator, CaptureKind};
 use es_app::deck::{Deck, DeckPolicy};
 use es_app::dispatcher::RouteDispatcher;
 use es_app::events::{EventHandlers, PlatformEvent, spawn_pump};
 use es_app::history::History;
 use es_app::pipeline::{self, PipelineDeps, Reporting};
-use es_app::platform_ui::{BackendClipboardSink, LayerShellSurfaces, ToastSurface};
+use es_app::platform_ui::{
+    BackendClipboardSink, LayerShellSurfaces, SelectMode, SelectionFlow as _, ToastSurface,
+};
 use es_app::services::Services;
 use es_app::settings_model::SettingsModel;
 use es_app::toast::install_toasts;
@@ -28,7 +31,7 @@ use es_overlays::deck::view::{DeckSettings, DeckSurface};
 use es_overlays::pin::Pins;
 use es_shell::gallery::DesktopFiles;
 use es_store::{ConfigFile, Paths};
-use gpui::{App, AppContext as _, Global, QuitMode, Task};
+use gpui::{App, AppContext as _, Entity, Global, QuitMode, Task};
 use std::rc::Rc;
 use std::sync::Arc;
 use tracing_subscriber::EnvFilter;
@@ -300,6 +303,7 @@ fn start(
                 capture::remember(paths.clone()),
             ),
     );
+    let area_flow = flow.clone();
     coordinator.set_scroll_stop(flow.scroll_stop());
     coordinator.set_selection_flow(Rc::new(Reporting(flow)));
     coordinator.set_direct_capture(Rc::new(Reporting(Rc::new(capture::Direct::new(
@@ -312,7 +316,7 @@ fn start(
         surfaces.clone(),
         Rc::new(move |cx| timer.read(cx).config().capture.self_timer),
     ));
-    coordinator.set_pipeline(pipeline::pipeline(Rc::new(PipelineDeps {
+    let screenshots = pipeline::pipeline(Rc::new(PipelineDeps {
         paths: paths.clone(),
         settings: settings.clone(),
         history: history.clone(),
@@ -324,7 +328,34 @@ fn start(
             let wiring = wiring.clone();
             Rc::new(move |file, cx| wiring.open_editor_for(&file, cx))
         },
-    })));
+    }));
+    let recordings = recording::Recordings::new(recording::Deps {
+        settings: settings.clone(),
+        paths: paths.clone(),
+        deck: deck.clone(),
+        recorder: recorder_for(backend.clone()),
+        outputs: {
+            let backend = backend.clone();
+            Rc::new(move || backend.capture.outputs())
+        },
+        ui: Rc::new(recording::LayerUi {
+            surfaces: surfaces.clone(),
+            tray: tray_update(backend.clone(), history.clone()),
+            notify: notice(backend.clone()),
+        }),
+        clock: Arc::new(es_record::SystemClock::default()),
+        runner: Arc::new(es_record::project::SystemRunner),
+        countdown: recording::ui::countdown(surfaces.clone()),
+        select_area: Rc::new(move |cx| area_flow.run(SelectMode::Region, cx)),
+    });
+    wiring.set_recordings(recordings.clone());
+    let rec = recordings.clone();
+    coordinator.set_pipeline(Rc::new(move |request, selection, cx| match request.kind {
+        CaptureKind::Recording | CaptureKind::RecordingArea => {
+            rec.with_selection(request.kind, selection, cx)
+        }
+        _ => screenshots(request, selection, cx),
+    }));
 
     let dispatcher = RouteDispatcher::new(jobs.clone(), coordinator, windows);
     wiring.set_dispatcher(dispatcher.clone());
@@ -334,8 +365,12 @@ fn start(
         wiring: wiring.clone(),
         pins: pins.clone(),
         paths: paths.clone(),
+        recordings: recordings.clone(),
     };
-    let subscriptions = vec![routes::deck_events(&action_deps, clipboard, cx)];
+    let subscriptions = vec![
+        routes::deck_events(&action_deps, clipboard, cx),
+        routes::video_cards(&action_deps, cx),
+    ];
     dispatcher.set_action_handler(routes::actions(action_deps));
 
     let (events_tx, events_rx) = async_channel::unbounded::<PlatformEvent>();
@@ -349,7 +384,7 @@ fn start(
     tasks.extend(bus::platform_sources(backend, &history, &events_tx, cx));
     let bridge = bus::Bridge::start(backend, events_tx, dispatcher, jobs, finished, cx)?;
 
-    let recovered = recovery::run(paths, &deck, cx);
+    let recovered = recovery::run(paths, &deck, &recordings, cx);
     reopen_recovered(&wiring, recovered, cx);
     if first_launch_pending(paths)
         && let Err(e) = wiring
@@ -394,4 +429,62 @@ fn reopen_recovered(
             cx,
         );
     }
+}
+
+/// Picks the recorder the settings name, else the best one the backend found; test mode fakes one.
+fn recorder_for(backend: Arc<Backend>) -> recording::RecorderFor {
+    struct Shared(Arc<Backend>, usize);
+    impl es_record::Recorder for Shared {
+        fn name(&self) -> &'static str {
+            self.0.recorders[self.1].name()
+        }
+        fn probe(&self) -> es_record::RecorderProbe {
+            self.0.recorders[self.1].probe()
+        }
+        fn start(
+            &self,
+            spec: es_record::RecordSpec,
+        ) -> es_record::Result<Box<dyn es_record::RecordingHandle>> {
+            self.0.recorders[self.1].start(spec)
+        }
+    }
+    Rc::new(move |wanted| {
+        #[cfg(feature = "test-hooks")]
+        if test_mode_requested() {
+            return Ok(Arc::new(recording::fake::FakeRecorder { video: true }));
+        }
+        let at = backend
+            .recorders
+            .iter()
+            .position(|r| wanted == "auto" || r.name() == wanted)
+            .ok_or(es_app::errors::Error::Unsupported)?;
+        Ok(Arc::new(Shared(backend.clone(), at)))
+    })
+}
+
+fn tray_update(backend: Arc<Backend>, history: Entity<History>) -> recording::ui::TrayUpdate {
+    Rc::new(move |state, cx| {
+        if let Some(tray) = &backend.tray {
+            let mut input = bus::tray_input(&history, cx);
+            input.recording = state;
+            es_shell::tray::show(tray.as_ref(), &input);
+        }
+    })
+}
+
+fn notice(backend: Arc<Backend>) -> recording::ui::Notify {
+    Rc::new(move |title| {
+        let sent = backend.notifier.notify(Notification {
+            title,
+            body: String::new(),
+            icon: None,
+            image: None,
+            actions: Vec::new(),
+            urgency: es_desktop::Urgency::Normal,
+            timeout: Some(std::time::Duration::from_secs(3)),
+        });
+        if let Err(e) = sent {
+            tracing::warn!(error = %e, "recording notice");
+        }
+    })
 }

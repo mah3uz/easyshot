@@ -153,6 +153,47 @@ pub const PORTAL_SETTINGS: Provider<dyn Appearance> = Provider {
     },
 };
 
+fn usable(recorder: impl Recorder + 'static) -> Result<Box<dyn Recorder>, BackendError> {
+    let probe = recorder.probe();
+    if probe.available {
+        Ok(Box::new(recorder))
+    } else {
+        Err(BackendError::Unavailable(
+            probe.reason.unwrap_or_else(|| recorder.name().to_owned()),
+        ))
+    }
+}
+
+pub const GSR_NATIVE: Provider<dyn Recorder> = Provider {
+    name: "gsr-native",
+    probe: |p| p.tools.has("gpu-screen-recorder").then_some(30),
+    build: |p| {
+        if test_mode(p) {
+            return not_in_test_mode("recorder");
+        }
+        usable(es_record::GsrRecorder::native())
+    },
+};
+
+pub const WF_RECORDER: Provider<dyn Recorder> = Provider {
+    name: "wf-recorder",
+    probe: |p| p.tools.has("wf-recorder").then_some(20),
+    build: |p| {
+        if test_mode(p) {
+            return not_in_test_mode("recorder");
+        }
+        let encoders = std::process::Command::new("ffmpeg")
+            .args(["-hide_banner", "-encoders"])
+            .env_remove("WAYLAND_DISPLAY")
+            .env_remove("DISPLAY")
+            .stdin(std::process::Stdio::null())
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+            .map_err(|e| BackendError::Unavailable(format!("ffmpeg: {e}")))?;
+        usable(es_record::WfRecorder::new(encoders, None))
+    },
+};
+
 pub const PORTAL_RECORDER: Provider<dyn Recorder> = Provider {
     name: "portal-recorder",
     probe: |p| (p.portals.screencast && p.tools.has("pipewiresrc")).then_some(1),

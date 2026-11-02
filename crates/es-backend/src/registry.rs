@@ -77,7 +77,11 @@ pub static FILES: &[Provider<dyn FilePicker>] = &[desktop::PORTAL_FILE_CHOOSER];
 
 pub static APPEARANCE: &[Provider<dyn Appearance>] = &[desktop::PORTAL_SETTINGS];
 
-pub static RECORDERS: &[Provider<dyn Recorder>] = &[desktop::PORTAL_RECORDER];
+pub static RECORDERS: &[Provider<dyn Recorder>] = &[
+    desktop::GSR_NATIVE,
+    desktop::WF_RECORDER,
+    desktop::PORTAL_RECORDER,
+];
 
 pub struct Registry {
     pub capture: &'static [Provider<dyn Capture>],

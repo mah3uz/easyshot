@@ -197,6 +197,14 @@
       "forced": null,
       "rejected": [
         {
+          "provider": "gsr-native",
+          "reason": "not detected"
+        },
+        {
+          "provider": "wf-recorder",
+          "reason": "not detected"
+        },
+        {
           "provider": "portal-recorder",
           "reason": "not detected"
         }

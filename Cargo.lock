@@ -1824,6 +1824,7 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]
@@ -2052,6 +2053,7 @@ dependencies = [
  "futures",
  "ksni",
  "notify-rust",
+ "resvg 0.45.1",
  "rodio",
  "serde",
  "tempfile",

@@ -253,7 +253,7 @@ impl Probe {
             wayland,
             errors,
             labels: None,
-            tray_icon: Vec::new(),
+            tray_icon: es_desktop::tray_icons(),
         })
     }
 }

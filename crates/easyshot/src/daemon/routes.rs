@@ -1,3 +1,4 @@
+use super::recording::Recordings;
 use super::windows::Wiring;
 use es_app::deck::{Deck, DeckAction, DeckEvent, DeckItem, ItemStatus};
 use es_app::deck_save;
@@ -28,6 +29,7 @@ pub struct ActionDeps {
     pub wiring: Rc<Wiring>,
     pub pins: Rc<Pins>,
     pub paths: Paths,
+    pub recordings: Recordings,
 }
 
 fn latest(history: &Entity<History>, cx: &App) -> Option<HistoryEntry> {
@@ -99,6 +101,10 @@ pub fn actions(d: ActionDeps) -> ActionHandler {
             Action::Quit => d.wiring.quit(cx),
             Action::DeckSaveAll => d.deck.update(cx, |d, cx| d.save_all(cx)),
             Action::DeckCloseAll => d.deck.update(cx, |d, cx| d.clear_all(cx)),
+            Action::RecordStop => d.recordings.stop(cx)?,
+            Action::RecordPause => d.recordings.toggle_pause(cx)?,
+            Action::RecordRestart => d.recordings.restart(cx)?,
+            Action::RecordDiscard => d.recordings.discard(cx)?,
             Action::SettingsPage(page) => d.wiring.show_settings_page(page, cx),
             Action::UnpinAll => d.pins.unpin_all(cx),
             Action::PinLast => {
@@ -154,6 +160,7 @@ pub fn deck_events(d: &ActionDeps, clipboard: Rc<dyn ClipboardSink>, cx: &mut Ap
                     .detach();
             }
         }
+        DeckEvent::Requested { item, .. } if item.video => {}
         DeckEvent::Requested { item, action } => match action {
             DeckAction::Copy => copy_card(&item.file, &clipboard, cx),
             DeckAction::Pin => {
@@ -207,4 +214,35 @@ fn save_card(
         });
     })
     .detach();
+}
+
+/// Save and Edit on a recording's card; the other card actions do not apply to a video.
+pub fn video_cards(d: &ActionDeps, cx: &mut App) -> Subscription {
+    let (recordings, paths) = (d.recordings.clone(), d.paths.clone());
+    cx.subscribe(&d.deck, move |_, event: &DeckEvent, cx| {
+        let DeckEvent::Requested { item, action } = event else {
+            return;
+        };
+        if !item.video {
+            return;
+        }
+        match action {
+            DeckAction::Save => recordings.save_card(item.id, cx),
+            DeckAction::Edit => {
+                #[cfg(feature = "player")]
+                let opened =
+                    super::recording::ui::open_player(item.file.clone(), paths.clone(), cx);
+                #[cfg(not(feature = "player"))]
+                let opened: Result<(), Error> = {
+                    let _ = &paths;
+                    Err(Error::Unsupported)
+                };
+                if let Err(e) = opened {
+                    tracing::warn!(error = %e, "trim viewer");
+                    show_toast(Toast::error("toast-unsupported"), cx);
+                }
+            }
+            _ => {}
+        }
+    })
 }

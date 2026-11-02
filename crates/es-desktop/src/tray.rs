@@ -94,10 +94,14 @@ impl ksni::Tray for EsTray {
     fn icon_pixmap(&self) -> Vec<Icon> {
         self.pixmaps
             .iter()
+            .map(|p| match &self.recording {
+                Some(state) => crate::tray_icon::with_dot(p, state.paused),
+                None => p.clone(),
+            })
             .map(|p| Icon {
                 width: p.width,
                 height: p.height,
-                data: p.argb.clone(),
+                data: p.argb,
             })
             .collect()
     }

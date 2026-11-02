@@ -7,6 +7,7 @@ mod notify;
 mod portal;
 mod sound;
 mod tray;
+mod tray_icon;
 
 pub use autostart::{autostart_enabled, autostart_file, set_autostart, set_autostart_in};
 pub use bus::Labels;
@@ -18,6 +19,7 @@ pub use portal::{PortalAppearance, PortalFilePicker, PortalShortcuts, portal_tri
 pub use sound::RodioSound;
 pub use sound::Sound;
 pub use tray::{IconPixmap, KsniTray, watcher_present};
+pub use tray_icon::{tray_icons, with_dot};
 
 use es_protocol::{Route, ShortcutEntry};
 use futures::future::BoxFuture;

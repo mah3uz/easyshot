@@ -160,7 +160,7 @@ pub fn platform_sources(
     tasks
 }
 
-fn tray_input(history: &Entity<History>, cx: &App) -> es_shell::tray::TrayInput {
+pub(super) fn tray_input(history: &Entity<History>, cx: &App) -> es_shell::tray::TrayInput {
     let recent = history
         .read(cx)
         .entries()

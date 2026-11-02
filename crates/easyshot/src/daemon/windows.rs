@@ -44,6 +44,7 @@ pub struct Wiring {
     pub surfaces: Option<Rc<LayerShellSurfaces>>,
     pub windows: Windows,
     dispatcher: RefCell<Option<RouteDispatcher>>,
+    recordings: RefCell<Option<super::recording::Recordings>>,
     editors: RefCell<Vec<WeakEntity<EditorWindow>>>,
     settings_window: RefCell<Option<WeakEntity<SettingsWindow>>>,
     recoveries: RefCell<HashMap<PathBuf, PathBuf>>,
@@ -102,10 +103,15 @@ impl Wiring {
             surfaces,
             windows,
             dispatcher: RefCell::default(),
+            recordings: RefCell::default(),
             editors: RefCell::default(),
             settings_window: RefCell::default(),
             recoveries: RefCell::default(),
         })
+    }
+
+    pub fn set_recordings(&self, recordings: super::recording::Recordings) {
+        *self.recordings.borrow_mut() = Some(recordings);
     }
 
     pub fn set_dispatcher(&self, dispatcher: RouteDispatcher) {
@@ -435,6 +441,28 @@ fn open_bar(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>> {
         BarEvent::Route(route) => {
             surface.close(cx);
             w.dispatch(route.clone(), cx);
+        }
+        BarEvent::Record(request) => {
+            surface.close(cx);
+            let recordings = w.recordings.borrow().clone();
+            let Some(recordings) = recordings else {
+                return;
+            };
+            let started = recordings.with_request((**request).clone(), cx);
+            cx.spawn(async move |cx| {
+                if let Err(e) = started.await
+                    && !matches!(e, Error::Cancelled)
+                {
+                    tracing::warn!(error = %e, "recording did not start");
+                    cx.update(|cx| {
+                        es_app::toast::show_toast(
+                            es_app::toast::Toast::error("toast-error-generic"),
+                            cx,
+                        )
+                    });
+                }
+            })
+            .detach();
         }
         _ => {}
     })

@@ -1,0 +1,215 @@
+#![cfg(all(feature = "test-hooks", feature = "gui"))]
+#![allow(clippy::unwrap_used)]
+use es_backend::{Backend, Probe};
+use es_geom::Point;
+use std::path::{Path, PathBuf};
+use std::process::{Child, Command, Stdio};
+use std::thread::sleep;
+use std::time::{Duration, Instant};
+
+const DEST: &str = "dev.easyshot.EasyshotTest";
+const PATH: &str = "/dev/easyshot/Easyshot";
+
+fn gdbus(method: &str, args: &[&str]) -> Option<String> {
+    let out = Command::new("gdbus")
+        .args(["call", "--session", "--dest", DEST, "--object-path", PATH])
+        .args(["--method", method])
+        .args(args)
+        .output()
+        .ok()?;
+    out.status
+        .success()
+        .then(|| String::from_utf8_lossy(&out.stdout).into_owned())
+}
+
+fn swaymsg(args: &[&str]) -> String {
+    let out = Command::new("swaymsg").args(args).output().unwrap();
+    assert!(out.status.success(), "swaymsg {args:?}");
+    String::from_utf8_lossy(&out.stdout).into_owned()
+}
+
+fn until<T>(secs: u64, mut f: impl FnMut() -> Option<T>) -> Option<T> {
+    let end = Instant::now() + Duration::from_secs(secs);
+    while Instant::now() < end {
+        if let Some(v) = f() {
+            return Some(v);
+        }
+        sleep(Duration::from_millis(100));
+    }
+    None
+}
+
+fn files(dir: &Path, ext: &str) -> Vec<PathBuf> {
+    let Ok(read) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    read.filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| p.extension().is_some_and(|x| x == ext))
+        .collect()
+}
+
+struct Daemon(Child);
+
+impl Drop for Daemon {
+    fn drop(&mut self) {
+        let _ = gdbus("dev.easyshot.Easyshot.Command", &["quit", "{}"]);
+        if until(5, || self.0.try_wait().ok().flatten()).is_none() {
+            let _ = self.0.kill();
+            let _ = self.0.wait();
+        }
+    }
+}
+
+fn start_daemon(root: &Path) -> Daemon {
+    let config = root.join("config/easyshot");
+    std::fs::create_dir_all(&config).unwrap();
+    std::fs::write(
+        config.join("config.toml"),
+        format!(
+            "[general]\nsave_dir = \"{}\"\n\n[after_capture.screenshot]\nsave = true\nshow_preview = true\n",
+            root.join("saved").display()
+        ),
+    )
+    .unwrap();
+    let child = Command::new(env!("CARGO_BIN_EXE_easyshot"))
+        .arg("daemon")
+        .env("XDG_CONFIG_HOME", root.join("config"))
+        .env("XDG_DATA_HOME", root.join("data"))
+        .env("XDG_STATE_HOME", root.join("state"))
+        .env("XDG_CACHE_HOME", root.join("cache"))
+        .env("EASYSHOT_TEST_DIR", root.join("test"))
+        .env(
+            "EASYSHOT_LOG",
+            std::env::var("EASYSHOT_E2E_LOG").unwrap_or_else(|_| "info".into()),
+        )
+        .stderr(Stdio::from(
+            std::fs::File::create(root.join("daemon.log")).unwrap(),
+        ))
+        .spawn()
+        .unwrap();
+    Daemon(child)
+}
+
+fn output_origin() -> Point {
+    let outputs: serde_json::Value =
+        serde_json::from_str(&swaymsg(&["-t", "get_outputs", "-r"])).unwrap();
+    let rect = &outputs[0]["rect"];
+    Point::new(rect["x"].as_f64().unwrap(), rect["y"].as_f64().unwrap())
+}
+
+// Runs inside tests/harness/sway.sh, whose only output is HEADLESS-1; skipped anywhere else.
+#[test]
+fn platform_daemon_area_recording_places_the_bar_outside_and_stop_leaves_a_card() {
+    if std::env::var("EASYSHOT_TEST").as_deref() != Ok("1")
+        || std::env::var("EASYSHOT_TEST_OUTPUT").as_deref() != Ok("HEADLESS-1")
+    {
+        eprintln!("skipped: not inside the headless sway harness");
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let daemon = start_daemon(root.path());
+    let origin = output_origin();
+    let ready = until(30, || {
+        gdbus(
+            "dev.easyshot.Test.SetPointer",
+            &[
+                &(origin.x + 200.).to_string(),
+                &(origin.y + 150.).to_string(),
+            ],
+        )
+    });
+    let log = || std::fs::read_to_string(root.path().join("daemon.log")).unwrap_or_default();
+    assert!(ready.is_some(), "daemon never answered:\n{}", log());
+
+    let probe = Probe::gather().unwrap();
+    let backend = Backend::detect(&probe);
+    let input = backend.virtual_input.as_ref().expect("virtual pointer");
+    let to = |x: f64, y: f64| {
+        input
+            .scroll(Point::new(origin.x + x, origin.y + y), 0.0)
+            .unwrap();
+        sleep(Duration::from_millis(40));
+    };
+    to(200., 150.);
+    assert!(
+        gdbus("dev.easyshot.Easyshot.Command", &["record/area", "{}"]).is_some(),
+        "Command refused:\n{}",
+        log()
+    );
+    sleep(Duration::from_millis(2500));
+    to(200., 150.);
+    swaymsg(&["seat", "seat0", "cursor", "press", "button1"]);
+    for step in 1..=10 {
+        let t = f64::from(step) / 10.;
+        to(200. + 304. * t, 150. + 151. * t);
+    }
+    swaymsg(&["seat", "seat0", "cursor", "release", "button1"]);
+    sleep(Duration::from_millis(300));
+    to(352., 225.);
+    for _ in 0..2 {
+        swaymsg(&["seat", "seat0", "cursor", "press", "button1"]);
+        swaymsg(&["seat", "seat0", "cursor", "release", "button1"]);
+    }
+
+    let placed = until(15, || {
+        log()
+            .lines()
+            .find(|l| l.contains("recording control bar placed"))
+            .map(str::to_owned)
+    });
+    let placed = placed.unwrap_or_else(|| panic!("no control bar:\n{}", log()));
+    let placed = {
+        let mut plain = String::new();
+        let mut chars = placed.chars();
+        while let Some(c) = chars.next() {
+            if c == '\u{1b}' {
+                for e in chars.by_ref() {
+                    if e == 'm' {
+                        break;
+                    }
+                }
+            } else {
+                plain.push(c);
+            }
+        }
+        plain
+    };
+    let number = |key: &str| -> f64 {
+        let at = placed.find(key).unwrap() + key.len();
+        placed[at..]
+            .split_whitespace()
+            .next()
+            .unwrap()
+            .parse()
+            .unwrap()
+    };
+    let (top, bottom) = (number("top="), number("bottom="));
+    let (area_top, area_bottom) = (origin.y + 150., origin.y + 301.);
+    assert!(
+        bottom <= area_top || top >= area_bottom,
+        "bar {top}..{bottom} overlaps the area {area_top}..{area_bottom}"
+    );
+    sleep(Duration::from_millis(1500));
+    if let Some(shot) = std::env::var_os("EASYSHOT_E2E_SHOT").map(PathBuf::from) {
+        let _ = Command::new("grim")
+            .args(["-o", "HEADLESS-1"])
+            .arg(shot)
+            .status();
+    }
+    assert!(
+        gdbus("dev.easyshot.Easyshot.Command", &["record/stop", "{}"]).is_some(),
+        "stop refused:\n{}",
+        log()
+    );
+    let card = until(15, || log().contains("recording card shown").then_some(()));
+    assert!(card.is_some(), "no video card:\n{}", log());
+    let recordings = root.path().join("data/easyshot/recordings");
+    let folders: Vec<_> = std::fs::read_dir(&recordings)
+        .unwrap()
+        .filter_map(Result::ok)
+        .collect();
+    assert_eq!(folders.len(), 1);
+    assert!(folders[0].path().join("capture.json").is_file());
+    assert!(files(&folders[0].path(), "mkv").len() == 1);
+    drop(daemon);
+}
