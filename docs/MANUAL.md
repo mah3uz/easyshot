@@ -101,8 +101,25 @@ around a round or a band-shaped sharp area. Drag on its focus pad to move the sh
 double-click the pad to centre it. Drag anywhere on a slider to change it, or type a value
 in its field; a slider that runs through zero stops at zero on the way.
 
-Smart redaction finds sensitive text in the image and covers it with redaction shapes, all
-in one undo step.
+Smart Redaction (the eye-off button) reads the image with Tesseract and covers what looks
+sensitive with Pixelate or Blur shapes: e-mail addresses, web links, IPv4 addresses, phone
+numbers, card numbers that pass the Luhn check, JSON web tokens, API keys and tokens, long
+random-looking strings, and values after labels such as `password:` or `token=`. Choose
+Pixelate or Blur in the popover. The footer shows "Scanning screenshot…" while it works
+(the button is greyed meanwhile), then "Added N redactions" or "No sensitive text found."
+All the shapes are added as one undo step and stay selected, so you can move, resize or
+delete them. Without Tesseract the button is disabled and its tooltip says why.
+
+Smart Redaction only covers text Tesseract can read. Small, low-contrast, rotated or
+stylised text, and languages other than English, can be missed. Look over the result
+before you share the image.
+
+Redaction shapes are Blur or Pixelate only; there is no solid fill. To keep text
+unreadable, their strength has a floor that grows with the shape's short side (the text
+height): pixel blocks are at least half that side and never under 12 px, and the blur
+radius is at least 40% of it and never under 8 px. The Strength slider can only raise
+these. Export uses the same values, and the edges of an unrotated shape are covered to
+whole pixels. Smart Redaction uses a high strength.
 
 Saving keeps a sidecar file so you can reopen and edit again. Export writes PNG or JPEG.
 Closing with unsaved changes asks first. If easyshot stops unexpectedly, it reopens your
@@ -207,7 +224,8 @@ Commands:
   has) and `tesseract` (with its installed languages), and whether your settings file is
   fine, missing, from a newer easyshot, or has an error. `--bundle` writes
   `easyshot-doctor-<time>.tar` to the current directory with the report and your logs, and
-  no images.
+  no images. The logs hold file paths, so look through the bundle before you attach it to a
+  public report. They never hold text read from your screenshots.
 - `daemon` runs the daemon in the foreground.
 
 `easyshot://` links accept only these eight, with no arguments: `capture/region`,

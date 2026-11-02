@@ -2,7 +2,7 @@ use super::history::GestureKey;
 use super::{Editor, GestureId, Interaction};
 use crate::Changes;
 use crate::style::StylePatch;
-use es_model::{AnnoShapeId, ShapeKind, Tool};
+use es_model::{AnnoShape, AnnoShapeId, ShapeKind, Tool};
 
 impl Editor {
     /// Picking the active tool again returns to the select tool.
@@ -23,6 +23,21 @@ impl Editor {
         self.set_selection(ids, &mut ch);
         self.sync_style_from_selection();
         ch
+    }
+
+    /// One undo entry for the whole batch; the new shapes end up selected.
+    pub fn add_shapes(&mut self, shapes: Vec<AnnoShape>) -> Changes {
+        if shapes.is_empty() {
+            return Changes::default();
+        }
+        self.command(|ed, ch| {
+            ed.set_tool(Tool::Select, ch);
+            let ids: Vec<_> = shapes.iter().map(|s| s.id).collect();
+            ed.edit(ch, |doc| {
+                shapes.into_iter().flat_map(|s| doc.add(s)).collect()
+            });
+            ed.set_selection(ids, ch);
+        })
     }
 
     pub fn select_all(&mut self) -> Changes {

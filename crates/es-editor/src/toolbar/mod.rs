@@ -84,6 +84,8 @@ pub struct ToolRow {
     cropping: bool,
     inspector_open: bool,
     redact_open: bool,
+    redact_busy: bool,
+    ocr_ready: bool,
     strength: Option<Entity<InspectorSlider>>,
     gestures: u64,
     dragging: Option<GestureId>,
@@ -104,6 +106,8 @@ impl ToolRow {
             cropping: false,
             inspector_open: true,
             redact_open: false,
+            redact_busy: false,
+            ocr_ready: true,
             strength: None,
             gestures: 0,
             dragging: None,
@@ -152,6 +156,16 @@ impl ToolRow {
     /// While cropping only the crop toggle stays live.
     pub fn set_cropping(&mut self, cropping: bool, cx: &mut Context<Self>) {
         self.cropping = cropping;
+        cx.notify();
+    }
+
+    pub fn set_redact_busy(&mut self, busy: bool, cx: &mut Context<Self>) {
+        self.redact_busy = busy;
+        cx.notify();
+    }
+
+    pub fn set_ocr_ready(&mut self, ready: bool, cx: &mut Context<Self>) {
+        self.ocr_ready = ready;
         cx.notify();
     }
 
@@ -262,13 +276,19 @@ impl ToolRow {
     fn smart_redaction(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let row = cx.entity().downgrade();
         let drawn = self.drawn.clone();
+        let unavailable = !self.ocr_ready;
+        let blocked = self.redact_busy || unavailable;
         let trigger = EditorButton::new("redact-button")
             .icon(IconName::EyeOff)
             .accessible_label(fl!("editor-redact"))
-            .tooltip(fl!("editor-redact"))
+            .tooltip(if unavailable {
+                fl!("editor-redact-unavailable")
+            } else {
+                fl!("editor-redact")
+            })
             .padding_x(tokens(cx).metrics.tool_button_padding_x)
             .selected(self.redact_open)
-            .disabled(self.cropping);
+            .disabled(self.cropping || blocked);
         let on_open = row.clone();
         Popover::new("redact", fl!("editor-redact"))
             .anchor(Anchor::TopLeft)
@@ -292,6 +312,7 @@ impl ToolRow {
                             .icon(icon)
                             .label(label)
                             .kind(es_ui::components::ButtonKind::Bordered)
+                            .disabled(blocked)
                             .on_click(move |_, _, cx| {
                                 let _ = row.update(cx, |r, cx| {
                                     r.redact_open = false;

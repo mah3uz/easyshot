@@ -38,6 +38,7 @@ impl EditorWindow {
                     },
                 ))
             })
+            .when_some(self.redact_status(&t), |d, status| d.child(status))
             .when(low_res, |d| {
                 d.child(
                     IconButton::new("low-res", IconName::Info, fl!("editor-lowres-help")).on_click(

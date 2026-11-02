@@ -17,6 +17,7 @@ es-anno.workspace = true
 es-render.workspace = true
 es-store.workspace = true
 es-app.workspace = true
+es-ocr.workspace = true
 es-ui.workspace = true
 es-protocol.workspace = true
 gpui.workspace = true

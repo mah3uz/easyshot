@@ -2084,6 +2084,7 @@ dependencies = [
  "es-app",
  "es-geom",
  "es-model",
+ "es-ocr",
  "es-protocol",
  "es-render",
  "es-store",
@@ -2148,6 +2149,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.21",
  "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

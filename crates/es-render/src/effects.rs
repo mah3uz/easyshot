@@ -36,6 +36,22 @@ pub fn pixel_block(density: f64) -> f64 {
     4.0 + density.clamp(0.0, 1.0) * 36.0
 }
 
+const MIN_BLOCK_PX: f64 = 12.0;
+const MIN_SIGMA_PX: f64 = 8.0;
+const MAX_FLOOR_PX: f64 = 40.0;
+
+/// Output pixels per block, never smaller than half the rect's short side (text height), so no
+/// glyph survives as more than a couple of cells.
+pub fn effective_block(density: f64, short_side: f64, scale: f64) -> f64 {
+    let floor = (short_side * 0.5).clamp(MIN_BLOCK_PX * scale, MAX_FLOOR_PX * scale);
+    (pixel_block(density) * scale).max(floor)
+}
+
+pub fn effective_sigma(density: f64, short_side: f64, scale: f64) -> f64 {
+    let floor = (short_side * 0.4).clamp(MIN_SIGMA_PX * scale, MAX_FLOOR_PX * scale);
+    (blur_radius(density) * scale).max(floor)
+}
+
 pub fn redaction_patch(
     base: &Pixmap,
     rect: Rect,
@@ -46,6 +62,7 @@ pub fn redaction_patch(
     scale: f64,
 ) -> Option<Patch> {
     let (w, h) = (rect.width(), rect.height());
+    let short_side = w.min(h);
     let flip = if mirrored { -1.0 } else { 1.0 };
     let (sin, cos) = rotation.sin_cos();
     let corner = |lx: f64, ly: f64| {
@@ -78,11 +95,11 @@ pub fn redaction_patch(
             let crop = crop_pixmap(base, x0 as u32, y0 as u32, pw, ph)?;
             pixelate(
                 &crop,
-                (pixel_block(density) * scale).round().max(1.0) as u32,
+                effective_block(density, short_side, scale).round().max(1.0) as u32,
             )?
         }
         RedactionKind::Blur => {
-            let radius = blur_radius(density) * scale;
+            let radius = effective_sigma(density, short_side, scale);
             let pad = (radius * 2.0).ceil() as i64;
             let (px0, py0) = ((x0 - pad).max(0), (y0 - pad).max(0));
             let (px1, py1) = ((x1 + pad).min(bw), (y1 + pad).min(bh));
@@ -108,22 +125,24 @@ pub fn redaction_patch(
         }
     }
     pb.close();
-    let mut mask = Mask::new(pw, ph)?;
-    mask.fill_path(
-        &pb.finish()?,
-        FillRule::Winding,
-        true,
-        Transform::identity(),
-    );
-    out.data_mut()
-        .par_chunks_exact_mut(4)
-        .zip(mask.data().par_iter())
-        .for_each(|(px, &cov)| {
-            let c = cov as u32;
-            for ch in px.iter_mut() {
-                *ch = ((*ch as u32 * c + 127) / 255) as u8;
-            }
-        });
+    if rotation != 0.0 {
+        let mut mask = Mask::new(pw, ph)?;
+        mask.fill_path(
+            &pb.finish()?,
+            FillRule::Winding,
+            true,
+            Transform::identity(),
+        );
+        out.data_mut()
+            .par_chunks_exact_mut(4)
+            .zip(mask.data().par_iter())
+            .for_each(|(px, &cov)| {
+                let c = cov as u32;
+                for ch in px.iter_mut() {
+                    *ch = ((*ch as u32 * c + 127) / 255) as u8;
+                }
+            });
+    }
     Some(Patch {
         pixmap: out,
         x: x0 as i32,

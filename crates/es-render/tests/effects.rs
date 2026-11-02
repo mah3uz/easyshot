@@ -76,9 +76,9 @@ fn mirroring_moves_the_rect_to_the_other_side_of_its_origin() {
 #[test]
 fn pixelate_makes_flat_blocks_sized_by_density() {
     let base = noise(120, 120);
-    let rect = Rect::new(0.0, 0.0, 80.0, 80.0);
+    let rect = Rect::new(0.0, 0.0, 120.0, 24.0);
     let run = |p: &Patch| {
-        let row: Vec<_> = (0..80).map(|x| p.pixmap.pixel(x, 0).unwrap()).collect();
+        let row: Vec<_> = (0..120).map(|x| p.pixmap.pixel(x, 0).unwrap()).collect();
         row.iter().take_while(|c| **c == row[0]).count()
     };
     assert_eq!(
@@ -101,58 +101,59 @@ fn pixelate_makes_flat_blocks_sized_by_density() {
             RedactionKind::Pixelate,
             0.0
         )),
-        4
+        12,
+        "density zero still gets the minimum block"
     );
 }
 
 #[test]
 fn pixelate_averages_each_block() {
-    let mut base = Pixmap::new(8, 8).unwrap();
+    let mut base = Pixmap::new(48, 48).unwrap();
     base.fill(Color::BLACK);
-    for y in 0..8usize {
-        for x in 0..4usize {
-            base.pixels_mut()[y * 8 + x] =
+    for y in 0..48usize {
+        for x in 0..24usize {
+            base.pixels_mut()[y * 48 + x] =
                 PremultipliedColorU8::from_rgba(255, 255, 255, 255).unwrap();
         }
     }
     let p = patch(
         &base,
-        Rect::new(0.0, 0.0, 8.0, 8.0),
+        Rect::new(0.0, 0.0, 48.0, 48.0),
         0.0,
         false,
         RedactionKind::Pixelate,
         0.0,
     );
     assert_eq!(p.pixmap.pixel(0, 0).unwrap().red(), 255);
-    assert_eq!(p.pixmap.pixel(7, 7).unwrap().red(), 0);
+    assert_eq!(p.pixmap.pixel(47, 47).unwrap().red(), 0);
 }
 
 #[test]
 fn blur_softens_a_sharp_edge_and_keeps_flat_areas() {
-    let mut base = Pixmap::new(100, 60).unwrap();
+    let mut base = Pixmap::new(300, 60).unwrap();
     base.fill(Color::BLACK);
     for y in 0..60usize {
-        for x in 50..100usize {
-            base.pixels_mut()[y * 100 + x] =
+        for x in 150..300usize {
+            base.pixels_mut()[y * 300 + x] =
                 PremultipliedColorU8::from_rgba(255, 255, 255, 255).unwrap();
         }
     }
     let p = patch(
         &base,
-        Rect::new(10.0, 10.0, 90.0, 50.0),
+        Rect::new(10.0, 10.0, 290.0, 50.0),
         0.0,
         false,
         RedactionKind::Blur,
         0.0,
     );
     let at = |x: u32| p.pixmap.pixel(x - p.x as u32, 20).unwrap().red();
-    let edge = at(50);
+    let edge = at(150);
     assert!(
         edge > 60 && edge < 200,
         "edge pixel is mid-grey, got {edge}"
     );
-    assert!(at(49) > 0 && at(51) < 255);
-    assert!(at(12) < 2 && at(88) > 253, "far from the edge stays flat");
+    assert!(at(149) > 0 && at(151) < 255);
+    assert!(at(12) < 2 && at(288) > 253, "far from the edge stays flat");
 }
 
 #[test]
@@ -160,4 +161,30 @@ fn rect_outside_the_image_gives_no_patch() {
     let base = noise(50, 50);
     let r = Rect::new(80.0, 80.0, 120.0, 120.0);
     assert!(redaction_patch(&base, r, 0.0, false, RedactionKind::Blur, 0.5, 1.0).is_none());
+}
+
+#[test]
+fn minimums_follow_the_text_height_and_scale() {
+    use es_render::effects::{effective_block, effective_sigma};
+    assert_eq!(effective_block(0.0, 20.0, 1.0), 12.0);
+    assert_eq!(effective_block(0.0, 60.0, 1.0), 30.0);
+    assert_eq!(effective_block(0.0, 500.0, 2.0), 80.0);
+    assert_eq!(effective_block(1.0, 20.0, 1.0), 40.0);
+    assert_eq!(effective_sigma(0.0, 20.0, 1.0), 8.0);
+    assert_eq!(effective_sigma(0.0, 100.0, 2.0), 40.0);
+}
+
+#[test]
+fn unrotated_edges_are_fully_replaced() {
+    let base = noise(100, 100);
+    let p = patch(
+        &base,
+        Rect::new(10.4, 10.4, 60.6, 40.6),
+        0.0,
+        false,
+        RedactionKind::Pixelate,
+        0.5,
+    );
+    assert_eq!(alpha(&p, 10, 10), 255);
+    assert_eq!(alpha(&p, 60, 40), 255);
 }

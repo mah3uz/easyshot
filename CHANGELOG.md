@@ -18,7 +18,10 @@
 - Deck cards show the capture inside your default look, and saved captures reopen in the editor with that look still editable.
 - `easyshot deck toggle` hides and shows the deck.
 - Captures from a rotated or flipped output are saved upright.
+- Pixelate and Blur redactions keep a minimum strength tied to the text height, so covered text cannot be read back.
 
 ### Bug fixes
 
 - A capture you only pinned or opened in the editor no longer comes back as a deck card after a restart.
+- Smart Redaction in the editor now scans the image and adds the redactions.
+- Text read by OCR is no longer written to the log.

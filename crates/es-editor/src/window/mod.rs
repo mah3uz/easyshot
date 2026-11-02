@@ -1,4 +1,5 @@
 mod crop_bar;
+pub mod redact;
 mod states;
 mod title_bar;
 
@@ -99,6 +100,9 @@ pub struct EditorWindow {
     export: Action,
     copy: Action,
     error: Option<SharedString>,
+    pub(crate) redact: redact::State,
+    ocr: es_ocr::OcrOptions,
+    redact_tasks: redact::Tasks,
     focus_canvas: bool,
     pub(crate) held: Option<crate::keyboard::Command>,
     guard_hooked: bool,
@@ -122,6 +126,9 @@ impl EditorWindow {
             export: Action::default(),
             copy: Action::default(),
             error: None,
+            redact: redact::State::default(),
+            ocr: es_ocr::OcrOptions::default(),
+            redact_tasks: redact::Tasks::default(),
             focus_canvas: false,
             held: None,
             guard_hooked: false,
@@ -177,6 +184,8 @@ impl EditorWindow {
                             row.update(cx, |r, cx| r.set_inspector_open(open, cx));
                         } else if *event == ToolRowEvent::Crop {
                             this.with_crop(cx, |c, cx| c.toggle(cx));
+                        } else if let ToolRowEvent::SmartRedact(kind) = *event {
+                            this.smart_redact(kind, cx);
                         } else if let Some(op) = crop_bar::image_op(*event) {
                             this.with_crop(cx, |c, cx| {
                                 c.transform(op, cx);
@@ -184,7 +193,8 @@ impl EditorWindow {
                         }
                     }),
                 ];
-                self.tool_row = Some(tool_row.into());
+                self.tool_row = Some(tool_row.clone().into());
+                self.probe_ocr(cx);
                 self.content = Content::Ready { session, canvas };
                 self.focus_canvas = true;
             }

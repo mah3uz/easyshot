@@ -79,7 +79,12 @@ pub fn recognize(image: &RgbaImage, options: &OcrOptions) -> Result<Recognized, 
     let words = tesseract::run(image, options)?;
     let lines = tsv::lines(&words);
     let text = join_text(&codes, &lines);
-    tracing::debug!(codes = codes.len(), "recognized text: {text:?}");
+    tracing::debug!(
+        codes = codes.len(),
+        lines = lines.len(),
+        chars = text.chars().count(),
+        "recognized text"
+    );
     Ok(Recognized {
         text,
         codes,
