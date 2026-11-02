@@ -5,6 +5,7 @@ pub mod footer;
 pub mod inspector;
 pub mod keyboard;
 pub mod session;
+pub mod strings;
 pub mod toolbar;
 pub mod window;
 

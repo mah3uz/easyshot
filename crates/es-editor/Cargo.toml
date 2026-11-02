@@ -29,6 +29,9 @@ thiserror.workspace = true
 tracing.workspace = true
 image.workspace = true
 tiny-skia.workspace = true
+i18n-embed = { workspace = true }
+i18n-embed-fl = { workspace = true }
+rust-embed = { workspace = true }
 
 [dev-dependencies]
 gpui = { workspace = true, features = ["test-support", "bench-support"] }
