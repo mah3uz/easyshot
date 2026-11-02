@@ -1,9 +1,40 @@
 use crate::error::BackendError;
-use crate::probe::Provider;
+use crate::probe::{Probe, Provider};
 use crate::traits::Capture;
-use es_desktop::{Appearance, FilePicker, Notification, NotificationId, Notifier, Shortcuts, Tray};
+use es_desktop::dbus::Endpoint;
+use es_desktop::{
+    Appearance, DesktopNotifier, FilePicker, KsniTray, Labels, Notification, NotificationId,
+    Notifier, PortalAppearance, PortalFilePicker, PortalShortcuts, RecordingNotifier,
+    RecordingShortcuts, RecordingTray, Shortcuts, Tray,
+};
 use es_protocol::{Route, ShortcutEntry};
 use es_record::Recorder;
+use std::sync::Arc;
+
+#[cfg(feature = "test-hooks")]
+fn test_mode(p: &Probe) -> bool {
+    p.test.is_some()
+}
+
+#[cfg(not(feature = "test-hooks"))]
+fn test_mode(_: &Probe) -> bool {
+    false
+}
+
+fn unavailable(what: &str, e: &es_desktop::Error) -> BackendError {
+    BackendError::Unavailable(format!("{what}: {e}"))
+}
+
+fn not_in_test_mode<T: ?Sized>(what: &str) -> Result<Box<T>, BackendError> {
+    Err(BackendError::Unavailable(format!(
+        "test mode opens no {what}"
+    )))
+}
+
+// The Fluent catalogue sits above this layer, so labels stay catalogue ids.
+fn catalogue_ids() -> Labels {
+    Arc::new(|id: &str| id.to_owned())
+}
 
 fn no_client<T: ?Sized>(what: &str) -> Result<Box<T>, BackendError> {
     Err(BackendError::Unavailable(format!(
@@ -20,7 +51,14 @@ pub const PORTAL_SCREENSHOT: Provider<dyn Capture> = Provider {
 pub const PORTAL_GLOBAL_SHORTCUTS: Provider<dyn Shortcuts> = Provider {
     name: "portal-global-shortcuts",
     probe: |p| p.portals.global_shortcuts.then_some(10),
-    build: |_| no_client("portal GlobalShortcuts"),
+    build: |p| {
+        if test_mode(p) {
+            return Ok(Box::new(RecordingShortcuts::new(false)));
+        }
+        Ok(Box::new(futures::executor::block_on(
+            PortalShortcuts::start(&Endpoint::session(), catalogue_ids()),
+        )))
+    },
 };
 
 /// Shortcuts bound in the compositor's own config, which runs `easyshot <command>`.
@@ -66,25 +104,51 @@ pub const USER_BINDS: Provider<dyn Shortcuts> = Provider {
 pub const STATUS_NOTIFIER: Provider<dyn Tray> = Provider {
     name: "status-notifier",
     probe: |p| p.dbus.has("org.kde.StatusNotifierWatcher").then_some(10),
-    build: |_| no_client("StatusNotifierItem"),
+    build: |p| {
+        if test_mode(p) {
+            return Ok(Box::new(RecordingTray::default()));
+        }
+        futures::executor::block_on(KsniTray::start(catalogue_ids(), Vec::new()))
+            .map(|t| Box::new(t) as Box<dyn Tray>)
+            .map_err(|e| unavailable("tray", &e))
+    },
 };
 
 pub const FREEDESKTOP_NOTIFICATIONS: Provider<dyn Notifier> = Provider {
     name: "freedesktop-notifications",
     probe: |p| p.dbus.has("org.freedesktop.Notifications").then_some(10),
-    build: |_| no_client("notifications"),
+    build: |p| {
+        if test_mode(p) {
+            return Ok(Box::new(RecordingNotifier::new(false)));
+        }
+        futures::executor::block_on(DesktopNotifier::connect(&Endpoint::session()))
+            .map(|n| Box::new(n) as Box<dyn Notifier>)
+            .map_err(|e| unavailable("notifications", &e))
+    },
 };
 
 pub const PORTAL_FILE_CHOOSER: Provider<dyn FilePicker> = Provider {
     name: "portal-file-chooser",
     probe: |p| p.portals.file_chooser.then_some(10),
-    build: |_| no_client("portal FileChooser"),
+    build: |p| {
+        if test_mode(p) {
+            return not_in_test_mode("file dialog");
+        }
+        Ok(Box::new(PortalFilePicker::new(Endpoint::session())))
+    },
 };
 
 pub const PORTAL_SETTINGS: Provider<dyn Appearance> = Provider {
     name: "portal-settings",
     probe: |p| p.portals.settings.then_some(10),
-    build: |_| no_client("portal Settings"),
+    build: |p| {
+        if test_mode(p) {
+            return not_in_test_mode("portal Settings");
+        }
+        futures::executor::block_on(PortalAppearance::start(&Endpoint::session()))
+            .map(|a| Box::new(a) as Box<dyn Appearance>)
+            .map_err(|e| unavailable("portal Settings", &e))
+    },
 };
 
 pub const PORTAL_RECORDER: Provider<dyn Recorder> = Provider {

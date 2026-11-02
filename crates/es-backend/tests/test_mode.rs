@@ -162,10 +162,15 @@ fn scratch(name: &str) -> PathBuf {
 }
 
 fn isolated(dir: PathBuf) -> Backend {
+    isolated_with(dir, false)
+}
+
+fn isolated_with(dir: PathBuf, virtual_input: bool) -> Backend {
     let probe = Probe {
         test: Some(TestConfig {
             output: OutputId(TEST_OUT.into()),
             dir,
+            virtual_input,
         }),
         ..Probe::default()
     };
@@ -316,6 +321,26 @@ fn rules_only_log_and_virtual_input_is_off() {
     rules.remove().expect("noop");
     assert!(b.virtual_input.is_none());
     assert!(!b.caps.contains(Caps::VIRTUAL_INPUT));
+}
+
+#[test]
+fn virtual_input_needs_the_harness_opt_in() {
+    let b = isolated_with(scratch("input"), true);
+    assert!(b.virtual_input.is_some());
+    assert!(b.caps.contains(Caps::VIRTUAL_INPUT));
+    let on = |v: &str| {
+        let env = es_backend::Env::from_vars([
+            ("EASYSHOT_TEST", "1"),
+            ("EASYSHOT_TEST_OUTPUT", "X"),
+            ("EASYSHOT_TEST_VIRTUAL_INPUT", v),
+        ]);
+        TestConfig::from_env(&env)
+            .expect("config")
+            .expect("test mode")
+            .virtual_input
+    };
+    assert!(on("1"));
+    assert!(!on("0") && !on("yes") && !on(""));
 }
 
 #[test]

@@ -170,6 +170,8 @@ pub struct TestConfig {
     pub output: OutputId,
     /// The clipboard sink writes under `<dir>/clipboard/`.
     pub dir: PathBuf,
+    /// Only a harness that owns its whole compositor sets `EASYSHOT_TEST_VIRTUAL_INPUT=1`.
+    pub virtual_input: bool,
 }
 
 #[cfg(feature = "test-hooks")]
@@ -188,6 +190,7 @@ impl TestConfig {
         Ok(Some(TestConfig {
             output: OutputId(output.to_owned()),
             dir,
+            virtual_input: env.var("EASYSHOT_TEST_VIRTUAL_INPUT") == Some("1"),
         }))
     }
 }

@@ -55,7 +55,7 @@ pub fn isolate(b: Backend, cfg: &TestConfig) -> Backend {
         shortcuts: Box::new(UserBinds::new()),
         tray: b.tray.map(|_| Box::new(NoopTray::new()) as Box<dyn Tray>),
         notifier: Box::new(TestNotifier::new()),
-        virtual_input: None,
+        virtual_input: b.virtual_input.filter(|_| cfg.virtual_input),
         test: Some(hooks),
         ..b
     }

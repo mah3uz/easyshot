@@ -1,0 +1,6 @@
+workspacev2>>2,2
+openwindow>>ccc3,3,code,main.rs
+activewindowv2>>ccc3
+movewindowv2>>bbb2,1,1
+closewindow>>aaa1
+activewindowv2>>

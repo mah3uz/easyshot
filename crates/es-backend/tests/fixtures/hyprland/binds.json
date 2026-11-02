@@ -1,0 +1,11 @@
+[
+  {"locked": false, "mouse": false, "release": false, "repeat": false, "longPress": false,
+   "non_consuming": false, "has_description": false, "modmask": 65, "submap": "", "key": "4",
+   "keycode": 0, "catch_all": false, "description": "", "dispatcher": "exec", "arg": "easyshot capture region"},
+  {"locked": false, "mouse": false, "release": false, "repeat": false, "longPress": false,
+   "non_consuming": false, "has_description": false, "modmask": 64, "submap": "", "key": "Q",
+   "keycode": 0, "catch_all": false, "description": "", "dispatcher": "killactive", "arg": ""},
+  {"locked": false, "mouse": false, "release": false, "repeat": true, "longPress": false,
+   "non_consuming": false, "has_description": false, "modmask": 0, "submap": "resize", "key": "l",
+   "keycode": 0, "catch_all": false, "description": "", "dispatcher": "resizeactive", "arg": "10 0"}
+]

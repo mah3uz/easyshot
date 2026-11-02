@@ -33,3 +33,6 @@ hyprland = []
 wlroots = []
 niri = ["dep:niri-ipc"]
 test-hooks = []
+
+[dev-dependencies]
+tempfile.workspace = true

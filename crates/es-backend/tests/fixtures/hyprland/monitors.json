@@ -1,0 +1,12 @@
+[
+  {"id": 0, "name": "DP-1", "description": "Desk", "make": "", "model": "", "serial": "",
+   "width": 2560, "height": 1440, "refreshRate": 59.95, "x": 0, "y": 0,
+   "activeWorkspace": {"id": 1, "name": "1"}, "specialWorkspace": {"id": 0, "name": ""},
+   "reserved": [0, 0, 0, 0], "scale": 1.00, "transform": 0, "focused": false,
+   "dpmsStatus": true, "vrr": false, "disabled": false, "currentFormat": "XRGB8888", "mirrorOf": "none"},
+  {"id": 1, "name": "eDP-1", "description": "Laptop", "make": "", "model": "", "serial": "",
+   "width": 2880, "height": 1800, "refreshRate": 120.0, "x": 2560, "y": 0,
+   "activeWorkspace": {"id": 3, "name": "3"}, "specialWorkspace": {"id": 0, "name": ""},
+   "reserved": [0, 0, 0, 0], "scale": 1.50, "transform": 0, "focused": true,
+   "dpmsStatus": true, "vrr": false, "disabled": false, "currentFormat": "XRGB8888", "mirrorOf": "none"}
+]
