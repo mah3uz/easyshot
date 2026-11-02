@@ -1,8 +1,11 @@
-use crate::effects::{crop_pixmap, gaussian};
+use crate::effects::{crop_pixmap, gaussian, gaussian_with};
 use es_geom::Rect;
 use es_model::{BlurEdgeMode, BlurMode, ProgressiveBlurSettings};
+use fast_image_resize::images::{Image, ImageRef};
+use fast_image_resize::{FilterType, PixelType, ResizeAlg, ResizeOptions, Resizer};
+use libblur::ConvolutionMode;
 use rayon::prelude::*;
-use tiny_skia::{BlendMode, Pixmap, PixmapPaint, Transform};
+use tiny_skia::{BlendMode, IntSize, Pixmap, PixmapPaint, Transform};
 
 const FULL_LEVELS: usize = 6;
 
@@ -171,9 +174,43 @@ pub fn apply_scoped(canvas: &mut Pixmap, settings: &ProgressiveBlurSettings, ima
     );
 }
 
-/// Blurs at a third, two thirds and all of the render radius.
+/// Blurs at a third, two thirds and all of the render radius; wide ones are made at reduced resolution.
 pub fn preview_levels(canvas: &Pixmap, settings: &ProgressiveBlurSettings) -> Option<[Pixmap; 3]> {
-    levels(canvas, settings, 3).try_into().ok()
+    let (w, h) = (canvas.width(), canvas.height());
+    let radius = render_radius(w, h, settings);
+    let step = (radius / 4.0).floor().clamp(1.0, 4.0);
+    let blur = |p: &Pixmap, k: u32| {
+        gaussian_with(
+            p,
+            radius * f64::from(k) / 3.0 / step,
+            ConvolutionMode::FixedPoint,
+        )
+    };
+    if step <= 1.0 {
+        let blurred: Vec<Pixmap> = (1..=3)
+            .into_par_iter()
+            .filter_map(|k| blur(canvas, k))
+            .collect();
+        return blurred.try_into().ok();
+    }
+    let small = resample(canvas, w.div_ceil(step as u32), h.div_ceil(step as u32))?;
+    let blurred: Vec<Pixmap> = (1..=3)
+        .into_par_iter()
+        .filter_map(|k| blur(&small, k))
+        .filter_map(|b| resample(&b, w, h))
+        .collect();
+    blurred.try_into().ok()
+}
+
+/// Premultiplied pixels resample correctly without alpha weighting.
+fn resample(src: &Pixmap, width: u32, height: u32) -> Option<Pixmap> {
+    let from = ImageRef::new(src.width(), src.height(), src.data(), PixelType::U8x4).ok()?;
+    let mut to = Image::new(width, height, PixelType::U8x4);
+    let options = ResizeOptions::new()
+        .resize_alg(ResizeAlg::Convolution(FilterType::Bilinear))
+        .use_alpha(false);
+    Resizer::new().resize(&from, &mut to, &options).ok()?;
+    Pixmap::from_vec(to.into_vec(), IntSize::from_wh(width, height)?)
 }
 
 /// `canvas` and `mask` must have the size the levels were made at.

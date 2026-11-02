@@ -1,3 +1,4 @@
+pub mod blit;
 pub mod camera;
 pub mod compose;
 pub mod frame;

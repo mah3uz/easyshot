@@ -54,13 +54,16 @@ fn drag(name: &str, start: &BackgroundSettings, step: impl Fn(&mut BackgroundSet
     }
     let state = c.read_with(&app.cx, |c, _| c.effects());
     assert_eq!(state.showing, Some(Showing::Live));
+    let first = times[0];
     times.sort_by(f64::total_cmp);
     let (p50, p95) = (percentile(&times, 0.5), percentile(&times, 0.95));
     let worst = times.last().copied().unwrap_or_default();
     eprintln!(
-        "{name}: live frame p50 {p50:.2} ms, p95 {p95:.2} ms, worst {worst:.2} ms; settled composite {settled:.1} ms"
+        "{name}: live frame p50 {p50:.2} ms, p95 {p95:.2} ms, first {first:.2} ms, worst {worst:.2} ms; settled composite {settled:.1} ms"
     );
     assert!(p95 <= LIVE_BUDGET_MS, "{name}: p95 {p95:.2} ms");
+    // The first frame of a drag is the one a synchronous rebuild would stall.
+    assert!(first <= LIVE_BUDGET_MS, "{name}: first frame {first:.2} ms");
 }
 
 #[test]
@@ -80,5 +83,16 @@ fn dragging_a_blur_slider_draws_each_live_frame_within_budget() {
     start.progressive_blur.is_enabled = true;
     drag("blur focus size", &start, |s, i| {
         s.progressive_blur.focus_size = 0.2 + i as f64 * 0.007;
+    });
+}
+
+#[test]
+#[ignore = "a timing bench; run with --cargo-profile fast --run-ignored only"]
+fn dragging_a_camera_slider_with_the_blur_on_draws_each_live_frame_within_budget() {
+    let mut start = stage();
+    start.camera.tilt_x_degrees = 1.0;
+    start.progressive_blur.is_enabled = true;
+    drag("camera tilt over blur", &start, |s, i| {
+        s.camera.tilt_x_degrees = 1.0 + i as f64 * 0.4;
     });
 }

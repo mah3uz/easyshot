@@ -136,6 +136,9 @@ impl Element for CanvasElement {
                 }
                 window.paint_path(p.path, p.color);
             }
+            if let Some((at, image)) = frame.watermark {
+                paint_image(window, bounds, at, Corners::default(), image);
+            }
             for p in chrome.into_iter().chain(crop) {
                 window.paint_path(p.path, p.color);
             }

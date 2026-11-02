@@ -300,3 +300,80 @@ fn live_and_settled_pictures_in_both_themes() {
         }
     }
 }
+
+#[test]
+fn the_first_frame_of_a_drag_keeps_the_settled_image_while_the_stage_builds_off_thread() {
+    let (mut app, _session) = open(
+        900.0,
+        560.0,
+        opened(1200, 640, every_kind(false, false), tilted(10.0)),
+    );
+    wait(&mut app, SETTLE_DELAY);
+    let c = canvas(&app);
+    let handle = app.window.into();
+    app.cx
+        .update_window(handle, |_, window, cx| {
+            c.update(cx, |c, cx| {
+                c.begin_live_adjust(cx);
+                c.set_background(tilted(14.0), cx);
+            });
+            window.draw(cx).clear(cx);
+        })
+        .expect("window is open");
+    let s = state(&app);
+    assert_eq!(
+        (s.showing, s.live_frames),
+        (Some(Showing::Settled), 0),
+        "the frame that starts a drag must not build the stage on the UI thread"
+    );
+    app.settle();
+    let s = state(&app);
+    assert_eq!(
+        (s.showing, s.live_frames),
+        (Some(Showing::Live), 1),
+        "the stage lands and the next frame draws from it"
+    );
+}
+
+fn marked() -> BackgroundSettings {
+    let mut s = stage();
+    s.watermark.is_enabled = true;
+    s.watermark.text = "easyshot".into();
+    s.watermark.opacity = 0.6;
+    s
+}
+
+#[test]
+fn a_watermark_alone_draws_over_the_flat_canvas_and_stays_while_editing() {
+    let (mut app, session) = open(
+        900.0,
+        560.0,
+        opened(1200, 640, every_kind(false, false), stage()),
+    );
+    wait(&mut app, SETTLE_DELAY);
+    let plain = app.screenshot("watermark-off");
+    set_look(&mut app, marked());
+    wait(&mut app, SETTLE_DELAY);
+    let s = state(&app);
+    assert_eq!(
+        (s.showing, s.composites_rendered, s.watermark),
+        (None, 0, true),
+        "a watermark needs no composite: {s:?}"
+    );
+    let shot = app.screenshot("watermark-on");
+    let changed = plain
+        .pixels()
+        .zip(shot.pixels())
+        .filter(|(a, b)| delta_e(a.0, b.0) > 3.0)
+        .count();
+    assert!(changed > 1000, "the watermark is painted: {changed} pixels");
+
+    set_tool(&mut app, &session, Tool::Select);
+    let id = ids(&app, &session)[0];
+    select(&mut app, &session, vec![id]);
+    assert!(state(&app).watermark, "the watermark stays while editing");
+
+    set_look(&mut app, stage());
+    redraw(&mut app);
+    assert_eq!(state(&app), EffectsState::default());
+}

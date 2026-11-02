@@ -4,10 +4,7 @@ use crate::text::skia_path;
 use es_geom::Rect;
 use es_model::BorderSettings;
 use kurbo::{RoundedRect, RoundedRectRadii, Shape};
-use tiny_skia::{
-    Color, FillRule, FilterQuality, Paint, Path, PathBuilder, Pattern, Pixmap, SpreadMode,
-    Transform,
-};
+use tiny_skia::{Color, FillRule, Paint, Path, PathBuilder, Pixmap, Transform};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Frame {
@@ -63,30 +60,6 @@ pub fn paint_border(target: &mut Pixmap, frame: &Frame, border: &BorderSettings)
         &ring,
         &paint,
         FillRule::EvenOdd,
-        Transform::identity(),
-        None,
-    );
-}
-
-pub fn paint_image(target: &mut Pixmap, image: &Pixmap, frame: &Frame) {
-    let Some(path) = rounded_path(frame.image.rect, frame.image.radii) else {
-        return;
-    };
-    let mut paint = Paint {
-        anti_alias: true,
-        ..Paint::default()
-    };
-    paint.shader = Pattern::new(
-        image.as_ref(),
-        SpreadMode::Pad,
-        FilterQuality::Nearest,
-        1.0,
-        Transform::from_translate(frame.image.rect.x0 as f32, frame.image.rect.y0 as f32),
-    );
-    target.fill_path(
-        &path,
-        &paint,
-        FillRule::Winding,
         Transform::identity(),
         None,
     );

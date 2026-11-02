@@ -1,3 +1,5 @@
+use fast_image_resize::images::{Image, ImageRef};
+use fast_image_resize::{FilterType, PixelType, ResizeAlg, ResizeOptions, Resizer};
 use image::{RgbaImage, imageops};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -44,4 +46,13 @@ pub fn crop(img: &RgbaImage, x: i64, y: i64, w: i64, h: i64) -> Option<RgbaImage
         (y1 - y0) as u32,
     );
     Some(view.to_image())
+}
+
+/// Bilinear resize weighted by alpha; several times faster than `imageops::resize`.
+pub fn resize(img: &RgbaImage, width: u32, height: u32) -> Option<RgbaImage> {
+    let src = ImageRef::new(img.width(), img.height(), img.as_raw(), PixelType::U8x4).ok()?;
+    let mut dst = Image::new(width, height, PixelType::U8x4);
+    let options = ResizeOptions::new().resize_alg(ResizeAlg::Convolution(FilterType::Bilinear));
+    Resizer::new().resize(&src, &mut dst, &options).ok()?;
+    RgbaImage::from_raw(width, height, dst.into_vec())
 }

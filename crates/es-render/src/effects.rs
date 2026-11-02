@@ -163,6 +163,10 @@ pub(crate) fn crop_pixmap(src: &Pixmap, x: u32, y: u32, w: u32, h: u32) -> Optio
 }
 
 pub(crate) fn gaussian(src: &Pixmap, sigma: f64) -> Option<Pixmap> {
+    gaussian_with(src, sigma, ConvolutionMode::Exact)
+}
+
+pub(crate) fn gaussian_with(src: &Pixmap, sigma: f64, mode: ConvolutionMode) -> Option<Pixmap> {
     let (w, h) = (src.width(), src.height());
     let input = BlurImage::borrow(src.data(), w, h, FastBlurChannels::Channels4);
     let mut output = BlurImageMut::alloc(w, h, FastBlurChannels::Channels4);
@@ -172,7 +176,7 @@ pub(crate) fn gaussian(src: &Pixmap, sigma: f64) -> Option<Pixmap> {
         GaussianBlurParams::new_from_sigma(sigma.max(0.5)),
         EdgeMode2D::new(EdgeMode::Clamp),
         ThreadingPolicy::Adaptive,
-        ConvolutionMode::Exact,
+        mode,
     )
     .ok()?;
     let mut out = Pixmap::new(w, h)?;

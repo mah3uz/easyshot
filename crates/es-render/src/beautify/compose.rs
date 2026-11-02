@@ -1,5 +1,6 @@
+use crate::beautify::blit;
 use crate::beautify::camera::{self, Quality};
-use crate::beautify::frame::{Frame, frame, paint_border, paint_image};
+use crate::beautify::frame::{Frame, frame, paint_border, rounded_path};
 use crate::beautify::gradients::draw_background_with;
 use crate::beautify::layout::{Layout, layout};
 use crate::beautify::progressive_blur;
@@ -8,8 +9,8 @@ use crate::beautify::watermark;
 use crate::paint::{ClipShape, paint_draw_list};
 use es_anno::draw::{DrawItem, DrawList};
 use es_geom::{Affine, Rect};
-use es_model::BackgroundSettings;
-use tiny_skia::{Pixmap, PixmapPaint, Transform};
+use es_model::{BackgroundSettings, WatermarkSettings};
+use tiny_skia::{FillRule, Mask, Pixmap, Transform};
 
 /// Draw order: background, shadow and border backing, image clipped to its rounded corners,
 /// annotations, camera projection, scene blur, watermark.
@@ -61,19 +62,12 @@ pub fn compose_scaled(
     );
     if let Some(layer) = staged {
         let layer = project_camera_layer(layer, &lay, settings);
-        canvas.draw_pixmap(
-            0,
-            0,
-            layer.as_ref(),
-            &PixmapPaint::default(),
-            Transform::identity(),
-            None,
-        );
+        blit::over(&mut canvas, &layer, 0, 0, None);
     }
 
     let scope = blur_scope(&canvas, &lay, settings);
     progressive_blur::apply_scoped(&mut canvas, &settings.progressive_blur, scope);
-    paint_watermark(&mut canvas, settings, page_scale.0);
+    paint_watermark(&mut canvas, &settings.watermark, page_scale.0);
     Some(canvas)
 }
 
@@ -123,8 +117,8 @@ pub fn stage(
 }
 
 /// The font size is in output pixels, so a scaled render scales it too.
-pub fn paint_watermark(canvas: &mut Pixmap, settings: &BackgroundSettings, scale: f64) {
-    let mut mark = settings.watermark.clone();
+pub fn paint_watermark(canvas: &mut Pixmap, mark: &WatermarkSettings, scale: f64) {
+    let mut mark = mark.clone();
     mark.font_size *= scale;
     watermark::paint(canvas, &mark);
 }
@@ -162,14 +156,7 @@ fn paint_card(
     let snapshot = if has_redaction(&annotations.items) {
         let mut s = Pixmap::new(target.width(), target.height());
         if let Some(s) = s.as_mut() {
-            s.draw_pixmap(
-                lay.image.x0 as i32,
-                lay.image.y0 as i32,
-                image.as_ref(),
-                &PixmapPaint::default(),
-                Transform::identity(),
-                None,
-            );
+            blit::over(s, image, lay.image.x0 as i32, lay.image.y0 as i32, None);
         }
         s
     } else {
@@ -180,18 +167,19 @@ fn paint_card(
 }
 
 fn paint_image_clipped(target: &mut Pixmap, image: &Pixmap, frame: &Frame) {
+    let (x, y) = (frame.image.rect.x0 as i32, frame.image.rect.y0 as i32);
     if frame.image.radii.iter().all(|r| *r <= 0.0) {
-        target.draw_pixmap(
-            frame.image.rect.x0 as i32,
-            frame.image.rect.y0 as i32,
-            image.as_ref(),
-            &PixmapPaint::default(),
-            Transform::identity(),
-            None,
-        );
-    } else {
-        paint_image(target, image, frame);
+        return blit::over(target, image, x, y, None);
     }
+    let (Some(mut corners), Some(path)) = (
+        Mask::new(image.width(), image.height()),
+        rounded_path(frame.image.rect, frame.image.radii),
+    ) else {
+        return;
+    };
+    let to_image = Transform::from_translate(-x as f32, -y as f32);
+    corners.fill_path(&path, FillRule::Winding, true, to_image);
+    blit::over(target, image, x, y, Some(&corners));
 }
 
 fn has_redaction(items: &[DrawItem]) -> bool {

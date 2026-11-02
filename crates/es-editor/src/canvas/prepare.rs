@@ -15,6 +15,8 @@ pub struct Prepared {
     pub underlay: Option<(Bounds<Pixels>, Arc<RenderImage>)>,
     /// When set, it stands in for the underlay, tiles, redactions and shapes.
     pub effects: Option<(Bounds<Pixels>, Arc<RenderImage>)>,
+    /// Drawn over the flat canvas; a composite carries its own.
+    pub watermark: Option<(Bounds<Pixels>, Arc<RenderImage>)>,
     pub tiles: Vec<(Bounds<Pixels>, Corners<Pixels>, Arc<RenderImage>)>,
     pub redactions: Vec<DrawItem>,
     pub viewport: Viewport,
@@ -220,6 +222,7 @@ impl EditorCanvas {
         self.start_text_shadows(cx);
         let effects = self.effects_frame(bounds, &math, f64::from(sf), &mut retired, cx);
         let flat = effects.is_none();
+        let watermark = self.watermark_frame(bounds, &math, f64::from(sf), flat, &mut retired, cx);
         if !flat {
             self.stats.tiles_painted = 0;
             self.stats.paths_painted = 0;
@@ -230,6 +233,7 @@ impl EditorCanvas {
             grid,
             underlay: underlay.filter(|_| flat),
             effects,
+            watermark,
             tiles: if flat { tiles_out } else { Vec::new() },
             redactions,
             viewport: vp,

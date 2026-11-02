@@ -19,6 +19,8 @@
 - `easyshot deck toggle` hides and shows the deck.
 - Captures from a rotated or flipped output are saved upright.
 - Pixelate and Blur redactions keep a minimum strength tied to the text height, so covered text cannot be read back.
+- Starting a camera or blur drag no longer freezes the editor for a moment, and the exact picture arrives sooner after you let go.
+- The watermark stays on the canvas while you edit annotations.
 
 ### Bug fixes
 

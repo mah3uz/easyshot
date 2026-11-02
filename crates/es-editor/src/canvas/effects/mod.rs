@@ -1,4 +1,5 @@
 mod live;
+mod mark;
 
 use super::{EditorCanvas, underlay};
 use crate::session::viewport::ViewMath;
@@ -7,9 +8,9 @@ use es_model::{AnnoShapeId, BackgroundSettings};
 use es_render::beautify::compose::compose_scaled;
 use es_render::beautify::layout;
 use gpui::{Bounds, Context, Pixels, RenderImage, Task, point, px, size};
-use image::RgbaImage;
-use image::imageops::FilterType;
+use image::{Frame, RgbaImage};
 use live::LiveStage;
+use rayon::prelude::*;
 use std::sync::Arc;
 use std::time::Duration;
 use tiny_skia::Pixmap;
@@ -17,11 +18,9 @@ use tiny_skia::Pixmap;
 /// Quiet time after the last change before the exact composite is rendered.
 pub const SETTLE_DELAY: Duration = Duration::from_millis(120);
 
-/// The camera, the scene blur and the watermark act on the whole composed canvas, so the canvas shows them as one image.
+/// The camera and the scene blur act on the whole composed canvas, so the canvas shows them as one image.
 pub fn active(settings: &BackgroundSettings) -> bool {
-    settings.camera.has_effect()
-        || settings.progressive_blur.is_active()
-        || settings.watermark.is_visible()
+    settings.camera.has_effect() || settings.progressive_blur.is_active()
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -58,6 +57,8 @@ pub struct EffectsState {
     /// Images on hand: zero or one.
     pub held: usize,
     pub released: usize,
+    /// The last frame drew the watermark over the flat canvas.
+    pub watermark: bool,
 }
 
 struct Shown {
@@ -78,7 +79,7 @@ struct Placed {
 impl Placed {
     fn new(pixmap: &Pixmap, image_origin: (f64, f64), scale: (f64, f64)) -> Option<Self> {
         Some(Self {
-            image: underlay::render_image(pixmap)?,
+            image: bgra(pixmap)?,
             image_origin,
             scale,
             pixels: (pixmap.width(), pixmap.height()),
@@ -106,6 +107,12 @@ pub struct Effects {
     task: Option<Task<()>>,
     live: bool,
     stage: Option<LiveStage>,
+    building: Option<SceneKey>,
+    build_task: Option<Task<()>>,
+    /// The key of the last frame, so a drag can start building its stage before the first change.
+    last: Option<SceneKey>,
+    mark: mark::Mark,
+    mark_painted: bool,
     showing: Option<Showing>,
     composites: usize,
     live_frames: usize,
@@ -129,7 +136,14 @@ impl Effects {
         self.retire(retired);
         self.pending = None;
         self.task = None;
+        self.drop_stage();
+        self.last = None;
+    }
+
+    fn drop_stage(&mut self) {
         self.stage = None;
+        self.building = None;
+        self.build_task = None;
     }
 }
 
@@ -139,17 +153,53 @@ fn composite_scale(math: &ViewMath, scale_factor: f64) -> f64 {
     underlay::stepped_scale(math.scale() * scale_factor, edge)
 }
 
-/// The screenshot resized by `scale`, premultiplied, with the exact scale on each axis.
-fn scaled_base(base: &RgbaImage, scale: f64) -> Option<(Pixmap, (f64, f64))> {
-    let (w, h) = (base.width(), base.height());
+/// The size of an image resized by `scale`, never above 1, with the exact scale on each axis.
+fn scaled_size(w: u32, h: u32, scale: f64) -> (u32, u32, (f64, f64)) {
     if scale >= 1.0 {
-        return Some((super::redaction::premultiplied(base)?, (1.0, 1.0)));
+        return (w, h, (1.0, 1.0));
     }
     let sw = ((f64::from(w) * scale).round() as u32).max(1);
     let sh = ((f64::from(h) * scale).round() as u32).max(1);
-    let small = image::imageops::resize(base, sw, sh, FilterType::Triangle);
-    let scale = (f64::from(sw) / f64::from(w), f64::from(sh) / f64::from(h));
+    (
+        sw,
+        sh,
+        (f64::from(sw) / f64::from(w), f64::from(sh) / f64::from(h)),
+    )
+}
+
+/// The screenshot resized by `scale`, premultiplied, with the exact scale on each axis.
+fn scaled_base(base: &RgbaImage, scale: f64) -> Option<(Pixmap, (f64, f64))> {
+    let (sw, sh, scale) = scaled_size(base.width(), base.height(), scale);
+    if (sw, sh) == base.dimensions() {
+        return Some((super::redaction::premultiplied(base)?, scale));
+    }
+    let small = es_render::image_ops::resize(base, sw, sh)?;
     Some((super::redaction::premultiplied(&small)?, scale))
+}
+
+/// Premultiplied RGBA into GPUI's straight-alpha BGRA.
+fn bgra(pixmap: &Pixmap) -> Option<Arc<RenderImage>> {
+    let mut data = pixmap.data().to_vec();
+    data.par_chunks_mut(64 * 1024).for_each(|chunk| {
+        for px in chunk.as_chunks_mut::<4>().0 {
+            let a = px[3];
+            if a == 255 {
+                px.swap(0, 2);
+                continue;
+            }
+            let un = |c: u8| {
+                if a == 0 {
+                    0
+                } else {
+                    ((u16::from(c) * 255 + u16::from(a) / 2) / u16::from(a)).min(255) as u8
+                }
+            };
+            let (r, g, b) = (un(px[0]), un(px[1]), un(px[2]));
+            *px = [b, g, r, a];
+        }
+    });
+    let image = RgbaImage::from_raw(pixmap.width(), pixmap.height(), data)?;
+    Some(Arc::new(RenderImage::new([Frame::new(image)])))
 }
 
 fn render_settled(base: &RgbaImage, list: &DrawList, key: &SceneKey) -> Option<Placed> {
@@ -165,6 +215,9 @@ impl EditorCanvas {
     pub fn begin_live_adjust(&mut self, cx: &mut Context<Self>) {
         if !self.effects.live {
             self.effects.live = true;
+            if let Some(key) = self.effects.last.clone() {
+                self.build_stage(&key, cx);
+            }
             cx.notify();
         }
     }
@@ -173,7 +226,7 @@ impl EditorCanvas {
     pub fn end_live_adjust(&mut self, cx: &mut Context<Self>) {
         if self.effects.live {
             self.effects.live = false;
-            self.effects.stage = None;
+            self.effects.drop_stage();
             cx.notify();
         }
     }
@@ -187,6 +240,7 @@ impl EditorCanvas {
             live_frames: e.live_frames,
             held: usize::from(e.shown.is_some()),
             released: e.released,
+            watermark: e.mark_painted,
         }
     }
 
@@ -218,29 +272,36 @@ impl EditorCanvas {
             scale: composite_scale(math, scale_factor),
         };
 
+        self.effects.last = Some(key.clone());
+
         let current = self.effects.shown.as_ref().is_some_and(|s| s.key == key);
         if self.effects.live && !current {
-            let stage = match self.effects.stage.take() {
-                Some(stage) if stage.fits(&key) => stage,
-                _ => {
-                    let list = build_draw_list(document, &BuildContext::new(&**doc.text()));
-                    LiveStage::new(doc.base(), &list, &key)?
-                }
-            };
-            let stage = self.effects.stage.insert(stage);
-            let (origin, scale) = (stage.image_origin(), stage.scale);
-            let frame = stage.frame(&key.settings);
-            if let Some(image) = frame.and_then(|p| Placed::new(&p, origin, scale)) {
-                self.effects.live_frames += 1;
-                let shown = Shown {
-                    key,
-                    image,
-                    settled: false,
-                };
-                self.effects.show(shown, retired);
-            }
             self.effects.pending = None;
             self.effects.task = None;
+            if !self.effects.stage.as_ref().is_some_and(|s| s.fits(&key)) {
+                self.effects.stage = None;
+                self.build_stage(&key, cx);
+            }
+            if let Some(stage) = self.effects.stage.as_mut() {
+                let (origin, scale) = (stage.image_origin(), stage.scale);
+                let frame = stage.frame(&key.settings);
+                if let Some(image) = frame.and_then(|p| Placed::new(&p, origin, scale)) {
+                    self.effects.live_frames += 1;
+                    let shown = Shown {
+                        key,
+                        image,
+                        settled: false,
+                    };
+                    self.effects.show(shown, retired);
+                }
+            } else if !self
+                .effects
+                .shown
+                .as_ref()
+                .is_some_and(|s| s.key.same_content(&key))
+            {
+                return None;
+            }
         } else if !self.effects.live {
             let busy = !editor.selected_ids().is_empty()
                 || !editor.is_idle()
@@ -278,6 +339,43 @@ impl EditorCanvas {
         });
         let at = shown.image.bounds(bounds, &math.viewport());
         Some((at, shown.image.image.clone()))
+    }
+
+    /// The stage is built off the main thread; until it lands the canvas keeps what it shows.
+    fn build_stage(&mut self, key: &SceneKey, cx: &mut Context<Self>) {
+        if self
+            .effects
+            .building
+            .as_ref()
+            .is_some_and(|b| live::stage_fits(b, key))
+        {
+            return;
+        }
+        let doc = self.doc.read(cx);
+        let list = build_draw_list(doc.editor().doc(), &BuildContext::new(&**doc.text()));
+        let base = doc.base().clone();
+        let job = key.clone();
+        let building = cx.background_executor().spawn(async move {
+            let mut stage = LiveStage::new(&base, &list, &job)?;
+            let _ = stage.frame(&job.settings);
+            Some(stage)
+        });
+        let key = key.clone();
+        self.effects.building = Some(key.clone());
+        self.effects.build_task = Some(cx.spawn(async move |this, cx| {
+            let stage = building.await;
+            let _ = this.update(cx, |canvas, cx| {
+                let e = &mut canvas.effects;
+                if e.building.as_ref() != Some(&key) {
+                    return;
+                }
+                e.building = None;
+                if e.live {
+                    e.stage = stage;
+                    cx.notify();
+                }
+            });
+        }));
     }
 
     fn schedule(

@@ -2,11 +2,11 @@ use super::{SceneKey, scaled_base};
 use es_anno::DrawList;
 use es_geom::Rect;
 use es_model::{BackgroundSettings, BlurEdgeMode, CameraSettings, ProgressiveBlurSettings};
+use es_render::beautify::blit;
 use es_render::beautify::camera::{Quality, projection, warp};
 use es_render::beautify::compose::{Stage, blur_scope, paint_watermark, stage};
 use es_render::beautify::progressive_blur::{blend_preview, focus_mask, preview_levels};
 use image::RgbaImage;
-use rayon::prelude::*;
 use std::borrow::Cow;
 use tiny_skia::{BlendMode, IntRect, Pixmap, PixmapPaint, Transform};
 
@@ -24,6 +24,13 @@ fn stage_settings(s: &BackgroundSettings) -> (BackgroundSettings, bool, bool) {
         ..s.clone()
     };
     (neutral, camera, bleed)
+}
+
+/// A stage built for `built` serves `wanted` when only the camera and blur values differ.
+pub fn stage_fits(built: &SceneKey, wanted: &SceneKey) -> bool {
+    built.same_content(wanted)
+        && built.scale == wanted.scale
+        && stage_settings(&built.settings) == stage_settings(&wanted.settings)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -61,9 +68,7 @@ impl LiveStage {
     }
 
     pub fn fits(&self, key: &SceneKey) -> bool {
-        self.key.same_content(key)
-            && self.key.scale == key.scale
-            && stage_settings(&self.key.settings) == stage_settings(&key.settings)
+        stage_fits(&self.key, key)
     }
 
     fn flat(&mut self, camera: &CameraSettings) -> Option<&Pixmap> {
@@ -93,7 +98,7 @@ impl LiveStage {
                 return Some(Cow::Borrowed(flat));
             }
             let mut canvas = flat.clone();
-            paint_watermark(&mut canvas, settings, scale);
+            paint_watermark(&mut canvas, &settings.watermark, scale);
             return Some(Cow::Owned(canvas));
         }
         let region = self.region(settings)?;
@@ -132,7 +137,7 @@ impl LiveStage {
             );
             canvas
         };
-        paint_watermark(&mut canvas, settings, scale);
+        paint_watermark(&mut canvas, &settings.watermark, scale);
         Some(Cow::Owned(canvas))
     }
 
@@ -152,23 +157,11 @@ impl LiveStage {
     }
 }
 
-/// Premultiplied source-over, in parallel: the stage is redrawn on every live frame.
 fn over(top: &Pixmap, under: &Pixmap) -> Option<Pixmap> {
     if top.width() != under.width() || top.height() != under.height() {
         return None;
     }
     let mut out = under.clone();
-    out.data_mut()
-        .par_chunks_mut(64 * 1024)
-        .zip(top.data().par_chunks(64 * 1024))
-        .for_each(|(dst, src)| {
-            let (dst, src) = (dst.as_chunks_mut::<4>().0, src.as_chunks::<4>().0);
-            for (d, s) in dst.iter_mut().zip(src) {
-                let keep = 255 - u16::from(s[3]);
-                for c in 0..4 {
-                    d[c] = s[c].saturating_add(((u16::from(d[c]) * keep + 127) / 255) as u8);
-                }
-            }
-        });
+    blit::over(&mut out, top, 0, 0, None);
     Some(out)
 }
