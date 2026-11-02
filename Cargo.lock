@@ -2049,6 +2049,7 @@ dependencies = [
  "es-app",
  "es-geom",
  "es-model",
+ "es-protocol",
  "es-render",
  "es-store",
  "es-testkit",

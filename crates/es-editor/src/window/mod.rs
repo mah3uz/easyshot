@@ -17,6 +17,7 @@ use gpui::{
 };
 use gpui_component::{Icon, Sizable, spinner::Spinner};
 
+use crate::toolbar::{ToolRow, ToolRowEvent};
 use crate::{EditorCanvas, EditorSession, EditorSource, Result, strings::fl};
 
 pub const TITLE_BAR_HEIGHT: Pixels = px(38.);
@@ -133,10 +134,19 @@ impl EditorWindow {
         match result {
             Ok(session) => {
                 let canvas = cx.new(|cx| EditorCanvas::new(&session, cx));
+                let tool_row = cx.new(|cx| ToolRow::new(&session, cx));
                 self._subscriptions = vec![
                     cx.observe(&session.doc, |_, _, cx| cx.notify()),
                     cx.observe(&session.viewport, |_, _, cx| cx.notify()),
+                    cx.subscribe(&tool_row, |this, row, event: &ToolRowEvent, cx| {
+                        if *event == ToolRowEvent::ToggleInspector {
+                            this.toggle_inspector(cx);
+                            let open = this.inspector_open;
+                            row.update(cx, |r, cx| r.set_inspector_open(open, cx));
+                        }
+                    }),
                 ];
+                self.tool_row = Some(tool_row.into());
                 self.content = Content::Ready { session, canvas };
                 self.focus_canvas = true;
             }
@@ -230,6 +240,10 @@ impl EditorWindow {
     pub fn toggle_inspector(&mut self, cx: &mut Context<Self>) {
         self.inspector_open = !self.inspector_open;
         cx.notify();
+    }
+
+    pub fn toolbar(&self) -> Option<Entity<ToolRow>> {
+        self.tool_row.clone()?.downcast::<ToolRow>().ok()
     }
 
     pub fn set_tool_row(&mut self, view: AnyView, cx: &mut Context<Self>) {

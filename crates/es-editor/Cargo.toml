@@ -18,6 +18,7 @@ es-render.workspace = true
 es-store.workspace = true
 es-app.workspace = true
 es-ui.workspace = true
+es-protocol.workspace = true
 gpui.workspace = true
 gpui-component.workspace = true
 kurbo.workspace = true
