@@ -20,7 +20,7 @@ impl TestIface {
     }
 }
 
-#[zbus::interface(name = "dev.easyshot.Test")]
+#[zbus::interface(name = "dev.easyshot.app.Test")]
 impl TestIface {
     async fn inject(&self, events: String) -> fdo::Result<()> {
         self.forward(Incoming::Inject(events)).await
@@ -32,5 +32,16 @@ impl TestIface {
 
     async fn dump(&self) -> String {
         (self.dump)().await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn interface_name_matches_the_protocol_constant() {
+        use zbus::object_server::Interface;
+        assert_eq!(TestIface::name(), es_protocol::TEST_INTERFACE);
     }
 }

@@ -51,12 +51,12 @@ easyshot avoids duplicated stores, god files and singletons, and is built to gro
 One binary, `easyshot`.
 
 - `easyshot daemon` is a long-running GPUI application (`QuitMode::Explicit`). It owns the
-  tray, the D-Bus name `dev.easyshot.Easyshot` (the single-instance lock), every window and
+  tray, the D-Bus name `dev.easyshot.app` (the single-instance lock), every window and
   overlay, the capture and recording engines and the clipboard sources. A systemd user unit
   (`easyshot.service`) or XDG autostart starts it. At start it opens and closes a 1x1
   transparent layer surface so the first real overlay avoids the cold `open_window` cost.
 - `easyshot <command>` is a thin CLI with no GPUI init. It calls
-  `dev.easyshot.Easyshot.Command(route, args)` on the session bus. If the name is not
+  `dev.easyshot.app.Command(route, args)` on the session bus. If the name is not
   owned it starts the daemon (D-Bus activation, or a spawn fallback), waits up to 3 s, then
   calls.
 - `easyshot open <url>` handles `easyshot://`.

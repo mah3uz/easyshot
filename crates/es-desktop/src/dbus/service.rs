@@ -45,7 +45,7 @@ struct CommandIface {
     doctor: DoctorFn,
 }
 
-#[zbus::interface(name = "dev.easyshot.Easyshot")]
+#[zbus::interface(name = "dev.easyshot.app")]
 impl CommandIface {
     async fn command(
         &self,

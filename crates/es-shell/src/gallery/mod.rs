@@ -55,7 +55,7 @@ pub fn open(
             cx,
         ))),
         window_min_size: Some(size(gpui::px(min_w), gpui::px(min_h))),
-        app_id: Some("dev.easyshot.gallery".into()),
+        app_id: Some(es_protocol::GALLERY_APP_ID.into()),
         ..Default::default()
     };
     cx.open_window(options, |window, cx| {

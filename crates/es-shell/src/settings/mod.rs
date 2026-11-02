@@ -541,7 +541,7 @@ pub fn open(deps: SettingsDeps, cx: &mut App) -> gpui::Result<WindowHandle<Root>
     let options = WindowOptions {
         window_bounds: Some(WindowBounds::centered(size(px(w), px(h)), cx)),
         window_min_size: Some(size(px(MIN_SIZE.0), px(MIN_SIZE.1))),
-        app_id: Some("dev.easyshot.settings".into()),
+        app_id: Some(es_protocol::SETTINGS_APP_ID.into()),
         titlebar: Some(gpui::TitlebarOptions {
             title: Some(fl!("settings-window-title").into()),
             ..Default::default()

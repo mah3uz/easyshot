@@ -115,11 +115,14 @@ fn platform_sway_rule_floats_the_editor() {
         panic!("build failed");
     };
     rules.install(&RuleSet::default()).unwrap();
-    swaymsg("exec alacritty --class dev.easyshot.editor");
-    let info = wait_for(&*windows, "dev.easyshot.editor", |w| {
+    swaymsg(&format!(
+        "exec alacritty --class {}",
+        es_protocol::EDITOR_APP_ID
+    ));
+    let info = wait_for(&*windows, es_protocol::EDITOR_APP_ID, |w| {
         w.floating && w.logical.is_some_and(|r| r.width() == 1180.0)
     });
-    swaymsg("[app_id=dev.easyshot.editor] kill");
+    swaymsg(&format!("[app_id={}] kill", es_protocol::EDITOR_APP_ID));
     eprintln!("editor rect {:?}", info.logical);
     assert!(info.floating, "the rule makes the editor float");
     assert_eq!(info.logical.map(|r| r.width()), Some(1180.0));

@@ -15,8 +15,9 @@ if [ ! -f "$bin" ]; then
     echo "release-check: $bin does not exist; run cargo build -p easyshot --release first" >&2
     exit 1
 fi
-if grep -aqF 'dev.easyshot.Test' "$bin"; then
-    echo "release-check: $bin contains the string dev.easyshot.Test" >&2
+test_iface=$(scripts/app-id.sh).Test
+if grep -aqF "$test_iface" "$bin"; then
+    echo "release-check: $bin contains the string $test_iface" >&2
     fail=1
 fi
 

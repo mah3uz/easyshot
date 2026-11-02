@@ -155,7 +155,7 @@ fn the_tray_registers_shows_the_menu_and_routes_clicks() {
             assert_eq!(run(activations.recv()).expect("route"), Route::CaptureBar);
 
             let icon: String = run(sni.get_property("IconName")).expect("icon");
-            assert_eq!(icon, "dev.easyshot.Easyshot-symbolic");
+            assert_eq!(icon, es_protocol::ICON_NAME_SYMBOLIC);
 
             tray.set_recording(Some(RecordingTrayState {
                 elapsed: Duration::from_secs(75),

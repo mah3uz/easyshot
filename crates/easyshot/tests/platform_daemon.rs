@@ -7,8 +7,8 @@ use std::process::{Child, Command, Stdio};
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 
-const DEST: &str = "dev.easyshot.EasyshotTest";
-const PATH: &str = "/dev/easyshot/Easyshot";
+const DEST: &str = es_protocol::BUS_NAME_TEST;
+const PATH: &str = es_protocol::OBJECT_PATH;
 
 fn gdbus(method: &str, args: &[&str]) -> Option<String> {
     let out = Command::new("gdbus")
@@ -60,7 +60,10 @@ struct Daemon(Child);
 
 impl Drop for Daemon {
     fn drop(&mut self) {
-        let _ = gdbus("dev.easyshot.Easyshot.Command", &["quit", "{}"]);
+        let _ = gdbus(
+            &format!("{}.Command", es_protocol::INTERFACE),
+            &["quit", "{}"],
+        );
         if until(5, || self.0.try_wait().ok().flatten()).is_none() {
             let _ = self.0.kill();
             let _ = self.0.wait();
@@ -130,7 +133,7 @@ fn platform_daemon_region_capture_reaches_the_deck_and_the_save_folder() {
     let origin = output_origin();
     let ready = until(30, || {
         gdbus(
-            "dev.easyshot.Test.SetPointer",
+            &format!("{}.SetPointer", es_protocol::TEST_INTERFACE),
             &[
                 &(origin.x + 200.).to_string(),
                 &(origin.y + 150.).to_string(),
@@ -151,7 +154,10 @@ fn platform_daemon_region_capture_reaches_the_deck_and_the_save_folder() {
     };
     to(200., 150.);
 
-    let job = gdbus("dev.easyshot.Easyshot.Command", &["capture/region", "{}"]);
+    let job = gdbus(
+        &format!("{}.Command", es_protocol::INTERFACE),
+        &["capture/region", "{}"],
+    );
     assert!(job.is_some(), "Command refused:\n{}", log());
     sleep(Duration::from_millis(2500));
     to(200., 150.);
@@ -207,7 +213,7 @@ fn platform_daemon_region_capture_reaches_the_deck_and_the_save_folder() {
     let editors = || {
         let tree: serde_json::Value =
             serde_json::from_str(&swaymsg(&["-t", "get_tree", "-r"])).unwrap();
-        count_app_id(&tree, "dev.easyshot.editor")
+        count_app_id(&tree, es_protocol::EDITOR_APP_ID)
     };
     assert_eq!(editors(), 0);
     to(1130., 640.);
@@ -218,7 +224,7 @@ fn platform_daemon_region_capture_reaches_the_deck_and_the_save_folder() {
     swaymsg(&["seat", "seat0", "cursor", "release", "button1"]);
     let opened = until(20, || (editors() == 1).then_some(()));
     assert!(opened.is_some(), "no editor window:\n{}", log());
-    swaymsg(&["[app_id=dev.easyshot.editor] kill"]);
+    swaymsg(&[&format!("[app_id={}] kill", es_protocol::EDITOR_APP_ID)]);
     assert!(
         until(10, || (editors() == 0).then_some(())).is_some(),
         "editor window stayed open"

@@ -286,9 +286,10 @@ fn sway_rule_floats_and_centres_the_editor() {
     rules.install(&RuleSet::default()).unwrap();
     assert_eq!(
         fake.shared.lock().unwrap().commands,
-        [
-            r#"for_window [app_id="dev.easyshot.editor"] "floating enable, resize set 1180 780, move position center""#
-        ]
+        [format!(
+            r#"for_window [app_id="{}"] "floating enable, resize set 1180 780, move position center""#,
+            es_protocol::EDITOR_APP_ID
+        )]
     );
     fake.shared.lock().unwrap().command_reply =
         r#"[{"success":false,"parse_error":true,"error":"Unknown command"}]"#.to_owned();

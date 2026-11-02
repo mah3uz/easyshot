@@ -9,12 +9,29 @@ pub use route::PATH_ARG;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-pub const BUS_NAME: &str = "dev.easyshot.Easyshot";
-pub const BUS_NAME_TEST: &str = "dev.easyshot.EasyshotTest";
-pub const OBJECT_PATH: &str = "/dev/easyshot/Easyshot";
-pub const INTERFACE: &str = "dev.easyshot.Easyshot";
+#[macro_export]
+macro_rules! app_id {
+    () => {
+        "dev.easyshot.app"
+    };
+    ($part:literal) => {
+        concat!($crate::app_id!(), ".", $part)
+    };
+}
+
+pub const APP_ID: &str = app_id!();
+pub const BUS_NAME: &str = app_id!();
+pub const BUS_NAME_TEST: &str = app_id!("test");
+pub const OBJECT_PATH: &str = "/dev/easyshot/app";
+pub const INTERFACE: &str = app_id!();
 /// Test-hooks-only interface: `Inject(events s)`, `SetPointer(x d, y d)`, `Dump() -> s`.
-pub const TEST_INTERFACE: &str = "dev.easyshot.Test";
+pub const TEST_INTERFACE: &str = app_id!("Test");
+pub const EDITOR_APP_ID: &str = app_id!("editor");
+pub const SETTINGS_APP_ID: &str = app_id!("settings");
+pub const GALLERY_APP_ID: &str = app_id!("gallery");
+pub const ONBOARDING_APP_ID: &str = app_id!("onboarding");
+pub const ICON_NAME: &str = app_id!();
+pub const ICON_NAME_SYMBOLIC: &str = concat!(app_id!(), "-symbolic");
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]

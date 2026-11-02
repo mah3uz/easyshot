@@ -12,7 +12,7 @@ if ! python3 -c 'import fontTools' 2> /dev/null; then
     exit 1
 fi
 
-app=dev.easyshot.Easyshot
+app=easyshot
 colour=branding/logo.svg
 symbolic=branding/logo-symbolic.svg
 out=assets/icons/app

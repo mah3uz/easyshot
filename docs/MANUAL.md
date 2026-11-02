@@ -273,6 +273,9 @@ text viewer. The report stays on your machine; nothing is uploaded.
 
 `easyshot doctor` shows what applies to you.
 
+For compositor window rules, easyshot's windows use the app IDs `dev.easyshot.app.editor`,
+`.settings`, `.gallery` and `.onboarding`.
+
 ## Limits in version 1
 
 KDE and GNOME, the video Studio (timeline, zooms, cursor effects, captions, camera

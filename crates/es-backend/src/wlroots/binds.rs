@@ -1,7 +1,11 @@
 use crate::traits::Trigger;
 use es_protocol::Route;
 
-pub(crate) const EDITOR_RULE: &str = r#"for_window [app_id="dev.easyshot.editor"] "floating enable, resize set 1180 780, move position center""#;
+pub(crate) const EDITOR_RULE: &str = concat!(
+    r#"for_window [app_id=""#,
+    es_protocol::app_id!("editor"),
+    r#""] "floating enable, resize set 1180 780, move position center""#
+);
 
 pub(crate) fn snippet(binds: &[(Trigger, Route)]) -> String {
     let mut out = String::new();

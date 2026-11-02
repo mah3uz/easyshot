@@ -333,7 +333,7 @@ fn open_editor(w: &Rc<Wiring>, key: &WindowKey, cx: &mut App) -> Result<Rc<dyn W
         )),
         window_min_size: Some(size(px(980.), px(640.))),
         window_decorations: Some(WindowDecorations::Client),
-        app_id: Some("dev.easyshot.editor".into()),
+        app_id: Some(es_protocol::EDITOR_APP_ID.into()),
         ..TitleBar::window_options()
     };
     let editor = Rc::new(RefCell::new(None::<Entity<EditorWindow>>));
@@ -396,7 +396,7 @@ fn open_onboarding(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>>
             size(px(onboarding::WIDTH), px(onboarding::HEIGHT)),
             cx,
         )),
-        app_id: Some("dev.easyshot.onboarding".into()),
+        app_id: Some(es_protocol::ONBOARDING_APP_ID.into()),
         ..Default::default()
     };
     let paths = w.paths.clone();

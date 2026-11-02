@@ -26,9 +26,9 @@ else:
 
 Test mode is the `test-hooks` cargo feature plus `EASYSHOT_TEST=1`; both are required and
 release builds exclude the feature. In test mode the daemon sees one output only, uses its
-own bus name `dev.easyshot.EasyshotTest`, replaces tray, notifications, shortcuts portal,
+own bus name `dev.easyshot.app.test`, replaces tray, notifications, shortcuts portal,
 clipboard, sound and rule installation with no-op or recording backends, and takes input
-from `dev.easyshot.Test.Inject`. It refuses to start without `EASYSHOT_TEST_OUTPUT`.
+from `dev.easyshot.app.Test.Inject`. It refuses to start without `EASYSHOT_TEST_OUTPUT`.
 `Test.Inject` takes a JSON array of events (`{"type":"key","keystroke":"ctrl-a"}`,
 `mouse_down`, `mouse_up` and `mouse_move` with `x` and `y`), dispatched to the focused
 window, else the newest one.

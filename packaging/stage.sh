@@ -7,9 +7,15 @@ bin=$1 src=$2 dest=$3
 mkdir -p "$dest/completions" "$dest/icons"
 cp "$bin/easyshot" "$src"/{LICENSE,CHANGELOG.md,docs/MANUAL.md} "$dest/"
 cp -r "$src/LICENSES" "$dest/"
-cp -r "$src/assets/icons/app/hicolor" "$dest/icons/"
-install -Dm644 "$src/assets/icons/app/dev.easyshot.Easyshot.svg" \
-  "$dest/icons/hicolor/scalable/apps/dev.easyshot.Easyshot.svg"
+app_id=$("$src/scripts/app-id.sh")
+icons=$src/assets/icons/app
+for dir in "$icons"/hicolor/*x*/apps; do
+  size=$(basename "$(dirname "$dir")")
+  install -Dm644 "$dir/easyshot.png" "$dest/icons/hicolor/$size/apps/$app_id.png"
+done
+install -Dm644 "$icons/easyshot.svg" "$dest/icons/hicolor/scalable/apps/$app_id.svg"
+install -Dm644 "$icons/hicolor/symbolic/apps/easyshot-symbolic.svg" \
+  "$dest/icons/hicolor/symbolic/apps/$app_id-symbolic.svg"
 "$bin/easyshot" completions bash > "$dest/completions/easyshot.bash"
 "$bin/easyshot" completions zsh > "$dest/completions/easyshot.zsh"
 "$bin/easyshot" completions fish > "$dest/completions/easyshot.fish"

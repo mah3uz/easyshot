@@ -31,8 +31,9 @@ pub fn set_autostart_in(config_home: &Path, enabled: bool, exec: &str) -> Result
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).map_err(io(dir))?;
     }
+    let icon = es_protocol::ICON_NAME;
     let entry = format!(
-        "[Desktop Entry]\nType=Application\nName=Easyshot\nExec={exec}\nIcon=dev.easyshot.Easyshot\nTerminal=false\nX-GNOME-Autostart-enabled=true\n"
+        "[Desktop Entry]\nType=Application\nName=Easyshot\nExec={exec}\nIcon={icon}\nTerminal=false\nX-GNOME-Autostart-enabled=true\n"
     );
     let tmp = path.with_extension("desktop.tmp");
     std::fs::write(&tmp, entry).map_err(io(&tmp))?;

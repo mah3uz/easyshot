@@ -7,8 +7,8 @@ use std::process::{Child, Command, Stdio};
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 
-const DEST: &str = "dev.easyshot.EasyshotTest";
-const PATH: &str = "/dev/easyshot/Easyshot";
+const DEST: &str = es_protocol::BUS_NAME_TEST;
+const PATH: &str = es_protocol::OBJECT_PATH;
 
 fn gdbus(method: &str, args: &[&str]) -> Option<String> {
     let out = Command::new("gdbus")
@@ -52,7 +52,10 @@ struct Daemon(Child);
 
 impl Drop for Daemon {
     fn drop(&mut self) {
-        let _ = gdbus("dev.easyshot.Easyshot.Command", &["quit", "{}"]);
+        let _ = gdbus(
+            &format!("{}.Command", es_protocol::INTERFACE),
+            &["quit", "{}"],
+        );
         if until(5, || self.0.try_wait().ok().flatten()).is_none() {
             let _ = self.0.kill();
             let _ = self.0.wait();
@@ -111,7 +114,7 @@ fn platform_daemon_area_recording_places_the_bar_outside_and_stop_leaves_a_card(
     let origin = output_origin();
     let ready = until(30, || {
         gdbus(
-            "dev.easyshot.Test.SetPointer",
+            &format!("{}.SetPointer", es_protocol::TEST_INTERFACE),
             &[
                 &(origin.x + 200.).to_string(),
                 &(origin.y + 150.).to_string(),
@@ -132,7 +135,11 @@ fn platform_daemon_area_recording_places_the_bar_outside_and_stop_leaves_a_card(
     };
     to(200., 150.);
     assert!(
-        gdbus("dev.easyshot.Easyshot.Command", &["record/area", "{}"]).is_some(),
+        gdbus(
+            &format!("{}.Command", es_protocol::INTERFACE),
+            &["record/area", "{}"]
+        )
+        .is_some(),
         "Command refused:\n{}",
         log()
     );
@@ -197,7 +204,11 @@ fn platform_daemon_area_recording_places_the_bar_outside_and_stop_leaves_a_card(
             .status();
     }
     assert!(
-        gdbus("dev.easyshot.Easyshot.Command", &["record/stop", "{}"]).is_some(),
+        gdbus(
+            &format!("{}.Command", es_protocol::INTERFACE),
+            &["record/stop", "{}"]
+        )
+        .is_some(),
         "stop refused:\n{}",
         log()
     );

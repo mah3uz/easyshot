@@ -76,7 +76,7 @@ fn clock(state: &RecordingTrayState) -> String {
 
 impl ksni::Tray for EsTray {
     fn id(&self) -> String {
-        "dev.easyshot.Easyshot".into()
+        es_protocol::APP_ID.into()
     }
 
     fn title(&self) -> String {
@@ -88,7 +88,7 @@ impl ksni::Tray for EsTray {
     }
 
     fn icon_name(&self) -> String {
-        "dev.easyshot.Easyshot-symbolic".into()
+        es_protocol::ICON_NAME_SYMBOLIC.into()
     }
 
     fn icon_pixmap(&self) -> Vec<Icon> {

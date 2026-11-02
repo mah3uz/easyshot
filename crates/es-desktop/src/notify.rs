@@ -88,7 +88,7 @@ impl Notifier for DesktopNotifier {
         };
         let mut hints: HashMap<&str, Value<'_>> = HashMap::new();
         hints.insert("urgency", Value::U8(urgency));
-        hints.insert("desktop-entry", Value::from("dev.easyshot.Easyshot"));
+        hints.insert("desktop-entry", Value::from(es_protocol::ICON_NAME));
         if let Some(image) = &n.image {
             hints.insert(
                 "image-path",
