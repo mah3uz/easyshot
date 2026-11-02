@@ -83,6 +83,7 @@ impl Element for CanvasElement {
                 tracing::debug!(%error, "dropping a replaced canvas image");
             }
         }
+        let chrome = self.view.read(cx).chrome(bounds, window.scale_factor(), cx);
         window.with_content_mask(Some(ContentMask { bounds }), |window| {
             if let Some((image, cells)) = frame.grid {
                 for at in cells {
@@ -95,15 +96,14 @@ impl Element for CanvasElement {
             for (at, corners, image) in frame.tiles {
                 paint_image(window, bounds, at, corners, image);
             }
-            if !frame.redactions.is_empty() {
-                let view = self.view.clone();
-                let painter = view.update(cx, |c, _| c.redaction_painter.take());
-                if let Some(painter) = painter {
-                    painter(&frame.redactions, &frame.viewport, bounds, window, cx);
-                    view.update(cx, |c, _| {
-                        c.redaction_painter.get_or_insert(painter);
-                    });
-                }
+            let view = self.view.clone();
+            let painter = view.update(cx, |c, _| c.redaction_painter.take());
+            // An empty list still reaches the painter, so it can release the patches of deleted redactions.
+            if let Some(painter) = painter {
+                painter(&frame.redactions, &frame.viewport, bounds, window, cx);
+                view.update(cx, |c, _| {
+                    c.redaction_painter.get_or_insert(painter);
+                });
             }
             if !frame.spotlight.is_empty() {
                 let clip = ContentMask {
@@ -115,7 +115,7 @@ impl Element for CanvasElement {
                     }
                 });
             }
-            for p in frame.shapes {
+            for p in frame.shapes.into_iter().chain(chrome) {
                 window.paint_path(p.path, p.color);
             }
         });
@@ -157,6 +157,8 @@ impl CanvasElement {
             });
         } else if space {
             window.set_cursor_style(CursorStyle::OpenHand, hitbox);
+        } else {
+            super::input::register(&self.view, hitbox, window, cx);
         }
     }
 }

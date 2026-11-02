@@ -149,6 +149,7 @@ impl EditorCanvas {
         let editor = doc.editor();
         let document = editor.doc();
         let editing = editor.editing_text_id();
+        let live = editor.live_stroke().map(|(id, _)| id);
         let text = doc.text().clone();
         let build = BuildContext::new(&*text);
         let mut redactions = Vec::new();
@@ -158,7 +159,7 @@ impl EditorCanvas {
             let Some(revision) = document.revision(shape.id) else {
                 continue;
             };
-            if Some(shape.id) == editing {
+            if Some(shape.id) == editing || Some(shape.id) == live {
                 continue;
             }
             if shape.is_redaction() {
@@ -190,6 +191,7 @@ impl EditorCanvas {
             }
             shapes_out.extend(entry.placed.iter().cloned());
         }
+        shapes_out.extend(self.live.paths(editor, bucket, at, &mut stats));
         if self.shapes.len() > document.shapes().len() {
             self.shapes.retain(|id, _| document.shape(*id).is_some());
         }

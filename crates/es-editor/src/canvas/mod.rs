@@ -1,7 +1,11 @@
+mod chrome;
 mod element;
 pub mod grid;
+mod input;
+mod live;
 pub mod paths;
 mod prepare;
+pub mod redaction;
 pub mod tiles;
 pub mod underlay;
 
@@ -13,14 +17,19 @@ use crate::session::viewport::{ViewportModel, WHEEL_ZOOM_RATE};
 use es_anno::{DrawItem, Viewport};
 use es_geom::Point;
 use es_model::{AnnoShapeId, BackgroundSettings};
+use es_ui::cursors::Cursors;
 use gpui::{
-    App, Bounds, Context, Entity, FocusHandle, InteractiveElement, IntoElement, KeyDownEvent,
-    KeyUpEvent, MouseButton, MouseDownEvent, ParentElement, PinchEvent, Pixels, Render,
-    RenderImage, ScrollEvent, Styled, Subscription, Task, Window, div, px,
+    App, Bounds, Context, CursorStyle, Entity, FocusHandle, InteractiveElement, IntoElement,
+    KeyDownEvent, KeyUpEvent, MouseButton, MouseDownEvent, ParentElement, PinchEvent, Pixels,
+    Render, RenderImage, ScrollEvent, Styled, Subscription, Task, Window, div, px,
 };
 use grid::GridKey;
+use live::LiveCache;
 use paths::{Bucket, Painted, Placement};
+use redaction::Redactions;
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::sync::Arc;
 use tiles::BaseTiles;
 use underlay::UnderlayKey;
@@ -38,6 +47,7 @@ pub struct FrameStats {
     pub shapes_tessellated: usize,
     pub shapes_placed: usize,
     pub paths_painted: usize,
+    pub live_chunks_tessellated: usize,
 }
 
 struct ShapeEntry {
@@ -70,6 +80,10 @@ pub struct EditorCanvas {
     underlay_task: Option<Task<()>>,
     retired: Vec<Arc<RenderImage>>,
     redaction_painter: Option<RedactionPainter>,
+    redactions: Rc<RefCell<Redactions>>,
+    live: LiveCache,
+    cursors: Cursors,
+    cursor: CursorStyle,
     bounds: Bounds<Pixels>,
     space_held: bool,
     pan_from: Option<gpui::Point<Pixels>>,
@@ -84,6 +98,8 @@ impl EditorCanvas {
             cx.observe(&session.doc, |_, _, cx| cx.notify()),
             cx.observe(&session.viewport, |_, _, cx| cx.notify()),
         ];
+        let redactions = Rc::new(RefCell::new(Redactions::default()));
+        let painter = redaction::painter(redactions.clone(), session.doc.clone(), cx.weak_entity());
         Self {
             doc: session.doc.clone(),
             viewport: session.viewport.clone(),
@@ -97,7 +113,11 @@ impl EditorCanvas {
             underlay_pending: None,
             underlay_task: None,
             retired: Vec::new(),
-            redaction_painter: None,
+            redaction_painter: Some(painter),
+            redactions,
+            live: LiveCache::default(),
+            cursors: crate::cursor::cursors(cx),
+            cursor: CursorStyle::Arrow,
             bounds: Bounds::default(),
             space_held: false,
             pan_from: None,
