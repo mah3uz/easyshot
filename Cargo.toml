@@ -53,7 +53,6 @@ rxing = "0.9"
 wayland-client = "0.31"
 wayland-protocols = { version = "0.32.13", features = ["staging", "unstable", "client"] }
 wayland-protocols-wlr = { version = "0.3.12", features = ["client"] }
-libwayshot = "0.9"
 wl-clipboard-rs = "0.9.5"
 rustix = { version = "1", features = ["fs", "mm", "shm"] }
 

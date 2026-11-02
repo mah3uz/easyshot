@@ -9,9 +9,18 @@ niri are the v1 compositors.
 
 ## 1. What has been run where
 
-Nothing has run. The workspace skeleton exists and no crate is implemented. Everything
-below describes the design, not observed behaviour. This section is updated as parts are
-built and run, with the compositor and date.
+The libraries are built and unit-tested; the app, its windows and overlays are not built
+yet. Everything else below describes the design, not observed behaviour. This section is
+updated as parts are built and run, with the compositor and date.
+
+| What | Where it ran | Date |
+|---|---|---|
+| GPUI layer-surface margin, custom cursors at scale 1 and 1.5, drag icon (`es-ui` cursors example) | headless sway 1.12 | 2026-11-01 |
+| Wayland probe, output capture at scale 1 and 1.5 (ext-image-copy-capture and wlr-screencopy give identical pixels), output hot-plug events, window capture (`es-wayland`) | headless sway 1.12 | 2026-11-02 |
+| Headless GPUI windows (hello, component gallery) | no compositor (GPUI headless renderer) | 2026-11-02 |
+
+Not yet run anywhere: Hyprland, niri, any other compositor; rotated outputs; 10-bit
+formats; wlr-screencopy older than version 3.
 
 ## 2. Design rules
 
