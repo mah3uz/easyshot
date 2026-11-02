@@ -475,6 +475,7 @@ macro_rules! no_events {
         }
     )*};
 }
+pub(crate) use no_events;
 
 no_events!(
     ExtImageCopyCaptureManagerV1,

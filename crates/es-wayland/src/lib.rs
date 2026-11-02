@@ -1,5 +1,7 @@
 mod capture;
+mod clipboard;
 mod globals;
+mod input;
 mod output;
 mod shm;
 #[cfg(test)]
@@ -8,6 +10,7 @@ mod toplevel;
 mod worker;
 
 pub use globals::WlGlobals;
+pub use input::CursorSession;
 pub use toplevel::Toplevel;
 pub use worker::Connection;
 
@@ -25,6 +28,10 @@ pub enum Error {
     UnknownOutput(String),
     #[error("no window with identifier {0}")]
     UnknownToplevel(String),
+    #[error("not an absolute path: {}", .0.display())]
+    NotAbsolute(std::path::PathBuf),
+    #[error("the point is not on any output")]
+    OffScreen,
     #[error("capture failed: {0}")]
     CaptureFailed(String),
     #[error("the Wayland worker has stopped")]

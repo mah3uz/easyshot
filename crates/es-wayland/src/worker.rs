@@ -1,8 +1,13 @@
 use crate::capture::{Batch, CAPTURE_TIMEOUT, Job, Reply};
+use crate::clipboard::{Clipboard, Offers, offers};
+use crate::input::{CursorSession, Input};
 use crate::output::OutputState;
-use crate::toplevel::{Toplevel, ToplevelState};
+use crate::toplevel::{Toplevel, ToplevelState, WlrToplevel};
 use crate::{Error, WlGlobals};
-use es_model::platform::{CaptureOpts, Frame, OutputEvent, OutputId, OutputInfo};
+use es_geom::Point;
+use es_model::platform::{
+    CaptureOpts, ClipItem, Frame, OutputEvent, OutputId, OutputInfo, WindowEvent, WindowInfo,
+};
 use rustix::event::{PollFd, PollFlags, Timespec, poll};
 use std::collections::HashMap;
 use std::io::{ErrorKind, Read, Write};
@@ -14,6 +19,7 @@ use std::time::{Duration, Instant};
 use wayland_client::backend::WaylandError;
 use wayland_client::protocol::wl_output::WlOutput;
 use wayland_client::protocol::wl_registry::{self, WlRegistry};
+use wayland_client::protocol::wl_seat::WlSeat;
 use wayland_client::protocol::wl_shm::WlShm;
 use wayland_client::{Dispatch, EventQueue, QueueHandle};
 use wayland_protocols::ext::foreign_toplevel_list::v1::client::ext_foreign_toplevel_list_v1::ExtForeignToplevelListV1;
@@ -23,9 +29,12 @@ use wayland_protocols::ext::image_capture_source::v1::client::{
 };
 use wayland_protocols::ext::image_copy_capture::v1::client::ext_image_copy_capture_manager_v1::ExtImageCopyCaptureManagerV1;
 use wayland_protocols::xdg::xdg_output::zv1::client::zxdg_output_manager_v1::ZxdgOutputManagerV1;
+use wayland_protocols_wlr::foreign_toplevel::v1::client::zwlr_foreign_toplevel_manager_v1::ZwlrForeignToplevelManagerV1;
 use wayland_protocols_wlr::screencopy::v1::client::zwlr_screencopy_manager_v1::ZwlrScreencopyManagerV1;
 
 const SETUP_TIMEOUT: Duration = Duration::from_secs(5);
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(1);
+const WINDOW_EVENTS: usize = 1024;
 
 pub(crate) enum Command {
     CaptureOutputs(
@@ -35,8 +44,13 @@ pub(crate) enum Command {
     ),
     CaptureToplevel(String, CaptureOpts, Sender<Result<Frame, Error>>),
     Toplevels(Sender<Vec<Toplevel>>),
+    SetClipboard(Offers, Sender<Result<(), Error>>),
+    Scroll(Point, f64, Sender<Result<(), Error>>),
+    CursorSession(Sender<Result<CursorSession, Error>>),
     #[cfg(test)]
     DisableExtCapture,
+    #[cfg(test)]
+    DisableExtDataControl,
     Shutdown,
 }
 
@@ -54,6 +68,14 @@ pub(crate) struct State {
     pub wlr_screencopy: Option<ZwlrScreencopyManagerV1>,
     pub toplevel_list: Option<ExtForeignToplevelListV1>,
     pub toplevels: Vec<ToplevelState>,
+    pub wlr_toplevel_manager: Option<ZwlrForeignToplevelManagerV1>,
+    pub wlr_toplevels: Vec<WlrToplevel>,
+    pub focus_order: Vec<String>,
+    pub window_tx: async_channel::Sender<WindowEvent>,
+    pub window_snapshot: Arc<Mutex<Vec<WindowInfo>>>,
+    pub seat: Option<WlSeat>,
+    pub clipboard: Clipboard,
+    pub input: Input,
     pub jobs: HashMap<u64, Job>,
     pub batches: HashMap<u64, Batch>,
     pub next_id: u64,
@@ -71,8 +93,19 @@ impl State {
             Command::Toplevels(tx) => {
                 let _ = tx.send(self.toplevel_list());
             }
+            Command::SetClipboard(offers, tx) => {
+                let _ = tx.send(self.set_clipboard(offers, qh));
+            }
+            Command::Scroll(at, dy, tx) => {
+                let _ = tx.send(self.scroll(at, dy, qh));
+            }
+            Command::CursorSession(tx) => {
+                let _ = tx.send(self.cursor_session(qh));
+            }
             #[cfg(test)]
             Command::DisableExtCapture => self.ext_output_source = None,
+            #[cfg(test)]
+            Command::DisableExtDataControl => self.clipboard.disable_ext(),
             Command::Shutdown => return false,
         }
         true
@@ -126,6 +159,23 @@ impl Dispatch<WlRegistry, ()> for State {
                     "ext_foreign_toplevel_list_v1" => {
                         state.toplevel_list = Some(registry.bind(name, 1, qh, ()))
                     }
+                    "zwlr_foreign_toplevel_manager_v1" => {
+                        state.wlr_toplevel_manager =
+                            Some(registry.bind(name, version.min(3), qh, ()))
+                    }
+                    "wl_seat" if state.seat.is_none() => {
+                        state.seat = Some(registry.bind(name, version.min(5), qh, ()))
+                    }
+                    "ext_data_control_manager_v1" => {
+                        state.clipboard.ext = Some(registry.bind(name, 1, qh, ()))
+                    }
+                    "zwlr_data_control_manager_v1" => {
+                        state.clipboard.wlr = Some(registry.bind(name, 1, qh, ()))
+                    }
+                    "zwlr_virtual_pointer_manager_v1" => {
+                        state.input.virtual_manager =
+                            Some(registry.bind(name, version.min(2), qh, ()))
+                    }
                     _ => {}
                 }
                 state.advertised.push((name, interface, version));
@@ -154,6 +204,8 @@ pub struct Connection {
     globals: WlGlobals,
     outputs: Arc<Mutex<Vec<OutputInfo>>>,
     events: async_channel::Receiver<OutputEvent>,
+    windows: Arc<Mutex<Vec<WindowInfo>>>,
+    window_events: async_channel::Receiver<WindowEvent>,
     thread: Option<JoinHandle<()>>,
 }
 
@@ -165,11 +217,18 @@ impl Connection {
         wake_rx.set_nonblocking(true)?;
         let (output_tx, events) = async_channel::unbounded();
         let outputs = Arc::new(Mutex::new(Vec::new()));
+        let (window_tx, window_events) = async_channel::bounded(WINDOW_EVENTS);
+        let windows = Arc::new(Mutex::new(Vec::new()));
         let (setup_tx, setup_rx) = mpsc::channel();
-        let snapshot = outputs.clone();
+        let published = Published {
+            outputs: outputs.clone(),
+            output_tx,
+            windows: windows.clone(),
+            window_tx,
+        };
         let thread = std::thread::Builder::new()
             .name("es-wayland".into())
-            .spawn(move || run(&setup_tx, &cmd_rx, &wake_rx, snapshot, output_tx))?;
+            .spawn(move || run(&setup_tx, &cmd_rx, &wake_rx, published))?;
         let globals = match setup_rx.recv_timeout(SETUP_TIMEOUT) {
             Ok(Ok(g)) => g,
             Ok(Err(e)) => {
@@ -185,6 +244,8 @@ impl Connection {
             globals,
             outputs,
             events,
+            windows,
+            window_events,
             thread: Some(thread),
         })
     }
@@ -216,7 +277,31 @@ impl Connection {
     }
 
     pub fn toplevels(&self) -> Result<Vec<Toplevel>, Error> {
-        self.request(Command::Toplevels, Duration::from_secs(1))
+        self.request(Command::Toplevels, REQUEST_TIMEOUT)
+    }
+
+    pub fn windows(&self) -> Vec<WindowInfo> {
+        self.windows
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
+
+    pub fn window_events(&self) -> async_channel::Receiver<WindowEvent> {
+        self.window_events.clone()
+    }
+
+    pub fn set_clipboard(&self, items: &[ClipItem]) -> Result<(), Error> {
+        let offers = offers(items)?;
+        self.request(|tx| Command::SetClipboard(offers, tx), REQUEST_TIMEOUT)?
+    }
+
+    pub fn scroll(&self, at: Point, dy: f64) -> Result<(), Error> {
+        self.request(|tx| Command::Scroll(at, dy, tx), REQUEST_TIMEOUT)?
+    }
+
+    pub fn cursor_session(&self) -> Result<CursorSession, Error> {
+        self.request(Command::CursorSession, REQUEST_TIMEOUT)?
     }
 
     pub fn capture_toplevel(&self, identifier: &str, opts: CaptureOpts) -> Result<Frame, Error> {
@@ -258,14 +343,20 @@ impl Drop for Connection {
     }
 }
 
+struct Published {
+    outputs: Arc<Mutex<Vec<OutputInfo>>>,
+    output_tx: async_channel::Sender<OutputEvent>,
+    windows: Arc<Mutex<Vec<WindowInfo>>>,
+    window_tx: async_channel::Sender<WindowEvent>,
+}
+
 fn run(
     setup: &Sender<Result<WlGlobals, Error>>,
     commands: &Receiver<Command>,
     wake: &UnixStream,
-    snapshot: Arc<Mutex<Vec<OutputInfo>>>,
-    output_tx: async_channel::Sender<OutputEvent>,
+    published: Published,
 ) {
-    let (conn, mut queue, mut state) = match start(snapshot, output_tx) {
+    let (conn, mut queue, mut state) = match start(published) {
         Ok(v) => v,
         Err(e) => {
             let _ = setup.send(Err(e));
@@ -283,10 +374,7 @@ fn run(
 
 type Started = (wayland_client::Connection, EventQueue<State>, State);
 
-fn start(
-    output_snapshot: Arc<Mutex<Vec<OutputInfo>>>,
-    output_tx: async_channel::Sender<OutputEvent>,
-) -> Result<Started, Error> {
+fn start(published: Published) -> Result<Started, Error> {
     let conn = wayland_client::Connection::connect_to_env()?;
     let mut queue = conn.new_event_queue();
     let qh = queue.handle();
@@ -295,8 +383,8 @@ fn start(
         globals: WlGlobals::default(),
         advertised: Vec::new(),
         outputs: Vec::new(),
-        output_tx,
-        output_snapshot,
+        output_tx: published.output_tx,
+        output_snapshot: published.outputs,
         shm: None,
         xdg_manager: None,
         ext_copy: None,
@@ -305,6 +393,14 @@ fn start(
         wlr_screencopy: None,
         toplevel_list: None,
         toplevels: Vec::new(),
+        wlr_toplevel_manager: None,
+        wlr_toplevels: Vec::new(),
+        focus_order: Vec::new(),
+        window_tx: published.window_tx,
+        window_snapshot: published.windows,
+        seat: None,
+        clipboard: Clipboard::default(),
+        input: Input::new(),
         jobs: HashMap::new(),
         batches: HashMap::new(),
         next_id: 0,

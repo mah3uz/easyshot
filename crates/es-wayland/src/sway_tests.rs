@@ -1,7 +1,12 @@
 use crate::worker::Command;
-use crate::{Connection, Toplevel};
-use es_model::platform::{CaptureOpts, Frame, OutputEvent, OutputId, OutputInfo};
+use crate::{Connection, Error, Toplevel};
+use es_geom::Point;
+use es_model::platform::{
+    CaptureOpts, ClipItem, CursorSource, Frame, OutputEvent, OutputId, OutputInfo, WindowEvent,
+    WindowId,
+};
 use std::process::Command as Process;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 const IGNORED: &str = "needs headless sway: tests/harness/sway.sh run -- cargo nextest run -p es-wayland -j 1 --run-ignored only -E 'test(/harness_sway_/)'";
@@ -99,7 +104,11 @@ struct TestWindow {
 
 impl TestWindow {
     fn open(conn: &Connection, app_id: &str) -> Self {
-        swaymsg(&["exec", &format!("alacritty --class {app_id}")]);
+        Self::running(conn, app_id, "")
+    }
+
+    fn running(conn: &Connection, app_id: &str, command: &str) -> Self {
+        swaymsg(&["exec", &format!("alacritty --class {app_id} {command}")]);
         let deadline = Instant::now() + Duration::from_secs(10);
         loop {
             let found = conn.toplevels().expect("toplevels");
@@ -209,4 +218,131 @@ fn harness_sway_window_capture_returns_the_window_pixels() {
         conn.capture_toplevel("no-such-window", CaptureOpts { cursor: false }),
         Err(crate::Error::UnknownToplevel(_))
     ));
+}
+
+fn eventually<T>(what: &str, mut probe: impl FnMut() -> Option<T>) -> T {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        if let Some(v) = probe() {
+            return v;
+        }
+        assert!(Instant::now() < deadline, "{what} within 5 s");
+        std::thread::sleep(Duration::from_millis(20));
+    }
+}
+
+fn next_window_event(
+    rx: &async_channel::Receiver<WindowEvent>,
+    mut want: impl FnMut(&WindowEvent) -> bool,
+) -> WindowEvent {
+    eventually("a matching window event", || {
+        std::iter::from_fn(|| rx.try_recv().ok()).find(|e| want(e))
+    })
+}
+
+fn paste(args: &[&str]) -> Vec<u8> {
+    let out = Process::new("wl-paste")
+        .arg("--no-newline")
+        .args(args)
+        .output()
+        .expect("wl-paste");
+    assert!(out.status.success(), "wl-paste {args:?}: {out:?}");
+    out.stdout
+}
+
+#[test]
+#[ignore = "headless sway harness"]
+fn harness_sway_window_events_follow_a_window_from_open_to_close() {
+    harness_output();
+    let conn = Connection::connect().expect("connect to harness sway");
+    let rx = conn.window_events();
+    let window = TestWindow::open(&conn, "easyshot-test-events");
+    let id = WindowId(window.toplevel.identifier.clone());
+    match next_window_event(&rx, |e| matches!(e, WindowEvent::Opened(i) if i.id == id)) {
+        WindowEvent::Opened(info) => {
+            assert_eq!(info.app_id, "easyshot-test-events");
+            assert_eq!(info.logical, None, "foreign-toplevel gives no geometry");
+        }
+        _ => unreachable!(),
+    }
+    next_window_event(&rx, |e| *e == WindowEvent::Focused(id.clone()));
+    let listed = conn.windows().into_iter().find(|w| w.id == id);
+    assert_eq!(listed.and_then(|w| w.focus_rank), Some(0));
+    drop(window);
+    next_window_event(&rx, |e| *e == WindowEvent::Closed(id.clone()));
+    assert!(conn.windows().iter().all(|w| w.id != id));
+}
+
+#[test]
+#[ignore = "headless sway harness"]
+fn harness_sway_clipboard_serves_every_type_over_both_protocols() {
+    harness_output();
+    let conn = Connection::connect().expect("connect to harness sway");
+    let g = conn.globals();
+    assert!(g.ext_data_control.is_some() && g.wlr_data_control.is_some());
+    let png: Arc<[u8]> = (0..1_000_000u32)
+        .map(|i| (i % 251) as u8)
+        .collect::<Vec<_>>()
+        .into();
+    conn.set_clipboard(&[
+        ClipItem::Png(png.clone()),
+        ClipItem::Text("easyshot ✓".into()),
+    ])
+    .expect("set over ext-data-control");
+    let types = String::from_utf8(paste(&["--list-types"])).expect("utf-8 types");
+    for mime in ["image/png", "text/plain;charset=utf-8", "UTF8_STRING"] {
+        assert!(types.lines().any(|l| l == mime), "{mime} in {types:?}");
+    }
+    assert!(*paste(&["--type", "image/png"]) == *png, "png bytes intact");
+    assert_eq!(
+        paste(&["--type", "text/plain;charset=utf-8"]),
+        "easyshot ✓".as_bytes()
+    );
+
+    conn.send(Command::DisableExtDataControl)
+        .expect("worker alive");
+    conn.set_clipboard(&[ClipItem::UriList(vec!["/tmp/a b.png".into()])])
+        .expect("set over wlr-data-control");
+    assert_eq!(
+        paste(&["--type", "text/uri-list"]),
+        b"file:///tmp/a%20b.png\r\n"
+    );
+}
+
+#[test]
+#[ignore = "headless sway harness"]
+fn harness_sway_virtual_pointer_scrolls_a_window_and_the_cursor_session_follows() {
+    let name = harness_output();
+    let conn = Connection::connect().expect("connect to harness sway");
+    let window = TestWindow::running(&conn, "easyshot-test-scroll", "--hold -e seq 1 3000");
+    let shot = || {
+        conn.capture_toplevel(&window.toplevel.identifier, CaptureOpts { cursor: false })
+            .expect("window capture")
+            .bgra
+    };
+    let screen = output(&conn, &name).logical;
+    // Headless sway has no pointer until the first virtual one, and only then do clients bind theirs.
+    conn.scroll(screen.center() + (50.0, 50.0), 0.0)
+        .expect("create the pointer");
+    std::thread::sleep(Duration::from_millis(300));
+    let before = shot();
+    assert!(shot() == before, "the window is still before scrolling");
+    assert!(matches!(
+        conn.scroll(Point::new(screen.x1 + 10.0, screen.y0), -150.0),
+        Err(Error::OffScreen)
+    ));
+    conn.scroll(screen.center(), -150.0).expect("scroll");
+    eventually("the terminal to scroll back", || {
+        (shot() != before).then_some(())
+    });
+
+    let session = eventually("a cursor session", || conn.cursor_session().ok());
+    let target = Point::new(screen.x0 + 100.0, screen.y0 + 200.0);
+    conn.scroll(target, -15.0).expect("move and scroll");
+    let (at, _) = eventually("the cursor sample to follow the pointer", || {
+        session
+            .sample()
+            .filter(|(p, _)| (*p - target).hypot() < 1.0)
+    });
+    eprintln!("cursor sampled at {at:?}");
 }
