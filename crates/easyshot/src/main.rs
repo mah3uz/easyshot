@@ -2,6 +2,7 @@ mod cli;
 #[cfg(feature = "gui")]
 mod daemon;
 mod doctor;
+mod doctor_tools;
 mod run;
 #[cfg(test)]
 mod run_tests;
@@ -21,6 +22,15 @@ const FEATURES: &[(&str, bool)] = &[
     ("sound", cfg!(feature = "sound")),
     ("evdev-input", cfg!(feature = "evdev-input")),
 ];
+
+#[cfg(feature = "gui")]
+fn enabled_features() -> Vec<&'static str> {
+    FEATURES
+        .iter()
+        .filter(|(_, on)| *on)
+        .map(|(n, _)| *n)
+        .collect()
+}
 
 fn long_version() -> &'static str {
     let enabled: Vec<_> = FEATURES
@@ -64,7 +74,12 @@ fn main() -> ExitCode {
         wait: Duration::from_secs(3),
         standalone_report: Box::new(|| {
             let probe = es_backend::Probe::gather()?;
-            Ok(doctor::standalone_report(&probe))
+            let config = es_store::Paths::from_xdg().map(|p| p.config_file())?;
+            Ok(doctor::standalone_report(
+                &probe,
+                &doctor_tools::SystemToolRunner,
+                &config,
+            ))
         }),
         log_dir: es_store::Paths::from_xdg().ok().map(|p| p.log_dir()),
         bundle_dir: std::env::current_dir().unwrap_or_default(),

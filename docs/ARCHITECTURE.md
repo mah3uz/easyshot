@@ -258,8 +258,9 @@ The keys and defaults of `config.toml` are the `es_model::Config` type.
   newer one or a removal overtook is dropped. A missing or unreadable staged base reopens the
   original base with a warning.
 - A panic hook writes `crash/<ts>.txt` (version, features, chosen providers, backtrace, last
-  200 log lines); the next start offers "Open crash report". Nothing is uploaded. CPU jobs
-  run under `catch_unwind`.
+  200 log lines, kept in an in-memory tracing layer); the next start offers "Open crash
+  report" and renames the file to `<ts>.reported.txt` so it is offered once. Nothing is
+  uploaded. CPU jobs run under `catch_unwind`.
 
 ## 10. Hotkey to deck card
 

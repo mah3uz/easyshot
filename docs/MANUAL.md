@@ -54,7 +54,8 @@ The screen always freezes during a capture. There is no option to turn that off.
 
 ## After a capture
 
-Depending on your settings, easyshot plays a shutter sound, saves the file, copies it, and
+Depending on your settings, easyshot plays a shutter sound (Settings, General, "Play a
+shutter sound"; only builds with the `sound` feature make it), saves the file, copies it, and
 opens the editor. Each capture also appears as a card in a floating preview deck:
 
 - up to 5 cards;
@@ -190,7 +191,11 @@ Commands:
   `settings [page]`, `deck toggle|save-all|close-all`, `quit`
 - `doctor [--json] [--bundle]` asks the daemon, or probes by itself when it is not running.
   It lists each capability's chosen and rejected providers with the reason, the Wayland
-  globals, the portal interfaces and the missing tools. `--bundle` writes
+  globals, the portal interfaces and the missing tools. When the daemon is not running it
+  also says whether a tray watcher and a notification server are on your session bus, the
+  versions of `gpu-screen-recorder`, `wf-recorder`, `ffmpeg` (with the video encoders it
+  has) and `tesseract` (with its installed languages), and whether your settings file is
+  fine, missing, from a newer easyshot, or has an error. `--bundle` writes
   `easyshot-doctor-<time>.tar` to the current directory with the report and your logs, and
   no images.
 - `daemon` runs the daemon in the foreground.
@@ -211,7 +216,10 @@ Commands:
 
 If a file was made by a newer easyshot, it opens read-only and is never changed.
 
-Crash reports stay on your machine; nothing is uploaded.
+If easyshot crashes, it writes `crash/<time>.txt` with its version, the features it was
+built with, the providers it chose, a backtrace and its last 200 log lines. The next time it
+starts, a notification offers "Open crash report", which opens the file in your default
+text viewer. The report stays on your machine; nothing is uploaded.
 
 ## When your compositor lacks something
 

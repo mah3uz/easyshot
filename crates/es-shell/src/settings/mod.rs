@@ -6,7 +6,7 @@ mod shortcuts;
 mod widgets;
 
 pub use binds::{BindStatus, compositor_trigger, from_backend, trigger_string};
-pub use shortcuts::ShortcutRow;
+pub use shortcuts::{ShortcutRow, default_snippet};
 
 use crate::strings::fl;
 use es_app::history::History;

@@ -1,9 +1,14 @@
+mod bar;
 mod bus;
 mod capture;
+mod crash;
+#[cfg(feature = "test-hooks")]
+mod inject;
 mod pickers;
 mod recording;
 mod recovery;
 mod routes;
+mod shutter;
 mod windows;
 #[cfg(test)]
 mod wiring_tests;
@@ -73,7 +78,10 @@ fn test_mode_requested() -> bool {
     std::env::var("EASYSHOT_TEST").as_deref() == Ok("1")
 }
 
-fn init_logging(paths: &Paths) -> Option<tracing_appender::non_blocking::WorkerGuard> {
+fn init_logging(
+    paths: &Paths,
+    ring: &crash::LogRing,
+) -> Option<tracing_appender::non_blocking::WorkerGuard> {
     let filter = EnvFilter::try_from_env("EASYSHOT_LOG").unwrap_or_else(|_| EnvFilter::new("info"));
     let stderr = tracing_subscriber::fmt::layer().with_writer(std::io::stderr);
     let file = tracing_appender::rolling::Builder::new()
@@ -99,6 +107,11 @@ fn init_logging(paths: &Paths) -> Option<tracing_appender::non_blocking::WorkerG
         .with(filter)
         .with(stderr)
         .with(file_layer)
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_ansi(false)
+                .with_writer(ring.clone()),
+        )
         .try_init();
     guard
 }
@@ -181,12 +194,32 @@ pub fn run(_args: DaemonArgs) -> Result<()> {
     paths
         .ensure_all()
         .context("creating easyshot's directories")?;
-    let _log = init_logging(&paths);
+    let ring = crash::LogRing::default();
+    let _log = init_logging(&paths, &ring);
+    let crash_context = crash::Context {
+        version: env!("CARGO_PKG_VERSION").to_owned(),
+        features: crate::enabled_features(),
+        providers: Default::default(),
+    };
+    crash::install_hook(crash_context.clone(), ring, paths.crash_dir());
     if let Err(e) = es_shell::onboarding::prepare_for_launch(&paths) {
         tracing::warn!(error = %e, "first-launch check");
     }
     let config = ConfigFile::load(&paths.config_file()).context("reading the settings")?;
     let (backend, test_output) = detect_backend()?;
+    crash_context.set_providers(
+        backend
+            .report
+            .entries
+            .iter()
+            .map(|e| {
+                (
+                    e.capability.to_owned(),
+                    e.chosen.unwrap_or("none").to_owned(),
+                )
+            })
+            .collect(),
+    );
     size_rayon_pool();
     let (failed_tx, failed_rx) = std::sync::mpsc::channel::<String>();
     gpui_platform::application()
@@ -260,6 +293,7 @@ fn start(
     ));
 
     let test_mode = test_mode_requested();
+    let sound = shutter::player(test_mode);
     let wiring = Wiring::new(
         paths.clone(),
         settings.clone(),
@@ -286,6 +320,17 @@ fn start(
         windows.clone(),
     );
     wiring.register();
+    wiring.set_bar_sources(bar::BarSources {
+        windows: {
+            let backend = backend.clone();
+            Rc::new(move || backend.windows.snapshot())
+        },
+        devices: bar::devices_from(if test_mode {
+            Rc::new(bar::NoAudio)
+        } else {
+            Rc::new(es_record::audio::SystemRunner)
+        }),
+    });
 
     let coordinator = CaptureCoordinator::new(jobs.clone());
     let opts = settings.clone();
@@ -350,11 +395,15 @@ fn start(
     });
     wiring.set_recordings(recordings.clone());
     let rec = recordings.clone();
+    let shutter_settings = settings.clone();
     coordinator.set_pipeline(Rc::new(move |request, selection, cx| match request.kind {
         CaptureKind::Recording | CaptureKind::RecordingArea => {
             rec.with_selection(request.kind, selection, cx)
         }
-        _ => screenshots(request, selection, cx),
+        _ => {
+            shutter::play_after_capture(&shutter_settings, sound.as_ref(), cx);
+            screenshots(request, selection, cx)
+        }
     }));
 
     let dispatcher = RouteDispatcher::new(jobs.clone(), coordinator, windows);
@@ -373,12 +422,28 @@ fn start(
     ];
     dispatcher.set_action_handler(routes::actions(action_deps));
 
+    let crash_notice = Rc::new(std::cell::RefCell::new(crash::announce(
+        paths,
+        &BackendNotifier(backend.clone()),
+        &labels(),
+    )));
+    let handlers = EventHandlers {
+        notification_action: Some(Rc::new(move |(id, action), _| {
+            crash::on_action(&crash_notice, &crash::open_with_default_app, id, &action)
+        })),
+        #[cfg(feature = "test-hooks")]
+        test_inject: test_mode.then(|| {
+            Rc::new(|text: String, cx: &mut App| inject::dispatch(&text, cx))
+                as Rc<dyn Fn(String, &mut App)>
+        }),
+        ..Default::default()
+    };
     let (events_tx, events_rx) = async_channel::unbounded::<PlatformEvent>();
     let mut tasks = vec![spawn_pump(
         events_rx,
         dispatcher.clone(),
         settings.clone(),
-        EventHandlers::default(),
+        handlers,
         cx,
     )];
     tasks.extend(bus::platform_sources(backend, &history, &events_tx, cx));

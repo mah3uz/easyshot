@@ -1,6 +1,7 @@
+use super::bar::{BarSources, NoAudio, devices_from, new_bar};
 use super::pickers::{Declining, declining_folder_picker};
 use super::reopen_recovered;
-use super::windows::Wiring;
+use super::windows::{Wiring, onboarding_input, open_practice};
 use es_app::capture_coordinator::CaptureCoordinator;
 use es_app::dispatcher::RouteDispatcher;
 use es_app::errors::Result;
@@ -10,11 +11,12 @@ use es_app::platform_ui::ClipboardSink;
 use es_app::settings_model::SettingsModel;
 use es_app::toast::{MemorySink, install_toasts};
 use es_app::windows::{WindowKey, WindowKind, Windows};
-use es_backend::Caps;
+use es_backend::{BindHelper, BindSyntax, Caps, Trigger};
 use es_desktop::{Notification, NotificationId, Notifier};
 use es_editor::session::journal::{self, Entry};
 use es_model::AnnotationDocument;
 use es_model::platform::ClipItem;
+use es_overlays::record::bar::BarEvent;
 use es_protocol::Route;
 use es_shell::gallery::{FileResult, GalleryFiles};
 use es_store::{ConfigFile, Paths};
@@ -71,6 +73,28 @@ fn png(path: &Path) {
 }
 
 fn rig(cx: &mut TestAppContext) -> Rig {
+    rig_with(cx, None)
+}
+
+struct Lines;
+
+impl BindHelper for Lines {
+    fn syntax(&self) -> BindSyntax {
+        BindSyntax::Sway
+    }
+    fn snippet(&self, binds: &[(Trigger, Route)]) -> String {
+        binds
+            .iter()
+            .map(|(t, r)| format!("bindsym {} exec easyshot {}", t.0, r.as_str()))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+    fn existing_binds(&self) -> es_backend::Result<Vec<(Trigger, String)>> {
+        Ok(Vec::new())
+    }
+}
+
+fn rig_with(cx: &mut TestAppContext, binds: Option<Arc<dyn BindHelper>>) -> Rig {
     let dir = tempfile::tempdir().unwrap();
     let paths = Paths::rooted(dir.path());
     paths.ensure_all().unwrap();
@@ -89,7 +113,7 @@ fn rig(cx: &mut TestAppContext) -> Rig {
             Arc::new(NoFiles),
             declining_folder_picker(),
             Caps::empty(),
-            None,
+            binds,
             Rc::new(Vec::new),
             None,
             windows.clone(),
@@ -211,4 +235,82 @@ fn recovered_journals_reopen_in_editors_with_a_toast(cx: &mut TestAppContext) {
     let shown = sink.shown();
     assert_eq!(shown.len(), 1);
     assert_eq!(shown[0].title, "Recovered unsaved edits");
+}
+
+#[gpui::test]
+fn onboarding_shows_the_compositor_bind_lines_from_the_backend(cx: &mut TestAppContext) {
+    let rig = rig_with(cx, Some(Arc::new(Lines)));
+    let snippet = cx
+        .update(|cx| onboarding_input(&rig.wiring, cx))
+        .snippet
+        .expect("a snippet when the backend can write binds");
+    assert!(
+        snippet.contains(&format!("exec easyshot {}", Route::CaptureRegion.as_str())),
+        "{snippet}"
+    );
+    let bare = self::rig(cx);
+    assert_eq!(
+        cx.update(|cx| onboarding_input(&bare.wiring, cx)).snippet,
+        None
+    );
+}
+
+#[gpui::test]
+fn the_practice_image_opens_in_the_editor_without_capturing(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    cx.update(|cx| open_practice(&rig.wiring, cx));
+    cx.run_until_parked();
+    let file = rig.paths.unstaged_dir().join("practice.png");
+    let (w, h) = image::image_dimensions(&file).expect("the bundled image decodes");
+    assert!(w >= 640 && h >= 400, "{w}x{h}");
+    assert!(is_open(
+        &rig,
+        WindowKind::Editor,
+        &WindowKey::Path(file),
+        cx
+    ));
+    assert_eq!(rig.wiring.editor_count(), 1);
+}
+
+#[gpui::test]
+fn the_capture_bar_lists_devices_and_windows_and_refresh_asks_again(cx: &mut TestAppContext) {
+    use std::cell::Cell;
+    let rig = rig(cx);
+    let (windows, devices) = (Rc::new(Cell::new(0)), Rc::new(Cell::new(0)));
+    let (w, d) = (windows.clone(), devices.clone());
+    rig.wiring.set_bar_sources(BarSources {
+        windows: Rc::new(move || {
+            w.set(w.get() + 1);
+            Vec::new()
+        }),
+        devices: Rc::new(move || {
+            d.set(d.get() + 1);
+            Vec::new()
+        }),
+    });
+    let bar = cx.update(|cx| new_bar(&rig.wiring, cx));
+    assert_eq!((windows.get(), devices.get()), (1, 1), "listed at open");
+    bar.update(cx, |_, cx| cx.emit(BarEvent::RefreshWindows));
+    assert_eq!(windows.get(), 2, "Refresh Windows lists the windows again");
+    assert_eq!(devices.get(), 1);
+}
+
+struct Pactl(&'static str);
+
+impl es_record::audio::Runner for Pactl {
+    fn run(&self, _: &str, _: &[&str]) -> std::io::Result<String> {
+        Ok(self.0.to_owned())
+    }
+}
+
+#[test]
+fn audio_devices_come_through_the_runner_and_fail_to_none() {
+    let listed = devices_from(Rc::new(Pactl("[]")))();
+    assert!(
+        listed
+            .iter()
+            .any(|d| d.kind == es_record::AudioKind::Microphone),
+        "{listed:?}"
+    );
+    assert!(devices_from(Rc::new(NoAudio))().is_empty());
 }

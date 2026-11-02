@@ -62,13 +62,25 @@ impl Drop for PrivateBus {
     }
 }
 
+struct NoTools;
+
+impl crate::doctor_tools::ToolRunner for NoTools {
+    fn run(&self, _: &str, _: &[&str]) -> Option<String> {
+        None
+    }
+}
+
 fn env(bus: &PrivateBus, dir: &Path) -> Env {
     Env {
         endpoint: bus.endpoint(),
         spawn_daemon: false,
         wait: Duration::from_millis(300),
         standalone_report: Box::new(|| {
-            Ok(doctor::standalone_report(&es_backend::Probe::default()))
+            Ok(doctor::standalone_report(
+                &es_backend::Probe::default(),
+                &NoTools,
+                Path::new("easyshot/config.toml"),
+            ))
         }),
         log_dir: None,
         bundle_dir: dir.to_owned(),
@@ -334,4 +346,64 @@ fn the_default_build_reaches_gpui_only_through_the_gui_feature() {
             .lines()
             .any(|l| l.starts_with("gpui-pre "))
     );
+}
+
+struct Installed;
+
+impl crate::doctor_tools::ToolRunner for Installed {
+    fn run(&self, program: &str, args: &[&str]) -> Option<String> {
+        Some(
+            match (program, args.first().copied()) {
+                ("gpu-screen-recorder", _) => "5.6.0\n",
+                ("ffmpeg", Some("-version")) => "ffmpeg version 7.1 Copyright\nbuilt with gcc\n",
+                ("ffmpeg", _) => "Encoders:\n V....D libx264 H.264\n V....D libvpx-vp9 VP9\n",
+                ("tesseract", Some("--version")) => "tesseract 5.5.0\n leptonica-1.85\n",
+                ("tesseract", _) => "List of available languages (2):\neng\ndeu\n",
+                _ => return None,
+            }
+            .to_owned(),
+        )
+    }
+}
+
+#[test]
+fn the_standalone_report_names_services_tool_versions_and_the_config() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = dir.path().join("config.toml");
+    std::fs::write(&config, "[general\n").unwrap();
+    let mut probe = es_backend::Probe::default();
+    probe
+        .dbus
+        .names
+        .insert("org.freedesktop.Notifications".into());
+    let raw = doctor::standalone_report(&probe, &Installed, &config);
+    let v: serde_json::Value = serde_json::from_str(&raw).unwrap();
+    assert_eq!(v["services"]["notification_server"], true);
+    assert_eq!(v["services"]["tray_watcher"], false);
+    assert_eq!(v["tools"]["gpu-screen-recorder"], "5.6.0");
+    assert_eq!(v["tools"]["wf-recorder"], serde_json::Value::Null);
+    assert_eq!(
+        v["tools"]["ffmpeg"]["version"],
+        "ffmpeg version 7.1 Copyright"
+    );
+    assert_eq!(
+        v["tools"]["ffmpeg"]["encoders"],
+        serde_json::json!(["libx264", "libvpx-vp9"])
+    );
+    assert_eq!(
+        v["tools"]["tesseract"]["languages"],
+        serde_json::json!(["eng", "deu"])
+    );
+    assert_eq!(v["config"]["status"], "error");
+    let text = doctor::render_text(&raw);
+    for want in [
+        "tray watcher: absent",
+        "notification server: present",
+        "wf-recorder: not found",
+        "encoders: libx264, libvpx-vp9",
+        "languages: eng, deu",
+        "(error:",
+    ] {
+        assert!(text.contains(want), "{want} missing from\n{text}");
+    }
 }

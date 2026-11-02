@@ -1,3 +1,4 @@
+use crate::doctor_tools::{self, ToolRunner};
 use anyhow::{Context, Result};
 use es_backend::{Backend, Probe};
 use es_store::bundle::{BundleEntry, write_bundle};
@@ -7,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 const LOG_TAIL: usize = 1 << 20;
 
-pub fn standalone_report(probe: &Probe) -> String {
+pub fn standalone_report(probe: &Probe, runner: &dyn ToolRunner, config: &Path) -> String {
     let mut report: Value =
         serde_json::from_str(&Backend::detect(probe).doctor_json()).unwrap_or_else(|_| json!({}));
     let globals: Map<String, Value> = probe
@@ -20,6 +21,9 @@ pub fn standalone_report(probe: &Probe) -> String {
     if let Some(obj) = report.as_object_mut() {
         obj.insert("source".into(), json!("standalone"));
         obj.insert("wayland_globals".into(), Value::Object(globals));
+        obj.insert("services".into(), doctor_tools::services(&probe.dbus));
+        obj.insert("tools".into(), doctor_tools::tools(runner));
+        obj.insert("config".into(), doctor_tools::config_status(config));
         obj.insert(
             "portals".into(),
             json!({
@@ -94,6 +98,7 @@ pub fn render_text(raw: &str) -> String {
             }
         }
     }
+    render_probes(&v, &mut out);
     let missing = v["missing_tools"].as_array().map_or(&[][..], Vec::as_slice);
     if !missing.is_empty() {
         let _ = writeln!(out, "\nMissing tools:");
@@ -114,6 +119,74 @@ pub fn render_text(raw: &str) -> String {
         }
     }
     out
+}
+
+fn render_probes(v: &Value, out: &mut String) {
+    let yes = |b: &Value| {
+        if b.as_bool() == Some(true) {
+            "present"
+        } else {
+            "absent"
+        }
+    };
+    let version = |v: &Value| v.as_str().unwrap_or("not found").to_owned();
+    let list = |v: &Value| {
+        let items: Vec<_> = v
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .collect();
+        if items.is_empty() {
+            "none".to_owned()
+        } else {
+            items.join(", ")
+        }
+    };
+    if v["services"].is_object() {
+        let _ = writeln!(out, "\nServices on the session bus:");
+        let _ = writeln!(
+            out,
+            "  tray watcher: {}",
+            yes(&v["services"]["tray_watcher"])
+        );
+        let _ = writeln!(
+            out,
+            "  notification server: {}",
+            yes(&v["services"]["notification_server"])
+        );
+    }
+    let t = &v["tools"];
+    if t.is_object() {
+        let _ = writeln!(out, "\nTool versions:");
+        let _ = writeln!(
+            out,
+            "  gpu-screen-recorder: {}",
+            version(&t["gpu-screen-recorder"])
+        );
+        let _ = writeln!(out, "  wf-recorder: {}", version(&t["wf-recorder"]));
+        let _ = writeln!(out, "  ffmpeg: {}", version(&t["ffmpeg"]["version"]));
+        let _ = writeln!(out, "    encoders: {}", list(&t["ffmpeg"]["encoders"]));
+        let _ = writeln!(out, "  tesseract: {}", version(&t["tesseract"]["version"]));
+        let _ = writeln!(out, "    languages: {}", list(&t["tesseract"]["languages"]));
+    }
+    let c = &v["config"];
+    if c.is_object() {
+        let _ = write!(
+            out,
+            "\nSettings file: {} ({}",
+            c["path"].as_str().unwrap_or("-"),
+            c["status"].as_str().unwrap_or("-")
+        );
+        if let Some(detail) = c.get("detail") {
+            let _ = write!(
+                out,
+                ": {}",
+                detail.as_str().map_or(detail.to_string(), str::to_owned)
+            );
+        }
+        let _ = writeln!(out, ")");
+    }
 }
 
 pub fn write_report_bundle(

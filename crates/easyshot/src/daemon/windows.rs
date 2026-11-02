@@ -1,3 +1,4 @@
+use super::bar::{BarSources, new_bar};
 use es_app::dispatcher::RouteDispatcher;
 use es_app::errors::{Error, Result};
 use es_app::events::Origin;
@@ -9,7 +10,7 @@ use es_backend::{BindHelper, Caps};
 use es_editor::session::io::{ExportChooser, IoConfig};
 use es_editor::{EditorSession, EditorSource, EditorWindow};
 use es_model::platform::OutputInfo;
-use es_overlays::record::bar::{BAR, BarEvent, CaptureBar};
+use es_overlays::record::bar::{BAR, BarEvent};
 use es_overlays::record::placement;
 use es_protocol::{Route, SettingsPage};
 use es_shell::gallery::{self, GalleryEvent, GalleryFiles};
@@ -29,6 +30,8 @@ use std::sync::Arc;
 
 pub type FolderPicker = Rc<dyn Fn(&mut App) -> Task<Option<PathBuf>>>;
 
+static PRACTICE_IMAGE: &[u8] = include_bytes!("../../../../assets/practice.png");
+
 /// What the daemon's windows need from the rest of the app.
 pub struct Wiring {
     pub paths: Paths,
@@ -45,6 +48,7 @@ pub struct Wiring {
     pub windows: Windows,
     dispatcher: RefCell<Option<RouteDispatcher>>,
     recordings: RefCell<Option<super::recording::Recordings>>,
+    pub(super) bar_sources: RefCell<BarSources>,
     editors: RefCell<Vec<WeakEntity<EditorWindow>>>,
     settings_window: RefCell<Option<WeakEntity<SettingsWindow>>>,
     recoveries: RefCell<HashMap<PathBuf, PathBuf>>,
@@ -104,6 +108,7 @@ impl Wiring {
             windows,
             dispatcher: RefCell::default(),
             recordings: RefCell::default(),
+            bar_sources: RefCell::default(),
             editors: RefCell::default(),
             settings_window: RefCell::default(),
             recoveries: RefCell::default(),
@@ -112,6 +117,10 @@ impl Wiring {
 
     pub fn set_recordings(&self, recordings: super::recording::Recordings) {
         *self.recordings.borrow_mut() = Some(recordings);
+    }
+
+    pub fn set_bar_sources(&self, sources: BarSources) {
+        *self.bar_sources.borrow_mut() = sources;
     }
 
     pub fn set_dispatcher(&self, dispatcher: RouteDispatcher) {
@@ -348,15 +357,30 @@ fn open_editor(w: &Rc<Wiring>, key: &WindowKey, cx: &mut App) -> Result<Rc<dyn W
     Ok(handle(window))
 }
 
-fn open_onboarding(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>> {
-    let config = w.settings.read(cx).config().clone();
-    let input = OnboardingInput {
+pub(super) fn onboarding_input(w: &Wiring, cx: &App) -> OnboardingInput {
+    let config = w.settings.read(cx).config();
+    OnboardingInput {
         caps: w.caps,
-        snippet: None,
+        snippet: w.binds.as_deref().map(settings::default_snippet),
         capture_shortcut: None,
-        save_dir: es_store::paths::save_dir(&config),
+        save_dir: es_store::paths::save_dir(config),
         autosave: config.after_capture.screenshot.save,
-    };
+    }
+}
+
+pub(super) fn open_practice(w: &Rc<Wiring>, cx: &mut App) {
+    let file = w.paths.unstaged_dir().join("practice.png");
+    let opened = es_store::atomic::write_atomic(&file, PRACTICE_IMAGE)
+        .map_err(|e| Error::Protocol(format!("cannot write the practice image: {e}")))
+        .and_then(|()| w.open_editor_for(&file, cx));
+    if let Err(e) = opened {
+        tracing::warn!(error = %e, "practice image");
+        es_app::toast::show_toast(es_app::toast::Toast::error("toast-error-generic"), cx);
+    }
+}
+
+fn open_onboarding(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>> {
+    let input = onboarding_input(w, cx);
     let options = WindowOptions {
         window_bounds: Some(WindowBounds::centered(
             size(px(onboarding::WIDTH), px(onboarding::HEIGHT)),
@@ -386,9 +410,8 @@ fn open_onboarding(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>>
                     s.update(|c| c.after_capture.screenshot.save = on, cx)
                 });
             }
-            OnboardingEvent::CaptureArea | OnboardingEvent::OpenPractice => {
-                w.dispatch(Route::CaptureRegion, cx)
-            }
+            OnboardingEvent::CaptureArea => w.dispatch(Route::CaptureRegion, cx),
+            OnboardingEvent::OpenPractice => open_practice(&w, cx),
         })
         .detach();
     }
@@ -417,7 +440,7 @@ fn open_bar(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>> {
         .or_else(|| surfaces.source().focused_output())
         .ok_or_else(|| Error::NotFound("an output for the capture bar".into()))?;
     let info = surfaces.output_info(&output)?;
-    let bar = cx.new(|cx| CaptureBar::new((w.outputs)(), Vec::new(), cx));
+    let bar = new_bar(w, cx);
     let surface = Rc::new(surfaces.open_surface(SurfaceRole::Bar, &output, BAR, cx)?);
     let place = {
         let (surface, bar, logical) = (surface.clone(), bar.clone(), info.logical);

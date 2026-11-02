@@ -725,3 +725,7 @@ onboarding-shortcuts = Add shortcuts
 onboarding-shortcuts-help = Paste these lines into your compositor config, then reload it.
 onboarding-shortcuts-portal = Your desktop asks you to confirm the shortcuts the first time { -app-name } starts.
 onboarding-shortcuts-snippet-a11y = Shortcut configuration
+
+crash-notice-title = { -app-name } stopped unexpectedly
+crash-notice-body = A crash report was saved on this computer. It is never sent anywhere.
+crash-notice-open = Open crash report

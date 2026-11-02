@@ -233,6 +233,26 @@
   "errors": [],
   "source": "standalone",
   "wayland_globals": {},
+  "services": {
+    "tray_watcher": false,
+    "notification_server": false
+  },
+  "tools": {
+    "gpu-screen-recorder": null,
+    "wf-recorder": null,
+    "ffmpeg": {
+      "version": null,
+      "encoders": []
+    },
+    "tesseract": {
+      "version": null,
+      "languages": []
+    }
+  },
+  "config": {
+    "path": "easyshot/config.toml",
+    "status": "missing"
+  },
   "portals": {
     "FileChooser": false,
     "Settings": false,

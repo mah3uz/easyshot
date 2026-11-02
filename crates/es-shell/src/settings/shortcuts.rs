@@ -100,6 +100,20 @@ fn route_of(entry: &ShortcutEntry) -> Option<&Route> {
     }
 }
 
+/// Compositor lines for every global action's default trigger.
+pub fn default_snippet(binds: &dyn BindHelper) -> String {
+    let syntax = binds.syntax();
+    let list: Vec<(CompositorTrigger, Route)> = CATALOGUE
+        .iter()
+        .filter(|e| e.scope == Scope::Global)
+        .filter_map(|e| {
+            let trigger = Trigger::parse(e.default_trigger?).ok()?;
+            Some((compositor_trigger(&trigger, syntax), route_of(e)?.clone()))
+        })
+        .collect();
+    binds.snippet(&list)
+}
+
 impl Shortcuts {
     pub(super) fn new(
         config: &Config,
