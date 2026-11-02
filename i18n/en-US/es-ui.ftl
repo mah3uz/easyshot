@@ -81,3 +81,30 @@ picks-stroke-width =
        *[other] { $width } pixels
     }
 picks-stroke-width-help = { $width } px
+
+## Panels
+panels-section-expand-hint = Expand section
+panels-section-collapse-hint = Collapse section
+panels-section-toggle = { $title } on
+panels-align-label = Image alignment
+panels-align-cell = { $position } alignment
+panels-align-top-left = Top Left
+panels-align-top = Top
+panels-align-top-right = Top Right
+panels-align-left = Left
+panels-align-center = Center
+panels-align-right = Right
+panels-align-bottom-left = Bottom Left
+panels-align-bottom = Bottom
+panels-align-bottom-right = Bottom Right
+panels-focus-label = Blur focus position
+panels-focus-value = X { $x }, Y { $y }
+panels-focus-help = Drag to move the sharp focal area. Double-click to center.
+panels-presets-a11y = Presets
+panels-presets-placeholder = Presets…
+panels-presets-help = Apply a saved preset
+panels-presets-saved = Saved Presets
+panels-presets-current = Current Settings
+panels-presets-empty = No Saved Presets
+panels-presets-add = Add Preset
+panels-presets-delete = Delete { $name }

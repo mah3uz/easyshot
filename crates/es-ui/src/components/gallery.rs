@@ -89,6 +89,7 @@ pub fn sections() -> Vec<Section> {
             render: controls::shortcut_fields,
         },
         crate::components::gallery_picks::SECTION,
+        crate::components::gallery_panels::SECTION,
     ]
 }
 

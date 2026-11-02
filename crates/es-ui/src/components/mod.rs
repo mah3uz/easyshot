@@ -31,3 +31,18 @@ pub use backgrounds::{CheckerBackground, DotGridBackground};
 pub use stroke_dots::{STROKE_WIDTHS, StrokeDots};
 pub use swatch_strip::{SwatchPick, SwatchStrip};
 pub use tile::{Tile, TileGrid};
+
+pub mod alignment_pad;
+pub mod disclosure;
+pub mod focus_pad;
+pub mod gallery_panels;
+pub mod popover;
+pub mod preset_bar;
+pub mod toast;
+
+pub use alignment_pad::{ALIGNMENT_PAD, ALIGNMENTS, AlignmentPad, alignment_title};
+pub use disclosure::DisclosureSection;
+pub use focus_pad::{CENTRE, FOCUS_PAD_HEIGHT, FocusPad};
+pub use popover::Popover;
+pub use preset_bar::PresetBar;
+pub use toast::{TOAST_DURATION, Toast, ToastStyle};
