@@ -10,11 +10,13 @@ use gpui::{CursorImage, CustomCursorId};
 use gpui_util::ResultExt;
 
 use wayland_client::protocol::wl_buffer::WlBuffer;
+use wayland_client::protocol::wl_compositor::WlCompositor;
 use wayland_client::protocol::wl_surface::WlSurface;
 use wayland_client::protocol::{wl_pointer::WlPointer, wl_shm, wl_shm::WlShm};
 use wayland_client::{Connection, QueueHandle};
 use wayland_cursor::{CursorImageBuffer, CursorTheme};
 use wayland_protocols::wp::viewporter::client::wp_viewport::WpViewport;
+use wayland_protocols::wp::viewporter::client::wp_viewporter::WpViewporter;
 
 pub(crate) struct Cursor {
     loaded_theme: Option<LoadedTheme>,
@@ -25,9 +27,17 @@ pub(crate) struct Cursor {
     connection: Connection,
     custom_images: HashMap<CustomCursorId, CursorImage>,
     custom_buffers: HashMap<(CustomCursorId, usize), WlBuffer>,
-    custom_surface: WlSurface,
-    custom_viewport: Option<WpViewport>,
+    custom_surfaces: HashMap<CustomCursorId, CustomSurface>,
+    compositor: WlCompositor,
+    viewporter: Option<WpViewporter>,
     qh: QueueHandle<WaylandClientStatePtr>,
+}
+
+// One surface per cursor, so set_cursor names a surface that already shows its image.
+struct CustomSurface {
+    surface: WlSurface,
+    viewport: Option<WpViewport>,
+    shown: Option<usize>,
 }
 
 pub(crate) struct LoadedTheme {
@@ -43,20 +53,17 @@ impl Drop for Cursor {
         for buffer in self.custom_buffers.values() {
             buffer.destroy();
         }
-        if let Some(viewport) = &self.custom_viewport {
-            viewport.destroy();
+        for custom in self.custom_surfaces.values() {
+            if let Some(viewport) = &custom.viewport {
+                viewport.destroy();
+            }
+            custom.surface.destroy();
         }
-        self.custom_surface.destroy();
     }
 }
 
 impl Cursor {
     pub fn new(connection: &Connection, globals: &Globals, size: u32) -> Self {
-        let custom_surface = globals.compositor.create_surface(&globals.qh, ());
-        let custom_viewport = globals
-            .viewporter
-            .as_ref()
-            .map(|viewporter| viewporter.get_viewport(&custom_surface, &globals.qh, ()));
         let mut this = Self {
             loaded_theme: None,
             size,
@@ -66,8 +73,9 @@ impl Cursor {
             connection: connection.clone(),
             custom_images: HashMap::new(),
             custom_buffers: HashMap::new(),
-            custom_surface,
-            custom_viewport,
+            custom_surfaces: HashMap::new(),
+            compositor: globals.compositor.clone(),
+            viewporter: globals.viewporter.clone(),
             qh: globals.qh.clone(),
         };
         this.set_theme_internal(None);
@@ -198,7 +206,7 @@ impl Cursor {
             return false;
         };
         // Without a viewport the buffer scale must be an integer.
-        let fractional = self.custom_viewport.is_some();
+        let fractional = self.viewporter.is_some();
         let Some(index) = custom_image_for_scale(image, scale, fractional) else {
             log::warn!("wayland: cursor image {id:?} has no image usable at scale {scale}");
             return false;
@@ -225,26 +233,58 @@ impl Cursor {
             }
         };
 
-        if let Some(viewport) = &self.custom_viewport {
-            self.custom_surface.set_buffer_scale(1);
-            viewport.set_destination(image.size.width as i32, image.size.height as i32);
-        } else {
-            self.custom_surface.set_buffer_scale(*image_scale as i32);
+        let custom = self.custom_surfaces.entry(id).or_insert_with(|| {
+            let surface = self.compositor.create_surface(&self.qh, ());
+            let viewport = self
+                .viewporter
+                .as_ref()
+                .map(|viewporter| viewporter.get_viewport(&surface, &self.qh, ()));
+            CustomSurface {
+                surface,
+                viewport,
+                shown: None,
+            }
+        });
+        for step in custom_steps(custom.shown, index) {
+            match step {
+                CustomStep::Commit(index) => {
+                    if let Some(viewport) = &custom.viewport {
+                        custom.surface.set_buffer_scale(1);
+                        viewport.set_destination(image.size.width as i32, image.size.height as i32);
+                    } else {
+                        custom.surface.set_buffer_scale(*image_scale as i32);
+                    }
+                    custom.surface.attach(Some(buffer), 0, 0);
+                    custom
+                        .surface
+                        .damage(0, 0, image.size.width as i32, image.size.height as i32);
+                    custom.surface.commit();
+                    custom.shown = Some(index);
+                }
+                CustomStep::SetCursor => wl_pointer.set_cursor(
+                    serial_id,
+                    Some(&custom.surface),
+                    image.hotspot.x as i32,
+                    image.hotspot.y as i32,
+                ),
+            }
         }
-
-        wl_pointer.set_cursor(
-            serial_id,
-            Some(&self.custom_surface),
-            image.hotspot.x as i32,
-            image.hotspot.y as i32,
-        );
-
-        self.custom_surface.attach(Some(buffer), 0, 0);
-        self.custom_surface
-            .damage(0, 0, image.size.width as i32, image.size.height as i32);
-        self.custom_surface.commit();
         true
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum CustomStep {
+    Commit(usize),
+    SetCursor,
+}
+
+/// Compositors show a pointer surface at set_cursor, so its image is committed first, and only on change.
+fn custom_steps(shown: Option<usize>, index: usize) -> impl Iterator<Item = CustomStep> {
+    (shown != Some(index))
+        .then_some(CustomStep::Commit(index))
+        .into_iter()
+        .chain([CustomStep::SetCursor])
 }
 
 /// The smallest image scale at or above `scale`, else the largest one.
@@ -318,7 +358,32 @@ pub(crate) fn create_shm_buffer(
 
 #[cfg(test)]
 mod tests {
-    use super::shm_pool_size;
+    use super::{CustomStep, custom_steps, shm_pool_size};
+
+    fn steps(shown: Option<usize>, index: usize) -> Vec<CustomStep> {
+        custom_steps(shown, index).collect()
+    }
+
+    #[test]
+    fn a_cursor_image_is_committed_before_its_surface_becomes_the_pointer() {
+        assert_eq!(
+            steps(None, 1),
+            [CustomStep::Commit(1), CustomStep::SetCursor]
+        );
+    }
+
+    #[test]
+    fn showing_a_cursor_again_does_not_upload_its_image_again() {
+        assert_eq!(steps(Some(1), 1), [CustomStep::SetCursor]);
+    }
+
+    #[test]
+    fn a_scale_change_commits_the_other_image_before_set_cursor() {
+        assert_eq!(
+            steps(Some(0), 2),
+            [CustomStep::Commit(2), CustomStep::SetCursor]
+        );
+    }
 
     #[test]
     fn shm_pool_size_needs_exactly_four_bytes_per_pixel() {
