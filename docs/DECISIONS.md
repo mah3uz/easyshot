@@ -113,3 +113,7 @@ What was rejected beyond that, and why: not recorded.
     interface stays identical to the reference design. Rejected: snapping guides, an eraser tool
     (a 13th button), Alt-drag duplicate (Alt already means centre-resize), region selection
     across outputs, numeric geometry fields. See `DESIGN.md`.
+20. **Resizing through zero** (maintainer's decision, 2026-11-02): dragging a resize handle
+    past the opposite edge flips the shape so it keeps following the pointer, and a curved
+    arrow mirrored on one axis reverses its bend. Rejected: keeping the scaled origin, which
+    leaves a flipped shape on the wrong side of the pointer.
