@@ -1,3 +1,4 @@
+use crate::background::{BackgroundSettings, BackgroundStyle, PresetLibrary};
 use crate::config::Config;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -13,6 +14,7 @@ pub enum CaptureKind {
     Scroll,
 }
 
+/// `Normal` covers region, fullscreen, window, previous region, timed region and scroll.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CaptureVariant {
     Normal,
@@ -32,37 +34,9 @@ pub enum Step {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct BackgroundSettings {
-    pub style: String,
-    pub padding: f64,
-    pub corner_radius: f64,
-    pub shadow: f64,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-pub struct PresetLibrary {
-    pub presets: Vec<BackgroundSettings>,
-}
-
-mod rfc3339 {
-    use serde::{Deserialize, Deserializer, Serializer, de::Error};
-    use time::OffsetDateTime;
-    use time::format_description::well_known::Rfc3339;
-
-    pub fn serialize<S: Serializer>(t: &OffsetDateTime, s: S) -> Result<S::Ok, S::Error> {
-        s.serialize_str(&t.format(&Rfc3339).map_err(serde::ser::Error::custom)?)
-    }
-
-    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<OffsetDateTime, D::Error> {
-        let s = String::deserialize(d)?;
-        OffsetDateTime::parse(&s, &Rfc3339).map_err(D::Error::custom)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HistoryEntry {
     pub id: Uuid,
-    #[serde(with = "rfc3339")]
+    #[serde(with = "crate::time_serde")]
     pub created_at: OffsetDateTime,
     pub kind: CaptureKind,
     pub name: String,
@@ -87,14 +61,66 @@ pub struct DeckManifest {
     pub thumb: PathBuf,
     pub kind: CaptureKind,
     pub history_id: Option<Uuid>,
-    #[serde(with = "rfc3339")]
+    #[serde(with = "crate::time_serde")]
     pub created_at: OffsetDateTime,
 }
 
-pub fn after_capture_plan(_variant: CaptureVariant, _cfg: &Config) -> Vec<Step> {
-    todo!()
+/// Steps run in this order.
+pub fn after_capture_plan(variant: CaptureVariant, cfg: &Config) -> Vec<Step> {
+    let rules = &cfg.after_capture.screenshot;
+    let mut plan = Vec::new();
+
+    let save = match variant {
+        CaptureVariant::Normal => rules.save,
+        CaptureVariant::RegionSave => true,
+        CaptureVariant::RegionCopy | CaptureVariant::RegionAnnotate | CaptureVariant::RegionPin => {
+            false
+        }
+    };
+    if save {
+        plan.push(Step::Save);
+    }
+
+    let copy = match variant {
+        CaptureVariant::RegionCopy => true,
+        CaptureVariant::RegionSave => false,
+        _ => cfg.general.copy_after_save || rules.copy,
+    };
+    if copy {
+        plan.push(Step::Copy);
+    }
+
+    if variant != CaptureVariant::RegionPin && rules.show_preview {
+        plan.push(Step::ShowPreview);
+    }
+
+    if variant == CaptureVariant::RegionPin || (variant == CaptureVariant::Normal && rules.pin) {
+        plan.push(Step::Pin);
+    }
+
+    let editor = match variant {
+        CaptureVariant::RegionAnnotate => true,
+        CaptureVariant::RegionCopy => false,
+        _ => cfg.capture.open_editor_after_capture || rules.open_editor,
+    };
+    if editor {
+        plan.push(Step::OpenEditor);
+    }
+    plan
 }
 
-pub fn resolve_new_capture_look(_cfg: &Config, _presets: &PresetLibrary) -> BackgroundSettings {
-    todo!()
+/// The look for a new capture, shared by deck staging and editor open. The active
+/// preset wins, then the preset the config names, then the config's own numbers.
+pub fn resolve_new_capture_look(cfg: &Config, presets: &PresetLibrary) -> BackgroundSettings {
+    let look = &cfg.default_look;
+    if let Some(p) = presets.active().or_else(|| presets.find(&look.style)) {
+        return p.background.clone();
+    }
+    BackgroundSettings {
+        style: BackgroundStyle::None,
+        padding: look.padding,
+        corner_radius: look.corner_radius,
+        shadow: look.shadow,
+        ..BackgroundSettings::default()
+    }
 }

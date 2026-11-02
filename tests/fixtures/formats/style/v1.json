@@ -1,0 +1,14 @@
+{
+  "format": "easyshot.style",
+  "version": 1,
+  "tool": "arrow",
+  "swatch": {"id": "custom-10-200-30-255", "title": "Custom", "red": 0.0392156862745098, "green": 0.7843137254901961, "blue": 0.11764705882352941, "alpha": 1.0},
+  "stroke_width": 6.0,
+  "redaction_density": 0.7,
+  "text_font_family": "rounded",
+  "text_font_size": 36.0,
+  "text_bold": false,
+  "text_italic": true,
+  "text_underline": true,
+  "text_align": "middle"
+}

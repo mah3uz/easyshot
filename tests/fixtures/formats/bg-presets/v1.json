@@ -1,0 +1,41 @@
+{
+  "format": "easyshot.bg-presets",
+  "version": 1,
+  "presets": [
+    {
+      "id": "5c1f2a40-8d3e-4b6a-9f10-0a1b2c3d4e01",
+      "name": "Cobalt card",
+      "background": {
+        "style": {"type": "solid", "id": "cobalt", "title": "Cobalt", "red": 0.16, "green": 0.5, "blue": 0.88, "alpha": 1.0},
+        "padding": 0.18,
+        "corner_radius": 0.05,
+        "shadow": 0.5,
+        "shadow_style": "long",
+        "aspect_ratio": "sixteen_nine",
+        "alignment": "bottom_leading"
+      }
+    },
+    {
+      "id": "5c1f2a40-8d3e-4b6a-9f10-0a1b2c3d4e02",
+      "name": "Dusk",
+      "background": {
+        "style": {
+          "type": "gradient",
+          "id": "dusk",
+          "title": "Dusk",
+          "colors": [
+            {"id": "dusk-0", "title": "Dusk", "red": 0.98, "green": 0.6, "blue": 0.4, "alpha": 1.0},
+            {"id": "dusk-1", "title": "Dusk", "red": 0.4, "green": 0.2, "blue": 0.7, "alpha": 1.0}
+          ],
+          "start": {"x": 0.0, "y": 0.0},
+          "end": {"x": 1.0, "y": 1.0}
+        },
+        "camera": {"zoom": 1.2, "roll_degrees": -4.0},
+        "progressive_blur": {"is_enabled": true, "edge_mode": "clipped", "mode": "directional", "strength": 24.0},
+        "border": {"is_enabled": true, "thickness": 0.02, "opacity": 0.8},
+        "watermark": {"is_enabled": true, "text": "draft", "opacity": 0.3}
+      }
+    }
+  ],
+  "active_preset_id": "5c1f2a40-8d3e-4b6a-9f10-0a1b2c3d4e02"
+}

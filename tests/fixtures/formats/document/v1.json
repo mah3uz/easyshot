@@ -1,0 +1,61 @@
+{
+  "format": "easyshot.document",
+  "version": 1,
+  "base_image_file_name": "easyshot_2026-01-01-093000.base.png",
+  "shapes": [
+    {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "x": 120.0, "y": 80.0, "rotation": 0.3, "mirrored": true, "opacity": 0.9,
+      "kind": {"type": "geo", "geo": "ellipse", "w": 220.0, "h": 140.0, "swatch": {"id": "blue", "title": "Blue", "red": 0.18, "green": 0.48, "blue": 1.0, "alpha": 1.0}, "stroke_width": 6.0, "fill": "solid", "dash": "dashed", "corner_radius": 0.0}
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "x": 10.0, "y": 10.0, "rotation": 0.0, "opacity": 1.0,
+      "kind": {"type": "draw", "points": [{"x": 0.0, "y": 0.0, "z": 0.5}, {"x": 12.5, "y": 4.0, "z": 0.7}, {"x": 30.0, "y": 9.0, "z": 0.5}], "is_complete": true, "is_pen": true, "is_closed": false, "swatch": {"id": "green", "title": "Green", "red": 0.18, "green": 0.72, "blue": 0.36, "alpha": 1.0}, "stroke_width": 4.0}
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000003",
+      "x": 400.0, "y": 300.0, "rotation": 0.0, "opacity": 1.0,
+      "kind": {"type": "arrow", "start": {"x": 0.0, "y": 0.0, "z": 1.0}, "end": {"x": -150.0, "y": -90.0, "z": 1.0}, "bend": 12.0, "arrowhead_start": "dot", "arrowhead_end": "triangle", "swatch": {"id": "red", "title": "Red", "red": 0.97, "green": 0.22, "blue": 0.2, "alpha": 1.0}, "stroke_width": 8.0, "dash": "dotted"}
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000004",
+      "x": 60.0, "y": 500.0, "rotation": 0.0, "opacity": 1.0,
+      "kind": {"type": "text", "text": "Look here", "swatch": {"id": "black", "title": "Black", "red": 0.02, "green": 0.02, "blue": 0.024, "alpha": 1.0}, "font_size": 40.0, "font_family": "compact", "is_bold": false, "is_italic": true, "is_underline": true, "align": "end", "w": 320.0, "auto_size": false}
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000005",
+      "x": 700.0, "y": 100.0, "rotation": 0.0, "opacity": 1.0,
+      "kind": {"type": "redaction", "kind": "pixelate", "w": 180.0, "h": 40.0, "density": 0.8}
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000006",
+      "x": 300.0, "y": 200.0, "rotation": 0.0, "opacity": 1.0,
+      "kind": {"type": "highlight", "w": 260.0, "h": 120.0}
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000007",
+      "x": 50.0, "y": 50.0, "rotation": 0.0, "opacity": 1.0,
+      "kind": {"type": "numbered", "value": 3, "diameter": 70.0, "swatch": {"id": "yellow", "title": "Yellow", "red": 1.0, "green": 0.82, "blue": 0.18, "alpha": 1.0}}
+    }
+  ],
+  "bindings": [
+    {
+      "arrow_id": "00000000-0000-4000-8000-000000000003",
+      "to_id": "00000000-0000-4000-8000-000000000001",
+      "terminal": "end",
+      "normalized_anchor": {"x": 0.25, "y": 0.75},
+      "is_precise": true,
+      "is_exact": false
+    }
+  ],
+  "background": {
+    "style": {"type": "wallpaper", "path": "/home/user/Pictures/wall.jpg"},
+    "padding": 0.12,
+    "corner_radius": 0.03,
+    "shadow": 0.4,
+    "shadow_style": "glow",
+    "alignment": "top",
+    "aspect_ratio": "four_three"
+  }
+}

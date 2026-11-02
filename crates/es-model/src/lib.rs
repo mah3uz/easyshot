@@ -1,16 +1,40 @@
+pub mod background;
 pub mod capture;
 pub mod config;
+pub mod document;
 pub mod error;
 pub mod format;
 pub mod platform;
+pub mod recording;
+pub mod shape;
+pub mod state;
+pub mod style;
+pub mod swatch;
+mod time_serde;
 
+pub use background::{
+    Alignment, AspectRatio, BackgroundColor, BackgroundGradient, BackgroundPreset,
+    BackgroundSettings, BackgroundStyle, BlurEdgeMode, BlurMode, BorderSettings, CameraSettings,
+    CornerMultipliers, PresetLibrary, ProgressiveBlurSettings, ShadowStyle, UnitPoint,
+    WatermarkSettings,
+};
 pub use capture::{
-    BackgroundSettings, CaptureKind, CaptureVariant, DeckManifest, HistoryEntry, HistoryIndex,
-    PresetLibrary, Step, after_capture_plan, resolve_new_capture_look,
+    CaptureKind, CaptureVariant, DeckManifest, HistoryEntry, HistoryIndex, Step,
+    after_capture_plan, resolve_new_capture_look,
 };
 pub use config::Config;
+pub use document::AnnotationDocument;
 pub use error::{Error, Result};
-pub use format::{Envelope, FormatKind, Migrated, migrate};
+pub use format::{Envelope, FormatKind, Header, Migrated, migrate};
+pub use recording::{RecordingCapture, RecordingInput, RecordingProject};
+pub use shape::{
+    AnnoShape, AnnoShapeId, ArrowBinding, ArrowProps, ArrowTerminal, Arrowhead, DashStyle,
+    DrawProps, FillStyle, FontFamily, GeoKind, GeoProps, HighlightProps, NormalizedAnchor,
+    NumberedProps, RedactionKind, RedactionProps, ShapeKind, TextAlign, TextProps, Tool,
+};
+pub use state::{LastRegion, Recovery, State};
+pub use style::StylePreset;
+pub use swatch::Swatch;
 
 #[cfg(test)]
 mod fixture_tests {

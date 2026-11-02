@@ -1,0 +1,19 @@
+{
+  "format": "easyshot.capture",
+  "version": 1,
+  "created_at": "2026-02-03T04:05:06Z",
+  "duration_secs": 12.5,
+  "pixel_width": 2560,
+  "pixel_height": 1440,
+  "pixel_scale": 1.5,
+  "source_output": "DP-2",
+  "video_file": "screen.mkv",
+  "fps": 60,
+  "codec": "h264",
+  "container": "mkv",
+  "recorder": "gsr-native",
+  "includes_system_audio": true,
+  "includes_microphone": false,
+  "pointer_synthesized": true,
+  "press_effects_baked": false
+}

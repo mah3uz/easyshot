@@ -11,6 +11,23 @@ pub struct Envelope<T> {
     pub body: T,
 }
 
+impl<T> Envelope<T> {
+    pub fn new(kind: FormatKind, body: T) -> Self {
+        Self {
+            format: kind.name().into(),
+            version: CURRENT_VERSION,
+            body,
+        }
+    }
+}
+
+/// The two fields every file starts with, readable even when the body is from a newer version.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub struct Header {
+    pub format: String,
+    pub version: u32,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FormatKind {
     Style,
@@ -26,6 +43,23 @@ pub enum FormatKind {
 }
 
 impl FormatKind {
+    pub const ALL: [FormatKind; 10] = [
+        FormatKind::Style,
+        FormatKind::BgPresets,
+        FormatKind::Document,
+        FormatKind::History,
+        FormatKind::DeckItem,
+        FormatKind::Capture,
+        FormatKind::Input,
+        FormatKind::Project,
+        FormatKind::Recovery,
+        FormatKind::State,
+    ];
+
+    pub fn from_name(name: &str) -> Option<FormatKind> {
+        Self::ALL.into_iter().find(|k| k.name() == name)
+    }
+
     pub fn name(self) -> &'static str {
         match self {
             FormatKind::Style => "easyshot.style",
@@ -83,6 +117,33 @@ mod tests {
     #[test]
     fn version_zero_is_rejected() {
         assert!(migrate(FormatKind::State, 0, json!({})).is_err());
+    }
+
+    #[test]
+    fn names_round_trip_for_every_kind() {
+        for k in FormatKind::ALL {
+            assert_eq!(FormatKind::from_name(k.name()), Some(k));
+            assert!(k.name().starts_with("easyshot."));
+        }
+        assert_eq!(FormatKind::from_name("easyshot.nope"), None);
+    }
+
+    #[test]
+    fn header_reads_a_body_it_does_not_understand() {
+        let h: Header = serde_json::from_str(
+            r#"{"format":"easyshot.document","version":9,"shapes":{"new":"layout"}}"#,
+        )
+        .unwrap();
+        assert_eq!((h.format.as_str(), h.version), ("easyshot.document", 9));
+    }
+
+    #[test]
+    fn envelope_new_stamps_the_current_version() {
+        let e = Envelope::new(FormatKind::State, 5u8);
+        assert_eq!(
+            (e.format.as_str(), e.version),
+            ("easyshot.state", CURRENT_VERSION)
+        );
     }
 
     #[test]

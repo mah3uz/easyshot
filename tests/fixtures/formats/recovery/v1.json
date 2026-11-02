@@ -1,0 +1,21 @@
+{
+  "format": "easyshot.recovery",
+  "version": 1,
+  "session": "3d6a1e52-9b4c-4f7d-8a21-6c5b4a392817",
+  "saved_at": "2026-01-05T11:22:33Z",
+  "source": "/home/user/.local/share/easyshot/library/easyshot_2026-01-01-093000.png",
+  "base_image": "/home/user/.local/share/easyshot/library/easyshot_2026-01-01-093000.base.png",
+  "base_revision": "7e2b9c10-4d5f-4a6b-b3c8-1f0e9d8c7b65",
+  "document": {
+    "base_image_file_name": "easyshot_2026-01-01-093000.base.png",
+    "shapes": [
+      {
+        "id": "00000000-0000-4000-8000-0000000000a1",
+        "x": 5.0, "y": 6.0,
+        "kind": {"type": "numbered", "value": 1}
+      }
+    ],
+    "bindings": [],
+    "background": {"padding": 0.08}
+  }
+}

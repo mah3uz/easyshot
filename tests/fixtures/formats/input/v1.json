@@ -1,0 +1,16 @@
+{
+  "format": "easyshot.input",
+  "version": 1,
+  "travel": [
+    {"time": 0.0, "x": 0.5, "y": 0.5, "kind": "move"},
+    {"time": 0.25, "x": 0.52, "y": 0.51, "kind": "drag"}
+  ],
+  "presses": [
+    {"time": 0.3, "x": 0.52, "y": 0.51, "button": 1, "phase": "down"},
+    {"time": 0.4, "x": 0.52, "y": 0.51, "button": 1, "phase": "up"}
+  ],
+  "keystrokes": [
+    {"time": 1.0, "modifiers": ["ctrl", "shift"], "key": "K"}
+  ],
+  "is_sanitized": true
+}
