@@ -1,7 +1,16 @@
+mod clipboard;
+pub mod layer;
+mod surfaces;
+mod toast_surface;
+
+pub use clipboard::{BackendClipboardSink, with_file_items};
+pub use surfaces::{Gate, LayerShellSurfaces, LayerSurfaceHandle, OutputSource};
+pub use toast_surface::{ToastSurface, card_icon};
+
 use crate::errors::Result;
 use es_geom::{Point, Rect, Rgba, Size};
 use es_model::platform::{ClipItem, Frame, OutputId, WindowId};
-use gpui::{App, Task};
+use gpui::{AnyView, App, Task};
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,6 +37,7 @@ pub trait Surfaces {
 }
 
 pub trait SurfaceHandle {
+    fn set_content(&self, view: AnyView, cx: &mut App);
     fn set_position(&self, global_logical: Point, cx: &mut App);
     fn resize(&self, size: Size, cx: &mut App);
     fn set_input_region(&self, rects: &[Rect], cx: &mut App);
