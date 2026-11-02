@@ -2267,6 +2267,7 @@ dependencies = [
  "serde_json",
  "sha1",
  "sha2 0.11.1",
+ "tempfile",
  "thiserror 2.0.21",
  "time",
  "toml 1.1.8+spec-1.1.0",

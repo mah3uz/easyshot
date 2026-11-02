@@ -1,0 +1,141 @@
+#![allow(clippy::unwrap_used)]
+use es_model::{AnnotationDocument, StylePreset};
+use es_store::{Error, Paths, document, presets, state};
+use std::os::unix::fs::PermissionsExt;
+
+fn newer(kind: &str) -> String {
+    format!(r#"{{"format":"{kind}","version":7,"future_field":{{"x":1}}}}"#)
+}
+
+fn paths_with_dirs(root: &std::path::Path) -> Paths {
+    let paths = Paths::rooted(root);
+    paths.ensure_all().unwrap();
+    paths
+}
+
+#[test]
+fn state_round_trips_through_the_envelope() {
+    let dir = tempfile::tempdir().unwrap();
+    let paths = Paths::rooted(dir.path());
+    let mut f = state::open(&paths).unwrap();
+    assert_eq!(f.value.counter, 1);
+    f.value.counter = 42;
+    f.save().unwrap();
+    let text = std::fs::read_to_string(paths.state_file()).unwrap();
+    assert!(text.contains("\"format\": \"easyshot.state\""));
+    assert_eq!(state::open(&paths).unwrap().value.counter, 42);
+    let mode = std::fs::metadata(paths.state_file())
+        .unwrap()
+        .permissions()
+        .mode()
+        & 0o777;
+    assert_eq!(mode, 0o600);
+}
+
+#[test]
+fn newer_state_refuses_writes_and_the_file_is_untouched() {
+    let dir = tempfile::tempdir().unwrap();
+    let paths = paths_with_dirs(dir.path());
+    let body = newer("easyshot.state");
+    std::fs::write(paths.state_file(), &body).unwrap();
+    let f = state::open(&paths).unwrap();
+    assert_eq!(f.newer_version(), Some(7));
+    assert!(matches!(f.save(), Err(Error::NewerVersion { version: 7 })));
+    assert_eq!(std::fs::read_to_string(paths.state_file()).unwrap(), body);
+}
+
+#[test]
+fn style_preset_round_trips_and_newer_is_read_only() {
+    let dir = tempfile::tempdir().unwrap();
+    let paths = Paths::rooted(dir.path());
+    let mut f = presets::open_style(&paths).unwrap();
+    f.value = StylePreset {
+        stroke_width: 9.0,
+        ..StylePreset::default()
+    };
+    f.save().unwrap();
+    assert_eq!(presets::open_style(&paths).unwrap().value.stroke_width, 9.0);
+    std::fs::write(paths.style_file(), newer("easyshot.style")).unwrap();
+    assert!(presets::open_style(&paths).unwrap().save().is_err());
+}
+
+#[test]
+fn a_damaged_background_library_is_copied_to_recovery_and_replaced_by_an_empty_one() {
+    let dir = tempfile::tempdir().unwrap();
+    let paths = paths_with_dirs(dir.path());
+    std::fs::write(paths.bg_presets_file(), "{ not json").unwrap();
+    let f = presets::open_backgrounds(&paths).unwrap();
+    assert!(f.value.presets.is_empty());
+    assert_eq!(
+        std::fs::read_to_string(paths.bg_presets_recovery_file()).unwrap(),
+        "{ not json"
+    );
+}
+
+#[test]
+fn background_library_keeps_added_presets() {
+    let dir = tempfile::tempdir().unwrap();
+    let paths = Paths::rooted(dir.path());
+    let mut f = presets::open_backgrounds(&paths).unwrap();
+    let id = f.value.add("Sunset", Default::default());
+    f.save().unwrap();
+    let again = presets::open_backgrounds(&paths).unwrap();
+    assert_eq!(again.value.get(id).map(|p| p.name.as_str()), Some("Sunset"));
+}
+
+#[test]
+fn a_file_of_another_format_is_rejected_not_adopted() {
+    let dir = tempfile::tempdir().unwrap();
+    let paths = paths_with_dirs(dir.path());
+    std::fs::write(
+        paths.state_file(),
+        r#"{"format":"easyshot.history","version":1}"#,
+    )
+    .unwrap();
+    assert!(matches!(
+        state::open(&paths),
+        Err(Error::WrongFormat { .. })
+    ));
+}
+
+#[test]
+fn a_syntax_error_reports_line_and_column() {
+    let dir = tempfile::tempdir().unwrap();
+    let paths = paths_with_dirs(dir.path());
+    std::fs::write(paths.state_file(), "{\n  \"format\": ,\n}").unwrap();
+    assert!(matches!(
+        state::open(&paths),
+        Err(Error::Parse { line: 2, .. })
+    ));
+}
+
+#[test]
+fn sidecar_sits_next_to_the_image_and_round_trips() {
+    let dir = tempfile::tempdir().unwrap();
+    let image = dir.path().join("shot.png");
+    assert_eq!(
+        document::sidecar_path(&image),
+        dir.path().join("shot.png.easyshot")
+    );
+    assert!(document::open(&image).is_none());
+    let doc = AnnotationDocument {
+        base_image_file_name: "shot.base.png".into(),
+        ..Default::default()
+    };
+    document::create(&image, doc).save().unwrap();
+    let back = document::open(&image).unwrap();
+    assert_eq!(back.value.base_image_file_name, "shot.base.png");
+}
+
+#[test]
+fn newer_sidecar_opens_read_only_and_unreadable_sidecar_is_no_document() {
+    let dir = tempfile::tempdir().unwrap();
+    let image = dir.path().join("shot.png");
+    let side = document::sidecar_path(&image);
+    std::fs::write(&side, newer("easyshot.document")).unwrap();
+    let f = document::open(&image).unwrap();
+    assert!(matches!(f.save(), Err(Error::NewerVersion { version: 7 })));
+    std::fs::write(&side, "garbage").unwrap();
+    assert!(document::open(&image).is_none());
+    assert_eq!(std::fs::read_to_string(&side).unwrap(), "garbage");
+}
