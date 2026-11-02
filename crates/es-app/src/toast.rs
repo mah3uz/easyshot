@@ -79,7 +79,7 @@ impl ToastRequest {
 
     fn resolve_in(l: &FluentLanguageLoader, toast: &Toast) -> Self {
         let title = if l.has(toast.title_id) {
-            l.get(toast.title_id)
+            l.get_args(toast.title_id, toast.message.clone())
         } else {
             toast.title_id.to_owned()
         };

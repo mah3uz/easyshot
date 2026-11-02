@@ -19,6 +19,17 @@ pub struct Callbacks {
     pub dump: DumpFn,
 }
 
+impl Callbacks {
+    /// The test dump, when built in, answers with an empty object.
+    pub fn new(doctor: DoctorFn) -> Self {
+        Callbacks {
+            doctor,
+            #[cfg(feature = "test-hooks")]
+            dump: Arc::new(|| Box::pin(async { "{}".to_owned() })),
+        }
+    }
+}
+
 type Live = Arc<Mutex<HashSet<JobId>>>;
 
 fn lock(live: &Live) -> std::sync::MutexGuard<'_, HashSet<JobId>> {

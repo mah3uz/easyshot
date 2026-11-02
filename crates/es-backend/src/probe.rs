@@ -208,6 +208,9 @@ pub struct Probe {
     pub wayland: Option<Arc<es_wayland::Connection>>,
     /// Why a source could not be read, for doctor.
     pub errors: Vec<String>,
+    /// Turns catalogue ids into the tray's and the shortcuts portal's text; without it they show the ids.
+    pub labels: Option<es_desktop::Labels>,
+    pub tray_icon: Vec<es_desktop::IconPixmap>,
 }
 
 impl Probe {
@@ -249,6 +252,8 @@ impl Probe {
             test,
             wayland,
             errors,
+            labels: None,
+            tray_icon: Vec::new(),
         })
     }
 }

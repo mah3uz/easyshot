@@ -14,7 +14,8 @@ state_dir() {
 
 # The platform_* tests need test mode: the test-hooks feature plus EASYSHOT_TEST=1 and an output name (set by the caller).
 platform_tests() {
-    cargo nextest run -p easyshot --features test-hooks --no-tests=pass -E 'test(/(^|::)platform_/)'
+    cargo nextest run -p es-backend -p easyshot --features es-backend/test-hooks,easyshot/test-hooks \
+        --run-ignored all --no-tests=pass -E 'test(/(^|::)platform_/)'
 }
 
 wait_for() {

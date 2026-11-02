@@ -31,9 +31,11 @@ fn not_in_test_mode<T: ?Sized>(what: &str) -> Result<Box<T>, BackendError> {
     )))
 }
 
-// The Fluent catalogue sits above this layer, so labels stay catalogue ids.
-fn catalogue_ids() -> Labels {
-    Arc::new(|id: &str| id.to_owned())
+// The Fluent catalogue sits above this layer; the app passes its lookup in the probe.
+fn labels(p: &Probe) -> Labels {
+    p.labels
+        .clone()
+        .unwrap_or_else(|| Arc::new(|id: &str| id.to_owned()))
 }
 
 fn no_client<T: ?Sized>(what: &str) -> Result<Box<T>, BackendError> {
@@ -56,7 +58,7 @@ pub const PORTAL_GLOBAL_SHORTCUTS: Provider<dyn Shortcuts> = Provider {
             return Ok(Box::new(RecordingShortcuts::new(false)));
         }
         Ok(Box::new(futures::executor::block_on(
-            PortalShortcuts::start(&Endpoint::session(), catalogue_ids()),
+            PortalShortcuts::start(&Endpoint::session(), labels(p)),
         )))
     },
 };
@@ -108,7 +110,7 @@ pub const STATUS_NOTIFIER: Provider<dyn Tray> = Provider {
         if test_mode(p) {
             return Ok(Box::new(RecordingTray::default()));
         }
-        futures::executor::block_on(KsniTray::start(catalogue_ids(), Vec::new()))
+        futures::executor::block_on(KsniTray::start(labels(p), p.tray_icon.clone()))
             .map(|t| Box::new(t) as Box<dyn Tray>)
             .map_err(|e| unavailable("tray", &e))
     },

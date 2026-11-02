@@ -6,6 +6,7 @@ pub mod events;
 pub mod history;
 pub mod image_budget;
 pub mod jobs;
+pub mod pipeline;
 pub mod platform_ui;
 pub mod services;
 pub mod settings_model;
