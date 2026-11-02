@@ -63,6 +63,7 @@ pub struct FocusPad {
     label: SharedString,
     position: Point<f32>,
     preview: Interaction,
+    value: Option<SharedString>,
     on_change: Option<ChangeHandler>,
 }
 
@@ -73,6 +74,7 @@ impl FocusPad {
             label: label.into(),
             position: CENTRE,
             preview: Interaction::Rest,
+            value: None,
             on_change: None,
         }
     }
@@ -86,6 +88,12 @@ impl FocusPad {
     /// `Pressed` pins the dragging knob, `Hover` the lit pad and `Focused` the keyboard ring.
     pub fn preview(mut self, state: Interaction) -> Self {
         self.preview = state;
+        self
+    }
+
+    /// Replaces the spoken "X n, Y n" when the caller can say more about the point.
+    pub fn value(mut self, value: impl Into<SharedString>) -> Self {
+        self.value = Some(value.into());
         self
     }
 
@@ -115,11 +123,14 @@ impl RenderOnce for FocusPad {
             _ => rest_fill,
         };
         let percent = |v: f32| (v * 100.).round() as i32;
-        let value = fl!(
-            "panels-focus-value",
-            x = percent(position.x),
-            y = percent(position.y)
-        );
+        let value = self.value.clone().unwrap_or_else(|| {
+            fl!(
+                "panels-focus-value",
+                x = percent(position.x),
+                y = percent(position.y)
+            )
+            .into()
+        });
         let on_change = self.on_change.clone();
 
         let tracker = {

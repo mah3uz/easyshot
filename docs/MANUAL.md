@@ -90,6 +90,12 @@ Beautify options: background (colour, gradient, wallpaper), padding, corners, sh
 its style, alignment, aspect ratio, camera 3D, progressive blur, border, watermark and
 presets.
 
+In the Camera section you tilt and roll the camera, set its lens (FOV), zoom and pan, and
+rotate the card itself. Progressive Blur blurs the screenshot alone or the whole scene,
+around a round or a band-shaped sharp area. Drag on its focus pad to move the sharp area;
+double-click the pad to centre it. Drag anywhere on a slider to change it, or type a value
+in its field; a slider that runs through zero stops at zero on the way.
+
 Smart redaction finds sensitive text in the image and covers it with redaction shapes, all
 in one undo step.
 

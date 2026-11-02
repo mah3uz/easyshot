@@ -15,6 +15,8 @@ use crate::EditorCanvas;
 use crate::session::look::LookModel;
 pub use crate::session::look::Section;
 use crate::strings::fl;
+use blur::BlurBody;
+use camera::CameraBody;
 use presets::PresetsBar;
 
 const SECTIONS: usize = Section::ALL.len();
@@ -91,6 +93,9 @@ impl Inspector {
             cx.new(|cx| background::BackgroundBody::new(look.clone(), cx))
                 .into(),
         );
+        bodies[index(Section::Camera)] =
+            Some(cx.new(|cx| CameraBody::new(look.clone(), cx)).into());
+        bodies[index(Section::Blur)] = Some(cx.new(|cx| BlurBody::new(look.clone(), cx)).into());
         let subscriptions = vec![
             LookModel::drive_canvas(&look, canvas, cx),
             cx.observe(&look, |_, _, cx| cx.notify()),

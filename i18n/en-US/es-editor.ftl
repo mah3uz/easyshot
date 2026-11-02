@@ -262,6 +262,7 @@ editor-blur-focus-position = Focus position
 editor-blur-focus-pad-help = Drag to move the sharp focal area. Double-click to center.
 editor-blur-focus-pad-a11y = Blur focus position
 editor-blur-focus-pad-value = X { $x }, Y { $y }, size { $size } percent
+editor-blur-focus-readout = { $x }, { $y }
 
 ## Inspector: border and watermark
 editor-border-color = Color
