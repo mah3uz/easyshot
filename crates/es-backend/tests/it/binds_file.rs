@@ -42,7 +42,7 @@ impl Home {
                 "XDG_CONFIG_HOME",
                 self.dir.path().join(".config").to_str().unwrap(),
             ),
-            ("SWAYSOCK", "/nonexistent/sway.sock"),
+            (wlroots::SOCKET_ENV, "/nonexistent/sway.sock"),
         ])
     }
 
