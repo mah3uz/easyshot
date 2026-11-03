@@ -43,7 +43,7 @@ fn every_tool_schema_is_a_closed_object_whose_names_and_enums_make_sense() {
         for (name, p) in properties {
             let kind = p["type"].as_str().unwrap_or_default();
             assert!(
-                ["string", "boolean", "integer", "number"].contains(&kind),
+                ["string", "boolean", "integer", "number", "array", "object"].contains(&kind),
                 "{}.{name}: {kind}",
                 tool.name
             );
@@ -278,7 +278,8 @@ async fn a_stdio_session_lists_tools_and_returns_a_small_image_and_the_daemons_e
             "ocr",
             "record_start",
             "record_stop",
-            "export"
+            "export",
+            "annotate"
         ]
     );
     assert_eq!(
@@ -345,4 +346,87 @@ async fn a_stdio_session_lists_tools_and_returns_a_small_image_and_the_daemons_e
 fn the_server_command_builds_no_route_of_its_own() {
     let cli = Cli::try_parse_from(["easyshot", "agent", "mcp"]).unwrap();
     assert_eq!(cli.request().unwrap(), Request::AgentMcp);
+}
+
+async fn initialised(client: &mut Client) {
+    client
+        .request(
+            "initialize",
+            json!({"protocolVersion": "2025-06-18", "capabilities": {},
+                   "clientInfo": {"name": "test", "version": "0"}}),
+        )
+        .await;
+    client
+        .send(json!({"jsonrpc": "2.0", "method": "notifications/initialized"}))
+        .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn annotate_draws_on_a_file_without_the_daemon_and_returns_a_preview() {
+    let bus = PrivateBus::start();
+    let dir = tempfile::tempdir().unwrap();
+    let input = dir.path().join("in.png");
+    image::RgbaImage::from_pixel(2000, 1000, image::Rgba([240, 240, 240, 255]))
+        .save(&input)
+        .unwrap();
+    let out = dir.path().join("out.png");
+    let (mut client, _task) = start_client(env(&bus, dir.path()).endpoint);
+    initialised(&mut client).await;
+
+    let ops = json!([
+        {"op": "rect", "x": 100, "y": 100, "w": 400, "h": 300, "color": "#ff0000", "width": 12},
+        {"op": "counter", "x": 600, "y": 200}
+    ]);
+    let done = client
+        .call("annotate", json!({"image": input, "out": out, "ops": ops}))
+        .await;
+    assert_ne!(done["isError"], true, "{done}");
+    let body = &done["structuredContent"];
+    assert_eq!(
+        (
+            body["kind"].as_str(),
+            body["width"].as_u64(),
+            body["ops"].as_u64()
+        ),
+        (Some("annotate"), Some(2000), Some(2))
+    );
+    assert_eq!(body["path"], json!(out));
+    let preview = image_of(&done);
+    assert_eq!((preview.width(), preview.height()), (1280, 640));
+    let written = image::open(&out).unwrap().to_rgba8();
+    assert_eq!(written.dimensions(), (2000, 1000));
+    let edge = written.get_pixel(100, 250);
+    assert!(edge[0] > 200 && edge[1] < 80, "{edge:?}");
+
+    let again = client
+        .call("annotate", json!({"image": input, "out": out, "ops": ops}))
+        .await;
+    assert_eq!(again["isError"], true);
+    let text = again["content"][0]["text"].as_str().unwrap();
+    assert!(
+        text.starts_with("invalid_arguments:") && text.contains("force"),
+        "{text}"
+    );
+
+    let bad = client
+        .call(
+            "annotate",
+            json!({"image": input, "out": dir.path().join("b.png"),
+                   "ops": [{"op": "rect", "x": 1, "y": 1, "w": 0, "h": 5}]}),
+        )
+        .await;
+    assert_eq!(bad["isError"], true);
+    assert!(
+        bad["content"][0]["text"]
+            .as_str()
+            .unwrap()
+            .contains("ops[0]")
+    );
+    let relative = client
+        .call(
+            "annotate",
+            json!({"image": "in.png", "out": out, "ops": []}),
+        )
+        .await;
+    assert_eq!(relative["isError"], true);
 }

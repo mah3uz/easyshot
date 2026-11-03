@@ -129,6 +129,7 @@ fn the_skill_teaches_every_agent_action() {
         "agent record status",
         "agent record discard",
         "agent export",
+        "agent annotate",
     ] {
         assert!(
             joined.iter().any(|c| c.starts_with(action)),

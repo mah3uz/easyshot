@@ -40,6 +40,9 @@ impl Server {
     }
 
     async fn call(&self, def: &ToolDef, args: JsonObject) -> CallToolResult {
+        if def.name == mcp_tools::ANNOTATE {
+            return super::mcp_annotate::call(def, &args).await;
+        }
         let (call, include_image) = match prepare(def, &args) {
             Ok(prepared) => prepared,
             Err(message) => return failure(&message, None),
@@ -144,7 +147,7 @@ fn first_line(e: &clap::Error) -> String {
         .to_owned()
 }
 
-fn failure(message: &str, structured: Option<Value>) -> CallToolResult {
+pub(super) fn failure(message: &str, structured: Option<Value>) -> CallToolResult {
     let mut result = CallToolResult::error(vec![ContentBlock::text(message)]);
     result.structured_content = structured;
     result
@@ -164,8 +167,8 @@ fn hint(code: ErrorCode) -> &'static str {
     }
 }
 
-async fn result(def: &ToolDef, reply: &AgentReply, include_image: bool) -> CallToolResult {
-    let mut value = serde_json::to_value(reply).unwrap_or(Value::Null);
+pub(super) fn refusal(reply: &AgentReply) -> Option<CallToolResult> {
+    let value = serde_json::to_value(reply).unwrap_or(Value::Null);
     if let Some(error) = &reply.error {
         let message = format!(
             "{}: {}.{}",
@@ -173,11 +176,16 @@ async fn result(def: &ToolDef, reply: &AgentReply, include_image: bool) -> CallT
             error.message.trim_end_matches('.'),
             hint(error.code)
         );
-        return failure(&message, Some(value));
+        return Some(failure(&message, Some(value)));
     }
-    if !reply.ok {
-        return failure("failed: the daemon reported a failure", Some(value));
+    (!reply.ok).then(|| failure("failed: the daemon reported a failure", Some(value)))
+}
+
+async fn result(def: &ToolDef, reply: &AgentReply, include_image: bool) -> CallToolResult {
+    if let Some(refused) = refusal(reply) {
+        return refused;
     }
+    let mut value = serde_json::to_value(reply).unwrap_or(Value::Null);
     let mut note = None;
     let mut image = None;
     if let Some(shot) = reply

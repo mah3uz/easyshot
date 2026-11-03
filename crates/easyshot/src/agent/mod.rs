@@ -1,7 +1,10 @@
 mod access;
+mod annotate;
+mod annotate_ops;
 mod capture;
 mod export;
 mod mcp;
+mod mcp_annotate;
 mod mcp_image;
 #[cfg(test)]
 mod mcp_tests;
@@ -14,6 +17,7 @@ mod skill_install;
 #[cfg(test)]
 mod tests;
 
+pub use annotate::{AnnotateArgs, AnnotateCall, run_annotate};
 pub use capture::CaptureArgs;
 pub use export::ExportArgs;
 pub use mcp::serve as serve_mcp;
@@ -60,6 +64,8 @@ pub enum AgentCommand {
     /// Install the easyshot skill for AI agents, or show it
     #[command(subcommand)]
     Skill(SkillCommand),
+    /// Draw arrows, boxes, text, numbers, highlights and blurs on an image from a JSON file of operations
+    Annotate(AnnotateArgs),
     /// Serve the agent commands as a Model Context Protocol server on standard input and output
     Mcp,
 }
@@ -86,6 +92,13 @@ impl AgentArgs {
         }
     }
 
+    pub fn annotate(&self) -> Option<AnnotateCall> {
+        match &self.command {
+            AgentCommand::Annotate(a) => Some(a.call(self.json)),
+            _ => None,
+        }
+    }
+
     pub fn is_mcp(&self) -> bool {
         matches!(self.command, AgentCommand::Mcp)
     }
@@ -106,7 +119,7 @@ impl AgentArgs {
             AgentCommand::Export(args) => (AgentRoute::Export(args.spec()), args.wait()),
             AgentCommand::Ocr(args) => (AgentRoute::Ocr(args.spec()), true),
             AgentCommand::Record(c) => (AgentRoute::Record(c.route()), true),
-            AgentCommand::Skill(_) => return None,
+            AgentCommand::Skill(_) | AgentCommand::Annotate(_) => return None,
             AgentCommand::Mcp => return None,
         };
         Some(AgentCall {

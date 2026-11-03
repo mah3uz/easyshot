@@ -37,6 +37,7 @@ pub fn execute(
             Request::Doctor { json, bundle } => doctor(json, bundle, env, out, err).await,
             Request::Agent(call) => crate::agent::run(&call, env, cancel, out, err).await,
             Request::Skill(call) => crate::agent::run_skill(&call, out, err),
+            Request::Annotate(call) => crate::agent::run_annotate(&call, out, err),
             Request::AgentMcp => crate::agent::serve_mcp(env, err),
             Request::Daemon | Request::Completions(_) => {
                 let _ = writeln!(err, "easyshot: handled by main, not sent");

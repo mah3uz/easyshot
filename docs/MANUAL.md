@@ -494,6 +494,16 @@ Commands:
     daemon has accepted it. With `--json` the answer is
     `{"ok":true,"kind":"export","path":...,"format":...,"width":...,"height":...,"duration_ms":...,"bytes":...}`.
     It reads no screen, so it needs no more than agent access being on.
+- `agent annotate IMAGE --ops FILE --out PATH` draws on an image the way the editor does and
+  writes the result as a PNG, so an agent can mark up a screenshot before showing it to you.
+  `FILE` is a JSON file of operations (`-` reads it from standard input); `PATH` must end in
+  `.png` and its folder must exist. An existing file is never replaced unless you add `--force`.
+  It reads the image and writes the file and nothing else: it runs in the command itself, not in
+  the daemon, so it works with the daemon stopped and with agent access off, and it does not
+  appear in the log. With `--json` the answer is
+  `{"ok":true,"kind":"annotate","path":...,"width":...,"height":...,"ops":...}`; the size is
+  that of the written file, which is larger than the image when a background is added. See
+  Annotating an image below for the file.
 - `agent ocr` reads the text and QR codes on a target or in an image. Give exactly one of
   the capture targets (`--output`, `--geometry`, `--window`, `--fullscreen`, read from a
   still frame that is not saved anywhere) or `--file PATH`, a PNG or JPEG. `--lang eng+deu`
@@ -541,7 +551,7 @@ A capture answer gives the size in pixels, not logical pixels, and `scale`, and 
 (see Hiding secrets); a window capture adds a `window` object like an entry of
 `agent list windows`.
 
-`kind` is `outputs`, `windows`, `capture`, `export`, `ocr`, `recording`, `access` (enable, disable and status), `config`, `skill`, or `usage` when the command line itself could not be read.
+`kind` is `outputs`, `windows`, `capture`, `export`, `annotate`, `ocr`, `recording`, `access` (enable, disable and status), `config`, `skill`, or `usage` when the command line itself could not be read.
 Fields may be added to these objects in later versions; existing ones keep their meaning.
 
 Exit codes and error codes:
@@ -561,6 +571,46 @@ Exit codes and error codes:
 `agent capture` reads your screen: it takes the one still frame you asked for, and nothing
 watches it. `agent record` records until it is stopped, and it is the one agent command that
 keeps running after it answers.
+
+### Annotating an image
+
+The ops file is one JSON object, checked strictly: an unknown operation or field, a missing
+field or a value out of range is refused with exit status 4, and the message names the
+operation by its place in the list and the field, as in `ops[2] (rect): w must be greater than
+0`. Nothing is written then.
+
+```json
+{"version":1,
+ "ops":[
+   {"op":"rect","x":20,"y":20,"w":150,"h":80,"color":"#2f80ed","width":4},
+   {"op":"arrow","from":[60,255],"to":[200,160],"color":"#eb5757"},
+   {"op":"text","x":215,"y":135,"text":"Click here","size":26,"background":"#000000c0"},
+   {"op":"counter","x":60,"y":255}
+ ],
+ "background":{"gradient":["#4568dc","#b06ab3"],"padding":40,"corners":16,"shadow":0.5}}
+```
+
+Coordinates and sizes are pixels of the image, from its top left corner; colours are `#rrggbb`
+or `#rrggbbaa`. Operations are drawn in order. Every one has `op` and:
+
+- `arrow`: `from` and `to` as `[x, y]`; `color`, `width` and `head` (`arrow`, `triangle`,
+  `square`, `dot`, `diamond`, `inverted`, `bar` or `none`).
+- `rect` and `ellipse`: `x`, `y`, `w`, `h` (the top left corner and the size); `color`,
+  `width` and `fill` (`true` fills the shape with its colour).
+- `text`: `x`, `y` (the top left corner of the text box) and `text`; `size`, `color` and
+  `background` (a box behind the text).
+- `counter`: a numbered badge centred on `x`, `y`; `n` (it numbers itself one after the highest
+  badge so far when left out) and `color`.
+- `highlight`: `x`, `y`, `w`, `h` and `color` (yellow by default), a marker over that area.
+- `blur` and `pixelate`: `x`, `y`, `w`, `h` and `amount` from 0 to 1.
+- `background`, at the top level and optional: puts the image on a card over a `color` or a
+  `gradient` of 2 to 8 colours (graphite when you give neither), with `padding` and `corners`
+  in pixels and `shadow` from 0 to 1.
+
+What you leave out comes from your saved annotation style (`annotation-style.json`): the
+colour, the stroke width, the arrowhead, the text font and size and the blur amount, the same
+ones the editor starts a new shape with. The picture is drawn by the same renderer as the
+editor's Save and Copy.
 
 ### Hiding secrets
 
@@ -682,9 +732,11 @@ covers all four.
 
 `easyshot agent mcp` is a Model Context Protocol server on standard input and output, for
 agents that prefer tools to shell commands. It offers `list_outputs`, `list_windows`,
-`capture`, `ocr`, `record_start`, `record_stop` and `export`; each call is the same request as
-the matching `easyshot agent` command, so agent access, consent, scope and hiding secrets
-apply exactly as they do there. `capture` returns the screenshot as an image scaled so its
+`capture`, `ocr`, `record_start`, `record_stop`, `export` and `annotate`; each call is the same
+request as the matching `easyshot agent` command, so agent access, consent, scope and hiding
+secrets apply exactly as they do there. `annotate` takes the image path, the output path and
+the operations as JSON, like `agent annotate`, and returns its JSON and a preview of the result
+in the same way as `capture`. `capture` returns the screenshot as an image scaled so its
 long edge is at most 1280 pixels (with secrets already pixelated), and the JSON with the saved
 file's path and full size; the full file stays on disk. `list_*` are marked read-only; the
 others are not, so a client that asks before non-read-only tools will ask you.

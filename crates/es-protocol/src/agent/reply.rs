@@ -69,6 +69,7 @@ pub enum ReplyKind {
     Export,
     Ocr,
     Recording,
+    Annotate,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

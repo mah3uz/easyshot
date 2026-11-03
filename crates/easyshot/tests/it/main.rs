@@ -1,4 +1,5 @@
 mod completion;
+mod mcp_binary;
 mod platform_agent;
 mod platform_bar;
 mod platform_daemon;

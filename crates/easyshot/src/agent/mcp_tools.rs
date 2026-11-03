@@ -6,6 +6,7 @@ use rmcp::model::{JsonObject, Tool, ToolAnnotations};
 use serde_json::{Value, json};
 
 pub(super) const CAPTURE: &str = "capture";
+pub(super) const ANNOTATE: &str = "annotate";
 
 pub(super) struct ToolDef {
     pub name: &'static str,
@@ -43,7 +44,7 @@ fn tool(def: &ToolDef) -> Tool {
 
 const TARGET_HELP: &str = "Give exactly one of output, window, geometry or fullscreen.";
 
-static TOOLS: [ToolDef; 7] = [
+static TOOLS: [ToolDef; 8] = [
     ToolDef {
         name: "list_outputs",
         title: "List outputs",
@@ -111,6 +112,20 @@ static TOOLS: [ToolDef; 7] = [
         destructive: true,
         schema: export_schema,
         argv: export_argv,
+    },
+    ToolDef {
+        name: ANNOTATE,
+        title: "Annotate an image",
+        description: "Draw arrows, boxes, text, numbered badges, highlights, blur and pixelation \
+                      on a PNG or JPEG file and write the result as a new PNG, optionally on a \
+                      background. It reads and writes only the files named, needs no access to \
+                      the screen, and never replaces a file unless force is set. The reply \
+                      carries a downscaled preview image and the file's path and size. \
+                      Coordinates are pixels of the image, from its top left corner.",
+        read_only: false,
+        destructive: false,
+        schema: annotate_schema,
+        argv: |_| Err("annotate does not run as a command line".to_owned()),
     },
 ];
 
@@ -194,6 +209,29 @@ fn export_schema() -> Value {
             "force": {"type": "boolean", "description": "Replace the file if it already exists."}
         },
         "required": ["input"],
+        "additionalProperties": false
+    })
+}
+
+fn annotate_schema() -> Value {
+    json!({
+        "type": "object",
+        "properties": {
+            "image": {"type": "string", "description": "The image to draw on, an absolute path."},
+            "out": {"type": "string", "description": "Write the PNG here, an absolute path ending .png whose folder exists."},
+            "ops": {
+                "type": "array",
+                "description": "The drawing operations, in order. Each is an object with an \"op\" of arrow (from, to: [x, y]; color, width, head), rect or ellipse (x, y, w, h; color, width, fill), text (x, y, text; size, color, background), counter (x, y; n, color), highlight (x, y, w, h; color), blur or pixelate (x, y, w, h; amount from 0 to 1). Colors are #rrggbb or #rrggbbaa.",
+                "items": {"type": "object"}
+            },
+            "background": {
+                "type": "object",
+                "description": "Put the image on a background: padding and corners in pixels, color (#rrggbb) or gradient (a list of colors), shadow from 0 to 1."
+            },
+            "force": {"type": "boolean", "description": "Replace out if it already exists."},
+            "include_image": {"type": "boolean", "default": true, "description": "Attach the downscaled preview image (long edge at most 1280 px)."}
+        },
+        "required": ["image", "out", "ops"],
         "additionalProperties": false
     })
 }
