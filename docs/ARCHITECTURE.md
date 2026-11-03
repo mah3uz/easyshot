@@ -322,8 +322,10 @@ file, AppStream metainfo) are templates in `packaging/data/`; `packaging/stage.s
 app ID from `scripts/app-id.sh` and the PKGBUILD installs them. The packages
 are checked only by the desktop-file, AppStream and systemd validators and have not been
 installed. The Arch
-packages' install script enables `easyshot.service` for all users (`systemctl --global`)
-and starts or restarts it for each logged-in user.
+packages' install script enables `easyshot.service` for all users (`systemctl --global`),
+starts it for each logged-in user on install, and restarts it where it is running on upgrade.
+The unit carries `ConditionUser=!@system`, so a display manager's greeter session (sddm,
+gdm), which runs as a system user, never starts it.
 
 Decoded wallpapers live in one `WallpaperCache` (4 images, 192 MB), and the pictures the
 editor shows count against one 256 MB `ImageBudget` (LRU); both are shared by every window

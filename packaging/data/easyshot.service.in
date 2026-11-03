@@ -2,6 +2,8 @@
 Description=Easyshot screenshot and recording daemon
 PartOf=graphical-session.target
 After=graphical-session.target
+# The global enable also reaches display-manager greeters (sddm, gdm), which run as system users.
+ConditionUser=!@system
 
 [Service]
 Type=dbus

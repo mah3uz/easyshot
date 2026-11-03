@@ -27,8 +27,8 @@ and `easyshot-bin`, which installs the prebuilt release. They conflict with each
 install one. Neither is published yet, and there are no packages for other distributions.
 
 Installing the package enables `easyshot.service` for every user and starts it for each user
-who is logged in. Updating or reinstalling it restarts the daemon, or starts it if it was
-not running. Removing the package stops it.
+who is logged in. Updating or reinstalling it restarts the daemon where it is running and
+leaves a stopped one stopped. Removing the package stops it.
 
 ## Running it
 
@@ -36,7 +36,8 @@ easyshot runs as one background program, the daemon, started by a systemd user u
 (`easyshot.service`), by D-Bus activation or by XDG autostart. Commands like `easyshot capture region` talk to
 it, and start it if it is not running.
 
-With the package installed, the daemon starts with each graphical session. To stop it from
+With the package installed, the daemon starts with each graphical session of a regular
+user; it does not start for a display manager's login screen. To stop it from
 starting for your user only, run `systemctl --user mask --now easyshot.service`; a plain
 `disable` does not override the package's enable for all users. `systemctl --user unmask
 easyshot.service` undoes it. Without the package, the first command you run starts the daemon

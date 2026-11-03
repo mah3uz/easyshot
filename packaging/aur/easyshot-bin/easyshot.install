@@ -22,11 +22,7 @@ post_upgrade() {
   systemctl --global enable easyshot.service >/dev/null 2>&1 || true
   for u in $(_users); do
     _user_systemctl "$u" daemon-reload
-    if systemctl --user --machine="$u@" is-active --quiet easyshot.service >/dev/null 2>&1; then
-      _user_systemctl "$u" restart easyshot.service
-    else
-      _user_systemctl "$u" start easyshot.service
-    fi
+    _user_systemctl "$u" try-restart easyshot.service
   done
 }
 

@@ -103,10 +103,16 @@ those keys are part of a pointer gesture. Rejected: the default hide-while-typin
 
 ### Package install enables and starts the user service
 The Arch install script runs `systemctl --global enable easyshot.service`, then starts the
-service for each logged-in user on install and restarts it (or starts it) on upgrade; removal
-stops it. Why: the tray and `easyshot://` links need the daemon, and an old daemon would keep
-running old code after an upgrade. Rejected: leaving the user to enable it, and
-`enable --now` for one user only, which misses the other users.
+service for each logged-in user on install and `try-restart`s it on upgrade; removal stops it.
+The unit carries `ConditionUser=!@system`. Why: the tray and `easyshot://` links need the
+daemon, and an old daemon would keep running old code after an upgrade. The global enable is
+what Arch's own pipewire, wireplumber and xdg-user-dirs packages do, but it also reaches a
+display manager's greeter, which runs as a system user; easyshot is the only one of these
+that shows windows, so the condition keeps it off the login screen (the guard bluez's
+`mpris-proxy` and `fluidsynth` use). The upgrade restarts only a running daemon, so a user who
+stopped it is not overridden. Rejected: leaving the user to enable it (sysman's approach),
+`enable --now` for one user only, which misses the other users, and XDG autostart
+(insensical's approach), which plain Hyprland, sway and niri ignore.
 
 ## Capture and recording
 

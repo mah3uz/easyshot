@@ -14,7 +14,7 @@
 
 ### Improvements
 
-- The Arch package enables the daemon's systemd user service and starts it for logged-in users on install; an update restarts it.
+- The Arch package enables the daemon's systemd user service and starts it for logged-in users on install; an update restarts it where it is running.
 - Deck cards show the capture inside your default look, and saved captures reopen in the editor with that look still editable.
 - `easyshot deck toggle` hides and shows the deck.
 - Captures from a rotated or flipped output are saved upright.
@@ -27,6 +27,7 @@
 
 ### Bug fixes
 
+- The daemon no longer starts on the login screen, where it showed its windows and the first-run introduction beside the display manager.
 - The tray icon now shows on bars that draw symbolic icons black.
 - Panning with Space or the middle button stops when you let go, even outside the canvas.
 - The editor's keyboard shortcuts work: Delete, undo, redo and the other edit keys, including keys you change in Settings > Shortcuts.

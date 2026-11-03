@@ -9,7 +9,8 @@
   because the source pins a newer Rust than the repositories carry.
 
 Each AUR directory carries the same `easyshot.install` (`release.sh` fails if they differ):
-it enables the user unit for all users and starts, restarts or stops it for logged-in users.
+it enables the user unit for all users, starts it for logged-in users on install, restarts it
+where it is running on upgrade, and stops it on removal.
 
 The two AUR packages conflict with each other and provide `easyshot`. Neither is published
 yet.
