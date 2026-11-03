@@ -1,4 +1,5 @@
 use super::gate::{self as agent_gate, scope::Scope};
+use super::redact::{Redactor, inspect};
 use super::window_entry;
 use crate::daemon::capture::{Direct, cut, shoot};
 use es_app::agent_capture::{Options, Saved, save};
@@ -15,7 +16,8 @@ use es_model::CaptureKind as StoredKind;
 use es_model::LastTarget;
 use es_model::platform::{Frame, OutputId, WindowInfo};
 use es_protocol::agent::{
-    AgentReply, AgentTarget, CaptureInfo, CaptureSpec, ErrorCode, ReplyKind, WindowSelector,
+    AgentReply, AgentTarget, CaptureInfo, CaptureSpec, ErrorCode, Redaction, ReplyKind,
+    WindowSelector,
 };
 use gpui::{App, AsyncApp, Task};
 use std::path::Path;
@@ -73,7 +75,8 @@ pub fn install(
         )),
         pipeline: pipeline.clone(),
     });
-    let ocr = super::ocr::runner(deps.clone(), super::ocr::recognizer());
+    let recognizer = super::ocr::recognizer();
+    let ocr = super::ocr::runner(deps.clone(), recognizer.clone());
     dispatcher.set_agent_handler(super::handler_with(
         super::sources(backend),
         jobs.clone(),
@@ -81,16 +84,16 @@ pub fn install(
             cx,
             Rc::new(es_overlays::consent::LayerPrompt::new(surfaces.clone())),
         ),
-        Some(runner(deps)),
+        Some(runner(deps, Rc::new(Redactor::new(recognizer)))),
         Some(ocr),
     ));
 }
 
-fn runner(deps: Rc<Deps>) -> CaptureRunner {
+fn runner(deps: Rc<Deps>, redactor: Rc<Redactor>) -> CaptureRunner {
     Rc::new(move |spec, scope, cx| {
-        let deps = deps.clone();
+        let (deps, redactor) = (deps.clone(), redactor.clone());
         cx.spawn(async move |cx| {
-            run(&deps, spec, &scope, cx)
+            run(&deps, &redactor, spec, &scope, cx)
                 .await
                 .unwrap_or_else(|Fail(code, message)| {
                     AgentReply::failed(ReplyKind::Capture, code, message)
@@ -101,6 +104,7 @@ fn runner(deps: Rc<Deps>) -> CaptureRunner {
 
 async fn run(
     deps: &Deps,
+    redactor: &Redactor,
     spec: CaptureSpec,
     scope: &Scope,
     cx: &mut AsyncApp,
@@ -115,18 +119,38 @@ async fn run(
             .await;
     }
     let shot = acquire(deps, &spec.target, scope, cx).await?;
+    let (redacted, redaction) = redact(deps, redactor, &shot.frame, cx).await?;
     let options = Options {
         out: spec.out,
         ui: !spec.no_ui,
+        redacted,
     };
     let saved = cx
         .update(|cx| save(&deps.pipeline, options, shot.kind, shot.frame, cx))
         .await
         .map_err(fail_of)?;
-    Ok(reply(saved, shot.window.as_ref()))
+    Ok(reply(saved, shot.window.as_ref(), redaction))
 }
 
-fn reply(saved: Saved, window: Option<&WindowInfo>) -> AgentReply {
+async fn redact(
+    deps: &Deps,
+    redactor: &Redactor,
+    frame: &Arc<Frame>,
+    cx: &mut AsyncApp,
+) -> Result<(Option<Arc<Frame>>, Redaction), Fail> {
+    let (on, languages) = cx.update(|cx| {
+        let config = deps.pipeline.settings.read(cx).config();
+        (config.agent.redact_secrets, config.ocr.languages.clone())
+    });
+    let (frame, recognizer) = (frame.clone(), redactor.recognizer.clone());
+    let verdict = cx
+        .background_executor()
+        .spawn(async move { inspect(on, &frame, &languages, &recognizer) })
+        .await?;
+    Ok(cx.update(|cx| redactor.settle(verdict, cx)))
+}
+
+fn reply(saved: Saved, window: Option<&WindowInfo>, redaction: Redaction) -> AgentReply {
     AgentReply {
         capture: Some(Box::new(CaptureInfo {
             path: saved.path.display().to_string(),
@@ -137,6 +161,7 @@ fn reply(saved: Saved, window: Option<&WindowInfo>) -> AgentReply {
                 .output
                 .or_else(|| window.and_then(|w| w.output.as_ref().map(|o| o.0.clone()))),
             window: window.map(window_entry),
+            redaction: Some(redaction),
         })),
         ..AgentReply::ok(ReplyKind::Capture)
     }

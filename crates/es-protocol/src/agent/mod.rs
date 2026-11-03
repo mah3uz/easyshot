@@ -15,7 +15,8 @@ pub use ocr::{
     OcrCode, OcrInfo, OcrInput, OcrLine, OcrSource, OcrSpec, check_file, parse_languages,
 };
 pub use reply::{
-    AgentReply, CaptureInfo, ErrorCode, ExportInfo, OutputEntry, ReplyError, ReplyKind, WindowEntry,
+    AgentReply, CaptureInfo, ErrorCode, ExportInfo, OutputEntry, Redaction, ReplyError, ReplyKind,
+    WindowEntry,
 };
 pub use target::{AgentTarget, Geometry, OutputName, WindowSelector};
 

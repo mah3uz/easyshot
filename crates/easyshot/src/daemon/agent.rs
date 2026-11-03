@@ -6,6 +6,8 @@ mod export;
 pub(super) mod gate;
 #[path = "agent_ocr.rs"]
 mod ocr;
+#[path = "agent_redact.rs"]
+mod redact;
 
 use es_app::dispatcher::AgentHandler;
 use es_app::jobs::{Jobs, run_cpu};

@@ -272,6 +272,7 @@ fn the_capture_route_runs_the_runner_only_for_a_request_the_gate_lets_in(cx: &mu
                 scale: 1.0,
                 output: None,
                 window: None,
+                redaction: None,
             })),
             ..AgentReply::ok(ReplyKind::Capture)
         })

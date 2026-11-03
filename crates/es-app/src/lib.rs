@@ -1,5 +1,6 @@
 pub mod agent_access;
 pub mod agent_capture;
+pub mod agent_redact;
 pub mod capture_coordinator;
 pub mod deck;
 pub mod deck_save;

@@ -469,7 +469,8 @@ Commands:
   as an id, then as an exact app id, then as an exact title; a name that fits several windows
   is refused with the candidates listed, so name one by its id. The capture is a still frame
   taken at once, cropped to the target, with no selector. It is kept in the library like any
-  other capture, and is saved to your folder too when auto-save is on.
+  other capture, and is saved to your folder too when auto-save is on. Secrets in it are
+  hidden (see Hiding secrets below).
   - `--out PATH` also writes the PNG to an absolute or relative `.png` path whose folder
     exists.
   - `--delay SECONDS` waits 0 to 60 seconds first.
@@ -514,8 +515,9 @@ one JSON object on standard output, errors included:
 {"ok":false,"kind":"windows","error":{"code":"unsupported","message":"this desktop gives easyshot no window list"}}
 ```
 
-A capture answer gives the size in pixels, not logical pixels, and `scale`; a window capture
-adds a `window` object like an entry of `agent list windows`.
+A capture answer gives the size in pixels, not logical pixels, and `scale`, and `redaction`
+(see Hiding secrets); a window capture adds a `window` object like an entry of
+`agent list windows`.
 
 `kind` is `outputs`, `windows`, `capture`, `export`, `ocr`, `access` (enable, disable and status), `config`, or `usage` when the command line itself could not be read.
 Fields may be added to these objects in later versions; existing ones keep their meaning.
@@ -536,6 +538,24 @@ Exit codes and error codes:
 
 `agent capture` reads your screen: it takes the one still frame you asked for, and nothing
 records or watches it.
+
+### Hiding secrets
+
+While `redact_secrets` is on (the default), an agent never receives a screenshot with secrets
+in it. Before `agent capture` hands over the file, easyshot reads the image with Tesseract
+and pixelates what looks like a secret: API keys and tokens, passwords and other labelled
+values, emails, links, IP addresses, phone numbers and card numbers, the same text Smart
+Redaction covers in the editor. The `--out` file and the file in the library that the answer
+points to are the covered image. When the capture also goes to the deck (without `--no-ui`),
+the deck card and your library copy keep the original, and the agent's file is a covered copy
+kept apart from them. The answer says what happened in `redaction`: `{"applied":true,"regions":2}`,
+`{"applied":false,"reason":"off"}` when you turned the setting off, or
+`{"applied":false,"reason":"tesseract_missing"}`.
+
+Without Tesseract the capture still succeeds but is not covered, and easyshot tells you once
+per daemon session how to install it. This is a best effort: text Tesseract cannot read, such
+as small, low-contrast or rotated text, dots in a password field and secrets in pictures, is
+not covered. `agent ocr` returns the text it reads without hiding anything.
 
 ### Turning agent access on
 

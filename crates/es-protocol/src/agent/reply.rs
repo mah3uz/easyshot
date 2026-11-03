@@ -123,6 +123,37 @@ pub struct CaptureInfo {
     pub output: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub window: Option<WindowEntry>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub redaction: Option<Redaction>,
+}
+
+/// Whether secrets were hidden in the image; `regions` is set when they were looked for, `reason`
+/// (`off` or `tesseract_missing`) when not.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Redaction {
+    pub applied: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub regions: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+impl Redaction {
+    pub fn applied(regions: u32) -> Self {
+        Self {
+            applied: true,
+            regions: Some(regions),
+            reason: None,
+        }
+    }
+
+    pub fn skipped(reason: &str) -> Self {
+        Self {
+            applied: false,
+            regions: None,
+            reason: Some(reason.to_owned()),
+        }
+    }
 }
 
 /// What an export wrote; the size is in pixels.
@@ -323,6 +354,7 @@ mod tests {
             scale: 1.5,
             output: Some("DP-1".into()),
             window: None,
+            redaction: None,
         };
         reply.capture = Some(Box::new(info.clone()));
         assert_eq!(
@@ -345,6 +377,33 @@ mod tests {
         });
         reply.capture = Some(Box::new(info));
         assert_eq!(value(&reply)["window"], json!({"id": "7"}));
+        assert_eq!(AgentReply::from_json(&reply.to_json()).unwrap(), reply);
+    }
+
+    #[test]
+    fn a_capture_reports_whether_its_secrets_were_hidden_and_why_not() {
+        let mut reply = AgentReply::ok(ReplyKind::Capture);
+        let mut info = CaptureInfo {
+            path: "/tmp/a.png".into(),
+            width: 4,
+            height: 2,
+            scale: 1.0,
+            output: None,
+            window: None,
+            redaction: Some(Redaction::applied(2)),
+        };
+        reply.capture = Some(Box::new(info.clone()));
+        assert_eq!(
+            value(&reply)["redaction"],
+            json!({"applied": true, "regions": 2})
+        );
+        assert_eq!(AgentReply::from_json(&reply.to_json()).unwrap(), reply);
+        info.redaction = Some(Redaction::skipped("tesseract_missing"));
+        reply.capture = Some(Box::new(info));
+        assert_eq!(
+            value(&reply)["redaction"],
+            json!({"applied": false, "reason": "tesseract_missing"})
+        );
         assert_eq!(AgentReply::from_json(&reply.to_json()).unwrap(), reply);
     }
 
