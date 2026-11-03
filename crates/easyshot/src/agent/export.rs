@@ -77,7 +77,7 @@ fn parse_out(text: &str) -> Result<PathBuf, String> {
 }
 
 fn parse_brightness(text: &str) -> Result<i32, String> {
-    let bad = || format!("{text:?} is not a number from -1 to 1");
+    let bad = || format!("{text:?} is not a number from -0.3 to 0.3");
     let value: f64 = text.parse().map_err(|_| bad())?;
     let milli = (value * 1000.).round();
     if !value.is_finite() || milli.abs() > MAX_BRIGHTNESS_MILLI as f64 {

@@ -484,7 +484,7 @@ Commands:
   - `--quality high|balanced|small` (default `balanced`).
   - `--trim A..B` keeps the seconds from A to B, decimals allowed; either end may be left out,
     as in `2.5..8` or `..10`. An end past the video's length is the end of the video.
-  - `--look natural|vivid|muted|mono` and `--brightness AMOUNT` (-1 to 1) change the picture.
+  - `--look natural|vivid|muted|mono` and `--brightness AMOUNT` (-0.3 to 0.3) change the picture.
   - `--out PATH` writes the file there; its folder must exist and its type must match the
     format. Without it the file is `NAME-export.EXT` beside the video. An existing file is
     never replaced unless you add `--force`.

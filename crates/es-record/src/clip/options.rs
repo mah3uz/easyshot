@@ -181,6 +181,6 @@ mod tests {
         same(&SIZES, &Size::ALL.map(Size::id));
         same(&QUALITIES, &Quality::ALL.map(Quality::id));
         same(&LOOKS, &Look::ALL.map(Look::id));
-        assert!(MAX_BRIGHTNESS_MILLI as f64 / 1000. >= BRIGHTNESS_LIMIT);
+        assert_eq!(MAX_BRIGHTNESS_MILLI as f64 / 1000., BRIGHTNESS_LIMIT);
     }
 }

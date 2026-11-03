@@ -6,7 +6,7 @@ pub const FORMATS: [&str; 3] = ["mp4", "webm", "gif"];
 pub const SIZES: [&str; 4] = ["original", "1080p", "720p", "480p"];
 pub const QUALITIES: [&str; 3] = ["high", "balanced", "small"];
 pub const LOOKS: [&str; 4] = ["natural", "vivid", "muted", "mono"];
-pub const MAX_BRIGHTNESS_MILLI: i64 = 1000;
+pub const MAX_BRIGHTNESS_MILLI: i64 = 300;
 const MAX_PATH: usize = 4096;
 const MAX_TRIM_MS: u64 = 100 * 3600 * 1000;
 
@@ -150,7 +150,11 @@ impl ExportSpec {
         let brightness_milli = match args.0.get(BRIGHTNESS_ARG) {
             None => 0,
             Some(ArgValue::Int(n)) if n.abs() <= MAX_BRIGHTNESS_MILLI => *n as i32,
-            Some(_) => return Err(format!("{BRIGHTNESS_ARG} is from -1000 to 1000")),
+            Some(_) => {
+                return Err(format!(
+                    "{BRIGHTNESS_ARG} is from -{MAX_BRIGHTNESS_MILLI} to {MAX_BRIGHTNESS_MILLI}"
+                ));
+            }
         };
         let ms = |key: &str| match args.0.get(key) {
             None => Ok(None),

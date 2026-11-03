@@ -85,9 +85,9 @@ fn the_daemon_refuses_values_a_command_would_not_send() {
     ] {
         assert!(with(key, text(bad)).is_err(), "{key}");
     }
-    assert!(with(BRIGHTNESS_ARG, ArgValue::Int(1001)).is_err());
-    assert!(with(BRIGHTNESS_ARG, ArgValue::Int(-1001)).is_err());
-    assert!(with(BRIGHTNESS_ARG, ArgValue::Int(-1000)).is_ok());
+    assert!(with(BRIGHTNESS_ARG, ArgValue::Int(301)).is_err());
+    assert!(with(BRIGHTNESS_ARG, ArgValue::Int(-301)).is_err());
+    assert!(with(BRIGHTNESS_ARG, ArgValue::Int(-300)).is_ok());
     assert!(with(TRIM_START_ARG, ArgValue::Int(-1)).is_err());
     assert!(with(TRIM_END_ARG, text("5")).is_err());
     assert!(with(FORCE_ARG, text("true")).is_err());
