@@ -1,7 +1,9 @@
 use crate::error::{Error, Result};
 use crate::probe::{Probe, TOOL_PACKAGES};
 use crate::registry::{Registry, select, select_all};
-use crate::traits::{BindHelper, Capture, Clipboard, PointerQuery, VirtualInput, WindowList};
+use crate::traits::{
+    BindHelper, Capture, Clipboard, PointerQuery, ScreenLock, VirtualInput, WindowList,
+};
 use crate::{desktop, wayland};
 use bitflags::bitflags;
 use es_desktop::{Appearance, FilePicker, Notifier, Shortcuts, Tray};
@@ -91,6 +93,7 @@ pub struct Backend {
     pub recorders: Vec<Box<dyn Recorder>>,
     pub cursor: Option<Arc<dyn CursorSource>>,
     pub keymap: Option<Arc<dyn KeymapSource>>,
+    pub screen_lock: Option<Arc<dyn ScreenLock>>,
     pub virtual_input: Option<Box<dyn VirtualInput>>,
     pub overlay: OverlayKind,
     /// Derived from the chosen providers and `Probe.tools`, never set by hand.
@@ -156,6 +159,8 @@ impl Backend {
             virtual_input: select("virtual_input", reg.virtual_input, probe, &mut report),
             cursor: select("cursor", reg.cursor, probe, &mut report).map(Arc::from),
             keymap: wayland::keymap(probe),
+            screen_lock: select("screen_lock", &[wayland::LOCK_NOTIFY], probe, &mut report)
+                .map(Arc::from),
             shortcuts: select("shortcuts", reg.shortcuts, probe, &mut report)
                 .unwrap_or_else(|| Box::new(desktop::UserBinds::new())),
             tray: select("tray", reg.tray, probe, &mut report),

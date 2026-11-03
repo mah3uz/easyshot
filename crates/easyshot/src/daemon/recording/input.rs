@@ -26,7 +26,8 @@ pub fn for_system(clock: Arc<dyn Clock>, backend: &Backend) -> Inputs {
     let test = false;
     let session_open = Arc::new(AtomicBool::new(test));
     if !test {
-        es_desktop::watch_login_session(session_open.clone());
+        let screen = backend.screen_lock.clone().map(|s| move || s.watch());
+        es_desktop::watch_login_session(session_open.clone(), screen);
     }
     Inputs {
         open: Rc::new(move || {

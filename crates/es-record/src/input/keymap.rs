@@ -141,6 +141,22 @@ impl XkbKeyboard {
     }
 }
 
+// No light shows a locked group, which is harmless: letters type text in every group.
+fn locked_state(keymap: &Keymap, (num_lock, caps_lock): (bool, bool)) -> xkb::State {
+    let mut state = xkb::State::new(&keymap.map);
+    let locked = [
+        (num_lock, xkb::MOD_NAME_NUM),
+        (caps_lock, xkb::MOD_NAME_CAPS),
+    ]
+    .into_iter()
+    .filter(|&(on, _)| on)
+    .map(|(_, name)| keymap.map.mod_get_index(name))
+    .filter(|&i| i < xkb::ModMask::BITS)
+    .fold(0, |mask, i| mask | 1 << i);
+    state.update_mask(0, 0, locked, 0, 0, 0);
+    state
+}
+
 enum Keyboard {
     Xkb(XkbKeyboard),
     Codes(ModState),
@@ -153,6 +169,7 @@ pub struct KeyFilter {
     serial: Option<u64>,
     keymap: Option<Keymap>,
     keyboards: HashMap<u32, Keyboard>,
+    lights: HashMap<u32, (bool, bool)>,
 }
 
 impl KeyFilter {
@@ -182,14 +199,21 @@ impl KeyFilter {
         self.keyboards.clear();
     }
 
+    /// Num Lock and Caps Lock as `device`'s lights show them, which the compositor sets from its
+    /// own state; a keyboard starting afresh starts from them.
+    pub fn lights(&mut self, device: u32, num_lock: bool, caps_lock: bool) {
+        self.lights.insert(device, (num_lock, caps_lock));
+    }
+
     pub fn feed(&mut self, device: u32, code: u16, down: bool) -> Option<(Vec<String>, String)> {
         let keymap = self.keymap.as_ref();
+        let lights = self.lights.get(&device).copied().unwrap_or_default();
         let kb = self
             .keyboards
             .entry(device)
             .or_insert_with(|| match keymap {
                 Some(k) => Keyboard::Xkb(XkbKeyboard {
-                    state: xkb::State::new(&k.map),
+                    state: locked_state(k, lights),
                     unicode_entry: false,
                 }),
                 None => Keyboard::Codes(ModState::default()),

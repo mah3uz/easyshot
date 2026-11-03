@@ -4,7 +4,7 @@ pub use capture::{WindowGeometry, fit_window_frame, normalise_frame};
 
 use crate::error::{BackendError, Result};
 use crate::probe::{Probe, Provider};
-use crate::traits::{Capture, Clipboard, VirtualInput, WindowList};
+use crate::traits::{Capture, Clipboard, ScreenLock, VirtualInput, WindowList};
 use capture::WaylandCapture;
 use es_geom::Point;
 use es_model::platform::{
@@ -129,6 +129,24 @@ pub fn keymap(p: &Probe) -> Option<Arc<dyn KeymapSource>> {
     let conn = p.wayland.clone()?;
     Some(Arc::new(SeatKeymap(conn)))
 }
+
+struct LockNotify(Arc<Connection>);
+
+impl ScreenLock for LockNotify {
+    fn watch(&self) -> async_channel::Receiver<bool> {
+        self.0.screen_lock().unwrap_or_else(|| {
+            let (tx, rx) = async_channel::bounded(1);
+            let _ = tx.try_send(true);
+            rx
+        })
+    }
+}
+
+pub const LOCK_NOTIFY: Provider<dyn ScreenLock> = Provider {
+    name: "lock-notify",
+    probe: |p| p.globals.lock_notify.map(|_| 10),
+    build: |p| Ok(Box::new(LockNotify(connection(p)?))),
+};
 
 pub const CURSOR_SESSION: Provider<dyn CursorSource> = Provider {
     name: "cursor-session",

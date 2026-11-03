@@ -307,6 +307,7 @@ fn the_collector_follows_the_keymap_and_stores_no_letters_without_one() {
         serial: 2,
         text: us_text().into(),
     });
+    std::thread::sleep(Duration::from_millis(40));
     rig.ctrl_c();
     let i = rig.finish(c);
     assert_eq!(i.keystrokes.len(), 1, "{:?}", i.keystrokes);

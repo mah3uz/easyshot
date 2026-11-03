@@ -163,7 +163,7 @@ Cargo features cover only what changes system dependencies or must never ship: `
 Capability traits are defined in the lowest crate that implements them: `Shortcuts`,
 `Tray`, `Notifier`, `FilePicker`, `Appearance` in es-desktop; `Recorder` in es-record;
 `CursorSource` in `es-model::platform`; the rest (`Capture`, `WindowList`, `PointerQuery`,
-`BindHelper`, `Clipboard`, `VirtualInput`) in es-backend. Each is
+`BindHelper`, `Clipboard`, `VirtualInput`, `ScreenLock`) in es-backend. Each is
 independent and optional.
 
 Each capability has an ordered list of providers. `Backend::detect(probe)` picks the
@@ -195,6 +195,7 @@ Degradation, each reported by doctor:
 | recorder | tray Record disabled with an install hint; other starts answer with it at once |
 | tesseract | OCR returns QR codes only; no codes gives a notice that Tesseract is needed |
 | cursor source | clicks in `input.json` have no position |
+| screen lock report | a lock is seen only through logind: `LockedHint`, or a Lock signal until an Unlock |
 | `input` group | `input.json` is empty; a toast at start and a doctor hint give the fix |
 
 ## 7. Storage

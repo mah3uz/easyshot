@@ -27,14 +27,16 @@ const COMMA: u16 = 51;
 const ALT: u16 = 56;
 const SPACE: u16 = 57;
 const F5: u16 = 63;
+const NUM_LOCK: u16 = 69;
 const KP_7: u16 = 71;
+const KP_1: u16 = 79;
 const RIGHT_CTRL: u16 = 97;
 const RIGHT_ALT: u16 = 100;
 const UP: u16 = 103;
 const SUPER: u16 = 125;
 
 /// Built from the system's XKB rules, as text with the trailing NUL the compositor sends.
-fn keymap_text(layout: &str, options: &str) -> String {
+pub fn keymap_text(layout: &str, options: &str) -> String {
     let ctx = xkb::Context::new(xkb::CONTEXT_NO_FLAGS);
     let map = xkb::Keymap::new_from_names(
         &ctx,
@@ -255,4 +257,19 @@ fn forgetting_releases_every_held_key() {
     f.feed(0, CTRL, true);
     f.forget();
     assert_eq!(f.feed(0, KEY_C, true), None);
+}
+
+// Num Lock is often on from the start, and a keypad digit with Ctrl held still types the digit.
+#[test]
+fn a_keyboard_starting_afresh_takes_num_lock_from_its_light() {
+    let mut lit = us();
+    lit.lights(0, true, false);
+    assert!(stored(&mut lit, &chord(&[CTRL], &[KP_1])).is_empty());
+    assert!(stored(&mut lit, &chord(&[ALT], &[KP_7])).is_empty());
+    stored(&mut lit, &tap(NUM_LOCK));
+    assert_eq!(stored(&mut lit, &chord(&[CTRL], &[KP_1])), ["⌃KP_End"]);
+
+    let mut dark = us();
+    dark.lights(0, false, false);
+    assert_eq!(stored(&mut dark, &chord(&[CTRL], &[KP_1])), ["⌃KP_End"]);
 }

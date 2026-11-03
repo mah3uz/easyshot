@@ -3,6 +3,7 @@ mod clipboard;
 mod globals;
 mod input;
 mod keyboard;
+mod lock;
 mod output;
 mod shm;
 #[cfg(test)]

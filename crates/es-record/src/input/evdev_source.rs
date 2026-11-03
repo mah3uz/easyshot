@@ -1,6 +1,6 @@
 use super::{EventSource, HeldKeys, RawEvent, event_nodes};
 use crate::Clock;
-use evdev::{Device, EventType, KeyCode};
+use evdev::{Device, EventType, KeyCode, LedCode};
 use std::os::fd::OwnedFd;
 use std::os::unix::fs::OpenOptionsExt as _;
 use std::path::{Path, PathBuf};
@@ -76,6 +76,7 @@ impl Node {
     /// False when the device is gone; every key it held is released then.
     fn read(&mut self, delta: i128, now: u64, out: &mut Vec<RawEvent>) -> bool {
         let id = self.id;
+        let start = out.len();
         match self.device.fetch_events() {
             Ok(events) => {
                 for ev in events {
@@ -106,6 +107,25 @@ impl Node {
                 out.extend(self.held.lost(id, |_| false, now));
                 return false;
             }
+        }
+        if out[start..]
+            .iter()
+            .any(|e| matches!(e, RawEvent::Key { .. }))
+        {
+            let (num_lock, caps_lock) = self.device.get_led_state().map_or((false, false), |l| {
+                (
+                    l.contains(LedCode::LED_NUML),
+                    l.contains(LedCode::LED_CAPSL),
+                )
+            });
+            out.insert(
+                start,
+                RawEvent::Lights {
+                    device: id,
+                    num_lock,
+                    caps_lock,
+                },
+            );
         }
         if self.held.is_empty() {
             return true;

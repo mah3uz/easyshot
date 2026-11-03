@@ -3,6 +3,7 @@ mod common;
 mod gsr;
 mod input;
 mod input_keys;
+mod input_settle;
 mod lifeline;
 mod project;
 mod recovery;

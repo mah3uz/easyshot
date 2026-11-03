@@ -70,6 +70,12 @@ pub trait VirtualInput: Send + Sync {
     fn scroll(&self, at: Point, dy: f64) -> Result<()>;
 }
 
+/// The compositor's own report of its screen lock.
+pub trait ScreenLock: Send + Sync {
+    /// Whether a locker holds the screen now, then each change; closes when the compositor goes.
+    fn watch(&self) -> async_channel::Receiver<bool>;
+}
+
 impl<T: WindowList + ?Sized> WindowList for Arc<T> {
     fn snapshot(&self) -> Vec<WindowInfo> {
         (**self).snapshot()

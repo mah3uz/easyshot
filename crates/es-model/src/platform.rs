@@ -100,13 +100,37 @@ pub trait CursorSource: Send + Sync {
 }
 
 /// The compositor's keymap in XKB text form; `serial` changes whenever the keymap does.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct KeymapText {
     pub serial: u64,
     pub text: Arc<str>,
 }
 
+// A virtual keyboard's keymap holds one key per character it typed, such as a password's.
+impl std::fmt::Debug for KeymapText {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("KeymapText")
+            .field("serial", &self.serial)
+            .field("bytes", &self.text.len())
+            .finish()
+    }
+}
+
 pub trait KeymapSource: Send + Sync {
     /// `None` until the compositor has sent a keymap.
     fn keymap(&self) -> Option<KeymapText>;
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn a_keymap_never_prints_its_text() {
+        let k = super::KeymapText {
+            serial: 3,
+            text: "xkb_keymap { secret }".into(),
+        };
+        let shown = format!("{k:?}");
+        assert!(!shown.contains("secret"), "{shown}");
+        assert!(shown.contains('3'));
+    }
 }

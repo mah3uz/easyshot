@@ -24,5 +24,6 @@ pub use error::{BackendError, Error, Result};
 pub use probe::TestConfig;
 pub use probe::{DbusNames, Env, PortalIfaces, Probe, Provider, TOOL_PACKAGES, Tools, WlGlobals};
 pub use traits::{
-    BindHelper, BindSyntax, Capture, Clipboard, PointerQuery, Trigger, VirtualInput, WindowList,
+    BindHelper, BindSyntax, Capture, Clipboard, PointerQuery, ScreenLock, Trigger, VirtualInput,
+    WindowList,
 };

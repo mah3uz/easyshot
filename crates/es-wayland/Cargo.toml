@@ -16,6 +16,8 @@ async-channel.workspace = true
 wayland-client.workspace = true
 wayland-protocols.workspace = true
 wayland-protocols-wlr.workspace = true
+wayland-backend.workspace = true
+wayland-scanner.workspace = true
 wl-clipboard-rs.workspace = true
 rustix = { workspace = true, features = ["event"] }
 thiserror.workspace = true

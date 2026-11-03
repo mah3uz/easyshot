@@ -2,6 +2,7 @@ use crate::capture::{Batch, CAPTURE_TIMEOUT, Job, Reply};
 use crate::clipboard::{Clipboard, Offers, offers};
 use crate::input::{CursorSession, Input};
 use crate::keyboard::{Keyboard, SharedKeymap};
+use crate::lock::SharedLock;
 use crate::output::OutputState;
 use crate::toplevel::{Toplevel, ToplevelState, WlrToplevel};
 use crate::{Error, WlGlobals};
@@ -77,6 +78,7 @@ pub(crate) struct State {
     pub window_snapshot: Arc<Mutex<Vec<WindowInfo>>>,
     pub seat: Option<WlSeat>,
     pub keyboard: Keyboard,
+    pub lock: SharedLock,
     pub clipboard: Clipboard,
     pub input: Input,
     pub jobs: HashMap<u64, Job>,
@@ -175,6 +177,7 @@ impl Dispatch<WlRegistry, ()> for State {
                     "zwlr_data_control_manager_v1" => {
                         state.clipboard.wlr = Some(registry.bind(name, 1, qh, ()))
                     }
+                    "hyprland_lock_notifier_v1" => crate::lock::bind(registry, name, qh),
                     "zwlr_virtual_pointer_manager_v1" => {
                         state.input.virtual_manager =
                             Some(registry.bind(name, version.min(2), qh, ()))
@@ -210,6 +213,7 @@ pub struct Connection {
     windows: Arc<Mutex<Vec<WindowInfo>>>,
     window_events: async_channel::Receiver<WindowEvent>,
     keymap: SharedKeymap,
+    lock: SharedLock,
     thread: Option<JoinHandle<()>>,
 }
 
@@ -224,6 +228,7 @@ impl Connection {
         let (window_tx, window_events) = async_channel::bounded(WINDOW_EVENTS);
         let windows = Arc::new(Mutex::new(Vec::new()));
         let keymap = SharedKeymap::default();
+        let lock = SharedLock::default();
         let (setup_tx, setup_rx) = mpsc::channel();
         let published = Published {
             outputs: outputs.clone(),
@@ -231,6 +236,7 @@ impl Connection {
             windows: windows.clone(),
             window_tx,
             keymap: keymap.clone(),
+            lock: lock.clone(),
         };
         let thread = std::thread::Builder::new()
             .name("es-wayland".into())
@@ -253,6 +259,7 @@ impl Connection {
             windows,
             window_events,
             keymap,
+            lock,
             thread: Some(thread),
         })
     }
@@ -263,6 +270,18 @@ impl Connection {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .clone()
+    }
+
+    /// Whether a locker holds the screen now, then each change; `None` when the compositor
+    /// does not report its lock.
+    pub fn screen_lock(&self) -> Option<async_channel::Receiver<bool>> {
+        self.globals.lock_notify?;
+        Some(
+            self.lock
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .subscribe(),
+        )
     }
 
     pub fn globals(&self) -> &WlGlobals {
@@ -364,9 +383,21 @@ struct Published {
     windows: Arc<Mutex<Vec<WindowInfo>>>,
     window_tx: async_channel::Sender<WindowEvent>,
     keymap: SharedKeymap,
+    lock: SharedLock,
 }
 
 fn run(
+    setup: &Sender<Result<WlGlobals, Error>>,
+    commands: &Receiver<Command>,
+    wake: &UnixStream,
+    published: Published,
+) {
+    let lock = published.lock.clone();
+    run_worker(setup, commands, wake, published);
+    lock.lock().unwrap_or_else(|e| e.into_inner()).end();
+}
+
+fn run_worker(
     setup: &Sender<Result<WlGlobals, Error>>,
     commands: &Receiver<Command>,
     wake: &UnixStream,
@@ -416,6 +447,7 @@ fn start(published: Published) -> Result<Started, Error> {
         window_snapshot: published.windows,
         seat: None,
         keyboard: Keyboard::new(published.keymap),
+        lock: published.lock,
         clipboard: Clipboard::default(),
         input: Input::new(),
         jobs: HashMap::new(),

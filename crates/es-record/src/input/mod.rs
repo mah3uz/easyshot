@@ -11,7 +11,7 @@ pub use keys::HeldKeys;
 
 use crate::{Clock, Error, RecordingOutput, Result};
 use es_geom::{Point, Rect};
-use es_model::platform::{CursorSource, KeymapSource};
+use es_model::platform::{CursorSource, KeymapSource, KeymapText};
 use es_model::recording::{InputAccess, KeystrokeSample, PressPhase, PressSample, RecordingInput};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -39,6 +39,12 @@ pub enum RawEvent {
         code: u16,
         down: bool,
         t_us: u64,
+    },
+    /// A keyboard's Num Lock and Caps Lock lights, read with its keys.
+    Lights {
+        device: u32,
+        num_lock: bool,
+        caps_lock: bool,
     },
 }
 
@@ -174,6 +180,11 @@ impl InputBuilder {
                     self.keys.push((t_us, mods, key));
                 }
             }
+            RawEvent::Lights {
+                device,
+                num_lock,
+                caps_lock,
+            } => keys.lights(device, num_lock, caps_lock),
         }
     }
 
@@ -258,6 +269,48 @@ pub struct Sources {
     pub session_open: Arc<AtomicBool>,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct Tick {
+    open: bool,
+    keymap: Option<u64>,
+}
+
+/// One batch, kept back a tick: a lock or a new keymap reaches this process a little after the
+/// keys it concerns.
+struct Held {
+    events: Vec<RawEvent>,
+    pointer: Option<Point>,
+    before: Tick,
+    at: Tick,
+}
+
+impl Held {
+    /// Keeps the batch only if the session was open from the tick before it to the tick after,
+    /// and its keys only if the keymap stayed the same; whatever is dropped, the keyboards forget.
+    fn settle(
+        self,
+        now: Tick,
+        keymap: Option<&KeymapText>,
+        keys: &mut KeyFilter,
+        out: &mut InputBuilder,
+    ) {
+        keys.follow(keymap);
+        if !(self.before.open && self.at.open && now.open) {
+            keys.forget();
+            return;
+        }
+        let same_keymap = self.before.keymap == self.at.keymap && self.at.keymap == now.keymap;
+        if !same_keymap {
+            keys.forget();
+        }
+        for ev in self.events {
+            if same_keymap || !matches!(ev, RawEvent::Key { .. }) {
+                out.event(ev, self.pointer, keys);
+            }
+        }
+    }
+}
+
 pub struct InputCollector {
     builder: Arc<Mutex<InputBuilder>>,
     quit: Arc<AtomicBool>,
@@ -274,26 +327,41 @@ impl InputCollector {
             let stream = sources.cursor.as_ref().and_then(|c| c.open());
             let cursor = stream.or(sources.cursor);
             let mut keys = KeyFilter::default();
+            let keymap = || sources.keymap.as_ref().and_then(|k| k.keymap());
+            let tick = |keymap: &Option<KeymapText>| Tick {
+                open: sources.session_open.load(Ordering::Relaxed),
+                keymap: keymap.as_ref().map(|k| k.serial),
+            };
+            let mut last = tick(&keymap());
+            let mut held: Option<Held> = None;
             while !q.load(Ordering::Relaxed) {
-                let batch = events.next_batch(TICK);
+                let events = events.next_batch(TICK);
                 if q.load(Ordering::Relaxed) {
                     break;
                 }
-                if !sources.session_open.load(Ordering::Relaxed) {
-                    keys.forget();
-                    continue;
+                let current = keymap();
+                let now = tick(&current);
+                let pointer = (now.open
+                    && events.iter().any(|e| matches!(e, RawEvent::Button { .. })))
+                .then(|| cursor.as_ref().and_then(|c| c.sample()))
+                .flatten()
+                .map(|(p, _)| p);
+                if let Some(h) = held.take() {
+                    let Ok(mut g) = b.lock() else { return };
+                    h.settle(now, current.as_ref(), &mut keys, &mut g);
                 }
-                keys.follow(sources.keymap.as_ref().and_then(|k| k.keymap()).as_ref());
-                let pointer = batch
-                    .iter()
-                    .any(|e| matches!(e, RawEvent::Button { .. }))
-                    .then(|| cursor.as_ref().and_then(|c| c.sample()))
-                    .flatten()
-                    .map(|(p, _)| p);
+                held = Some(Held {
+                    events,
+                    pointer,
+                    before: last,
+                    at: now,
+                });
+                last = now;
+            }
+            if let Some(h) = held {
+                let current = keymap();
                 let Ok(mut g) = b.lock() else { return };
-                for ev in batch {
-                    g.event(ev, pointer, &mut keys);
-                }
+                h.settle(tick(&current), current.as_ref(), &mut keys, &mut g);
             }
         });
         Self {

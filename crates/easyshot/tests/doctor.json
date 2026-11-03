@@ -118,6 +118,17 @@
       ]
     },
     {
+      "capability": "screen_lock",
+      "chosen": null,
+      "forced": null,
+      "rejected": [
+        {
+          "provider": "lock-notify",
+          "reason": "not detected"
+        }
+      ]
+    },
+    {
       "capability": "shortcuts",
       "chosen": "user-binds",
       "forced": null,

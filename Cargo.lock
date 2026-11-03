@@ -2360,9 +2360,11 @@ dependencies = [
  "rustix",
  "thiserror 2.0.21",
  "tracing",
+ "wayland-backend",
  "wayland-client",
  "wayland-protocols",
  "wayland-protocols-wlr",
+ "wayland-scanner",
  "wl-clipboard-rs",
 ]
 

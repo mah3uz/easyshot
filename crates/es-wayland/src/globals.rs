@@ -14,6 +14,7 @@ pub struct WlGlobals {
     pub fractional_scale: Option<u32>,
     pub xdg_output: Option<u32>,
     pub shm: Option<u32>,
+    pub lock_notify: Option<u32>,
     pub all: Vec<(String, u32)>,
 }
 
@@ -40,6 +41,7 @@ impl WlGlobals {
                 "wp_fractional_scale_manager_v1" => Some(&mut g.fractional_scale),
                 "zxdg_output_manager_v1" => Some(&mut g.xdg_output),
                 "wl_shm" => Some(&mut g.shm),
+                "hyprland_lock_notifier_v1" => Some(&mut g.lock_notify),
                 _ => None,
             };
             if let Some(slot) = slot {
@@ -111,6 +113,8 @@ mod tests {
             WpFractionalScaleManagerV1::interface().name,
             ZxdgOutputManagerV1::interface().name,
             wayland_client::protocol::wl_shm::WlShm::interface().name,
+            crate::lock::protocol::hyprland_lock_notifier_v1::HyprlandLockNotifierV1::interface()
+                .name,
         ];
         let g = WlGlobals::from_globals(names.iter().map(|n| (*n, 1)));
         let slots = [
@@ -128,6 +132,7 @@ mod tests {
             g.fractional_scale,
             g.xdg_output,
             g.shm,
+            g.lock_notify,
         ];
         for (name, slot) in names.iter().zip(slots) {
             assert_eq!(slot, Some(1), "{name} not recognised");

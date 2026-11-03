@@ -306,15 +306,20 @@ With Settings, Recording, Keystrokes on, the folder also gets an `input.json` wi
 clicks and shortcuts, timed on the video's clock with pauses removed (keys to the nearest
 hundredth of a second), for click effects and key badges such as "Ctrl+C". Each click has its
 button and, where easyshot can read the pointer (Hyprland, or a compositor with the cursor
-capture protocol), its place in the recording; a click outside the recorded area is left out.
+capture protocol), its place in the recording, and a click outside the recorded area is left
+out; elsewhere every click is kept, without a place.
 A key is saved only when, under your keyboard layout as the compositor sends it, it types no
 text: shortcuts such as Ctrl+C, and special keys (Enter, Esc, Tab, Backspace, Delete, arrows,
-Home, End, Page Up and Down, Insert, F1 to F12). A key that types a character is never saved,
-whatever is held with it: plain typing, Shift, AltGr or any other third-level key, a second
+Home, End, Page Up and Down, Insert, F1 to F12). Apart from Enter and Tab, a key that types a
+character is never saved, whatever is held with it: plain typing, Shift, AltGr or any other third-level key, a second
 layout, dead keys and Compose, Alt or Super with a letter, and Ctrl+Shift+U Unicode entry.
-Until easyshot has your layout, only special keys are saved. Each keyboard counts its own
-modifiers. Nothing is read while your session is locked or switched away from, or when
-easyshot cannot ask logind. Pointer travel is not recorded: `travel` is always empty. With
+Until easyshot has your layout, only special keys are saved, and keys pressed as your layout
+changes are left out. Each keyboard counts its own modifiers and starts from its Num Lock and
+Caps Lock lights. Nothing is read while your session is switched away from or locked, or when
+easyshot cannot ask logind. A lock is seen on Hyprland, on niri started as a session, on
+desktops that tell logind, and whenever it goes through `loginctl lock-session` (then until
+`loginctl unlock-session`); on sway, swaylock started any other way is not seen, and Enter,
+Backspace and Esc typed into it are saved. Pointer travel is not recorded: `travel` is always empty. With
 Keystrokes off nothing reads your keyboard or mouse and `input.json` is empty; switching it
 off during a recording stops reading at once and saves nothing from that recording.
 `input.json` stays in the recording's folder under `~/.local/share/easyshot/recordings/`
