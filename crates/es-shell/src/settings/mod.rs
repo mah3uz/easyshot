@@ -1,3 +1,4 @@
+mod agents;
 mod binds;
 mod general;
 mod home;
@@ -54,17 +55,19 @@ pub enum Page {
     Overlay,
     Recording,
     Shortcuts,
+    Agents,
     About,
 }
 
 impl Page {
-    pub const ALL: [Page; 7] = [
+    pub const ALL: [Page; 8] = [
         Page::Home,
         Page::General,
         Page::Capture,
         Page::Overlay,
         Page::Recording,
         Page::Shortcuts,
+        Page::Agents,
         Page::About,
     ];
 
@@ -76,6 +79,7 @@ impl Page {
             Page::Overlay => fl!("settings-nav-overlay"),
             Page::Recording => fl!("settings-nav-recording"),
             Page::Shortcuts => fl!("settings-nav-shortcuts"),
+            Page::Agents => fl!("settings-nav-agents"),
             Page::About => fl!("settings-nav-about"),
         }
     }
@@ -88,6 +92,7 @@ impl Page {
             Page::Overlay => IconName::AppWindow,
             Page::Recording => IconName::Video,
             Page::Shortcuts => IconName::Keyboard,
+            Page::Agents => IconName::KeyRound,
             Page::About => IconName::Info,
         }
     }
@@ -223,6 +228,7 @@ pub struct SettingsWindow {
     sliders: Sliders,
     file_name: Entity<InputState>,
     shortcuts: shortcuts::Shortcuts,
+    agents: agents::Agents,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -340,6 +346,7 @@ impl SettingsWindow {
         );
         let shortcuts =
             shortcuts::Shortcuts::new(&config, deps.binds, deps.paths, deps.clipboard, window, cx);
+        let agents = agents::Agents::new(&config, window, cx);
         Self {
             settings: deps.settings,
             history: deps.history,
@@ -355,6 +362,7 @@ impl SettingsWindow {
             sliders,
             file_name,
             shortcuts,
+            agents,
             _subscriptions: subs,
         }
     }
@@ -538,6 +546,7 @@ impl Render for SettingsWindow {
             Page::Overlay => self.render_overlay(cx),
             Page::Recording => self.render_recording(cx),
             Page::Shortcuts => self.render_shortcuts(window, cx),
+            Page::Agents => self.render_agents(cx),
             Page::About => self.render_about(cx),
         });
         let t = tokens(cx);

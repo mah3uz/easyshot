@@ -4,7 +4,10 @@ mod agent_settings;
 pub mod scope;
 
 use super::Sources;
-use es_app::agent_access::{AgentAccess, AgentAccessHandle, ConsentRequest, Grant, system_clock};
+use es_app::agent_access::{
+    AgentAccess, AgentAccessHandle, ChangeRequest, ConsentPrompt, ConsentRequest, Grant, Loosening,
+    system_clock,
+};
 use es_app::events::Origin;
 use es_app::jobs::{JobId, run_cpu};
 use es_app::services::Services;
@@ -12,7 +15,9 @@ use es_app::settings_model::SettingsModel;
 use es_desktop::dbus::Caller;
 use es_model::{ActionRecord, AgentCfg};
 use es_protocol::AgentRoute;
-use es_protocol::agent::{AccessStatus, AgentReply, ConfigEntry, ErrorCode, ManageRoute};
+use es_protocol::agent::{
+    AccessStatus, AgentKey, AgentReply, ConfigEntry, ErrorCode, ManageRoute, ReplyKind,
+};
 use gpui::{App, AppContext as _, Entity, Global, Task};
 use scope::{Scope, describe};
 use std::cell::RefCell;
@@ -24,6 +29,8 @@ pub type Callers = Rc<RefCell<HashMap<JobId, Caller>>>;
 
 const TURN_ON: &str =
     "agent access is off. Turn it on with `easyshot agent enable` or in Settings › Agents.";
+const CANCELLED: &str = "the change was cancelled in the confirmation easyshot showed. \
+     Make it in Settings › Agents, or run the command again and allow it.";
 const REFUSED: &str = "agent access was refused. Allow it when easyshot asks, or change the \
      consent setting with `easyshot agent config set consent` or in Settings › Agents.";
 
@@ -41,11 +48,15 @@ pub type Work = Box<dyn FnOnce(&AgentRoute, &Scope, &mut App) -> Task<AgentReply
 
 impl Global for Gate {}
 
-pub fn install(cx: &mut App) -> Gate {
+pub fn install(cx: &mut App, prompt: Rc<dyn ConsentPrompt>) -> Gate {
     let services = cx.global::<Services>();
     let (settings, paths) = (services.settings.clone(), services.stores.paths.clone());
     let file = es_store::agent::open(&paths);
-    let access = cx.new(|_| AgentAccess::new(file, system_clock()));
+    let access = cx.new(|_| {
+        let mut access = AgentAccess::new(file, system_clock());
+        access.set_prompt(prompt);
+        access
+    });
     cx.set_global(AgentAccessHandle(access.clone()));
     let gate = Gate::new(access, settings, rustix::process::getuid().as_raw());
     cx.set_global(gate.clone());
@@ -116,14 +127,20 @@ impl Gate {
             return Task::ready(reply);
         }
         if let AgentRoute::Manage(m) = &route {
-            let reply = self.manage(m, cx);
             if let ManageRoute::ConfigSet(key, value) = m {
                 log.target = Some(format!("{}={value}", key.name()));
             }
-            if !matches!(m, ManageRoute::Status | ManageRoute::ConfigGet(_)) {
-                self.record(log, &reply, cx);
+            let asker = (caller.pid, comm);
+            let reply = self.manage(m, asker, cx);
+            if matches!(m, ManageRoute::Status | ManageRoute::ConfigGet(_)) {
+                return reply;
             }
-            return Task::ready(reply);
+            let gate = self.clone();
+            return cx.spawn(async move |cx| {
+                let reply = reply.await;
+                cx.update(|cx| gate.record(log, &reply, cx));
+                reply
+            });
         }
         let cfg = self.cfg(cx);
         if !cfg.enabled {
@@ -199,31 +216,48 @@ impl Gate {
         }
     }
 
-    fn manage(&self, route: &ManageRoute, cx: &mut App) -> AgentReply {
+    fn manage(
+        &self,
+        route: &ManageRoute,
+        (pid, comm): (Option<u32>, Option<String>),
+        cx: &mut App,
+    ) -> Task<AgentReply> {
         let kind = route.kind();
-        let mut next = self.cfg(cx);
-        let key = match route {
-            ManageRoute::Enable => {
-                next.enabled = true;
-                None
-            }
-            ManageRoute::Disable => {
-                next.enabled = false;
-                None
-            }
-            ManageRoute::Status => None,
-            ManageRoute::ConfigGet(key) => Some(*key),
-            ManageRoute::ConfigSet(key, value) => {
-                if let Err(e) = agent_settings::set(&mut next, *key, value) {
-                    return AgentReply::failed(kind, ErrorCode::InvalidArguments, e);
-                }
-                Some(*key)
+        let now = self.cfg(cx);
+        let (key, next) = match edited(route, now.clone()) {
+            Ok(edit) => edit,
+            Err(e) => {
+                return Task::ready(AgentReply::failed(kind, ErrorCode::InvalidArguments, e));
             }
         };
+        let Some(change) = Loosening::between(&now, &next) else {
+            return Task::ready(self.apply(kind, key, &next, cx));
+        };
+        let request = ChangeRequest { change, pid, comm };
+        let asked = self.access.read(cx).prompt().confirm(request, cx);
+        let (gate, route) = (self.clone(), route.clone());
+        cx.spawn(async move |cx| {
+            if !asked.await {
+                return AgentReply::failed(kind, ErrorCode::AccessDenied, CANCELLED);
+            }
+            cx.update(|cx| match edited(&route, gate.cfg(cx)) {
+                Ok((key, next)) => gate.apply(kind, key, &next, cx),
+                Err(e) => AgentReply::failed(kind, ErrorCode::InvalidArguments, e),
+            })
+        })
+    }
+
+    fn apply(
+        &self,
+        kind: ReplyKind,
+        key: Option<AgentKey>,
+        next: &AgentCfg,
+        cx: &mut App,
+    ) -> AgentReply {
         if !next.enabled {
             self.access.update(cx, |access, cx| access.revoke(cx));
         }
-        if next != self.cfg(cx) {
+        if *next != self.cfg(cx) {
             self.settings.update(cx, |settings, cx| {
                 settings.update(|c| c.agent = next.clone(), cx)
             });
@@ -232,7 +266,7 @@ impl Gate {
             Some(key) => AgentReply {
                 config: Some(ConfigEntry {
                     key: key.name().to_owned(),
-                    value: agent_settings::get(&next, key),
+                    value: agent_settings::get(next, key),
                 }),
                 ..AgentReply::ok(kind)
             },
@@ -244,6 +278,31 @@ impl Gate {
     }
 }
 
+/// The settings a manage route asks for, made on top of the ones in force when it is applied.
+fn edited(route: &ManageRoute, mut cfg: AgentCfg) -> Result<(Option<AgentKey>, AgentCfg), String> {
+    let key = match route {
+        ManageRoute::Enable => {
+            cfg.enabled = true;
+            None
+        }
+        ManageRoute::Disable => {
+            cfg.enabled = false;
+            None
+        }
+        ManageRoute::Status => None,
+        ManageRoute::ConfigGet(key) => Some(*key),
+        ManageRoute::ConfigSet(key, value) => {
+            agent_settings::set(&mut cfg, *key, value)?;
+            Some(*key)
+        }
+    };
+    Ok((key, cfg))
+}
+
 #[cfg(test)]
 #[path = "agent_gate_tests.rs"]
 pub(in crate::daemon) mod tests;
+
+#[cfg(test)]
+#[path = "agent_confirm_tests.rs"]
+mod confirm_tests;

@@ -237,6 +237,7 @@ fn page_of(page: SettingsPage) -> settings::Page {
         SettingsPage::Overlay => Page::Overlay,
         SettingsPage::Recording => Page::Recording,
         SettingsPage::Shortcuts => Page::Shortcuts,
+        SettingsPage::Agents => Page::Agents,
         SettingsPage::About => Page::About,
     }
 }

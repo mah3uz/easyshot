@@ -354,7 +354,8 @@ from a recording.
 
 ## Settings
 
-Pages: Home, General, Capture, Overlay, Recording, Shortcuts, About. Sharing is not part of
+Pages: Home, General, Capture, Overlay, Recording, Shortcuts, Agents, About. Agents is
+described under Agent use. Sharing is not part of
 version 1.
 
 Settings are stored in `config.toml`; see Files. You can edit it by hand. While easyshot
@@ -414,7 +415,7 @@ was built from: `v0.1.0+1a2b3c4d`, with `-dirty` when the checkout had uncommitt
 Arch package installs all three. After that, pressing Tab asks `easyshot` itself, so what
 it offers follows what you have typed: the subcommands; the flags of each command, which
 include some that a particular mode then refuses; the modes of `capture`, the actions of
-`record` and `deck`, the seven pages of `settings`, the shells for `completions`; and for
+`record` and `deck`, the eight pages of `settings`, the shells for `completions`; and for
 `open` the `easyshot://` links and the PNG and JPEG files and folders under the path you
 have typed. In bash a link completes across its colon. Completion reads no daemon state
 and starts no window. To try it without installing, run `source <(easyshot completions bash)`
@@ -541,14 +542,20 @@ records or watches it.
 Agent access is off until you turn it on. While it is off, every agent command except the
 ones below exits with status 7 and says how to turn it on. These always work:
 
-- `agent enable` turns access on; `agent disable` turns it off and ends every grant.
+- `agent enable` turns access on once you click Allow in the "Turn on agent access?" dialog
+  easyshot shows; Cancel leaves it off and the command exits with status 8. `agent disable`
+  turns it off and ends every grant.
 - `agent status` shows whether access is on, the consent setting, the grant in force and
   when it ends, the outputs and windows agents may capture, whether secrets are hidden, and
   how many recent actions are logged. `--json` gives the same as one object.
 - `agent config get <key>` and `agent config set <key> <value>` read and change one setting
   of the `[agent]` section of `config.toml`: `enabled` (`true` or `false`), `consent`,
   `allowed_outputs` and `allowed_windows` (comma-separated output names and app ids; empty
-  means all), `redact_secrets` (`true` or `false`) and `log_limit` (1 to 10000).
+  means all), `redact_secrets` (`true` or `false`) and `log_limit` (1 to 10000). Setting
+  `enabled` to `true`, `consent` to `always-allow`, or a scope that allows more than before
+  shows the same dialog first; Cancel exits with status 8 and changes nothing.
+
+Settings › Agents has the same settings, and changes there need no extra click.
 
 Only your own user can send agent commands: easyshot asks the session bus which user sent
 each one and refuses any other user with status 8. Nothing is ever sent over the network.
@@ -564,9 +571,16 @@ each one and refuses any other user with status 8. Nothing is ever sent over the
 - `always-allow`: nothing is asked.
 
 "Always" is kept in `$XDG_STATE_HOME/easyshot/agent.json` and survives a restart; the other
-grants end when the daemon stops. `agent disable` ends every grant, "Always" included. This
-version has no consent dialog yet, so a request that would ask you is denied (status 8)
-unless `consent` is `always-allow`.
+grants end when the daemon stops. `agent disable` ends every grant, "Always" included.
+
+The consent dialog appears above every window on the screen under the pointer and names the
+program (its process name and id) and what it asks for. Deny is first; Esc or closing the
+dialog denies, and so does leaving it unanswered for 60 seconds. Enter does nothing until you move to a button with Tab, so text being typed
+when the dialog opens cannot answer it. While it is open, the keyboard goes to the dialog.
+If the dialog cannot be shown, the request is denied.
+
+Settings › Agents shows the grant in force with a Revoke button, and the recent actions
+(time, program, what it asked for and the result) as they happen. Times are in UTC.
 
 ### Scope
 

@@ -100,6 +100,7 @@ pub enum SettingsPage {
     Overlay,
     Recording,
     Shortcuts,
+    Agents,
     About,
 }
 

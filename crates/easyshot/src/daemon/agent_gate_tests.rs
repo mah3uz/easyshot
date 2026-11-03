@@ -10,24 +10,38 @@ use es_protocol::agent::{AgentKey, GrantSpan};
 use es_store::{ConfigFile, Paths};
 use gpui::TestAppContext;
 use serde_json::{Value, json};
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use time::OffsetDateTime;
 
 pub(in crate::daemon) const ME: u32 = 1000;
-const JOB: JobId = JobId(7);
-const BUS_PID: u32 = 4242;
+pub(in crate::daemon) const JOB: JobId = JobId(7);
+pub(in crate::daemon) const BUS_PID: u32 = 4242;
 
 pub(in crate::daemon) struct FakePrompt {
     answer: Cell<Answer>,
     asked: Cell<usize>,
+    pub confirms: Cell<bool>,
+    pub hold: Cell<bool>,
+    pub held: RefCell<Vec<futures::channel::oneshot::Sender<bool>>>,
+    pub confirmed: RefCell<Vec<ChangeRequest>>,
 }
 
 impl ConsentPrompt for FakePrompt {
     fn ask(&self, _: ConsentRequest, _: &mut App) -> Task<Answer> {
         self.asked.set(self.asked.get() + 1);
         Task::ready(self.answer.get())
+    }
+
+    fn confirm(&self, request: ChangeRequest, cx: &mut App) -> Task<bool> {
+        self.confirmed.borrow_mut().push(request);
+        if !self.hold.get() {
+            return Task::ready(self.confirms.get());
+        }
+        let (tx, rx) = futures::channel::oneshot::channel();
+        self.held.borrow_mut().push(tx);
+        cx.spawn(async move |_| rx.await.unwrap_or(false))
     }
 }
 
@@ -63,6 +77,10 @@ impl GateRig {
         let prompt = Rc::new(FakePrompt {
             answer: Cell::new(Answer::Deny),
             asked: Cell::new(0),
+            confirms: Cell::new(true),
+            hold: Cell::new(false),
+            held: RefCell::default(),
+            confirmed: RefCell::default(),
         });
         let installed: Rc<dyn ConsentPrompt> = prompt.clone();
         let access = cx.new(|_| {
@@ -135,12 +153,12 @@ impl GateRig {
 
 use es_protocol::JobStatus;
 
-struct Counted {
-    sources: Sources,
+pub(in crate::daemon) struct Counted {
+    pub sources: Sources,
     calls: Arc<AtomicUsize>,
 }
 
-fn sources() -> Counted {
+pub(in crate::daemon) fn sources() -> Counted {
     let calls = Arc::new(AtomicUsize::new(0));
     let (a, b) = (calls.clone(), calls.clone());
     let output = |name: &str, x: f64| OutputInfo {

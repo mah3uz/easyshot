@@ -1,5 +1,6 @@
 use es_app::agent_access::{
-    AccessEvent, AgentAccess, Answer, Clock, ConsentPrompt, ConsentRequest, Grant, HOUR,
+    AccessEvent, AgentAccess, Answer, ChangeRequest, Clock, ConsentPrompt, ConsentRequest, Grant,
+    HOUR,
 };
 use es_model::Consent;
 use es_protocol::agent::GrantSpan;
@@ -46,6 +47,10 @@ impl ConsentPrompt for HeldPrompt {
         let (tx, rx) = oneshot::channel();
         self.asked.borrow_mut().push((request, tx));
         cx.spawn(async move |_| rx.await.unwrap_or(Answer::Deny))
+    }
+
+    fn confirm(&self, _: ChangeRequest, _: &mut App) -> Task<bool> {
+        Task::ready(false)
     }
 }
 
@@ -265,4 +270,46 @@ fn the_log_is_bounded_and_written_through(cx: &mut TestAppContext) {
     let pids: Vec<_> = reopened.value.log.iter().map(|e| e.pid).collect();
     assert_eq!(pids, [Some(3), Some(2), Some(1)]);
     assert!(rig.events.borrow().contains(&AccessEvent::Logged));
+}
+
+#[test]
+fn a_change_loosens_access_only_when_it_gives_agents_more() {
+    use es_app::agent_access::Loosening;
+    use es_model::AgentCfg;
+    let base = AgentCfg {
+        enabled: true,
+        allowed_outputs: vec!["DP-1".into()],
+        ..AgentCfg::default()
+    };
+    let with = |f: fn(&mut AgentCfg)| {
+        let mut c = base.clone();
+        f(&mut c);
+        c
+    };
+    let off = with(|c| c.enabled = false);
+    assert_eq!(Loosening::between(&off, &base), Some(Loosening::TurnOn));
+    assert_eq!(Loosening::between(&base, &off), None);
+    let open = with(|c| c.consent = Consent::AlwaysAllow);
+    assert_eq!(
+        Loosening::between(&base, &open),
+        Some(Loosening::AlwaysAllow)
+    );
+    assert_eq!(Loosening::between(&open, &base), None);
+    let every = with(|c| c.allowed_outputs.clear());
+    assert_eq!(
+        Loosening::between(&base, &every),
+        Some(Loosening::WiderScope)
+    );
+    assert_eq!(
+        Loosening::between(&every, &base),
+        None,
+        "naming outputs narrows"
+    );
+    let more = with(|c| c.allowed_outputs.push("DP-2".into()));
+    assert_eq!(
+        Loosening::between(&base, &more),
+        Some(Loosening::WiderScope)
+    );
+    assert_eq!(Loosening::between(&more, &base), None);
+    assert_eq!(Loosening::between(&base, &base), None);
 }

@@ -77,7 +77,10 @@ pub fn install(
     dispatcher.set_agent_handler(super::handler_with(
         super::sources(backend),
         jobs.clone(),
-        agent_gate::install(cx),
+        agent_gate::install(
+            cx,
+            Rc::new(es_overlays::consent::LayerPrompt::new(surfaces.clone())),
+        ),
         Some(runner(deps)),
         Some(ocr),
     ));

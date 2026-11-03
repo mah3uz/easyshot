@@ -1,4 +1,5 @@
 mod color_picker;
+mod consent;
 mod countdown;
 mod deck;
 mod deck_motion;

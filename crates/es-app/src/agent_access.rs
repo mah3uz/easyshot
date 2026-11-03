@@ -1,4 +1,4 @@
-use es_model::{ActionRecord, AlwaysGrant, Consent};
+use es_model::{ActionRecord, AgentCfg, AlwaysGrant, Consent};
 use es_protocol::agent::{GrantSpan, GrantStatus};
 use es_store::agent::AgentFile;
 use futures::FutureExt as _;
@@ -40,9 +40,45 @@ pub struct ConsentRequest {
     pub remember: bool,
 }
 
+/// A settings change, asked for from the command line, that gives agents more than they had.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Loosening {
+    TurnOn,
+    AlwaysAllow,
+    WiderScope,
+}
+
+impl Loosening {
+    pub fn between(now: &AgentCfg, next: &AgentCfg) -> Option<Loosening> {
+        let wider = |now: &[String], next: &[String]| {
+            !now.is_empty() && (next.is_empty() || next.iter().any(|n| !now.contains(n)))
+        };
+        if next.enabled && !now.enabled {
+            Some(Loosening::TurnOn)
+        } else if next.consent == Consent::AlwaysAllow && now.consent != Consent::AlwaysAllow {
+            Some(Loosening::AlwaysAllow)
+        } else if wider(&now.allowed_outputs, &next.allowed_outputs)
+            || wider(&now.allowed_windows, &next.allowed_windows)
+        {
+            Some(Loosening::WiderScope)
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChangeRequest {
+    pub change: Loosening,
+    pub pid: Option<u32>,
+    pub comm: Option<String>,
+}
+
 /// Asks the user whether an agent may go ahead; the daemon awaits the answer.
 pub trait ConsentPrompt {
     fn ask(&self, request: ConsentRequest, cx: &mut App) -> Task<Answer>;
+    /// Resolves true only when the user clicks to allow the change.
+    fn confirm(&self, request: ChangeRequest, cx: &mut App) -> Task<bool>;
 }
 
 /// Used until a prompt is installed: every request it is asked about is refused.
@@ -52,6 +88,11 @@ impl ConsentPrompt for NoPrompt {
     fn ask(&self, request: ConsentRequest, _cx: &mut App) -> Task<Answer> {
         tracing::warn!(route = request.route, "no consent prompt available; denied");
         Task::ready(Answer::Deny)
+    }
+
+    fn confirm(&self, request: ChangeRequest, _cx: &mut App) -> Task<bool> {
+        tracing::warn!(change = ?request.change, "no consent prompt available; refused");
+        Task::ready(false)
     }
 }
 
@@ -118,6 +159,10 @@ impl AgentAccess {
 
     pub fn set_prompt(&mut self, prompt: Rc<dyn ConsentPrompt>) {
         self.prompt = prompt;
+    }
+
+    pub fn prompt(&self) -> Rc<dyn ConsentPrompt> {
+        self.prompt.clone()
     }
 
     pub fn now(&self) -> OffsetDateTime {

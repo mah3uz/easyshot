@@ -60,13 +60,14 @@ const PNG_MAGIC: &[u8] = &[0x89, b'P', b'N', b'G'];
 const JPEG_MAGIC: &[u8] = &[0xFF, 0xD8, 0xFF];
 
 impl SettingsPage {
-    pub const ALL: [SettingsPage; 7] = [
+    pub const ALL: [SettingsPage; 8] = [
         SettingsPage::Home,
         SettingsPage::General,
         SettingsPage::Capture,
         SettingsPage::Overlay,
         SettingsPage::Recording,
         SettingsPage::Shortcuts,
+        SettingsPage::Agents,
         SettingsPage::About,
     ];
 
@@ -78,6 +79,7 @@ impl SettingsPage {
             SettingsPage::Overlay => "overlay",
             SettingsPage::Recording => "recording",
             SettingsPage::Shortcuts => "shortcuts",
+            SettingsPage::Agents => "agents",
             SettingsPage::About => "about",
         }
     }

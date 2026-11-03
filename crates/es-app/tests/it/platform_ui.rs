@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use uuid::Uuid;
 
-const ROLES: [SurfaceRole; 8] = [
+const ROLES: [SurfaceRole; 9] = [
     SurfaceRole::Overlay,
     SurfaceRole::Countdown,
     SurfaceRole::Toast,
@@ -21,6 +21,7 @@ const ROLES: [SurfaceRole; 8] = [
     SurfaceRole::Bar,
     SurfaceRole::Highlight,
     SurfaceRole::Scroll,
+    SurfaceRole::Consent,
 ];
 
 fn out(name: &str) -> OutputId {
@@ -61,6 +62,17 @@ fn the_capture_bar_grabs_the_keyboard_wherever_the_pointer_is_so_esc_reaches_it(
         layer_options(SurfaceRole::Bar, false).keyboard_interactivity,
         K::OnDemand
     );
+}
+
+#[test]
+fn the_consent_dialog_grabs_the_keyboard_so_esc_denies_and_typing_elsewhere_stops() {
+    let a = out("DP-1");
+    assert!(wants_exclusive(SurfaceRole::Consent, None, None, &a));
+    assert_eq!(
+        layer_options(SurfaceRole::Consent, true).keyboard_interactivity,
+        K::Exclusive
+    );
+    assert!(!passes_input_through(SurfaceRole::Consent));
 }
 
 #[test]
@@ -127,6 +139,7 @@ fn each_role_sits_on_its_layer_and_edges() {
             Layer::Overlay,
             Anchor::TOP | Anchor::LEFT,
         ),
+        (SurfaceRole::Consent, Layer::Overlay, Anchor::empty()),
     ];
     for (role, layer, anchor) in cases {
         let o = layer_options(role, false);

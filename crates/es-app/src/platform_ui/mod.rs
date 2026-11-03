@@ -25,6 +25,7 @@ pub enum SurfaceRole {
     Bar,
     Highlight,
     Scroll,
+    Consent,
 }
 
 pub trait Surfaces {
