@@ -28,7 +28,8 @@ fn endpoint(backend: &Backend) -> Endpoint {
 }
 
 fn callbacks(backend: &Backend) -> Callbacks {
-    let doctor = backend.doctor_json();
+    let doctor =
+        crate::doctor::with_input(&backend.doctor_json(), crate::doctor_tools::input_here());
     Callbacks::new(Arc::new(move || {
         let doctor = doctor.clone();
         Box::pin(async move { doctor })

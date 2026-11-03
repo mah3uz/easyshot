@@ -73,11 +73,27 @@ pub fn card(dir: &Path, video: PathBuf, kind: CaptureKind) -> DeckItem {
     }
 }
 
+/// The clicks and keys read during the recording, on its timeline; empty when none were read.
+pub fn input(
+    read: Option<es_record::Result<es_record::InputBuilder>>,
+    out: &RecordingOutput,
+) -> RecordingInput {
+    match read {
+        Some(Ok(builder)) => builder.finish(out),
+        Some(Err(e)) => {
+            tracing::warn!(error = %e, "clicks and keys lost");
+            RecordingInput::default()
+        }
+        None => RecordingInput::default(),
+    }
+}
+
 /// Writes the project files next to the video and returns its deck card. Runs off the UI thread.
 pub fn complete(
     folder: &ProjectFolder,
     out: &RecordingOutput,
     meta: &Meta,
+    input: &RecordingInput,
     kind: CaptureKind,
     runner: &dyn CommandRunner,
 ) -> es_record::Result<Completed> {
@@ -109,7 +125,7 @@ pub fn complete(
         file_name: capture.video_file.clone(),
         ..RecordingProject::default()
     };
-    folder.finish(&capture, &project, &RecordingInput::default(), runner)?;
+    folder.finish(&capture, &project, input, runner)?;
     Ok(Completed {
         item: card(folder.dir(), out.file.clone(), kind),
     })

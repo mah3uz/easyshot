@@ -297,11 +297,27 @@ One recording runs at a time. While it runs, the tray's Record item reads Stop R
 and a second start from a shortcut, the command line, an `easyshot://` link or the capture
 bar shows "A recording is already running" and opens no picker.
 
-Each recording is a project folder in `$XDG_DATA_HOME/easyshot/recordings/` with an
-`input.json` holding cursor travel, clicks and keystrokes when permitted. A finished
+Each recording is a project folder in `$XDG_DATA_HOME/easyshot/recordings/`. A finished
 recording appears as a deck card, then opens in a trim viewer with export. Saving the card
 and exporting from the trim viewer both write to `easyshot` inside your Videos folder
 (usually `~/Videos/easyshot/`), with a dated name that never replaces an earlier file.
+
+With Settings, Recording, Keystrokes on, the folder also gets an `input.json` with your
+clicks and shortcuts, timed on the video's clock with pauses removed, for click effects and
+key badges such as "Ctrl+C". Each click has its button and, where easyshot can read the
+pointer (Hyprland, or a compositor with the cursor capture protocol), its place in the
+recording; elsewhere the place is left out. Keys are only shortcuts (a key held with Ctrl,
+the left Alt or Super) and special keys (Enter, Esc, Tab, Backspace, Delete, arrows, Home,
+End, Page Up and Down, Insert, F1 to F12). Plain typing is never saved, including with
+Shift or AltGr, so what you type in a password field stays out. If you type characters with
+the left Alt or Super as a third-level key, those are saved as shortcuts. Pointer travel is
+not recorded: `travel` is always empty. With Keystrokes off nothing reads your keyboard or
+mouse and `input.json` is empty.
+
+Reading the keyboard and mouse needs your user in the `input` group. Run
+`sudo usermod -aG input $USER`, then log out and back in. Until then a recording with
+Keystrokes on still records, without clicks and keys, and says so when it starts;
+`easyshot doctor` shows whether easyshot can read them.
 
 The trim viewer's export has a few plain choices under the timeline. Format is MP4, WebM or
 GIF; a GIF has no sound. Size is Original, 1080p, 720p or 480p, which only ever shrinks a

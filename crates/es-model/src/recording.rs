@@ -75,12 +75,15 @@ pub struct PointerSample {
     pub kind: TravelKind,
 }
 
+/// `x` and `y` are absent when the pointer position could not be read.
 #[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct PressSample {
     pub time: f64,
-    pub x: f64,
-    pub y: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub x: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub y: Option<f64>,
     pub button: u32,
     pub phase: PressPhase,
 }
@@ -101,6 +104,15 @@ pub struct RecordingInput {
     pub presses: Vec<PressSample>,
     pub keystrokes: Vec<KeystrokeSample>,
     pub is_sanitized: bool,
+}
+
+/// Whether recordings can read the keyboards and mice for `input.json`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum InputAccess {
+    Granted,
+    Denied,
+    NotBuilt,
 }
 
 /// `project.json`.

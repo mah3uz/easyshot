@@ -14,7 +14,7 @@ pub mod wf;
 
 pub use audio::{AudioDevice, AudioKind, list_audio_devices, parse_pactl_sources};
 pub use gsr::GsrRecorder;
-pub use input::{InputBuilder, InputCollector, InputConfig, RawEvent, movie_time, write_input};
+pub use input::{InputBuilder, InputCollector, RawEvent, movie_time, write_input};
 pub use process::{Clock, SystemClock, Timing};
 pub use project::{CommandRunner, ProjectFolder, SystemRunner, make_poster};
 pub use recovery::{RecoveryReport, recover};

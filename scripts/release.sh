@@ -38,7 +38,7 @@ echo "==> $tag: building"
   cd "$work/src"
   EASYSHOT_RELEASE=1 CARGO_TARGET_DIR=$build \
     RUSTFLAGS="--remap-path-prefix=$work/src=/build/easyshot --remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}=/cargo" \
-    cargo build --release --locked -p easyshot --features sound,player
+    cargo build --release --locked -p easyshot --features sound,player,evdev-input
 )
 
 echo "==> $name.tar.gz"

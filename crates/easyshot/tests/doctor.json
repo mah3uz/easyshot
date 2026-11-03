@@ -236,5 +236,10 @@
   "config": {
     "path": "easyshot/config.toml",
     "status": "missing"
+  },
+  "input": {
+    "status": "denied",
+    "records": "clicks and shortcuts, never plain typing, into input.json beside each recording, for click effects and key badges",
+    "fix": "sudo usermod -aG input $USER, then log out and back in"
   }
 }

@@ -80,6 +80,7 @@ fn env(bus: &PrivateBus, dir: &Path) -> Env {
                 &es_backend::Probe::default(),
                 &NoTools,
                 Path::new("easyshot/config.toml"),
+                crate::doctor_tools::input(es_model::recording::InputAccess::Denied),
             ))
         }),
         log_dir: None,
@@ -377,7 +378,8 @@ fn the_standalone_report_names_services_tool_versions_and_the_config() {
         .dbus
         .names
         .insert("org.freedesktop.Notifications".into());
-    let raw = doctor::standalone_report(&probe, &Installed, &config);
+    let input = crate::doctor_tools::input(es_model::recording::InputAccess::Denied);
+    let raw = doctor::standalone_report(&probe, &Installed, &config, input);
     let v: serde_json::Value = serde_json::from_str(&raw).unwrap();
     assert_eq!(v["services"]["notification_server"], true);
     assert_eq!(v["services"]["tray_watcher"], false);
@@ -396,6 +398,8 @@ fn the_standalone_report_names_services_tool_versions_and_the_config() {
         serde_json::json!(["eng", "deu"])
     );
     assert_eq!(v["config"]["status"], "error");
+    assert_eq!(v["input"]["status"], "denied");
+    assert_eq!(v["input"]["fix"], crate::doctor_tools::INPUT_FIX);
     let text = doctor::render_text(&raw);
     for want in [
         "tray watcher: absent",
@@ -404,6 +408,9 @@ fn the_standalone_report_names_services_tool_versions_and_the_config() {
         "encoders: libx264, libvpx-vp9",
         "languages: eng, deu",
         "(error:",
+        "Clicks and keys in recordings: cannot read the keyboard and mouse",
+        "Fix: sudo usermod -aG input $USER, then log out and back in",
+        "never plain typing",
     ] {
         assert!(text.contains(want), "{want} missing from\n{text}");
     }

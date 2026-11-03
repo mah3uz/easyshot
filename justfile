@@ -1,7 +1,7 @@
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
 # The features the package is built with, and the crates that gate code behind them
-shipped_features := "easyshot/sound,easyshot/player"
+shipped_features := "easyshot/sound,easyshot/player,easyshot/evdev-input"
 shipped_crates := "-p easyshot -p es-overlays -p es-record -p es-desktop"
 
 # List recipes

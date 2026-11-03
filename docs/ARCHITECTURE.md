@@ -194,7 +194,8 @@ Degradation, each reported by doctor:
 | tray watcher | capture bar shown at launch whatever the setting |
 | recorder | tray Record disabled with an install hint; other starts answer with it at once |
 | tesseract | OCR returns QR codes only; no codes gives a notice that Tesseract is needed |
-| cursor source | `input.json` has no cursor travel |
+| cursor source | clicks in `input.json` have no position |
+| `input` group | `input.json` is empty; a toast at start and a doctor hint give the fix |
 
 ## 7. Storage
 

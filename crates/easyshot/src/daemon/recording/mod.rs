@@ -1,6 +1,8 @@
 #[cfg(any(test, feature = "test-hooks"))]
 pub mod fake;
 mod finish;
+pub mod input;
+mod target;
 #[cfg(test)]
 mod tests;
 pub mod ui;
@@ -12,15 +14,16 @@ use es_app::platform_ui::Selection;
 use es_app::settings_model::SettingsModel;
 use es_app::toast::{IconName, Toast, show_toast};
 use es_desktop::RecordingTrayState;
-use es_geom::{Point, Rect};
+use es_geom::Rect;
 use es_model::CaptureKind as StoredKind;
-use es_model::platform::{OutputId, OutputInfo};
+use es_model::platform::{CursorSource, OutputId, OutputInfo};
 use es_overlays::record::{
     ControlBar, ControlEvent, Phase, Recorded, RecordingRequest, RecordingTarget,
 };
 use es_protocol::Route;
+use es_record::input::InputCollector;
 use es_record::project::{CommandRunner, ProjectFolder};
-use es_record::{Clock, RecordSource, RecordSpec, Recorder, RecorderEvent, RecordingHandle};
+use es_record::{Clock, RecordSpec, Recorder, RecorderEvent, RecordingHandle};
 use es_store::Paths;
 use gpui::{App, AppContext as _, Entity, Subscription, Task};
 use std::cell::{Cell, RefCell};
@@ -67,6 +70,8 @@ pub struct Deps {
     pub runner: Arc<dyn CommandRunner>,
     pub countdown: Countdown,
     pub select_area: AreaSelector,
+    pub input: input::InputFor,
+    pub cursor: Option<Arc<dyn CursorSource>>,
 }
 
 /// A request with its area chosen, in global logical points.
@@ -85,6 +90,7 @@ struct Session {
     recorder: &'static str,
     source: String,
     created_at: OffsetDateTime,
+    input: Option<InputCollector>,
     _bar_events: Subscription,
     _events: Task<()>,
     _tick: Task<()>,
@@ -130,43 +136,7 @@ fn none_running() -> Error {
     Error::NotFound("a running recording".into())
 }
 
-fn resolve(start: &Start, outputs: &[OutputInfo]) -> Result<(Recorded, RecordSource)> {
-    let origin = |id: &OutputId| {
-        outputs
-            .iter()
-            .find(|o| o.id == *id)
-            .map(|o| Point::new(o.logical.x0, o.logical.y0))
-    };
-    match &start.request.target {
-        RecordingTarget::Area => {
-            let (output, area) = start
-                .area
-                .clone()
-                .ok_or_else(|| Error::NotFound("an area to record".into()))?;
-            let at = origin(&output).ok_or_else(|| Error::NotFound(output.0.clone()))?;
-            let logical = area - at.to_vec2();
-            Ok((
-                Recorded::Area(area),
-                RecordSource::Region { output, logical },
-            ))
-        }
-        RecordingTarget::Display(id) => Ok((
-            Recorded::Display(id.clone()),
-            RecordSource::Output(id.clone()),
-        )),
-        RecordingTarget::Window(w) => {
-            let area = w.logical.ok_or(Error::Unsupported)?;
-            Ok((Recorded::Area(area), RecordSource::Window(w.clone())))
-        }
-    }
-}
-
-fn output_name(source: &RecordSource) -> String {
-    match source {
-        RecordSource::Output(id) | RecordSource::Region { output: id, .. } => id.0.clone(),
-        RecordSource::Window(w) => w.output.as_ref().map(|o| o.0.clone()).unwrap_or_default(),
-    }
-}
+use target::{output_name, resolve};
 
 impl Recordings {
     pub fn new(deps: Deps) -> Self {
@@ -342,6 +312,10 @@ impl Recordings {
             }
         };
         let events = handle.events();
+        let input = cfg
+            .keystrokes
+            .then(|| input::start(&deps.input, deps.cursor.as_ref(), &recorded, &outputs, cx))
+            .flatten();
         let bar = cx.new(|cx| ControlBar::new(deps.clock.clone(), cx));
         let shown = deps.ui.show(&recorded, cfg.whole_screen_bar, &bar, cx);
         let me = self.clone();
@@ -379,6 +353,7 @@ impl Recordings {
             recorder: recorder.name(),
             source: output_name(&source),
             created_at,
+            input,
             _bar_events: bar_events,
             _events: events_task,
             _tick: tick,
@@ -455,9 +430,19 @@ impl Recordings {
         let (handle, bar) = self.handle_of()?;
         bar.update(cx, |b, cx| b.finishing(cx));
         let elapsed = bar.read(cx).elapsed();
+        let collector = self
+            .0
+            .active
+            .borrow_mut()
+            .as_mut()
+            .and_then(|s| s.input.take());
+        let read = cx
+            .background_executor()
+            .spawn(async move { collector.map(InputCollector::stop) });
         let me = self.clone();
         cx.spawn(async move |cx| {
             let out = handle.stop().await;
+            let read = read.await;
             let deps = &me.0.deps;
             let done = {
                 let active = me.0.active.borrow();
@@ -494,7 +479,8 @@ impl Recordings {
                 Ok(out) => {
                     cx.background_executor()
                         .spawn(async move {
-                            finish::complete(&folder, &out, &meta, kind, runner.as_ref())
+                            let input = finish::input(read, &out);
+                            finish::complete(&folder, &out, &meta, &input, kind, runner.as_ref())
                         })
                         .await
                 }

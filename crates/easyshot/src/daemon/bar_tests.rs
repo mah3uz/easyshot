@@ -88,6 +88,8 @@ fn recordings(cx: &mut TestAppContext, recorder_missing: bool) -> (Recordings, t
             runner: Arc::new(NoTools),
             countdown: Rc::new(|_, cx| cx.spawn(async move |_| std::future::pending().await)),
             select_area: Rc::new(|_| Task::ready(Err(Error::Cancelled))),
+            input: Rc::new(|| Err(es_model::recording::InputAccess::Denied)),
+            cursor: None,
         })
     });
     (recordings, dir)

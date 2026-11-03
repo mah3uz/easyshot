@@ -8,7 +8,12 @@ use std::path::{Path, PathBuf};
 
 const LOG_TAIL: usize = 1 << 20;
 
-pub fn standalone_report(probe: &Probe, runner: &dyn ToolRunner, config: &Path) -> String {
+pub fn standalone_report(
+    probe: &Probe,
+    runner: &dyn ToolRunner,
+    config: &Path,
+    input: Value,
+) -> String {
     let mut report: Value =
         serde_json::from_str(&Backend::detect(probe).doctor_json()).unwrap_or_else(|_| json!({}));
     if let Some(obj) = report.as_object_mut() {
@@ -16,8 +21,19 @@ pub fn standalone_report(probe: &Probe, runner: &dyn ToolRunner, config: &Path) 
         obj.insert("services".into(), doctor_tools::services(&probe.dbus));
         obj.insert("tools".into(), doctor_tools::tools(runner));
         obj.insert("config".into(), doctor_tools::config_status(config));
+        obj.insert("input".into(), input);
     }
     report.to_string()
+}
+
+pub fn with_input(raw: &str, input: Value) -> String {
+    match serde_json::from_str::<Value>(raw) {
+        Ok(Value::Object(mut obj)) => {
+            obj.insert("input".into(), input);
+            Value::Object(obj).to_string()
+        }
+        _ => raw.to_owned(),
+    }
 }
 
 pub fn pretty(raw: &str) -> String {
@@ -151,6 +167,19 @@ fn render_probes(v: &Value, out: &mut String) {
         let _ = writeln!(out, "    encoders: {}", list(&t["ffmpeg"]["encoders"]));
         let _ = writeln!(out, "  tesseract: {}", version(&t["tesseract"]["version"]));
         let _ = writeln!(out, "    languages: {}", list(&t["tesseract"]["languages"]));
+    }
+    let i = &v["input"];
+    if let Some(status) = i["status"].as_str() {
+        let shown = match status {
+            "granted" => "can read the keyboard and mouse",
+            "denied" => "cannot read the keyboard and mouse",
+            _ => "not in this build",
+        };
+        let _ = writeln!(out, "\nClicks and keys in recordings: {shown}");
+        if let Some(fix) = i["fix"].as_str() {
+            let _ = writeln!(out, "  Fix: {fix}");
+        }
+        let _ = writeln!(out, "  Records {}", i["records"].as_str().unwrap_or("-"));
     }
     let c = &v["config"];
     if c.is_object() {

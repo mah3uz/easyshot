@@ -110,6 +110,27 @@ pub fn services(names: &es_backend::DbusNames) -> Value {
     })
 }
 
+pub const INPUT_FIX: &str = "sudo usermod -aG input $USER, then log out and back in";
+
+/// Whether recordings can log clicks and shortcuts, and the fix when they cannot.
+pub fn input(access: es_model::recording::InputAccess) -> Value {
+    let mut v = json!({
+        "status": access,
+        "records": "clicks and shortcuts, never plain typing, into input.json beside each recording, for click effects and key badges",
+    });
+    if access == es_model::recording::InputAccess::Denied {
+        v["fix"] = json!(INPUT_FIX);
+    }
+    v
+}
+
+/// The input access this process has, read from the device permissions.
+pub fn input_here() -> Value {
+    input(es_record::input::access(Path::new(
+        es_record::input::DEV_INPUT,
+    )))
+}
+
 /// A missing or newer-version file still opens; a file that does not parse falls back to defaults.
 pub fn config_status(path: &Path) -> Value {
     let shown = path.display().to_string();

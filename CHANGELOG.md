@@ -5,6 +5,7 @@
 ### New
 
 - Very large screenshots open in the editor with a low-resolution preview that keeps it fast, while saving, exporting and copying use the full image; Settings › General › Always use a low-resolution preview turns it on for every screenshot.
+- With Keystrokes on, each recording saves your clicks and shortcuts (never plain typing) to `input.json` beside the video; it needs your user in the `input` group, and Settings, the start of a recording and `easyshot doctor` say how to allow it.
 - Edits you make by hand to `config.toml` apply while easyshot runs, and a later change in Settings keeps them; a file with a syntax error is left alone and the last good settings stay in use.
 - The `easyshot` command line: capture, record, OCR, settings and more, `easyshot doctor` with `--json` and `--bundle`, and shell completions for bash, zsh and fish that follow what you have typed: modes, flags, settings pages, `easyshot://` links and image files.
 - Desktop entry (Easyshot in your application menu, like a bare `easyshot`, opens the Home window), systemd user service and D-Bus activation. The Arch package enables the service for every user, though never for a display manager's login screen, and starts it for logged-in users on install; an update restarts it where it is running.

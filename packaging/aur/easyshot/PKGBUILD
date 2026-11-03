@@ -42,7 +42,7 @@ build() {
   cd "$pkgname-$pkgver"
   export RUSTUP_TOOLCHAIN=$(_toolchain) EASYSHOT_RELEASE=1 CARGO_TARGET_DIR=target
   export RUSTFLAGS="--remap-path-prefix=$srcdir=/build --remap-path-prefix=$HOME/.cargo=/cargo --remap-path-prefix=$HOME/.rustup=/rustup"
-  cargo build --frozen --release -p easyshot --features sound,player
+  cargo build --frozen --release -p easyshot --features sound,player,evdev-input
   packaging/stage.sh target/release . "$srcdir/stage"
 }
 

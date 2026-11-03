@@ -104,6 +104,7 @@ fn main() -> ExitCode {
                 &probe,
                 &doctor_tools::SystemToolRunner,
                 &config,
+                doctor_tools::input_here(),
             ))
         }),
         log_dir: es_store::Paths::from_xdg().ok().map(|p| p.log_dir()),
