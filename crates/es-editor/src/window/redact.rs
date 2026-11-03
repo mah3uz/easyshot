@@ -81,6 +81,10 @@ impl EditorWindow {
         self.probe_ocr(cx);
     }
 
+    pub fn ocr_options(&self) -> &es_ocr::OcrOptions {
+        &self.ocr
+    }
+
     pub fn redact_state(&self) -> State {
         self.redact
     }

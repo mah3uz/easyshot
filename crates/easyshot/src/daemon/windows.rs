@@ -7,6 +7,8 @@ use es_app::platform_ui::{ClipboardSink, LayerShellSurfaces, SurfaceHandle as _,
 use es_app::settings_model::SettingsModel;
 use es_app::windows::{WindowHandle, WindowKey, WindowKind, Windows};
 use es_backend::{BindHelper, Caps};
+use es_editor::inspector::Section;
+use es_editor::inspector::background::{BackgroundBody, WallpaperChooser};
 use es_editor::session::io::{ExportChooser, IoConfig};
 use es_editor::{EditorSession, EditorSource, EditorWindow};
 use es_model::platform::OutputInfo;
@@ -53,6 +55,7 @@ pub struct Wiring {
     editors: RefCell<Vec<WeakEntity<EditorWindow>>>,
     home: RefCell<Option<WeakEntity<HomeWindow>>>,
     recoveries: RefCell<HashMap<PathBuf, PathBuf>>,
+    wallpaper: RefCell<Option<Rc<dyn WallpaperChooser>>>,
 }
 
 struct Handle(AnyWindowHandle);
@@ -116,11 +119,16 @@ impl Wiring {
             editors: RefCell::default(),
             home: RefCell::default(),
             recoveries: RefCell::default(),
+            wallpaper: RefCell::default(),
         })
     }
 
     pub fn set_recordings(&self, recordings: super::recording::Recordings) {
         *self.recordings.borrow_mut() = Some(recordings);
+    }
+
+    pub fn set_wallpaper_chooser(&self, chooser: Rc<dyn WallpaperChooser>) {
+        *self.wallpaper.borrow_mut() = Some(chooser);
     }
 
     pub fn set_bar_sources(&self, sources: BarSources) {
@@ -347,6 +355,8 @@ fn open_editor(w: &Rc<Wiring>, key: &WindowKey, cx: &mut App) -> Result<Rc<dyn W
     };
     w.editors.borrow_mut().retain(|e| e.upgrade().is_some());
     w.editors.borrow_mut().push(editor.downgrade());
+    let settings = w.settings.clone();
+    let wallpaper = w.wallpaper.borrow().clone();
     let config = IoConfig {
         chooser: Some(w.chooser.clone()),
         clipboard: Some(w.clipboard.clone()),
@@ -359,11 +369,39 @@ fn open_editor(w: &Rc<Wiring>, key: &WindowKey, cx: &mut App) -> Result<Rc<dyn W
             if let Ok(session) = &result {
                 session.io.update(cx, |io, _| io.configure(config));
             }
+            let loaded = result.is_ok();
             editor.update(cx, |e, cx| e.loaded(result, cx));
+            if loaded {
+                finish_editor(&settings, wallpaper, &editor, cx);
+            }
         });
     })
     .detach();
     Ok(handle(window))
+}
+
+fn finish_editor(
+    settings: &Entity<SettingsModel>,
+    wallpaper: Option<Rc<dyn WallpaperChooser>>,
+    editor: &Entity<EditorWindow>,
+    cx: &mut App,
+) {
+    let config = settings.read(cx).config().clone();
+    editor.update(cx, |e, cx| {
+        e.apply_config(&config, cx);
+        let body = e
+            .inspector()
+            .and_then(|i| i.read(cx).body(Section::Background).cloned())
+            .and_then(|b| b.downcast::<BackgroundBody>().ok());
+        if let (Some(body), Some(chooser)) = (body, wallpaper) {
+            body.update(cx, |b, _| b.set_chooser(chooser));
+        }
+        cx.observe(settings, |e, settings, cx| {
+            let config = settings.read(cx).config().clone();
+            e.apply_config(&config, cx);
+        })
+        .detach();
+    });
 }
 
 pub(super) fn onboarding_input(w: &Wiring, cx: &App) -> OnboardingInput {

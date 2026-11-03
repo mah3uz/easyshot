@@ -107,7 +107,7 @@ pub fn launch_with(overrides: BTreeMap<String, String>) -> Fixture {
         move |cx| {
             es_ui::components::gallery::init(cx);
             es_ui::theme::set_mode(ThemeMode::Dark, cx);
-            es_editor::keyboard::bind(cx, &overrides);
+            es_editor::keyboard::bind(cx, &overrides, &Default::default());
         },
         1080.0,
         720.0,

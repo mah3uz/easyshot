@@ -10,8 +10,6 @@ use std::rc::Rc;
 
 pub const CONTEXT: &str = "EditorWindow";
 
-const NUDGE: f64 = 1.0;
-const NUDGE_BIG: f64 = 10.0;
 const TEXT_SIZE_STEP: f64 = 2.0;
 const TEXT_SIZE_RANGE: (f64, f64) = (4.0, 300.0);
 const STROKE_STEP: f64 = 1.0;
@@ -165,7 +163,14 @@ pub fn keystroke(trigger: &Trigger) -> Option<String> {
 }
 
 /// Every key the editor listens to, from the catalogue and the user's overrides.
-pub fn bindings(overrides: &BTreeMap<String, String>) -> Vec<(String, Command)> {
+pub fn bindings(
+    overrides: &BTreeMap<String, String>,
+    editor: &es_model::config::Editor,
+) -> Vec<(String, Command)> {
+    let (small, big) = (
+        f64::from(editor.nudge_step),
+        f64::from(editor.nudge_step_shift),
+    );
     let mut out = Vec::new();
     for entry in CATALOGUE
         .iter()
@@ -203,20 +208,20 @@ pub fn bindings(overrides: &BTreeMap<String, String>) -> Vec<(String, Command)> 
     ] {
         out.push((
             name.to_ascii_lowercase(),
-            Command::Nudge(dx * NUDGE, dy * NUDGE),
+            Command::Nudge(dx * small, dy * small),
         ));
         out.push((
             format!("shift-{}", name.to_ascii_lowercase()),
-            Command::Nudge(dx * NUDGE_BIG, dy * NUDGE_BIG),
+            Command::Nudge(dx * big, dy * big),
         ));
     }
     out
 }
 
 /// Replaces the editor's bindings and keeps all others, so it can run again when the overrides change.
-pub fn bind(cx: &mut App, overrides: &BTreeMap<String, String>) {
+pub fn bind(cx: &mut App, overrides: &BTreeMap<String, String>, editor: &es_model::config::Editor) {
     let context = KeyBindingContextPredicate::parse(CONTEXT).ok().map(Rc::new);
-    let editor: Vec<KeyBinding> = bindings(overrides)
+    let editor: Vec<KeyBinding> = bindings(overrides, editor)
         .into_iter()
         .filter_map(|(key, command)| {
             KeyBinding::load(

@@ -214,6 +214,10 @@ impl ViewportModel {
         self.anchor_at_pointer = at_pointer;
     }
 
+    pub fn zoom_anchor_pointer(&self) -> bool {
+        self.anchor_at_pointer
+    }
+
     pub fn set_container(&mut self, size: Size, scale_factor: f64, cx: &mut Context<Self>) {
         self.update(cx, |m| {
             m.container = size;

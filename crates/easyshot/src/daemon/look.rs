@@ -10,6 +10,7 @@ struct Applied {
     system: Option<Appearance>,
     theme: Option<ThemeMode>,
     shortcuts: Option<BTreeMap<String, String>>,
+    editor: Option<es_model::config::Editor>,
 }
 
 impl Global for Applied {}
@@ -51,16 +52,18 @@ fn apply(settings: &Entity<SettingsModel>, cx: &mut App) {
     let applied = cx.global::<Applied>();
     let mode = theme_mode(&config.general.theme, applied.system);
     let retheme = applied.theme != Some(mode);
-    let rebind = applied.shortcuts.as_ref() != Some(&config.shortcuts);
+    let rebind = applied.shortcuts.as_ref() != Some(&config.shortcuts)
+        || applied.editor.as_ref() != Some(&config.editor);
     if retheme {
         es_ui::theme::set_mode(mode, cx);
     }
     if rebind {
-        es_editor::keyboard::bind(cx, &config.shortcuts);
+        es_editor::keyboard::bind(cx, &config.shortcuts, &config.editor);
     }
     let applied = cx.global_mut::<Applied>();
     applied.theme = Some(mode);
     applied.shortcuts = Some(config.shortcuts.clone());
+    applied.editor = Some(config.editor.clone());
 }
 
 fn theme_mode(setting: &str, system: Option<Appearance>) -> ThemeMode {

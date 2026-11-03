@@ -42,7 +42,7 @@ fn toolbar_events(f: &mut Fixture) -> Rc<RefCell<Vec<ToolRowEvent>>> {
 
 #[test]
 fn every_catalogue_default_for_the_editor_has_a_binding() {
-    let bound = bindings(&BTreeMap::new());
+    let bound = bindings(&BTreeMap::new(), &Default::default());
     for entry in CATALOGUE
         .iter()
         .filter(|e| e.scope == Scope::Editor && e.id.starts_with("image-"))

@@ -344,6 +344,9 @@ fn start(
         windows.clone(),
     );
     wiring.register();
+    if test_mode {
+        wiring.set_wallpaper_chooser(Rc::new(pickers::Declining));
+    }
     wiring.set_bar_sources(bar::BarSources {
         windows: {
             let backend = backend.clone();

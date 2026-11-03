@@ -38,6 +38,12 @@ impl ExportChooser for Declining {
     }
 }
 
+impl es_editor::inspector::background::WallpaperChooser for Declining {
+    fn choose(&self, _: &mut App) -> Task<Option<PathBuf>> {
+        Task::ready(None)
+    }
+}
+
 pub fn folder_picker() -> FolderPicker {
     Rc::new(|cx| {
         let picked = cx.prompt_for_paths(PathPromptOptions {

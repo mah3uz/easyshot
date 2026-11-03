@@ -308,6 +308,23 @@ impl EditorWindow {
         cx.notify();
     }
 
+    /// Applies the `[editor]` zoom anchor and the `[ocr]` languages to this window.
+    pub fn apply_config(&mut self, config: &es_model::Config, cx: &mut Context<Self>) {
+        if let Some(session) = self.session() {
+            let at_pointer = config.editor.zoom_anchor != "centre";
+            session
+                .viewport
+                .update(cx, |v, _| v.set_zoom_anchor_pointer(at_pointer));
+        }
+        if self.ocr.languages != config.ocr.languages {
+            let options = es_ocr::OcrOptions {
+                languages: config.ocr.languages.clone(),
+                ..Default::default()
+            };
+            self.set_ocr_options(options, cx);
+        }
+    }
+
     pub fn set_low_res(&mut self, low_res: bool, cx: &mut Context<Self>) {
         self.low_res = low_res;
         self.low_res_expanded &= low_res;

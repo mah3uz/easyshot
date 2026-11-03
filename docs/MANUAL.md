@@ -220,11 +220,11 @@ unsaved edits the next time it starts ("Recovered unsaved edits").
 
 ### Editor keys
 
-These are additional editor keys, and all appear in Settings > Shortcuts.
+These are additional editor keys. They are fixed: only Ctrl+Shift+C also appears in Settings > Shortcuts, and none of the others can be rebound.
 
 | Key | What it does |
 |---|---|
-| Arrow keys | Nudge the selection by 1 pixel. Shift: 10 pixels. |
+| Arrow keys | Nudge the selection by 1 pixel. Shift: 10 pixels. Both steps are set by `nudge_step` and `nudge_step_shift` under `[editor]`. |
 | Esc | Steps back one level per press: commits the text you are typing, leaves crop, clears the selection, then switches to the Select tool. |
 | Middle-button drag, or hold Space and drag from empty canvas | Pan. It stops when you let go, even outside the canvas. |
 | Hold Space and drag an annotation | Move it, with any tool; the pointer is a pointing hand over it. |
