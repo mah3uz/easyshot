@@ -46,17 +46,12 @@ impl EditorWindow {
                     .child(self.title(cx)),
             )
             .child(
-                side()
-                    .justify_end()
-                    .pr(px(12.))
-                    .child(if self.is_cropping(cx) {
-                        hold("crop-hold").child(self.crop_controls(cx))
-                    } else {
-                        hold("actions-hold")
-                            .gap(px(8.))
-                            .child(self.save_control(cx))
-                            .child(self.export_control(cx))
-                    }),
+                side().justify_end().pr(px(12.)).child(
+                    hold("actions-hold")
+                        .gap(px(8.))
+                        .child(self.save_control(cx))
+                        .child(self.export_control(cx)),
+                ),
             )
     }
 
@@ -69,7 +64,7 @@ impl EditorWindow {
                 .icon(IconName::Download)
                 .label(fl!("editor-save"))
                 .tooltip(fl!("editor-save-help-plain"))
-                .disabled(!self.can_run(Job::Save, cx))
+                .disabled(!self.can_run(Job::Save, cx) || self.is_cropping(cx))
                 .on_click(cx.listener(|w, _, _, cx| {
                     w.request(Job::Save, cx);
                 }))
@@ -87,7 +82,7 @@ impl EditorWindow {
                 .label(fl!("editor-export"))
                 .accessible_label(fl!("editor-export-a11y"))
                 .tooltip(fl!("editor-export-help"))
-                .disabled(!self.can_run(Job::Export, cx))
+                .disabled(!self.can_run(Job::Export, cx) || self.is_cropping(cx))
                 .on_click(cx.listener(|w, _, _, cx| {
                     w.request(Job::Export, cx);
                 }))

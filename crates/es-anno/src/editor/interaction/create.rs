@@ -213,6 +213,7 @@ impl Editor {
             arrowhead_end: head_end,
             swatch: self.current.swatch.clone(),
             stroke_width: self.page_stroke(),
+            dash: self.current.dash,
             ..ArrowProps::default()
         };
         let id = self.add_shape(AnnoShape::new(p.x, p.y, ShapeKind::Arrow(props)), ch);

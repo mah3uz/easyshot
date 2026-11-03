@@ -117,15 +117,30 @@ under it, the image in the middle, the inspector on the right and the footer (zo
 at the bottom. The button at the right end of the tool row hides and shows the inspector.
 Tab moves through the title bar, the tool row, the inspector, then the footer.
 
+A tool's options open in a panel under its button and stay open until you pick another
+tool; clicking on the image does not close them. Shapes and pens offer colour and stroke
+width; Arrow adds a head for each end (None, Arrow, Triangle, Square, Dot, Diamond,
+Inverted, Bar) and a line style (Solid, Dashed, Dotted), which Line also has; Text offers
+the font, colour, size, bold, italic, underline and alignment; Blur and Pixelate offer the
+strength; the Highlighter offers colour, width and its mode. The Highlight tool has no
+options. With the Select tool, selecting shapes opens the options of the first one, with a
+button to delete the selection. A change applies to new shapes and to the selection, as one
+undo step.
+
+Over the image, each tool shows its own pointer: a cross for shapes, lines and arrows, a pen
+for Freehand and the Highlighter, a text cursor for Text, a numbered badge for the counter,
+and a dotted square, whose solid corner is where the drag starts, for Highlight, Pixelate
+and Blur.
+
 The Highlighter (key M) paints translucent colour over text without hiding it: the stroke
 is multiplied into the image at about 40% strength, so dark text stays dark. It has two
 modes. Freehand follows the pointer; Straight draws one line from where you press, and Shift
 snaps it to 15 degrees. Press M again to switch mode; the tool button and its tooltip show
-which mode is on. Pick the colour in the colour control and the thickness with the stroke
-width. Strokes stay on the image, and the editor and export show the same result. The
+which mode is on, and its options switch it too. Pick the colour and the thickness in its
+options. Strokes stay on the image, and the editor and export show the same result. The
 Highlight tool, which dims everything outside an area, is separate.
 
-New text starts at size 36. Change the size in the toolbar. While you type, a dashed box in the
+New text starts at size 36. Change the size in the Text options. While you type, a dashed box in the
 accent colour shows where the text goes, and an empty text shows a small box so you can see
 where you clicked. The box is only a guide: it is not saved or exported.
 
@@ -135,11 +150,11 @@ edge is the cropped image's. A stroke is held by its points, so its thick line c
 slightly past the edge.
 
 To crop, press the crop button in the tool row. Drag a corner or edge handle to resize the
-selection, or drag inside it to move it; hold Alt to resize about the centre. The aspect
-menu in the title bar offers Freeform, Original, 1:1, 16:9, 9:16, 4:3 and 3:2; while an
+selection, or drag inside it to move it; hold Alt to resize about the centre. The crop
+options open under the crop button: the aspect menu offers Freeform, Original, 1:1, 16:9, 9:16, 4:3 and 3:2; while an
 aspect is locked only the corners resize. The footer shows the size the image will have.
 Enter or Crop applies; Escape, Cancel or the crop button again leaves without a change, and
-Reset returns to the whole image. Rotate and flip are in the menu beside the crop button.
+Reset returns to the whole image. Save and Export wait until the crop is applied or left. Rotate and flip are in the menu beside the crop button.
 Your annotations move with the pixels under them. Crop, rotate and flip are undoable: undo
 first steps back through the edits you made after them. The editor keeps the last 16 image
 steps, and drops the oldest sooner when they would hold more than 768 MiB of pixels.

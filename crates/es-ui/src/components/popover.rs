@@ -20,7 +20,7 @@ const START_SCALE: f32 = 0.96;
 const START_TRAVEL: f32 = 4.;
 const SHADOW_INK: f32 = 0.18;
 
-fn shadow(strength: f32) -> Vec<BoxShadow> {
+pub fn shadow(strength: f32) -> Vec<BoxShadow> {
     vec![
         BoxShadow::new(px(0.), px(6.), hsla(0., 0., 0., SHADOW_INK * strength))
             .blur_radius(px(9.))

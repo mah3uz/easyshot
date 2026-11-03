@@ -234,7 +234,7 @@ useHead({
         <!-- 6 -->
         <HowStep :n="6" id="annotate" title="Annotate and share">
           <p>
-            Choose <strong>Annotate</strong> on a deck card, or capture with <code>--annotate</code>. Add arrows, shapes, text and steps, blur what is private with <strong>Smart Redaction</strong> (it says what it hid and offers Undo), highlight text with the <strong>Highlighter</strong>, then set a background,
+            Choose <strong>Annotate</strong> on a deck card, or capture with <code>--annotate</code>. Add arrows, shapes, text and steps, with each tool's options (colour, stroke, arrowheads, font) in a panel under its button, blur what is private with <strong>Smart Redaction</strong> (it says what it hid and offers Undo), highlight text with the <strong>Highlighter</strong>, then set a background,
             padding, shadow and canvas shape in the inspector on the right. Save keeps your edits editable; Export writes PNG or JPEG.
           </p>
           <div class="grid gap-2 sm:grid-cols-2">

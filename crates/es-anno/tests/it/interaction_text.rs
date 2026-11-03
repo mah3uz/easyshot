@@ -73,7 +73,8 @@ fn a_text_tool_click_on_existing_text_edits_it_instead_of_making_more() {
     assert_eq!(ed.cursor_for(Point::new(240.0, 212.0)), CursorKind::IBeam);
     assert_eq!(
         ed.cursor_for(Point::new(600.0, 600.0)),
-        CursorKind::AnnotationPlus
+        CursorKind::IBeam,
+        "the text tool shows the I-beam where a click starts new text"
     );
     click(&mut ed, at(240.0, 212.0));
     assert_eq!(ed.editing_text_id(), Some(ti));

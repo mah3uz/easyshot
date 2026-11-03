@@ -1,23 +1,23 @@
 use std::rc::Rc;
 
-use es_anno::StylePatch;
+use es_anno::{CurrentStyle, StylePatch};
 use es_model::{FontFamily, TextAlign};
 use es_ui::{
     a11y::{Accessible, Role},
-    components::{EditorButton, Popover, Segment, Segmented},
+    components::{Segment, Segmented},
     icons::IconName,
     theme::tokens,
     tokens::{Tokens, Typeset},
 };
 use gpui::{
-    App, Context, FontWeight, InteractiveElement, IntoElement, ParentElement, Pixels, SharedString,
-    StatefulInteractiveElement, Styled, WeakEntity, div, px,
+    App, Context, Div, FontWeight, InteractiveElement, IntoElement, ParentElement, Pixels,
+    SharedString, StatefulInteractiveElement, Styled, WeakEntity, div, px,
 };
 
 use super::{
     Control, ToolRow,
     menus::{choice_menu, menu_trigger},
-    style_bar::{POPOVER_WIDTH, swatches},
+    style_bar::swatches,
     track,
 };
 use crate::strings::fl;
@@ -177,90 +177,71 @@ fn emphasis(
         ))
 }
 
-pub(super) fn popover(row: &ToolRow, cx: &mut Context<ToolRow>) -> impl IntoElement {
+pub(super) fn content(row: &ToolRow, style: &CurrentStyle, cx: &mut Context<ToolRow>) -> Div {
     let weak = cx.entity().downgrade();
-    let (doc, drawn) = (row.doc.clone(), row.drawn.clone());
-    let trigger = EditorButton::new("text-style")
-        .icon(IconName::ALargeSmall)
-        .accessible_label(fl!("editor-text-style"))
-        .tooltip(fl!("editor-text-style"))
-        .padding_x(tokens(cx).metrics.tool_button_padding_x);
-    let popover = Popover::new("text-style-popover", fl!("editor-text-style"))
-        .width(POPOVER_WIDTH)
-        .trigger(trigger)
-        .content(move |_, cx| {
-            let t = tokens(cx).clone();
-            let style = doc.read(cx).editor().current_style().clone();
-            let apply = applier(weak.clone());
-            let family_apply = apply.clone();
-            let family = choice_menu(
-                menu_trigger(
-                    "font-family",
-                    fl!("editor-font-family-help"),
-                    None,
-                    Some(family_title(style.font_family).into()),
-                    false,
-                    cx,
-                )
-                .w_full()
-                .bg(t.track),
-                FAMILIES
-                    .iter()
-                    .map(|&f| (f, family_title(f), None))
-                    .collect(),
-                Some(style.font_family),
-                Rc::new(move |f, _, cx| family_apply(StylePatch::FontFamily(f), cx)),
-            );
-            let align_apply = apply.clone();
-            let align = Segmented::new(
-                "align",
-                fl!("editor-text-align"),
-                [
-                    Segment::icon(IconName::TextAlignStart, fl!("editor-text-align-start")),
-                    Segment::icon(IconName::TextAlignCenter, fl!("editor-text-align-center")),
-                    Segment::icon(IconName::TextAlignEnd, fl!("editor-text-align-end")),
-                ],
-            )
-            .height(t.metrics.control_height)
-            .selected(ALIGNS.iter().position(|a| *a == style.align).unwrap_or(0))
-            .on_select(move |i, _, cx| {
-                if let Some(&a) = ALIGNS.get(i) {
-                    align_apply(StylePatch::Align(a), cx);
-                }
-            });
+    let t = tokens(cx).clone();
+    let apply = applier(weak.clone());
+    let family_apply = apply.clone();
+    let family = choice_menu(
+        menu_trigger(
+            "font-family",
+            fl!("editor-font-family-help"),
+            None,
+            Some(family_title(style.font_family).into()),
+            false,
+            cx,
+        )
+        .w_full()
+        .bg(t.track),
+        FAMILIES
+            .iter()
+            .map(|&f| (f, family_title(f), None))
+            .collect(),
+        Some(style.font_family),
+        Rc::new(move |f, _, cx| family_apply(StylePatch::FontFamily(f), cx)),
+    );
+    let align_apply = apply.clone();
+    let align = Segmented::new(
+        "align",
+        fl!("editor-text-align"),
+        [
+            Segment::icon(IconName::TextAlignStart, fl!("editor-text-align-start")),
+            Segment::icon(IconName::TextAlignCenter, fl!("editor-text-align-center")),
+            Segment::icon(IconName::TextAlignEnd, fl!("editor-text-align-end")),
+        ],
+    )
+    .height(t.metrics.control_height)
+    .selected(ALIGNS.iter().position(|a| *a == style.align).unwrap_or(0))
+    .on_select(move |i, _, cx| {
+        if let Some(&a) = ALIGNS.get(i) {
+            align_apply(StylePatch::Align(a), cx);
+        }
+    });
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(12.))
+        .child(track(&row.drawn, Control::FontFamily, family).w_full())
+        .child(swatches(
+            "swatches",
+            Control::Swatches,
+            &style.swatch,
+            weak,
+            &row.drawn,
+        ))
+        .child(
             div()
                 .flex()
-                .flex_col()
-                .gap(px(12.))
-                .p(px(8.))
-                .child(
-                    div()
-                        .typeset(t.type_scale.title)
-                        .child(fl!("editor-text-style")),
-                )
-                .child(family)
-                .child(swatches(
-                    "text-swatches",
-                    Control::TextSwatches,
-                    &style.swatch,
-                    weak.clone(),
-                    &drawn,
-                ))
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .justify_between()
-                        .child(stepper(style.font_size, apply.clone(), &t))
-                        .child(emphasis(
-                            style.bold,
-                            style.italic,
-                            style.underline,
-                            &apply,
-                            &t,
-                        )),
-                )
-                .child(align)
-        });
-    track(&row.drawn, Control::TextStyle, popover)
+                .items_center()
+                .justify_between()
+                .child(stepper(style.font_size, apply.clone(), &t))
+                .child(emphasis(
+                    style.bold,
+                    style.italic,
+                    style.underline,
+                    &apply,
+                    &t,
+                )),
+        )
+        .child(align)
 }

@@ -231,3 +231,14 @@ What was rejected beyond that, and why: not recorded.
     tabs are a segmented control above both panes, which keep their own sidebars unchanged.
     Rejected: two separate windows, which the launcher could open only one of; a `home`
     subcommand, since a bare `easyshot` says it already.
+24. **Tool options in a panel under the active tool** (maintainer's decision, 2026-11-03):
+    colour, stroke, arrowheads, line style, text style, strength, highlighter mode and
+    crop's ratio, Reset, Cancel and Apply sit in one panel anchored under the armed tool's
+    button, open until the tool changes. Rejected: the style strip in the tool row, which
+    had no room for arrowheads and line style, and crop's buttons in the title bar, far from
+    the crop button. Rejected: a popover that closes on outside clicks, which would close on
+    every stroke.
+25. **A cursor per tool family** (maintainer's decision, 2026-11-03): a cross for shapes and
+    arrows, a pen for freehand and the highlighter, an I-beam for text, a badge for the
+    counter, a dotted square for Highlight, Pixelate and Blur. Rejected: one plus for every
+    drawing tool, which did not say what a press would make.

@@ -261,7 +261,8 @@ fn freehand_records_points_from_the_press_and_skips_ones_that_barely_move() {
     assert_eq!(live.raw().len(), 2);
     assert_eq!(
         ed.cursor_for(Point::new(110.0, 100.0)),
-        CursorKind::AnnotationPlus
+        CursorKind::Pen,
+        "the pen stays while drawing"
     );
     ed.pointer_move(at(120.0, 105.0));
     ed.pointer_up(at(120.0, 105.0));
@@ -384,33 +385,27 @@ fn counters_never_shrink_below_24_on_small_images() {
 }
 
 #[test]
-fn drawing_tools_show_the_plus_even_over_existing_shapes() {
+fn each_drawing_tool_shows_its_family_cursor_even_over_existing_shapes() {
     let r = filled_rect(0.0, 0.0, 100.0, 100.0);
     let mut ed = editor(vec![r], vec![]);
-    for tool in [
-        Tool::Rectangle,
-        Tool::FilledRectangle,
-        Tool::Ellipse,
-        Tool::Line,
-        Tool::Arrow,
-        Tool::Freehand,
-        Tool::NumberedCircle,
-        Tool::Highlight,
-        Tool::Pixelate,
-        Tool::Blur,
-        Tool::Text,
-    ] {
+    let families = [
+        (Tool::Rectangle, CursorKind::AnnotationPlus),
+        (Tool::FilledRectangle, CursorKind::AnnotationPlus),
+        (Tool::Ellipse, CursorKind::AnnotationPlus),
+        (Tool::Line, CursorKind::AnnotationPlus),
+        (Tool::Arrow, CursorKind::AnnotationPlus),
+        (Tool::Freehand, CursorKind::Pen),
+        (Tool::Highlighter, CursorKind::Pen),
+        (Tool::Text, CursorKind::IBeam),
+        (Tool::NumberedCircle, CursorKind::Badge),
+        (Tool::Highlight, CursorKind::Area),
+        (Tool::Pixelate, CursorKind::Area),
+        (Tool::Blur, CursorKind::Area),
+    ];
+    for (tool, want) in families {
         ed.select_tool(tool);
-        assert_eq!(
-            ed.cursor_for(Point::new(50.0, 50.0)),
-            CursorKind::AnnotationPlus,
-            "{tool:?}"
-        );
-        assert_eq!(
-            ed.cursor_for(Point::new(500.0, 500.0)),
-            CursorKind::AnnotationPlus,
-            "{tool:?}"
-        );
+        assert_eq!(ed.cursor_for(Point::new(50.0, 50.0)), want, "{tool:?}");
+        assert_eq!(ed.cursor_for(Point::new(500.0, 500.0)), want, "{tool:?}");
     }
 }
 
@@ -443,4 +438,39 @@ fn undo_in_the_middle_of_a_drag_ends_the_drag() {
     ed.pointer_move(at(200.0, 200.0));
     ed.pointer_up(at(200.0, 200.0));
     assert!(ed.doc().shapes().is_empty());
+}
+
+#[test]
+fn picked_heads_and_dash_reach_new_arrows_but_never_give_a_line_heads() {
+    use es_anno::{GestureId, StylePatch};
+    use es_model::DashStyle;
+
+    let mut ed = armed(Tool::Line);
+    ed.pointer_down(at(10.0, 10.0));
+    ed.pointer_move(at(90.0, 10.0));
+    ed.pointer_up(at(90.0, 10.0));
+    ed.apply_style(StylePatch::ArrowheadEnd(Arrowhead::Diamond), GestureId(1));
+    ed.apply_style(StylePatch::Dash(DashStyle::Dotted), GestureId(2));
+    let ShapeKind::Arrow(line) = &only_shape(&ed).kind else {
+        unreachable!()
+    };
+    assert_eq!(
+        (line.arrowhead_end, line.dash),
+        (Arrowhead::None, DashStyle::Dotted),
+        "a selected line takes the dash and stays a line"
+    );
+
+    let mut ed = armed(Tool::Arrow);
+    ed.apply_style(StylePatch::ArrowheadStart(Arrowhead::Dot), GestureId(1));
+    ed.apply_style(StylePatch::Dash(DashStyle::Dashed), GestureId(2));
+    ed.pointer_down(at(10.0, 10.0));
+    ed.pointer_move(at(90.0, 10.0));
+    ed.pointer_up(at(90.0, 10.0));
+    let ShapeKind::Arrow(arrow) = &only_shape(&ed).kind else {
+        unreachable!()
+    };
+    assert_eq!(
+        (arrow.arrowhead_start, arrow.arrowhead_end, arrow.dash),
+        (Arrowhead::Dot, Arrowhead::Arrow, DashStyle::Dashed)
+    );
 }

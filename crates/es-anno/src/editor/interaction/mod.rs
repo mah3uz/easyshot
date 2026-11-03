@@ -309,7 +309,7 @@ impl Editor {
             Interaction::CreatingBox { .. }
             | Interaction::CreatingArrow { .. }
             | Interaction::Highlighting { .. }
-            | Interaction::Drawing { .. } => CursorKind::AnnotationPlus,
+            | Interaction::Drawing { .. } => tool_cursor(self.tool),
             Interaction::Translating { .. } => CursorKind::ClosedHand,
             Interaction::Brushing { .. } => CursorKind::Arrow,
             Interaction::Resizing { cursor, .. }
@@ -323,8 +323,7 @@ impl Editor {
                 }
                 match self.tool {
                     Tool::Select => self.select_hover_cursor(screen, page, hit),
-                    Tool::Text if hit.is_some_and(|id| self.is_text_shape(id)) => CursorKind::IBeam,
-                    _ => CursorKind::AnnotationPlus,
+                    tool => tool_cursor(tool),
                 }
             }
         }
@@ -332,5 +331,19 @@ impl Editor {
 
     fn is_text_shape(&self, id: AnnoShapeId) -> bool {
         self.doc.shape(id).is_some_and(|s| s.is_text())
+    }
+}
+
+/// The cursor a drawing tool shows over the canvas, one per family.
+pub fn tool_cursor(tool: Tool) -> CursorKind {
+    match tool {
+        Tool::Select => CursorKind::Arrow,
+        Tool::Rectangle | Tool::FilledRectangle | Tool::Ellipse | Tool::Line | Tool::Arrow => {
+            CursorKind::AnnotationPlus
+        }
+        Tool::Freehand | Tool::Highlighter => CursorKind::Pen,
+        Tool::Text => CursorKind::IBeam,
+        Tool::NumberedCircle => CursorKind::Badge,
+        Tool::Highlight | Tool::Pixelate | Tool::Blur => CursorKind::Area,
     }
 }

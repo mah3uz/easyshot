@@ -10,6 +10,9 @@ pub const SCALES: [f32; 3] = [1.0, 1.5, 2.0];
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Cursors {
     pub annotation_plus: CustomCursorId,
+    pub pen: CustomCursorId,
+    pub badge: CustomCursorId,
+    pub area: CustomCursorId,
     // rotate[k] bulges toward k * 45° clockwise from +x in screen space (y down).
     pub rotate: [CustomCursorId; 8],
     pub window_camera: CustomCursorId,
@@ -18,6 +21,9 @@ pub struct Cursors {
 pub fn register(cx: &mut App) -> Cursors {
     Cursors {
         annotation_plus: cx.register_cursor_image(annotation_plus()),
+        pen: cx.register_cursor_image(pen()),
+        badge: cx.register_cursor_image(badge()),
+        area: cx.register_cursor_image(area()),
         rotate: std::array::from_fn(|k| cx.register_cursor_image(rotate(k))),
         window_camera: cx.register_cursor_image(window_camera()),
     }
@@ -28,7 +34,61 @@ pub fn annotation_plus() -> CursorImage {
         Shape::Segment(P(5.0, 11.0), P(17.0, 11.0)),
         Shape::Segment(P(11.0, 5.0), P(11.0, 17.0)),
     ];
-    cursor(22, 11, 1.5, move |p| distance(&arms, p) - 1.0)
+    cursor(22, (11, 11), 1.5, move |p| distance(&arms, p) - 1.0)
+}
+
+/// A pencil whose lead is the hotspot, so a stroke starts under its tip.
+pub fn pen() -> CursorImage {
+    let tip = P(4.0, 18.0);
+    let along = P(1.0, -1.0).mul(std::f32::consts::FRAC_1_SQRT_2);
+    let across = P(1.0, 1.0).mul(std::f32::consts::FRAC_1_SQRT_2);
+    let at = |a: f32, c: f32| tip.add(along.mul(a)).add(across.mul(c));
+    let outline = [
+        Shape::Segment(tip, at(5.0, 2.75)),
+        Shape::Segment(tip, at(5.0, -2.75)),
+        Shape::Segment(at(5.0, 2.75), at(5.0, -2.75)),
+        Shape::Segment(at(5.0, 2.75), at(16.0, 2.75)),
+        Shape::Segment(at(5.0, -2.75), at(16.0, -2.75)),
+        Shape::Segment(at(16.0, 2.75), at(16.0, -2.75)),
+    ];
+    let lead = Shape::Triangle(tip, at(2.5, 1.4), at(2.5, -1.4));
+    cursor(22, (4, 18), 1.5, move |p| {
+        (distance(&outline, p) - 0.75).min(lead.distance(p))
+    })
+}
+
+/// A numbered badge centred on the hotspot, where the counter lands.
+pub fn badge() -> CursorImage {
+    let centre = P(11.0, 11.0);
+    let one = [
+        Shape::Segment(P(11.5, 7.5), P(11.5, 14.5)),
+        Shape::Segment(P(9.0, 9.25), P(11.5, 7.5)),
+    ];
+    // The digit is cut out of the disc, so it falls in the white halo band.
+    cursor(22, (11, 11), 1.5, move |p| {
+        (p.sub(centre).len() - 7.5).max(0.75 - distance(&one, p))
+    })
+}
+
+/// A dotted area with a solid corner at the hotspot, where the drag starts.
+pub fn area() -> CursorImage {
+    let (near, far) = (4.0, 18.0);
+    let mut edges = vec![
+        Shape::Segment(P(near, near), P(near + 4.0, near)),
+        Shape::Segment(P(near, near), P(near, near + 4.0)),
+    ];
+    let dash = |from: f32| [from, from + 2.0];
+    for start in [near + 6.0, near + 10.0] {
+        let [a, b] = dash(start);
+        edges.push(Shape::Segment(P(a, near), P(b.min(far), near)));
+        edges.push(Shape::Segment(P(near, a), P(near, b.min(far))));
+    }
+    for start in [near, near + 4.0, near + 8.0, near + 12.0] {
+        let [a, b] = dash(start);
+        edges.push(Shape::Segment(P(a, far), P(b.min(far), far)));
+        edges.push(Shape::Segment(P(far, a), P(far, b.min(far))));
+    }
+    cursor(22, (4, 4), 1.5, move |p| distance(&edges, p) - 1.0)
 }
 
 pub fn rotate(orientation: usize) -> CursorImage {
@@ -54,7 +114,7 @@ pub fn rotate(orientation: usize) -> CursorImage {
             back.sub(normal.mul(3.0)),
         )
     });
-    cursor(24, 12, 1.25, move |p| {
+    cursor(24, (12, 12), 1.25, move |p| {
         let d = p.sub(centre);
         let local = P(d.0 * cos + d.1 * sin, d.1 * cos - d.0 * sin);
         (arc.distance(local) - 1.0)
@@ -98,12 +158,12 @@ pub fn window_camera() -> CursorImage {
     ];
     let icon = 18.0 / 24.0;
     let offset = (22.0 - 18.0) / 2.0;
-    cursor(22, 11, 1.5, move |p| {
+    cursor(22, (11, 11), 1.5, move |p| {
         distance(&outline, p.sub(P(offset, offset)).mul(1.0 / icon)) * icon - 0.75
     })
 }
 
-fn cursor(side: u32, hotspot: u32, halo: f32, ink: impl Fn(P) -> f32) -> CursorImage {
+fn cursor(side: u32, hotspot: (u32, u32), halo: f32, ink: impl Fn(P) -> f32) -> CursorImage {
     let images = SCALES
         .iter()
         .map(|&scale| (scale, raster(side, scale, halo, &ink)))
@@ -111,7 +171,7 @@ fn cursor(side: u32, hotspot: u32, halo: f32, ink: impl Fn(P) -> f32) -> CursorI
     CursorImage {
         images,
         size: size(side, side),
-        hotspot: point(hotspot, hotspot),
+        hotspot: point(hotspot.0, hotspot.1),
     }
 }
 

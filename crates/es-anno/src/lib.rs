@@ -7,7 +7,9 @@ pub mod text;
 
 pub use document::{Document, Snapshot, TextMeasure};
 pub use draw::{BuildContext, DrawItem, DrawList, GlyphOutline, GlyphOutliner, build_draw_list};
-pub use editor::{EditHistory, Editor, GestureId, Handle, SelectionBounds, Viewport};
+pub use editor::{
+    EditHistory, Editor, GestureId, Handle, SelectionBounds, Viewport, interaction::tool_cursor,
+};
 pub use style::{CurrentStyle, StylePatch};
 pub use text::BundledText;
 
@@ -81,6 +83,9 @@ pub struct Changes {
 pub enum CursorKind {
     Arrow,
     AnnotationPlus,
+    Pen,
+    Badge,
+    Area,
     OpenHand,
     ClosedHand,
     IBeam,

@@ -1,4 +1,6 @@
+pub mod crop_options;
 pub(crate) mod menus;
+mod options;
 pub(crate) mod style_bar;
 mod text_style;
 pub mod tools;
@@ -15,12 +17,12 @@ use es_ui::{
 };
 use gpui::{
     Anchor, AnyElement, App, AppContext, Bounds, Context, Div, Entity, EventEmitter, IntoElement,
-    ParentElement, Pixels, Render, Styled, Subscription, Window, canvas, div,
-    prelude::FluentBuilder, px,
+    ParentElement, Pixels, Render, Styled, Subscription, Window, canvas, div, px,
 };
 
 use crate::session::{
     EditorSession,
+    crop::CropModel,
     doc::{DocEvent, DocModel},
 };
 use crate::strings::fl;
@@ -62,14 +64,20 @@ pub enum Control {
     SmartRedact,
     RedactPixelate,
     RedactBlur,
-    Palette,
-    ColorCapsule,
+    Options,
     Swatches,
     Stroke,
-    TextStyle,
-    TextSwatches,
+    FontFamily,
+    ArrowStart,
+    ArrowEnd,
+    Dash,
+    HighlighterMode,
     Strength,
     Delete,
+    CropAspect,
+    CropReset,
+    CropCancel,
+    CropApply,
     Inspector,
 }
 
@@ -77,6 +85,7 @@ type Drawn = Rc<RefCell<HashMap<Control, Bounds<Pixels>>>>;
 
 pub struct ToolRow {
     doc: Entity<DocModel>,
+    crop: Entity<CropModel>,
     cropping: bool,
     inspector_open: bool,
     redact_open: bool,
@@ -95,8 +104,10 @@ impl ToolRow {
     pub fn new(session: &EditorSession, cx: &mut Context<Self>) -> Self {
         let doc = session.doc.clone();
         let on_doc = cx.subscribe(&doc, |_, _, _: &DocEvent, cx| cx.notify());
+        let on_crop = cx.observe(&session.crop, |_, _, cx| cx.notify());
         Self {
             doc,
+            crop: session.crop.clone(),
             cropping: false,
             inspector_open: true,
             redact_open: false,
@@ -106,7 +117,7 @@ impl ToolRow {
             gestures: 0,
             dragging: None,
             drawn: Rc::default(),
-            _subscriptions: vec![on_doc],
+            _subscriptions: vec![on_doc, on_crop],
         }
     }
 
@@ -397,6 +408,13 @@ impl Render for ToolRow {
                     let _ = row.update(cx, |_, cx| cx.emit(ToolRowEvent::Crop));
                 })
         };
+        let mut options = options::render(self, tool, window, cx);
+        let mut hang =
+            |control: Control, tracked: Div| match options.take_if(|(c, _)| *c == control) {
+                Some((_, panel)) => tracked.child(panel),
+                None => tracked,
+            };
+        let crop = hang(Control::Crop, self.track(Control::Crop, crop));
         let tools: Vec<AnyElement> = Tool::ALL
             .iter()
             .enumerate()
@@ -423,12 +441,10 @@ impl Render for ToolRow {
                     .on_click(move |_, _, cx| {
                         let _ = row.update(cx, |r, cx| r.pick_tool(each, cx));
                     });
-                self.track(Control::Tool(each), button).into_any_element()
+                hang(Control::Tool(each), self.track(Control::Tool(each), button))
+                    .into_any_element()
             })
             .collect();
-        let style_bar = (!self.cropping)
-            .then(|| style_bar::render(self, window, cx))
-            .flatten();
         let inspector = {
             let row = row.clone();
             let tip = if self.inspector_open {
@@ -452,13 +468,12 @@ impl Render for ToolRow {
             .h_full()
             .gap(GAP)
             .text_color(t.text)
-            .child(self.track(Control::Crop, crop))
+            .child(crop)
             .child(self.rotate_group(cx))
             .child(divider(cx))
             .children(tools)
             .child(self.track(Control::SmartRedact, self.smart_redaction(cx)))
             .child(divider(cx))
-            .when_some(style_bar, |d, bar| d.child(bar))
             .child(div().flex_1())
             .child(self.track(Control::Inspector, inspector))
     }

@@ -31,7 +31,17 @@ Not added, because they would break the 1:1 look or need tuning: snapping guides
 later, behind a setting), an eraser tool (a 13th button), Alt-drag duplicate (Alt already
 means centre-resize), region selection across outputs, and numeric geometry fields.
 
-## 3. Cursors
+## 3. Tool options
+
+A tool's options hang under its button in the popover style (the dropdown fill, popover
+radius, hairline border and shadow), with a notch pointing at the button. The panel slides
+to stay 8 px inside the window while the notch stays on the button, and it opens below the
+tool row, never over it. It is not a popover that closes on outside clicks: it stays until
+the tool changes, so you can draw, restyle and draw again. Esc keeps its ladder. The same
+panel holds crop's ratio, Reset, Cancel and Apply, so the title bar keeps Save and Export
+only.
+
+## 4. Cursors
 
 Custom bitmaps are drawn procedurally at 1x, 1.5x and 2x and registered once through
 patches to vendored GPUI that add `CursorStyle::Custom`; each custom cursor has its own
@@ -56,10 +66,17 @@ Custom bitmaps:
   end, black 2 pt over a white 4.5 pt halo, pre-rendered at 8 orientations. The
   orientation follows the corner's screen-space direction, and while rotating it follows
   the pointer's angle around the selection centre.
+- pen: 22x22, hotspot (4, 18) at the lead, a pencil at 45 degrees, for Freehand and the
+  Highlighter.
+- badge: 22x22, hotspot (11, 11), a black disc of radius 7.5 with a white 1 cut out, for the
+  counter.
+- area: 22x22, hotspot (4, 4) at a solid corner, the rest of a 14 px square dotted, for
+  Highlight, Pixelate and Blur.
+- Text shows the system I-beam; shapes, lines and arrows show annotationPlus.
 - windowCamera: the Lucide `camera` at 18 px, black with a 1.5 px white halo, hotspot at
   the centre.
 
-## 4. Where the rest is recorded
+## 5. Where the rest is recorded
 
 The full per-surface, per-tool cursor table, the editor's visual specifications and the
 design tokens are not written down yet.

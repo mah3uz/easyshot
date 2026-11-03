@@ -28,5 +28,7 @@ mod strings;
 mod text_edit;
 mod text_edit_bench;
 mod text_edit_support;
+mod tool_cursors;
+mod tool_options;
 mod toolbar;
 mod window;

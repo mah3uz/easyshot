@@ -419,7 +419,7 @@ fn crop_mode_dims_the_outside_and_frames_the_rect_with_white_handles_in_either_t
             c.release(cx);
         });
         let shot = app.screenshot(&format!("crop-mode-{name}"));
-        let outside = window_point(&app, &editor, Point::new(100.0, 60.0));
+        let outside = window_point(&app, &editor, Point::new(1100.0, 600.0));
         let inside = window_point(&app, &editor, Point::new(620.0, 250.0));
         assert!(
             luma(&shot, outside) < luma(&plain, outside) * 0.6,

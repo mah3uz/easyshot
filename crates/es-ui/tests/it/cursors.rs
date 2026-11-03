@@ -1,4 +1,4 @@
-use es_ui::cursors::{SCALES, annotation_plus, rotate, window_camera};
+use es_ui::cursors::{SCALES, annotation_plus, area, badge, pen, rotate, window_camera};
 use gpui::CursorImage;
 
 struct Bitmap<'a> {
@@ -75,6 +75,9 @@ fn all() -> Vec<(String, CursorImage)> {
     let mut all = vec![
         ("annotationPlus".to_string(), annotation_plus()),
         ("windowCamera".to_string(), window_camera()),
+        ("pen".to_string(), pen()),
+        ("badge".to_string(), badge()),
+        ("area".to_string(), area()),
     ];
     all.extend((0..8).map(|k| (format!("rotate {k}"), rotate(k))));
     all

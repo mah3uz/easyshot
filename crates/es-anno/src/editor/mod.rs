@@ -246,6 +246,13 @@ impl Editor {
                 self.current.underline = p.is_underline;
                 self.current.align = p.align;
             }
+            ShapeKind::Arrow(p) => {
+                if tool == Tool::Arrow {
+                    self.current.arrowhead_start = p.arrowhead_start;
+                    self.current.arrowhead_end = p.arrowhead_end;
+                }
+                self.current.dash = p.dash;
+            }
             _ => {}
         }
     }

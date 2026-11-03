@@ -254,33 +254,73 @@ fn a_click_arms_the_tool_draws_it_selected_and_a_second_click_returns_to_select(
 }
 
 #[test]
-fn the_style_bar_offers_only_what_the_inspected_tool_takes() {
+fn the_options_offer_only_what_the_inspected_tool_takes() {
     let mut r = open(vec![rect(40., 40., 120., 80.)], ThemeMode::Dark);
     let shown = |r: &mut Row| {
         [
-            Control::Palette,
+            Control::Swatches,
             Control::Stroke,
-            Control::TextStyle,
+            Control::FontFamily,
+            Control::ArrowStart,
+            Control::Dash,
+            Control::HighlighterMode,
             Control::Strength,
             Control::Delete,
         ]
         .map(|c| r.shows(c))
     };
+    let (y, n) = (true, false);
     r.arm(Tool::Rectangle);
-    assert_eq!(shown(&mut r), [true, true, false, false, true], "rectangle");
+    assert_eq!(shown(&mut r), [y, y, n, n, n, n, n, n], "rectangle");
+    r.arm(Tool::Arrow);
+    assert_eq!(shown(&mut r), [y, y, n, y, y, n, n, n], "arrow");
+    r.arm(Tool::Line);
+    assert_eq!(
+        shown(&mut r),
+        [y, y, n, n, y, n, n, n],
+        "a line has no heads"
+    );
     r.arm(Tool::Text);
-    assert_eq!(shown(&mut r), [true, false, true, false, true], "text");
+    assert_eq!(shown(&mut r), [y, n, y, n, n, n, n, n], "text");
+    r.arm(Tool::Highlighter);
+    assert_eq!(shown(&mut r), [y, y, n, n, n, y, n, n], "highlighter");
     r.arm(Tool::Blur);
-    assert_eq!(shown(&mut r), [false, false, false, true, true], "blur");
+    assert_eq!(shown(&mut r), [n, n, n, n, n, n, y, n], "blur");
+    r.arm(Tool::Highlight);
+    assert!(!r.shows(Control::Options), "the spotlight has no options");
     r.arm(Tool::Select);
-    assert_eq!(shown(&mut r), [false; 5], "select with nothing selected");
+    assert!(!r.shows(Control::Options), "select with nothing selected");
     r.select_all();
     assert_eq!(
         shown(&mut r),
-        [true, true, false, false, true],
+        [y, y, n, n, n, n, n, y],
         "select with a rectangle selected inspects the rectangle"
     );
     assert!(r.shows(Control::Tool(Tool::Blur)) && r.shows(Control::Inspector));
+}
+
+#[test]
+fn the_highlighter_mode_switches_from_its_options() {
+    let mut r = open(vec![], ThemeMode::Dark);
+    r.arm(Tool::Highlighter);
+    let straight = |r: &Row| {
+        r.session
+            .doc
+            .read_with(&r.app.cx, |d, _| d.editor().highlighter_straight())
+    };
+    assert!(!straight(&r));
+    let modes = r.bounds(Control::HighlighterMode).unwrap();
+    r.click_at(point(
+        modes.origin.x + modes.size.width * 0.75,
+        modes.center().y,
+    ));
+    assert!(straight(&r), "the second segment draws straight lines");
+    assert_eq!(r.tool(), Tool::Highlighter, "and keeps the tool armed");
+    r.click_at(point(
+        modes.origin.x + modes.size.width * 0.25,
+        modes.center().y,
+    ));
+    assert!(!straight(&r));
 }
 
 #[test]
@@ -289,8 +329,7 @@ fn a_swatch_recolours_new_shapes_and_the_selection_in_one_undo_step() {
     r.arm(Tool::Select);
     r.select_all();
     let before = swatch_of(&r.first_shape());
-    r.click(Control::Palette);
-    let strip = r.bounds(Control::Swatches).expect("the palette opened");
+    let strip = r.bounds(Control::Swatches).expect("the swatches show");
     let column = (f32::from(strip.size.width) - 5. * 8.) / 6.;
     let orange = point(
         strip.origin.x + gpui::px(2. * (column + 8.) + column / 2.),
@@ -384,15 +423,11 @@ fn screenshots_of_each_state_in_both_themes() {
         let mut r = open(vec![], mode);
         r.arm(Tool::Arrow);
         r.shot(&format!("toolbar-{name}-arrow"));
-        r.click(Control::Palette);
-        assert!(r.shows(Control::Swatches));
-        r.shot(&format!("toolbar-{name}-palette"));
         drop(r);
 
         let mut r = open(vec![], mode);
         r.arm(Tool::Text);
-        r.click(Control::TextStyle);
-        assert!(r.shows(Control::TextSwatches));
+        assert!(r.shows(Control::FontFamily));
         r.shot(&format!("toolbar-{name}-text-style"));
         drop(r);
 

@@ -20,6 +20,9 @@ pub fn style(kind: CursorKind, cursors: &Cursors) -> CursorStyle {
     match kind {
         CursorKind::Arrow => CursorStyle::Arrow,
         CursorKind::AnnotationPlus => CursorStyle::Custom(cursors.annotation_plus),
+        CursorKind::Pen => CursorStyle::Custom(cursors.pen),
+        CursorKind::Badge => CursorStyle::Custom(cursors.badge),
+        CursorKind::Area => CursorStyle::Custom(cursors.area),
         CursorKind::OpenHand => CursorStyle::OpenHand,
         CursorKind::ClosedHand => CursorStyle::ClosedHand,
         CursorKind::IBeam => CursorStyle::IBeam,

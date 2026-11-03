@@ -43,7 +43,6 @@ editor-tool-blur = Blur
 editor-tool-row-a11y = Tools
 editor-shortcut-help = { $title } ({ $shortcut })
 editor-rotate-menu = Rotate and flip
-editor-style-bar-a11y = Annotation style
 editor-stroke-width = Stroke width
 editor-aspect-1-1 = 1:1
 editor-aspect-4-3 = 4:3
@@ -80,14 +79,30 @@ editor-redact-kind-phone = phone numbers
 editor-redact-kind-card = card numbers
 editor-redact-kind-key = keys
 editor-color = Color
-editor-color-picker-a11y = Annotation color
 editor-stroke-help = { $count } px
 editor-stroke-a11y =
     { $count ->
         [one] { $count } pixel
        *[other] { $count } pixels
     }
-editor-text-style = Text Style
+editor-tool-options-a11y = { $tool } options
+editor-arrowhead-start = Start
+editor-arrowhead-end = End
+editor-arrowhead-none = None
+editor-arrowhead-arrow = Arrow
+editor-arrowhead-triangle = Triangle
+editor-arrowhead-square = Square
+editor-arrowhead-dot = Dot
+editor-arrowhead-diamond = Diamond
+editor-arrowhead-inverted = Inverted
+editor-arrowhead-bar = Bar
+editor-line-style = Line style
+editor-dash-solid = Solid
+editor-dash-dashed = Dashed
+editor-dash-dotted = Dotted
+editor-highlighter-mode = Mode
+editor-highlighter-freehand = Freehand
+editor-highlighter-straight = Straight
 editor-redact-strength = Strength
 editor-delete-help = Delete selected annotation ({ $shortcut })
 editor-delete-a11y = Delete Selection

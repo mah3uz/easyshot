@@ -1,6 +1,6 @@
 use es_model::{
-    AnnoShape, Arrowhead, FontFamily, HIGHLIGHTER_WIDTH_FACTOR, ShapeKind, StylePreset, Swatch,
-    TextAlign, Tool,
+    AnnoShape, ArrowProps, Arrowhead, DashStyle, FontFamily, HIGHLIGHTER_WIDTH_FACTOR, ShapeKind,
+    StylePreset, Swatch, TextAlign, Tool,
 };
 
 pub const MIN_FONT_SIZE: f64 = 4.0;
@@ -19,6 +19,7 @@ pub struct CurrentStyle {
     pub align: TextAlign,
     pub arrowhead_start: Arrowhead,
     pub arrowhead_end: Arrowhead,
+    pub dash: DashStyle,
 }
 
 impl Default for CurrentStyle {
@@ -41,6 +42,7 @@ impl From<&StylePreset> for CurrentStyle {
             align: p.text_align,
             arrowhead_start: Arrowhead::None,
             arrowhead_end: Arrowhead::Arrow,
+            dash: DashStyle::Solid,
         }
     }
 }
@@ -74,6 +76,9 @@ pub enum StylePatch {
     Italic(bool),
     Underline(bool),
     Align(TextAlign),
+    ArrowheadStart(Arrowhead),
+    ArrowheadEnd(Arrowhead),
+    Dash(DashStyle),
 }
 
 impl StylePatch {
@@ -113,6 +118,9 @@ impl StylePatch {
             Self::Italic(b) => c.italic = *b,
             Self::Underline(b) => c.underline = *b,
             Self::Align(a) => c.align = *a,
+            Self::ArrowheadStart(h) => c.arrowhead_start = *h,
+            Self::ArrowheadEnd(h) => c.arrowhead_end = *h,
+            Self::Dash(d) => c.dash = *d,
         }
     }
 
@@ -137,7 +145,17 @@ impl StylePatch {
             (Self::Italic(b), ShapeKind::Text(p)) => p.is_italic = *b,
             (Self::Underline(b), ShapeKind::Text(p)) => p.is_underline = *b,
             (Self::Align(a), ShapeKind::Text(p)) => p.align = *a,
+            // A line is an arrow with no heads; giving it one would turn it into an arrow.
+            (Self::ArrowheadStart(h), ShapeKind::Arrow(p)) if has_heads(p) => {
+                p.arrowhead_start = *h
+            }
+            (Self::ArrowheadEnd(h), ShapeKind::Arrow(p)) if has_heads(p) => p.arrowhead_end = *h,
+            (Self::Dash(d), ShapeKind::Arrow(p)) => p.dash = *d,
             _ => {}
         }
     }
+}
+
+fn has_heads(p: &ArrowProps) -> bool {
+    p.arrowhead_start != Arrowhead::None || p.arrowhead_end != Arrowhead::None
 }
