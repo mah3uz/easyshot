@@ -7,8 +7,7 @@ use std::rc::Rc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum WindowKind {
-    Settings,
-    Gallery,
+    Home,
     Editor,
     CaptureBar,
     Onboarding,

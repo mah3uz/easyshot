@@ -73,9 +73,10 @@ that must be a regular file. If the daemon disappears the CLI exits with code 3.
 0600.
 
 Routes are one closed vocabulary (`es-protocol::Route`) shared by the CLI, URLs, tray,
-D-Bus, shortcuts and notifications. The URL scheme accepts exactly eight routes with no
+D-Bus, shortcuts and notifications. The URL scheme accepts exactly nine routes with no
 arguments (`capture/region`, `capture/fullscreen`, `capture/window`, `capture/scroll`,
-`record`, `ocr`, `color-picker`, `settings`). D-Bus `Command` rejects anything outside the
+`record`, `ocr`, `color-picker`, `home`, `settings`). `home`, `gallery` and `settings`
+open the one Home window (`es-shell::home`) on its tab. D-Bus `Command` rejects anything outside the
 closed `Route`; `open <path>` canonicalises the path and requires a regular image file.
 
 Every recorder helper runs in its own process group beside a `/bin/sh` watcher in that

@@ -71,12 +71,7 @@ fn rig(wired: bool) -> Rig {
                 .push(format!("{:?} {:?}{timer}", request.kind, request.variant));
             Task::ready(Ok(()))
         }));
-        for kind in [
-            WindowKind::Settings,
-            WindowKind::Gallery,
-            WindowKind::Editor,
-            WindowKind::CaptureBar,
-        ] {
+        for kind in [WindowKind::Home, WindowKind::Editor, WindowKind::CaptureBar] {
             let sink = log.clone();
             windows.register(
                 kind,
@@ -131,7 +126,8 @@ fn every_route() -> Vec<(Route, Vec<&'static str>)> {
         (Route::RecordRestart, vec!["RecordRestart"]),
         (Route::RecordDiscard, vec!["RecordDiscard"]),
         (Route::CaptureBar, vec!["CaptureBar Single"]),
-        (Route::Gallery, vec!["Gallery Single"]),
+        (Route::Home, vec!["Home Single"]),
+        (Route::Gallery, vec!["ShowHome(Gallery)"]),
         (Route::RestoreLast, vec!["RestoreLast"]),
         (Route::PinLast, vec!["PinLast"]),
         (Route::UnpinAll, vec!["UnpinAll"]),
@@ -144,12 +140,14 @@ fn every_route() -> Vec<(Route, Vec<&'static str>)> {
             Route::Open(path.clone()),
             vec!["Editor Path(\"/nonexistent/shot.png\")"],
         ),
-        (Route::Settings(None), vec!["Settings Single"]),
+        (Route::Settings(None), vec!["ShowHome(Settings(None))"]),
     ];
     for page in SettingsPage::ALL {
         routes.push((
             Route::Settings(Some(page)),
-            vec![Box::leak(format!("SettingsPage({page:?})").into())],
+            vec![Box::leak(
+                format!("ShowHome(Settings(Some({page:?})))").into(),
+            )],
         ));
     }
     routes
@@ -157,7 +155,7 @@ fn every_route() -> Vec<(Route, Vec<&'static str>)> {
 
 #[gpui::test]
 fn every_route_reaches_its_handler_and_its_job_finishes_ok(cx: &mut TestAppContext) {
-    assert_eq!(every_route().len(), 33 + SettingsPage::ALL.len());
+    assert_eq!(every_route().len(), 34 + SettingsPage::ALL.len());
     let rig = rig(true);
     for (route, expected) in every_route() {
         rig.log.borrow_mut().clear();

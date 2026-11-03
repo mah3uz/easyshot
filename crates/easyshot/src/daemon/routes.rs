@@ -101,7 +101,7 @@ pub fn actions(d: ActionDeps) -> ActionHandler {
             Action::RecordPause => d.recordings.toggle_pause(cx)?,
             Action::RecordRestart => d.recordings.restart(cx)?,
             Action::RecordDiscard => d.recordings.discard(cx)?,
-            Action::SettingsPage(page) => d.wiring.show_settings_page(page, cx),
+            Action::ShowHome(tab) => d.wiring.show_home(tab, cx),
             Action::UnpinAll => d.pins.unpin_all(cx),
             Action::PinLast => {
                 let entry =

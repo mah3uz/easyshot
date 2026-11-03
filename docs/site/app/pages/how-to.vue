@@ -256,7 +256,7 @@ easyshot record stop     # stop and open the trim viewer" />
 
         <!-- 8 -->
         <HowStep :n="8" id="settings" title="Settings and files">
-          <p>Open settings from the tray, the app menu or <code>easyshot settings</code>. Every change applies at once. You can also edit <code>config.toml</code> by hand: easyshot watches it and applies changes live.</p>
+          <p>Easyshot in your app menu, or <code>easyshot</code> on its own, opens the Home window: your media gallery and Settings, one tab each. The tray's Settings item and <code>easyshot settings</code> open it on Settings. Every change applies at once. You can also edit <code>config.toml</code> by hand: easyshot watches it and applies changes live.</p>
           <dl class="divide-y divide-line overflow-hidden rounded-[18px] border border-line bg-surface">
             <div v-for="f in files" :key="f[0]" class="grid gap-1 px-4 py-3 sm:grid-cols-[200px_1fr]">
               <dt class="text-[14px] font-medium">{{ f[0] }}</dt>

@@ -75,6 +75,7 @@ pub enum Route {
     RecordRestart,
     RecordDiscard,
     CaptureBar,
+    Home,
     Gallery,
     RestoreLast,
     PinLast,

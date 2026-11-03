@@ -666,6 +666,12 @@ gallery-cancel = Cancel
 gallery-date-pattern = MMM d, yyyy
 gallery-date-full-pattern = MMM d, yyyy, HH:mm
 
+## Home window
+home-window-title = { -app-name }
+home-window-tabs = Sections
+home-window-gallery = Media Gallery
+home-window-settings = Settings
+
 ## Onboarding
 onboarding-window-title = Welcome to { -app-name }
 onboarding-step1-title = Capture anything on your screen

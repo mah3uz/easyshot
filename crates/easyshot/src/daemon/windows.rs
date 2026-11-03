@@ -1,5 +1,5 @@
 use super::bar::{BarSources, new_bar};
-use es_app::dispatcher::RouteDispatcher;
+use es_app::dispatcher::{HomeTab, RouteDispatcher};
 use es_app::errors::{Error, Result};
 use es_app::events::Origin;
 use es_app::history::History;
@@ -13,9 +13,10 @@ use es_model::platform::OutputInfo;
 use es_overlays::record::bar::{BAR, BarEvent};
 use es_overlays::record::placement;
 use es_protocol::{Route, SettingsPage};
-use es_shell::gallery::{self, GalleryEvent, GalleryFiles};
+use es_shell::gallery::{GalleryEvent, GalleryFiles};
+use es_shell::home::{self, HomeDeps, HomeWindow, Tab};
 use es_shell::onboarding::{self, Onboarding, OnboardingEvent, OnboardingInput};
-use es_shell::settings::{self, SettingsDeps, SettingsWindow, SettingsWindowEvent};
+use es_shell::settings::{self, SettingsDeps, SettingsWindowEvent};
 use es_store::Paths;
 use gpui::{
     AnyWindowHandle, App, AppContext as _, Bounds, Entity, Task, WeakEntity, WindowBounds,
@@ -50,7 +51,7 @@ pub struct Wiring {
     recordings: RefCell<Option<super::recording::Recordings>>,
     pub(super) bar_sources: RefCell<BarSources>,
     editors: RefCell<Vec<WeakEntity<EditorWindow>>>,
-    settings_window: RefCell<Option<WeakEntity<SettingsWindow>>>,
+    home: RefCell<Option<WeakEntity<HomeWindow>>>,
     recoveries: RefCell<HashMap<PathBuf, PathBuf>>,
 }
 
@@ -113,7 +114,7 @@ impl Wiring {
             recordings: RefCell::default(),
             bar_sources: RefCell::default(),
             editors: RefCell::default(),
-            settings_window: RefCell::default(),
+            home: RefCell::default(),
             recoveries: RefCell::default(),
         })
     }
@@ -132,15 +133,8 @@ impl Wiring {
 
     pub fn register(self: &Rc<Self>) {
         let w = self.clone();
-        self.windows.register(
-            WindowKind::Settings,
-            Rc::new(move |_, cx| open_settings(&w, cx)),
-        );
-        let w = self.clone();
-        self.windows.register(
-            WindowKind::Gallery,
-            Rc::new(move |_, cx| open_gallery(&w, cx)),
-        );
+        self.windows
+            .register(WindowKind::Home, Rc::new(move |_, cx| open_home(&w, cx)));
         let w = self.clone();
         self.windows.register(
             WindowKind::Editor,
@@ -181,15 +175,19 @@ impl Wiring {
         self.open_editor_for(display, cx)
     }
 
-    pub fn show_settings_page(&self, page: SettingsPage, cx: &mut App) {
-        let window = self
-            .settings_window
-            .borrow()
-            .as_ref()
-            .and_then(WeakEntity::upgrade);
-        if let Some(window) = window {
-            window.update(cx, |w, cx| w.show(page_of(page), cx));
+    pub fn show_home(&self, tab: HomeTab, cx: &mut App) {
+        let home = self.home.borrow().as_ref().and_then(WeakEntity::upgrade);
+        if let Some(home) = home {
+            home.update(cx, |h, cx| match tab {
+                HomeTab::Gallery => h.show(Tab::Gallery, cx),
+                HomeTab::Settings(page) => h.show_settings(page.map(page_of), cx),
+            });
         }
+    }
+
+    #[cfg(test)]
+    pub fn home(&self) -> Option<Entity<HomeWindow>> {
+        self.home.borrow().as_ref().and_then(WeakEntity::upgrade)
     }
 
     /// Asks every editor to close, and quits only when none of them objects.
@@ -233,38 +231,48 @@ fn page_of(page: SettingsPage) -> settings::Page {
     }
 }
 
-fn open_settings(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>> {
-    let deps = SettingsDeps {
-        settings: w.settings.clone(),
-        history: Some(w.history.clone()),
-        caps: w.caps,
-        binds: w.binds.clone(),
-        clipboard: Rc::new(settings::SystemClipboard),
-        outputs: (w.outputs)().into_iter().map(|o| o.id.0).collect(),
-        version: env!("EASYSHOT_VERSION").to_owned(),
+fn open_home(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>> {
+    let deps = HomeDeps {
+        history: w.history.clone(),
+        paths: w.paths.clone(),
+        files: w.files.clone(),
+        settings: SettingsDeps {
+            settings: w.settings.clone(),
+            history: Some(w.history.clone()),
+            caps: w.caps,
+            binds: w.binds.clone(),
+            clipboard: Rc::new(settings::SystemClipboard),
+            outputs: (w.outputs)().into_iter().map(|o| o.id.0).collect(),
+            version: env!("EASYSHOT_VERSION").to_owned(),
+        },
     };
-    let window = opened(settings::open(deps, cx))?;
+    let window = opened(home::open(deps, cx))?;
     let view = window
         .read(cx)
         .ok()
-        .and_then(|root| root.view().clone().downcast::<SettingsWindow>().ok());
+        .and_then(|root| root.view().clone().downcast::<HomeWindow>().ok());
     if let Some(view) = view {
-        *w.settings_window.borrow_mut() = Some(view.downgrade());
-        let w = w.clone();
+        *w.home.borrow_mut() = Some(view.downgrade());
+        let (gallery, settings) = {
+            let home = view.read(cx);
+            (home.gallery().clone(), home.settings().clone())
+        };
+        let on_settings = w.clone();
         cx.subscribe(
-            &view,
+            &settings,
             move |_, event: &SettingsWindowEvent, cx| match event {
-                SettingsWindowEvent::Run(route) => w.dispatch(route.clone(), cx),
-                SettingsWindowEvent::ChooseSaveFolder => choose_save_folder(&w, cx),
+                SettingsWindowEvent::Run(route) => on_settings.dispatch(route.clone(), cx),
+                SettingsWindowEvent::ChooseSaveFolder => choose_save_folder(&on_settings, cx),
                 SettingsWindowEvent::OpenRecent(file) => {
-                    if let Err(e) = w.open_editor_for(file, cx) {
+                    if let Err(e) = on_settings.open_editor_for(file, cx) {
                         tracing::warn!(error = %e, "open a recent capture");
                     }
                 }
                 SettingsWindowEvent::ShowOnboarding => {
-                    if let Err(e) = w
-                        .windows
-                        .open(WindowKind::Onboarding, WindowKey::Single, cx)
+                    if let Err(e) =
+                        on_settings
+                            .windows
+                            .open(WindowKind::Onboarding, WindowKey::Single, cx)
                     {
                         tracing::warn!(error = %e, "onboarding");
                     }
@@ -272,6 +280,16 @@ fn open_settings(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>> {
                 SettingsWindowEvent::OpenUrl(url) => cx.open_url(url),
             },
         )
+        .detach();
+        let on_gallery = w.clone();
+        cx.subscribe(&gallery, move |_, event: &GalleryEvent, cx| match event {
+            GalleryEvent::Open(file) => cx.open_with_system(file),
+            GalleryEvent::Edit(file) => {
+                if let Err(e) = on_gallery.open_editor_for(file, cx) {
+                    tracing::warn!(error = %e, "edit from the gallery");
+                }
+            }
+        })
         .detach();
     }
     Ok(handle(window))
@@ -286,29 +304,6 @@ fn choose_save_folder(w: &Rc<Wiring>, cx: &mut App) {
         }
     })
     .detach();
-}
-
-fn open_gallery(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>> {
-    let w = w.clone();
-    let on_event = {
-        let w = w.clone();
-        move |event: &GalleryEvent, cx: &mut App| match event {
-            GalleryEvent::Open(file) => cx.open_with_system(file),
-            GalleryEvent::Edit(file) => {
-                if let Err(e) = w.open_editor_for(file, cx) {
-                    tracing::warn!(error = %e, "edit from the gallery");
-                }
-            }
-        }
-    };
-    let window = gallery::open(
-        w.history.clone(),
-        w.paths.clone(),
-        w.files.clone(),
-        on_event,
-        cx,
-    );
-    Ok(handle(opened(window)?))
 }
 
 pub(super) fn editor_bounds(fullscreen: bool, bounds: Bounds<gpui::Pixels>) -> WindowBounds {

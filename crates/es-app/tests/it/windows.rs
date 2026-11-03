@@ -46,13 +46,13 @@ fn registry(kind: WindowKind) -> (Windows, Opened) {
 
 #[gpui::test]
 fn a_second_open_for_the_same_key_focuses_instead_of_opening(cx: &mut TestAppContext) {
-    let (windows, opened) = registry(WindowKind::Gallery);
+    let (windows, opened) = registry(WindowKind::Home);
     cx.update(|cx| {
         windows
-            .open(WindowKind::Gallery, WindowKey::Single, cx)
+            .open(WindowKind::Home, WindowKey::Single, cx)
             .unwrap();
         windows
-            .open(WindowKind::Gallery, WindowKey::Single, cx)
+            .open(WindowKind::Home, WindowKey::Single, cx)
             .unwrap();
     });
     assert_eq!(opened.borrow().len(), 1);
@@ -101,15 +101,15 @@ fn editor_windows_are_keyed_by_canonical_path(cx: &mut TestAppContext) {
 
 #[gpui::test]
 fn a_closed_window_is_forgotten_and_opens_afresh(cx: &mut TestAppContext) {
-    let (windows, opened) = registry(WindowKind::Settings);
+    let (windows, opened) = registry(WindowKind::Home);
     cx.update(|cx| {
         windows
-            .open(WindowKind::Settings, WindowKey::Single, cx)
+            .open(WindowKind::Home, WindowKey::Single, cx)
             .unwrap();
-        windows.forget(WindowKind::Settings, &WindowKey::Single);
-        assert!(!windows.is_open(WindowKind::Settings, &WindowKey::Single, cx));
+        windows.forget(WindowKind::Home, &WindowKey::Single);
+        assert!(!windows.is_open(WindowKind::Home, &WindowKey::Single, cx));
         windows
-            .open(WindowKind::Settings, WindowKey::Single, cx)
+            .open(WindowKind::Home, WindowKey::Single, cx)
             .unwrap();
     });
     assert_eq!(opened.borrow().len(), 2);
@@ -117,14 +117,14 @@ fn a_closed_window_is_forgotten_and_opens_afresh(cx: &mut TestAppContext) {
 
 #[gpui::test]
 fn a_window_closed_without_notice_is_reopened_not_focused(cx: &mut TestAppContext) {
-    let (windows, opened) = registry(WindowKind::Settings);
+    let (windows, opened) = registry(WindowKind::Home);
     cx.update(|cx| {
         windows
-            .open(WindowKind::Settings, WindowKey::Single, cx)
+            .open(WindowKind::Home, WindowKey::Single, cx)
             .unwrap();
         opened.borrow()[0].open.set(false);
         windows
-            .open(WindowKind::Settings, WindowKey::Single, cx)
+            .open(WindowKind::Home, WindowKey::Single, cx)
             .unwrap();
     });
     assert_eq!(opened.borrow().len(), 2);
@@ -133,6 +133,6 @@ fn a_window_closed_without_notice_is_reopened_not_focused(cx: &mut TestAppContex
 #[gpui::test]
 fn a_kind_without_an_opener_is_unsupported(cx: &mut TestAppContext) {
     let windows = Windows::default();
-    let result = cx.update(|cx| windows.open(WindowKind::Gallery, WindowKey::Single, cx));
+    let result = cx.update(|cx| windows.open(WindowKind::Home, WindowKey::Single, cx));
     assert!(matches!(result, Err(Error::Unsupported)));
 }

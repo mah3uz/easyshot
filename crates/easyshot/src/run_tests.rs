@@ -144,6 +144,7 @@ fn run_cli(args: &[&str], env: &Env) -> (i32, String, String) {
 #[test]
 fn each_subcommand_sends_its_route_to_the_daemon() {
     let table: &[(&[&str], Route)] = &[
+        (&[], Route::Home),
         (&["capture", "region"], Route::CaptureRegion),
         (
             &["capture", "region", "--annotate"],

@@ -2,7 +2,7 @@
 Type=Application
 Name=Easyshot
 Comment=Screenshots, annotation and screen recording
-Exec=easyshot settings
+Exec=easyshot
 Icon=@APP_ID@
 Terminal=false
 Categories=Utility;Graphics;

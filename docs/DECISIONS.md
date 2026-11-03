@@ -64,10 +64,10 @@ each journal at startup. Why: one tested path covers SIGTERM, panic, OOM and pow
 Rejected: a SIGTERM-only snapshot.
 
 ### Entry points are closed vocabularies
-The `easyshot://` URL scheme accepts exactly eight routes with no arguments;
+The `easyshot://` URL scheme accepts exactly nine routes with no arguments;
 D-Bus `Command` parses into the closed `Route`; the session bus only; directories 0700 and
 files 0600. Why: a URL or bus call from outside must not be able to do more than those
-eight routes allow. A `record` link opens the area selection, so a link cannot start a
+nine routes allow. A `record` link opens the area selection, so a link cannot start a
 recording on its own. Rejected: accepting the full route vocabulary, or arguments, over URLs.
 
 ### Compositor targets and providers
@@ -221,3 +221,13 @@ What was rejected beyond that, and why: not recorded.
     starts with no key, and the Settings > Shortcuts snippet holds only keys the user chose.
     Editor keys keep their defaults. Rejected: Super+Shift+1 to 5, which clashed with users'
     own Hyprland binds.
+23. **One Home window for the gallery and Settings** (maintainer's decision, 2026-11-03):
+    the launcher, a bare `easyshot`, `easyshot gallery` and `easyshot settings [page]` all
+    open one window with a Media Gallery tab and a Settings tab, and a second open focuses
+    it and switches the tab only when one was named. `Route::Home` joins the closed
+    vocabulary and `easyshot://home` the URL allowlist, with no arguments, because opening a
+    window can do nothing a link should not. The window takes the app's own ID, so the
+    desktop entry that launches it is the one compositors and docks associate it with. The
+    tabs are a segmented control above both panes, which keep their own sidebars unchanged.
+    Rejected: two separate windows, which the launcher could open only one of; a `home`
+    subcommand, since a bare `easyshot` says it already.

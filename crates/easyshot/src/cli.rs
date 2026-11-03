@@ -7,11 +7,12 @@ use es_protocol::{ArgValue, PATH_ARG, Route, RouteArgs, SettingsPage, TimedMode}
 #[command(
     name = "easyshot",
     version,
-    about = "Screenshot, annotation and screen recording"
+    about = "Screenshot, annotation and screen recording",
+    after_help = "With no command, opens the Home window: the media gallery and settings."
 )]
 pub struct Cli {
     #[command(subcommand)]
-    pub command: Command,
+    pub command: Option<Command>,
 }
 
 #[derive(Subcommand, Debug)]
@@ -170,7 +171,10 @@ impl clap::builder::TypedValueParser for PageParser {
 
 impl Cli {
     pub fn request(&self) -> Result<Request> {
-        Ok(match &self.command {
+        let Some(command) = &self.command else {
+            return Ok(Request::Route(Route::Home));
+        };
+        Ok(match command {
             Command::Capture(a) => Request::Route(capture_route(a)?),
             Command::Ocr { single_line } => Request::Route(if *single_line {
                 Route::OcrSingleLine
@@ -348,6 +352,28 @@ mod tests {
     }
 
     #[test]
+    fn a_bare_easyshot_opens_home_and_help_still_prints() {
+        assert_eq!(route(&[]), Route::Home);
+        assert!(Route::Home.command_args().is_empty());
+        let help = Cli::try_parse_from(["easyshot", "--help"]).unwrap_err();
+        assert_eq!(help.kind(), clap::error::ErrorKind::DisplayHelp);
+        assert!(request(&["bogus"]).is_err());
+    }
+
+    #[test]
+    fn the_launcher_entry_opens_home() {
+        let entry = include_str!("../../../packaging/data/app.desktop.in");
+        let exec = entry
+            .lines()
+            .find_map(|l| l.strip_prefix("Exec="))
+            .expect("an Exec line");
+        let mut words = exec.split_whitespace();
+        assert_eq!(words.next(), Some("easyshot"));
+        let args: Vec<&str> = words.collect();
+        assert_eq!(route(&args), Route::Home);
+    }
+
+    #[test]
     fn every_settings_page_is_reachable() {
         for page in SettingsPage::ALL {
             assert_eq!(
@@ -383,6 +409,7 @@ mod tests {
     #[test]
     fn open_takes_an_image_or_an_allowed_url() {
         assert_eq!(route(&["open", "easyshot://ocr"]), Route::Ocr);
+        assert_eq!(route(&["open", "easyshot://home"]), Route::Home);
         assert_eq!(
             route(&["open", "easyshot://settings"]),
             Route::Settings(None)

@@ -37,7 +37,7 @@ use std::sync::Arc;
 pub const WINDOW_SIZE: (f32, f32) = (820., 660.);
 pub const MIN_SIZE: (f32, f32) = (780., 620.);
 pub const SIDEBAR_WIDTH: f32 = 210.;
-const SIDEBAR_TOP: f32 = 44.;
+const SIDEBAR_TOP: f32 = 16.;
 const SIDEBAR_ROW: f32 = 28.;
 const SIDEBAR_GROUP: f32 = 30.;
 

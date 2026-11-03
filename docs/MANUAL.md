@@ -42,7 +42,7 @@ starting for your user only, run `systemctl --user mask --now easyshot.service`;
 `disable` does not override the package's enable for all users. `systemctl --user unmask
 easyshot.service` undoes it. Without the package, the first command you run starts the daemon
 through D-Bus activation, and `systemctl --user enable --now easyshot.service` keeps it
-running for the whole session. The package installs a desktop entry (Easyshot in your application menu opens Settings) and registers
+running for the whole session. The package installs a desktop entry (Easyshot in your application menu opens the Home window) and registers
 `easyshot://` links, which open through `easyshot open`.
 
 easyshot cannot register global keyboard shortcuts for you on Hyprland or wlroots
@@ -203,6 +203,16 @@ These are additional editor keys, and all appear in Settings > Shortcuts.
 | Ctrl+Shift+] / Ctrl+Shift+[ | Bring to front or send to back. |
 | Tab / Shift+Tab | Select the next or previous shape. |
 
+## The Home window
+
+The Home window holds the media gallery and Settings, one per tab; the switcher at the top
+of the window moves between them. Easyshot in your application menu, a bare `easyshot` and
+an `easyshot://home` link open it, on the gallery the first time. `easyshot gallery` and the tray's Media
+Gallery open it on the gallery; `easyshot settings [page]`, the tray's Settings and an
+`easyshot://settings` link open it on Settings, at that page when you name one. There is
+only one Home window: opening it again brings it to the front and switches to the tab you
+asked for, or keeps the tab it shows when you asked for none.
+
 ## History and gallery
 
 Captures are kept in a history with retention, search, sorting, icon and list views, and a
@@ -276,7 +286,8 @@ Editor settings that exist only in the config file:
 
 ## Command line
 
-`easyshot <command>` sends a command to the daemon and waits for it to finish. Press
+`easyshot <command>` sends a command to the daemon and waits for it to finish; `easyshot`
+with no command opens the Home window, and `easyshot --help` lists the commands. Press
 Ctrl+C to cancel. If the daemon is not running, easyshot tries to start it; if that fails
 it tells you to run `easyshot daemon` or `systemctl --user start easyshot.service`.
 `easyshot open <url>` handles `easyshot://` links; `easyshot open <file>` opens a PNG or
@@ -319,9 +330,9 @@ Commands:
   public report. They never hold text read from your screenshots.
 - `daemon` runs the daemon in the foreground.
 
-`easyshot://` links accept only these eight, with no arguments: `capture/region`,
+`easyshot://` links accept only these nine, with no arguments: `capture/region`,
 `capture/fullscreen`, `capture/window`, `capture/scroll`, `record`, `ocr`, `color-picker`,
-`settings`. A `record` link asks you to select the area first; it never starts recording the
+`home`, `settings`. A `record` link asks you to select the area first; it never starts recording the
 whole screen.
 
 ## Files
@@ -360,8 +371,9 @@ the editor. Whether the buttons show depends on your notification server.
 
 `easyshot doctor` shows what applies to you.
 
-For compositor window rules, easyshot's windows use the app IDs `dev.easyshot.app.editor`,
-`.settings`, `.gallery`, `.onboarding` and `.player` (the trim viewer).
+For compositor window rules, the Home window uses the app ID `dev.easyshot.app`, the same
+as the desktop entry, and easyshot's other windows use `dev.easyshot.app.editor`,
+`.onboarding` and `.player` (the trim viewer).
 
 ## Limits in version 1
 

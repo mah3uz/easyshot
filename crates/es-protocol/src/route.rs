@@ -29,6 +29,7 @@ static PLAIN: &[(&str, Route)] = &[
     ("record/restart", Route::RecordRestart),
     ("record/discard", Route::RecordDiscard),
     ("capture-bar", Route::CaptureBar),
+    ("home", Route::Home),
     ("gallery", Route::Gallery),
     ("restore-last", Route::RestoreLast),
     ("pin-last", Route::PinLast),
@@ -48,6 +49,7 @@ static URL_ROUTES: &[(&str, Route)] = &[
     ("record", Route::RecordArea),
     ("ocr", Route::Ocr),
     ("color-picker", Route::ColorPicker),
+    ("home", Route::Home),
     ("settings", Route::Settings(None)),
 ];
 
@@ -123,7 +125,7 @@ impl Route {
             .map(|(name, _)| format!("{URL_SCHEME}://{name}"))
     }
 
-    /// Accepts exactly eight routes, with no arguments.
+    /// Accepts exactly nine routes, with no arguments.
     pub fn from_url(url: &str) -> Result<Route> {
         let denied = || Error::UrlNotAllowed(url.to_owned());
         let (scheme, rest) = url.split_once("://").ok_or_else(denied)?;
@@ -171,6 +173,7 @@ impl Route {
             Route::OcrSingleLine => vec!["ocr", "--single-line"],
             Route::Settings(Some(page)) => vec!["settings", page.as_str()],
             Route::Settings(None) => vec!["settings"],
+            Route::Home => vec![],
             Route::Open(_) => vec!["open"],
             Route::Timed { mode, .. } => vec!["capture", mode.word(), "--timed"],
             other => PLAIN
@@ -276,7 +279,7 @@ mod tests {
             assert_eq!(route.to_string(), *name);
             assert_eq!(&Route::parse(name, &no_args()).unwrap(), route);
         }
-        assert_eq!(PLAIN.len(), 29);
+        assert_eq!(PLAIN.len(), 30);
     }
 
     #[test]
@@ -411,18 +414,19 @@ mod tests {
     }
 
     #[test]
-    fn url_accepts_exactly_the_eight_routes() {
+    fn url_accepts_exactly_the_nine_routes() {
         for (name, route) in URL_ROUTES {
             assert_eq!(
                 &Route::from_url(&format!("easyshot://{name}")).unwrap(),
                 route
             );
         }
-        assert_eq!(URL_ROUTES.len(), 8);
+        assert_eq!(URL_ROUTES.len(), 9);
         assert_eq!(
             Route::from_url("easyshot://settings").unwrap(),
             Route::Settings(None)
         );
+        assert_eq!(Route::from_url("easyshot://home").unwrap(), Route::Home);
     }
 
     #[test]
@@ -460,6 +464,10 @@ mod tests {
             "easyshot://capture/../region",
             "easyshot://settings/anything",
             "easyshot://settings/general",
+            "easyshot://home/",
+            "easyshot://home/gallery",
+            "easyshot://home?tab=settings",
+            "easyshot://gallery",
             "easyshot://capture/previous",
             "easyshot://quit",
             "easyshot://open",

@@ -3,8 +3,8 @@ use super::pickers::{Declining, declining_folder_picker};
 use super::reopen_recovered;
 use super::windows::{Wiring, onboarding_input, open_practice};
 use es_app::capture_coordinator::CaptureCoordinator;
-use es_app::dispatcher::RouteDispatcher;
-use es_app::errors::Result;
+use es_app::dispatcher::{Action, RouteDispatcher};
+use es_app::errors::{Error, Result};
 use es_app::events::Origin;
 use es_app::history::History;
 use es_app::platform_ui::ClipboardSink;
@@ -18,10 +18,11 @@ use es_editor::session::journal::{self, Entry};
 use es_model::AnnotationDocument;
 use es_model::platform::ClipItem;
 use es_overlays::record::bar::BarEvent;
-use es_protocol::Route;
-use es_shell::gallery::{FileResult, Gallery, GalleryFiles};
+use es_protocol::{Route, SettingsPage};
+use es_shell::gallery::{FileResult, GalleryFiles};
+use es_shell::home::{HomeWindow, Tab};
 use es_shell::onboarding::Onboarding;
-use es_shell::settings::SettingsWindow;
+use es_shell::settings::Page;
 use es_store::{ConfigFile, Paths};
 use futures::future::BoxFuture;
 use gpui::{App, AppContext as _, Task, TestAppContext};
@@ -126,6 +127,14 @@ fn rig_with(cx: &mut TestAppContext, binds: Option<Arc<dyn BindHelper>>) -> Rig 
         let (jobs, _finished) = es_app::jobs::Jobs::new();
         let dispatcher = RouteDispatcher::new(jobs.clone(), CaptureCoordinator::new(jobs), windows);
         wiring.set_dispatcher(dispatcher.clone());
+        let w = wiring.clone();
+        dispatcher.set_action_handler(Rc::new(move |action, cx| match action {
+            Action::ShowHome(tab) => {
+                w.show_home(tab, cx);
+                Ok(())
+            }
+            _ => Err(Error::Unsupported),
+        }));
         Rig {
             wiring,
             dispatcher,
@@ -160,30 +169,51 @@ fn showing<T: 'static>(cx: &mut TestAppContext) -> usize {
     })
 }
 
+fn home_tab(rig: &Rig, cx: &mut TestAppContext) -> (Tab, Page) {
+    cx.update(|cx| {
+        let home = rig.wiring.home().expect("the Home window");
+        let home = home.read(cx);
+        (home.tab(), home.settings().read(cx).page())
+    })
+}
+
 #[gpui::test]
-fn settings_and_gallery_routes_open_their_windows_once(cx: &mut TestAppContext) {
+fn home_gallery_and_settings_share_one_window_and_switch_its_tab(cx: &mut TestAppContext) {
     let rig = rig(cx);
-    open(&rig, Route::Settings(None), cx);
-    assert!(is_open(&rig, WindowKind::Settings, &WindowKey::Single, cx));
-    assert!(!is_open(&rig, WindowKind::Gallery, &WindowKey::Single, cx));
+    open(&rig, Route::Home, cx);
+    assert!(is_open(&rig, WindowKind::Home, &WindowKey::Single, cx));
+    assert_eq!(showing::<HomeWindow>(cx), 1);
+    assert_eq!(home_tab(&rig, cx), (Tab::Gallery, Page::Home));
+
+    open(&rig, Route::Settings(Some(SettingsPage::Shortcuts)), cx);
+    assert_eq!(home_tab(&rig, cx), (Tab::Settings, Page::Shortcuts));
+    open(&rig, Route::Home, cx);
     assert_eq!(
-        (showing::<SettingsWindow>(cx), showing::<Gallery>(cx)),
-        (1, 0)
+        home_tab(&rig, cx),
+        (Tab::Settings, Page::Shortcuts),
+        "a bare open keeps the tab"
     );
     open(&rig, Route::Gallery, cx);
-    assert!(is_open(&rig, WindowKind::Gallery, &WindowKey::Single, cx));
-    assert_eq!(
-        (showing::<SettingsWindow>(cx), showing::<Gallery>(cx)),
-        (1, 1)
-    );
-    assert_eq!(cx.update(|cx| cx.windows().len()), 2);
+    assert_eq!(home_tab(&rig, cx).0, Tab::Gallery);
     open(&rig, Route::Settings(None), cx);
-    open(&rig, Route::Gallery, cx);
+    assert_eq!(
+        home_tab(&rig, cx),
+        (Tab::Settings, Page::Shortcuts),
+        "settings with no page keeps the page"
+    );
     assert_eq!(
         cx.update(|cx| cx.windows().len()),
-        2,
+        1,
         "focused, not duplicated"
     );
+}
+
+#[gpui::test]
+fn settings_with_a_page_opens_home_on_that_page(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    open(&rig, Route::Settings(Some(SettingsPage::Recording)), cx);
+    assert_eq!(showing::<HomeWindow>(cx), 1);
+    assert_eq!(home_tab(&rig, cx), (Tab::Settings, Page::Recording));
 }
 
 #[gpui::test]

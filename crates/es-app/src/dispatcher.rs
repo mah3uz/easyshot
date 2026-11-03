@@ -23,8 +23,14 @@ pub enum Action {
     RecordPause,
     RecordRestart,
     RecordDiscard,
-    SettingsPage(SettingsPage),
+    ShowHome(HomeTab),
     Quit,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HomeTab {
+    Gallery,
+    Settings(Option<SettingsPage>),
 }
 
 pub type ActionHandler = Rc<dyn Fn(Action, &mut App) -> Result<()>>;
@@ -32,7 +38,7 @@ pub type ActionHandler = Rc<dyn Fn(Action, &mut App) -> Result<()>>;
 enum Target {
     Capture(CaptureRequest),
     Window(WindowKind, WindowKey),
-    Settings(Option<SettingsPage>),
+    Home(Option<HomeTab>),
     Action(Action),
 }
 
@@ -77,9 +83,10 @@ fn target(route: Route) -> Target {
         Route::RecordRestart => Target::Action(Action::RecordRestart),
         Route::RecordDiscard => Target::Action(Action::RecordDiscard),
         Route::CaptureBar => Target::Window(WindowKind::CaptureBar, WindowKey::Single),
-        Route::Gallery => Target::Window(WindowKind::Gallery, WindowKey::Single),
+        Route::Home => Target::Home(None),
+        Route::Gallery => Target::Home(Some(HomeTab::Gallery)),
         Route::Open(path) => Target::Window(WindowKind::Editor, WindowKey::Path(path)),
-        Route::Settings(page) => Target::Settings(page),
+        Route::Settings(page) => Target::Home(Some(HomeTab::Settings(page))),
         Route::RestoreLast => Target::Action(Action::RestoreLast),
         Route::PinLast => Target::Action(Action::PinLast),
         Route::UnpinAll => Target::Action(Action::UnpinAll),
@@ -128,7 +135,7 @@ impl RouteDispatcher {
                 return;
             }
             Target::Window(kind, key) => self.windows.open(kind, key, cx),
-            Target::Settings(page) => self.open_settings(page, cx),
+            Target::Home(tab) => self.open_home(tab, cx),
             Target::Action(action) => self.act(action, cx),
         };
         self.jobs.report(job, &result);
@@ -138,11 +145,10 @@ impl RouteDispatcher {
         self.jobs.cancel(job)
     }
 
-    fn open_settings(&self, page: Option<SettingsPage>, cx: &mut App) -> Result<()> {
-        self.windows
-            .open(WindowKind::Settings, WindowKey::Single, cx)?;
-        match page {
-            Some(page) => self.act(Action::SettingsPage(page), cx),
+    fn open_home(&self, tab: Option<HomeTab>, cx: &mut App) -> Result<()> {
+        self.windows.open(WindowKind::Home, WindowKey::Single, cx)?;
+        match tab {
+            Some(tab) => self.act(Action::ShowHome(tab), cx),
             None => Ok(()),
         }
     }
