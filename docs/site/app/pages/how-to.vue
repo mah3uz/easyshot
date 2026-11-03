@@ -49,7 +49,7 @@ const editorKeys = [
   ['Ctrl D', 'Duplicate the selection'],
   ['Ctrl Shift C', 'Copy the image'],
   ['Space + drag', 'Pan the canvas'],
-  ['Ctrl + wheel', 'Zoom about the pointer'],
+  ['Mouse wheel', 'Zoom about the pointer (two-finger touchpad scroll pans)'],
   ['Tab', 'Select the next shape'],
 ]
 

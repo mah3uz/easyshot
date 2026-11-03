@@ -243,21 +243,21 @@ fn rotating_turns_the_selection_about_its_centre_and_shift_snaps_the_turn() {
 
 #[test]
 fn several_shapes_rotate_about_their_shared_centre() {
-    let a = rect(0.0, 0.0, 100.0, 100.0);
-    let b = rect(200.0, 0.0, 100.0, 100.0);
+    let a = rect(400.0, 400.0, 100.0, 100.0);
+    let b = rect(600.0, 400.0, 100.0, 100.0);
     let (ai, bi) = (a.id, b.id);
     let mut ed = editor(vec![a, b], vec![]);
     select(&mut ed, &[ai, bi]);
-    let center = PVec::new(150.0, 50.0);
-    let out = PVec::mul(PVec::new(150.0, 50.0).uni(), 14.0);
-    let grip = PVec::add(PVec::new(300.0, 100.0), out);
+    let center = PVec::new(550.0, 450.0);
+    let out = PVec::mul(PVec::new(550.0, 450.0).uni(), 14.0);
+    let grip = PVec::add(PVec::new(700.0, 500.0), out);
     drag(
         &mut ed,
         pv(grip),
         shift(pv(PVec::rot_with(grip, center, FRAC_PI_2))),
     );
-    let pa = PVec::rot_with(PVec::new(0.0, 0.0), center, FRAC_PI_2);
-    let pb = PVec::rot_with(PVec::new(200.0, 0.0), center, FRAC_PI_2);
+    let pa = PVec::rot_with(PVec::new(400.0, 400.0), center, FRAC_PI_2);
+    let pb = PVec::rot_with(PVec::new(600.0, 400.0), center, FRAC_PI_2);
     assert!(close(frame(&ed, ai), (pa.x, pa.y, 100.0, 100.0, FRAC_PI_2)));
     assert!(close(frame(&ed, bi), (pb.x, pb.y, 100.0, 100.0, FRAC_PI_2)));
 }

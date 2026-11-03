@@ -107,6 +107,11 @@ shapes, edit text, and undo and redo. You can crop, rotate and flip, and zoom an
 
 New text starts at size 36. Change the size in the toolbar.
 
+Annotations stay on the image. A shape starts only on the image, and drawing, moving,
+resizing and rotating stop at its edge, whatever the shape's rotation. After a crop, the
+edge is the cropped image's. A stroke is held by its points, so its thick line can reach
+slightly past the edge.
+
 To crop, press the crop button in the tool row. Drag a corner or edge handle to resize the
 selection, or drag inside it to move it; hold Alt to resize about the centre. The aspect
 menu in the title bar offers Freeform, Original, 1:1, 16:9, 9:16, 4:3 and 3:2; while an
@@ -161,7 +166,8 @@ These are additional editor keys, and all appear in Settings > Shortcuts.
 | Esc | Steps back one level per press: commits the text you are typing, leaves crop, clears the selection, then switches to the Select tool. |
 | Middle-button drag, or hold Space and drag from empty canvas | Pan. It stops when you let go, even outside the canvas. |
 | Hold Space and drag an annotation | Move it, with any tool; the pointer is a pointing hand over it. |
-| Ctrl/Alt + wheel, or pinch | Zoom about the pointer. |
+| Mouse wheel, Ctrl/Alt + wheel, or pinch | Zoom about the pointer. |
+| Touchpad two-finger scroll | Pan. |
 | Ctrl+D | Duplicate the selection. |
 | Ctrl+C / Ctrl+V | Copy and paste shapes (with Select active and a selection). |
 | Ctrl+Shift+C | Copy the image. |

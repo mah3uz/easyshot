@@ -30,7 +30,7 @@ use es_ui::cursors::Cursors;
 use gpui::{
     App, Bounds, Context, CursorStyle, Entity, FocusHandle, InteractiveElement, IntoElement,
     KeyDownEvent, KeyUpEvent, MouseButton, MouseDownEvent, ParentElement, PinchEvent, Pixels,
-    Render, RenderImage, ScrollEvent, Styled, Subscription, Task, Window, div, px,
+    Render, RenderImage, ScrollDelta, ScrollEvent, Styled, Subscription, Task, Window, div, px,
 };
 use grid::GridKey;
 use live::LiveCache;
@@ -203,7 +203,8 @@ impl EditorCanvas {
         let d = e.delta.pixel_delta(WHEEL_LINE);
         let (dx, dy) = (f64::from(d.x), f64::from(d.y));
         let at = self.local(e.position);
-        if e.modifiers.control || e.modifiers.alt {
+        let wheel = matches!(e.delta, ScrollDelta::Lines(_));
+        if wheel || e.modifiers.control || e.modifiers.alt {
             let factor = (1.0 + dy * WHEEL_ZOOM_RATE).clamp(0.5, 2.0);
             self.viewport.update(cx, |v, cx| v.zoom_at(factor, at, cx));
         } else {

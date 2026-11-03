@@ -1,4 +1,5 @@
 mod arrow;
+mod clamp;
 mod create;
 mod cursor;
 mod handles;
@@ -7,7 +8,7 @@ mod select;
 use super::{Editor, SelectionBounds};
 use crate::{Changes, CursorKind, PointerButton, PointerInfo};
 use es_geom::freehand::LiveStroke;
-use es_geom::{PVec, Point, Rect};
+use es_geom::{BBox, PVec, Point, Rect};
 use es_model::{AnnoShape, AnnoShapeId, Tool};
 
 #[derive(Debug, Default)]
@@ -31,6 +32,7 @@ pub enum Interaction {
     Translating {
         origin: PVec,
         initial: Vec<(AnnoShapeId, PVec)>,
+        bounds: BBox,
     },
     Brushing {
         origin: PVec,
@@ -104,14 +106,21 @@ impl Editor {
             return ch;
         }
         self.stop_text_into(&mut ch);
+        if !matches!(self.tool, Tool::Select | Tool::Text) && !self.on_image(p) {
+            return ch;
+        }
         match self.tool {
             Tool::Select => self.begin_select(p, hit, &pointer, &mut ch),
             Tool::Text => {
                 let started = match hit.filter(|id| self.is_text_shape(*id)) {
                     Some(id) => self.begin_text(id),
-                    None => self.create_text(pointer.page),
+                    None if self.on_image(p) => self.create_text(pointer.page),
+                    None => return ch,
                 };
                 absorb(&mut ch, started);
+                if let Some(id) = self.editing_text_id {
+                    self.nudge_inside(id, &mut ch);
+                }
             }
             Tool::NumberedCircle => self.create_numbered(p, &mut ch),
             Tool::Freehand => self.begin_drawing(p, &pointer, &mut ch),
@@ -154,10 +163,12 @@ impl Editor {
         match std::mem::take(&mut self.interaction) {
             Interaction::Idle => {}
             Interaction::CreatingBox { id, origin } => {
+                let p = self.clamp_to_image(p);
                 self.resize_new_box(id, origin, p, &pointer, &mut ch);
                 self.interaction = Interaction::CreatingBox { id, origin };
             }
             Interaction::CreatingArrow { id, origin, .. } => {
+                let p = self.clamp_to_image(p);
                 self.move_new_arrow_end(id, p, &pointer, &mut ch);
                 self.interaction = Interaction::CreatingArrow {
                     id,
@@ -170,12 +181,21 @@ impl Editor {
                 origin,
                 mut stroke,
             } => {
+                let p = self.clamp_to_image(p);
                 self.extend_drawing(id, origin, &mut stroke, p, &pointer, &mut ch);
                 self.interaction = Interaction::Drawing { id, origin, stroke };
             }
-            Interaction::Translating { origin, initial } => {
-                self.translate(origin, &initial, p, &pointer, &mut ch);
-                self.interaction = Interaction::Translating { origin, initial };
+            Interaction::Translating {
+                origin,
+                initial,
+                bounds,
+            } => {
+                self.translate(origin, &initial, bounds, p, &pointer, &mut ch);
+                self.interaction = Interaction::Translating {
+                    origin,
+                    initial,
+                    bounds,
+                };
             }
             Interaction::Brushing { origin, .. } => {
                 ch.needs_redraw = true;
@@ -208,6 +228,7 @@ impl Editor {
                 };
             }
             Interaction::DraggingArrowHandle { id, handle, cursor } => {
+                let p = self.clamp_to_image(p);
                 self.drag_arrow_handle(id, handle, p, &pointer, &mut ch);
                 self.interaction = Interaction::DraggingArrowHandle { id, handle, cursor };
             }

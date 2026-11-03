@@ -1,7 +1,9 @@
+use super::clamp::all_within;
 use super::{Handle, Interaction};
+use crate::document::Document;
 use crate::document::page_transform;
 use crate::editor::{Editor, SelectionBounds};
-use crate::{Changes, PointerInfo};
+use crate::{Changes, PointerInfo, ShapeId};
 use es_geom::{Mat, PVec, Point, Size};
 use es_model::{AnnoShape, ShapeKind, TextProps, Tool};
 use std::f64::consts::PI;
@@ -74,6 +76,20 @@ fn floor_scale(s: f64) -> f64 {
     } else {
         MIN_SCALE
     }
+}
+
+/// The gesture is interpolated from its start, so the largest fitting fraction is where it stops.
+fn largest_fit(mut fits: impl FnMut(f64) -> bool) -> f64 {
+    let (mut lo, mut hi) = (0.0, 1.0);
+    for _ in 0..24 {
+        let mid = (lo + hi) / 2.0;
+        if fits(mid) {
+            lo = mid;
+        } else {
+            hi = mid;
+        }
+    }
+    lo
 }
 
 fn linear(m: Mat, v: PVec) -> PVec {
@@ -278,20 +294,51 @@ impl Editor {
             sx = if sx < 0.0 { -m } else { m };
             sy = if sy < 0.0 { -m } else { m };
         }
-        let k = Scale {
-            x: floor_scale(sx),
-            y: floor_scale(sy),
-            anchor,
-            selection: bounds.transform,
-            width_only: at.y == 0.5,
-        };
-        self.edit(ch, |doc| {
+        let image = self.image_rect();
+        let tied = pointer.shift && handle.is_corner();
+        let apply = |doc: &mut Document, tx: f64, ty: f64| -> Vec<ShapeId> {
+            let k = Scale {
+                x: floor_scale(1.0 + (sx - 1.0) * tx),
+                y: floor_scale(1.0 + (sy - 1.0) * ty),
+                anchor,
+                selection: bounds.transform,
+                width_only: at.y == 0.5,
+            };
             let mut dirty = Vec::new();
             for shape in initial {
                 let next = scaled(shape, &k, |t| doc.measure_text(t));
                 dirty.extend(doc.update(shape.id, |s| *s = next));
             }
             dirty
+        };
+        self.edit(ch, |doc| {
+            let dirty = apply(doc, 1.0, 1.0);
+            let Some(image) = image else {
+                return dirty;
+            };
+            let fits = |doc: &Document| all_within(doc, image, initial.iter().map(|s| s.id));
+            if fits(doc) {
+                return dirty;
+            }
+            if !tied {
+                let tx = largest_fit(|t| {
+                    apply(doc, t, 0.0);
+                    fits(doc)
+                });
+                let ty = largest_fit(|t| {
+                    apply(doc, 0.0, t);
+                    fits(doc)
+                });
+                let dirty = apply(doc, tx, ty);
+                if fits(doc) {
+                    return dirty;
+                }
+            }
+            let t = largest_fit(|t| {
+                apply(doc, t, t);
+                fits(doc)
+            });
+            apply(doc, t, t)
         });
     }
 
@@ -309,16 +356,32 @@ impl Editor {
         if pointer.shift {
             delta = (delta / ROTATE_STEP).round() * ROTATE_STEP;
         }
-        self.edit(ch, |doc| {
+        let image = self.image_rect();
+        let apply = |doc: &mut Document, t: f64| -> Vec<ShapeId> {
             let mut dirty = Vec::new();
             for shape in initial {
-                let at = PVec::rot_with(PVec::new(shape.x, shape.y), center, delta);
+                let at = PVec::rot_with(PVec::new(shape.x, shape.y), center, delta * t);
                 dirty.extend(doc.update(shape.id, |s| {
                     (s.x, s.y) = (at.x, at.y);
-                    s.rotation = shape.rotation + delta;
+                    s.rotation = shape.rotation + delta * t;
                 }));
             }
             dirty
+        };
+        self.edit(ch, |doc| {
+            let dirty = apply(doc, 1.0);
+            let Some(image) = image else {
+                return dirty;
+            };
+            let fits = |doc: &Document| all_within(doc, image, initial.iter().map(|s| s.id));
+            if fits(doc) {
+                return dirty;
+            }
+            let t = largest_fit(|t| {
+                apply(doc, t);
+                fits(doc)
+            });
+            apply(doc, t)
         });
     }
 }

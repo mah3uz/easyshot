@@ -1,8 +1,9 @@
+use super::clamp::clamp_span;
 use super::{Interaction, absorb};
 use crate::editor::Editor;
 use crate::{Changes, CursorKind, PointerInfo};
 use es_geom::math::point_in_polygon;
-use es_geom::{PVec, Point, Rect};
+use es_geom::{BBox, PVec, Point, Rect};
 use es_model::AnnoShapeId;
 
 impl Editor {
@@ -78,12 +79,19 @@ impl Editor {
 
     fn start_translate(&mut self, origin: PVec, ch: &mut Changes) {
         self.begin_fresh_gesture(ch);
-        let initial = self
+        let initial: Vec<(AnnoShapeId, PVec)> = self
             .selected_in_order()
             .into_iter()
             .filter_map(|id| self.doc.shape(id).map(|s| (id, PVec::new(s.x, s.y))))
             .collect();
-        self.interaction = Interaction::Translating { origin, initial };
+        let bounds = self
+            .bounds_of(initial.iter().map(|(id, _)| *id))
+            .unwrap_or_default();
+        self.interaction = Interaction::Translating {
+            origin,
+            initial,
+            bounds,
+        };
     }
 
     /// Positions are set from where the drag began, so moves never accumulate error.
@@ -91,6 +99,7 @@ impl Editor {
         &mut self,
         origin: PVec,
         initial: &[(AnnoShapeId, PVec)],
+        bounds: BBox,
         p: PVec,
         pointer: &PointerInfo,
         ch: &mut Changes,
@@ -102,6 +111,18 @@ impl Editor {
             } else {
                 dx = 0.0;
             }
+        }
+        if let Some(image) = self.image_rect() {
+            dx = clamp_span(
+                dx,
+                image.min_x() - bounds.min_x(),
+                image.max_x() - bounds.max_x(),
+            );
+            dy = clamp_span(
+                dy,
+                image.min_y() - bounds.min_y(),
+                image.max_y() - bounds.max_y(),
+            );
         }
         self.edit(ch, |doc| {
             initial

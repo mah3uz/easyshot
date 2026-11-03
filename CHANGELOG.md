@@ -8,6 +8,7 @@
 - Desktop entry, systemd user service and D-Bus activation. The Arch package enables the service for every user, though never for a display manager's login screen, and starts it for logged-in users on install; an update restarts it where it is running.
 - Starting at login leaves easyshot in the tray; with no tray, the capture bar opens so you can still reach it.
 - Crop, rotate and flip the image in the editor; annotations follow, and each step can be undone.
+- In the editor the mouse wheel zooms about the pointer and touchpad scrolling pans; annotations stay on the image.
 - Scrolling capture: select an area, scroll, and get one tall image.
 - The editor's Background, Camera and Progressive Blur sections: colours, gradients, seven built-in wallpapers or your own, padding, shadow, corners, alignment, and a focus pad for the sharp area.
 - Smart Redaction scans the image for private text and covers it; Pixelate and Blur keep a minimum strength tied to the text height, so covered text cannot be read back.

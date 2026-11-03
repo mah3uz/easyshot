@@ -4,6 +4,7 @@ mod crop;
 mod document;
 mod draw;
 mod interaction_arrows;
+mod interaction_bounds;
 mod interaction_create;
 mod interaction_cursors;
 mod interaction_handles;

@@ -128,6 +128,23 @@ impl Editor {
             w = w.max(h);
             h = w;
         }
+        if let Some(image) = self.image_rect() {
+            let room = |o: f64, d: f64, max: f64| {
+                if pointer.alt {
+                    2.0 * o.min(max - o)
+                } else if d < 0.0 {
+                    o
+                } else {
+                    max - o
+                }
+            };
+            w = w.min(room(origin.x, dx, image.max_x()));
+            h = h.min(room(origin.y, dy, image.max_y()));
+            if pointer.shift {
+                w = w.min(h);
+                h = w;
+            }
+        }
         let place = |o: f64, d: f64, size: f64| {
             if pointer.alt {
                 o - size / 2.0
@@ -176,6 +193,7 @@ impl Editor {
                 (origin.x, origin.y)
             };
             self.set_box(id, x, y, side, side, ch);
+            self.nudge_inside(id, ch);
         }
         self.set_selection([id], ch);
     }
@@ -336,6 +354,7 @@ impl Editor {
             ShapeKind::Numbered(props),
         );
         let id = self.add_shape(shape, ch);
+        self.nudge_inside(id, ch);
         self.set_selection([id], ch);
         self.end_gesture(ch);
     }

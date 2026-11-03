@@ -171,7 +171,7 @@ fn only_the_tiles_in_view_are_painted() {
 }
 
 #[test]
-fn wheel_zoom_keeps_the_point_under_the_pointer_and_plain_wheel_pans() {
+fn ctrl_wheel_zooms_about_the_pointer_and_touchpad_scroll_pans() {
     let (mut app, session) = open(760.0, 420.0, opened(1200, 640, vec![], Default::default()));
     app.cx.update(|cx| {
         session
@@ -223,6 +223,48 @@ fn wheel_zoom_keeps_the_point_under_the_pointer_and_plain_wheel_pans() {
         .cx
         .update(|cx| session.viewport.read(cx).viewport().origin);
     assert_eq!((moved.x - origin.x, moved.y - origin.y), (-30.0, -20.0));
+}
+
+#[test]
+fn a_wheel_notch_zooms_about_the_pointer_without_a_modifier_and_scroll_pixels_do_not() {
+    let (mut app, session) = open(760.0, 420.0, opened(1200, 640, vec![], Default::default()));
+    app.cx.update(|cx| {
+        session
+            .viewport
+            .update(cx, |v, cx| v.set_percent(200.0, cx))
+    });
+    app.settle();
+    let pointer = point(px(500.), px(300.));
+    let page_at = |app: &mut App| {
+        app.cx.update(|cx| {
+            let vp = session.viewport.read(cx).viewport();
+            vp.screen_to_page(es_geom::Point::new(500.0, 300.0))
+        })
+    };
+    let before = page_at(&mut app);
+    send(
+        &mut app,
+        PlatformInput::Scroll(ScrollEvent {
+            position: pointer,
+            delta: ScrollDelta::Lines(point(0., 6.)),
+            ..ScrollEvent::default()
+        }),
+    );
+    let percent = app.cx.update(|cx| session.viewport.read(cx).zoom_percent());
+    assert_eq!(percent, (200.0f64 * 1.3).round());
+    let after = page_at(&mut app);
+    assert!((before.x - after.x).abs() < 1e-6 && (before.y - after.y).abs() < 1e-6);
+
+    send(
+        &mut app,
+        PlatformInput::Scroll(ScrollEvent {
+            position: pointer,
+            delta: ScrollDelta::Pixels(point(px(0.), px(120.))),
+            ..ScrollEvent::default()
+        }),
+    );
+    let still = app.cx.update(|cx| session.viewport.read(cx).zoom_percent());
+    assert_eq!(still, percent);
 }
 
 #[test]
