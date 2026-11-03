@@ -241,6 +241,12 @@ pub(crate) fn read_first_frame_ts(out: &Path) -> Option<u64> {
 }
 
 impl Recorder for GsrRecorder {
+    fn prepare(&self, spec: &RecordSpec, outputs: &[OutputInfo]) {
+        if !matches!(spec.source, RecordSource::Output(_)) {
+            self.probe_units(outputs);
+        }
+    }
+
     fn name(&self) -> &'static str {
         if self.portal {
             "gsr-portal"

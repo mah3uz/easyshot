@@ -2,6 +2,8 @@
 use crate::common;
 
 use common::*;
+use es_geom::Rect;
+use es_model::platform::{OutputId, OutputInfo, Transform};
 use es_record::Clock;
 use es_record::gsr::gsr_args;
 use es_record::{
@@ -320,4 +322,24 @@ fn a_recorder_that_dies_on_start_reports_its_stderr() {
         .with_clock(rig.clock.clone())
         .start(spec(rig.tmp.path(), output("DP-2")));
     assert!(matches!(r, Err(Error::Protocol(_))));
+}
+
+#[test]
+fn a_region_recording_on_a_scaled_output_is_sent_in_physical_pixels() {
+    let rig = Rig::new();
+    let outputs = [OutputInfo {
+        id: OutputId("eDP-1".into()),
+        description: String::new(),
+        logical: Rect::new(0.0, 0.0, 1280.0, 800.0),
+        physical: (2560, 1600),
+        scale: 2.0,
+        refresh_mhz: 60_000,
+        transform: Transform::Normal,
+        focused: None,
+    }];
+    let r = rig.recorder(false, "");
+    let s = spec(rig.tmp.path(), region("eDP-1", 100.0, 50.0, 300.0, 200.0));
+    r.prepare(&s, &outputs);
+    block_on(r.start(s).unwrap().stop()).unwrap();
+    assert!(argv(&rig.lines()).starts_with("-w 600x400+200+100 "));
 }

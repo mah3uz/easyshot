@@ -78,6 +78,12 @@ impl Runner for SystemRunner {
     }
 }
 
+pub fn default_sink_monitor(runner: &dyn Runner) -> Option<String> {
+    let sink = runner.run("pactl", &["get-default-sink"]).ok()?;
+    let sink = sink.trim();
+    (!sink.is_empty()).then(|| format!("{sink}.monitor"))
+}
+
 pub fn list_audio_devices(runner: &dyn Runner) -> Result<Vec<AudioDevice>> {
     let json = runner
         .run("pactl", &["-f", "json", "list", "sources"])

@@ -92,6 +92,10 @@ impl Rig {
 }
 
 fn rig(cx: &mut TestAppContext) -> Rig {
+    rig_with(cx, FakeRecorder::default())
+}
+
+fn rig_with(cx: &mut TestAppContext, recorder: FakeRecorder) -> Rig {
     let dir = tempfile::tempdir().unwrap();
     let paths = Paths::rooted(dir.path());
     paths.ensure_all().unwrap();
@@ -110,7 +114,7 @@ fn rig(cx: &mut TestAppContext) -> Rig {
             deck: deck.clone(),
             recorder: Rc::new(move |_| {
                 counted.set(counted.get() + 1);
-                Ok(Arc::new(FakeRecorder::default()))
+                Ok(Arc::new(recorder))
             }),
             outputs: Rc::new(Vec::new),
             ui: Rc::new(FakeUi(log.clone())),
@@ -380,4 +384,28 @@ fn exports_get_dated_names_in_the_videos_folder_that_never_overwrite() {
     assert_eq!(first.extension().unwrap(), "mp4");
     let name = first.file_name().unwrap().to_string_lossy().into_owned();
     assert!(name.contains("2027"), "the name carries the date: {name}");
+}
+
+#[gpui::test]
+async fn a_recorder_without_system_sound_still_records_and_the_file_says_so(
+    cx: &mut TestAppContext,
+) {
+    let rig = rig_with(
+        cx,
+        FakeRecorder {
+            no_system_audio: true,
+            ..FakeRecorder::default()
+        },
+    );
+    let mut start = display();
+    start.request.system_audio = true;
+    cx.update(|cx| rig.recordings.start(start, cx)).unwrap();
+    cx.run_until_parked();
+    assert!(rig.recordings.is_recording());
+    cx.update(|cx| rig.recordings.stop(cx)).unwrap();
+    cx.run_until_parked();
+    let folder = rig.folders().remove(0);
+    let capture: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(folder.join("capture.json")).unwrap()).unwrap();
+    assert_eq!(capture["includes_system_audio"], false);
 }

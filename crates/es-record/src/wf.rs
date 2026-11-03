@@ -162,6 +162,10 @@ impl Recorder for WfRecorder {
         "wf-recorder"
     }
 
+    fn can_record_system_audio(&self, with_mic: bool) -> bool {
+        !with_mic && self.system_device.is_some()
+    }
+
     fn probe(&self) -> RecorderProbe {
         let problem = if which(&self.program).is_none() {
             Some("wf-recorder not found")

@@ -190,7 +190,13 @@ pub const WF_RECORDER: Provider<dyn Recorder> = Provider {
             .output()
             .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
             .map_err(|e| BackendError::Unavailable(format!("ffmpeg: {e}")))?;
-        usable(es_record::WfRecorder::new(encoders, None))
+        let recorder = es_record::WfRecorder::new(encoders, None);
+        let recorder = match es_record::audio::default_sink_monitor(&es_record::audio::SystemRunner)
+        {
+            Some(monitor) => recorder.with_system_audio_device(monitor),
+            None => recorder,
+        };
+        usable(recorder)
     },
 };
 

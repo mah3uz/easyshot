@@ -177,3 +177,28 @@ fn discard_removes_the_folder() {
     block_on(h.discard()).unwrap();
     assert!(!dir.exists());
 }
+
+#[test]
+fn system_sound_reaches_the_command_line_only_when_a_monitor_is_known() {
+    let rig = Rig {
+        tmp: tempfile::tempdir().unwrap(),
+    };
+    let mut s = spec(rig.tmp.path(), output("DP-2"));
+    s.system_audio = true;
+    let with = rig.recorder().with_system_audio_device("out.monitor");
+    assert!(with.can_record_system_audio(false));
+    assert!(!with.can_record_system_audio(true));
+    block_on(with.start(s.clone()).unwrap().stop()).unwrap();
+    assert!(
+        rig.lines()
+            .iter()
+            .any(|l| l.contains("--audio=out.monitor"))
+    );
+
+    let without = rig.recorder();
+    assert!(!without.can_record_system_audio(false));
+    s.system_audio = false;
+    block_on(without.start(s).unwrap().stop()).unwrap();
+    let audio_flags = rig.lines().iter().filter(|l| l.contains("--audio")).count();
+    assert_eq!(audio_flags, 1, "the second recording has no audio flag");
+}

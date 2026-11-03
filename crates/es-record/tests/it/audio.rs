@@ -124,3 +124,25 @@ fn a_printed_physical_size_on_a_scaled_output_maps_regions_to_physical_pixels() 
     let region = Rect::new(3083.0, 382.0, 3883.0, 982.0);
     assert_eq!(units.region_target(&dp, region), "800x600+3083+382");
 }
+
+struct Sink(Option<&'static str>);
+
+impl Runner for Sink {
+    fn run(&self, program: &str, args: &[&str]) -> std::io::Result<String> {
+        assert_eq!((program, args), ("pactl", ["get-default-sink"].as_slice()));
+        self.0
+            .map(str::to_owned)
+            .ok_or_else(|| std::io::Error::other("no sound server"))
+    }
+}
+
+#[test]
+fn system_sound_is_taken_from_the_default_sinks_monitor() {
+    let got = es_record::audio::default_sink_monitor(&Sink(Some("alsa_output.pci.analog\n")));
+    assert_eq!(got.as_deref(), Some("alsa_output.pci.analog.monitor"));
+    assert_eq!(
+        es_record::audio::default_sink_monitor(&Sink(Some("\n"))),
+        None
+    );
+    assert_eq!(es_record::audio::default_sink_monitor(&Sink(None)), None);
+}

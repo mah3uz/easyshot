@@ -11,6 +11,7 @@ toast-recording-saved-message = Saved to { $path }
 toast-video-exported = Video exported
 toast-video-exported-message = Saved to { $path }
 toast-recording-busy = A recording is already running
+toast-recording-no-system-audio = Recording without system sound
 toast-recording-busy-message = Stop it from the tray or the recording controls first.
 toast-recording-save-failed = Couldn't save recording
 toast-copy-failed = Copy Failed

@@ -554,11 +554,24 @@ fn recorder_for(backend: Arc<Backend>) -> recording::RecorderFor {
         ) -> es_record::Result<Box<dyn es_record::RecordingHandle>> {
             self.0.recorders[self.1].start(spec)
         }
+        fn prepare(
+            &self,
+            spec: &es_record::RecordSpec,
+            outputs: &[es_model::platform::OutputInfo],
+        ) {
+            self.0.recorders[self.1].prepare(spec, outputs)
+        }
+        fn can_record_system_audio(&self, with_mic: bool) -> bool {
+            self.0.recorders[self.1].can_record_system_audio(with_mic)
+        }
     }
     Rc::new(move |wanted| {
         #[cfg(feature = "test-hooks")]
         if test_mode_requested() {
-            return Ok(Arc::new(recording::fake::FakeRecorder { video: true }));
+            return Ok(Arc::new(recording::fake::FakeRecorder {
+                video: true,
+                ..Default::default()
+            }));
         }
         let at = backend
             .recorders

@@ -10,6 +10,7 @@ use std::process::{Command, Stdio};
 #[derive(Clone, Copy, Default)]
 pub struct FakeRecorder {
     pub video: bool,
+    pub no_system_audio: bool,
 }
 
 struct FakeHandle {
@@ -29,6 +30,10 @@ impl Recorder for FakeRecorder {
             available: true,
             reason: None,
         }
+    }
+
+    fn can_record_system_audio(&self, _with_mic: bool) -> bool {
+        !self.no_system_audio
     }
 
     fn start(&self, spec: RecordSpec) -> Result<Box<dyn RecordingHandle>> {

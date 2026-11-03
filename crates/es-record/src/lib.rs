@@ -58,6 +58,14 @@ pub trait Recorder: Send + Sync {
     fn name(&self) -> &'static str;
     fn probe(&self) -> RecorderProbe;
     fn start(&self, spec: RecordSpec) -> Result<Box<dyn RecordingHandle>>;
+
+    /// Called before `start` with the current outputs, for recorders whose region units depend on them.
+    fn prepare(&self, _spec: &RecordSpec, _outputs: &[es_model::platform::OutputInfo]) {}
+
+    /// False when this recorder cannot add system sound to a recording, so the caller records without it.
+    fn can_record_system_audio(&self, _with_mic: bool) -> bool {
+        true
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

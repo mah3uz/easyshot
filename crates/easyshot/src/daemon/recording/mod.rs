@@ -299,11 +299,21 @@ impl Recordings {
         ui::open_player(video, self.0.deps.paths.clone(), template, cx)
     }
 
-    fn begin(&self, start: Start, cx: &mut App) -> Result<Session> {
+    fn begin(&self, mut start: Start, cx: &mut App) -> Result<Session> {
         let deps = &self.0.deps;
-        let (recorded, source) = resolve(&start, &(deps.outputs)())?;
+        let outputs = (deps.outputs)();
+        let (recorded, source) = resolve(&start, &outputs)?;
         let cfg = deps.settings.read(cx).config().recording.clone();
         let recorder = (deps.recorder)(&cfg.recorder)?;
+        if start.request.system_audio
+            && !recorder.can_record_system_audio(start.request.mic.is_some())
+        {
+            start.request.system_audio = false;
+            show_toast(
+                Toast::new("toast-recording-no-system-audio", IconName::Info),
+                cx,
+            );
+        }
         let created_at = OffsetDateTime::now_utc();
         let folder = ProjectFolder::create(&deps.paths.recordings_dir(), created_at)
             .map_err(|e| io_error(&e))?;
@@ -318,6 +328,7 @@ impl Recordings {
             cursor: true,
             dir: folder.dir().to_path_buf(),
         };
+        recorder.prepare(&spec, &outputs);
         let handle = match recorder.start(spec) {
             Ok(handle) => handle,
             Err(e) => {

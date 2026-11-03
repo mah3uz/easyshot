@@ -259,6 +259,10 @@ System sound is recorded unless you turn it off in Settings, Recording; the micr
 off until you choose one there. There is a countdown, and then a control bar with stop,
 pause and resume, restart and discard. The recorded area is highlighted.
 
+wf-recorder records one audio track. With it, system sound is the default output's monitor, and
+a recording with a microphone, or with no default output found, is made without system sound;
+easyshot says so when it starts.
+
 The capture bar opens with `easyshot capture-bar`, its key (Super+Shift+2 by default) or the
 tray; opening it again by any of these closes it. While it is open it has the keyboard, so
 Esc closes it, or closes its open menu first.

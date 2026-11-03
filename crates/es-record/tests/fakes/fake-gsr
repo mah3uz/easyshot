@@ -2,6 +2,9 @@
 import os, signal, socket, sys, threading, time
 
 args = sys.argv[1:]
+if "-ipc" not in args:
+    sys.stderr.write("gsr error: window 1x1+0+0 doesn't match any monitor. Available: eDP-1 (2560x1600+0+0)\n")
+    sys.exit(1)
 modes = os.environ.get("FAKE_MODE", "").split(",")
 log_path = os.environ["FAKE_LOG"]
 
