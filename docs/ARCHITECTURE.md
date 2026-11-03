@@ -110,7 +110,7 @@ Layer 2  IO and system mechanisms — no GPUI
                protocols, foreign-toplevel, data-control clipboard, virtual pointer       → es-geom, es-model
   es-desktop   freedesktop over D-Bus: Command service/client, tray, notifications,
                portals, trash, autostart, sound (feature)                                → es-protocol
-  es-record    recorder providers, audio devices, input streams, project folder          → es-model, es-protocol, es-geom
+  es-record    recorder providers, audio devices, input streams, project folder, clip export        → es-model, es-protocol, es-geom
   es-backend   capability traits, Caps, the provider registry, compositor modules,
                test-mode decorators, doctor report                                       → es-wayland, es-desktop, es-record, es-protocol, es-geom, es-model
 Layer 3  GPUI

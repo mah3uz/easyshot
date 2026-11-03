@@ -213,27 +213,27 @@ const READERS: &[(&str, &str, &str)] = &[
     ),
     (
         "recording.export_format",
-        "crates/es-overlays/src/player/options.rs",
+        "crates/es-record/src/clip/options.rs",
         ".export_format",
     ),
     (
         "recording.export_size",
-        "crates/es-overlays/src/player/options.rs",
+        "crates/es-record/src/clip/options.rs",
         ".export_size",
     ),
     (
         "recording.export_quality",
-        "crates/es-overlays/src/player/options.rs",
+        "crates/es-record/src/clip/options.rs",
         ".export_quality",
     ),
     (
         "recording.export_look",
-        "crates/es-overlays/src/player/options.rs",
+        "crates/es-record/src/clip/options.rs",
         ".export_look",
     ),
     (
         "recording.export_brightness",
-        "crates/es-overlays/src/player/options.rs",
+        "crates/es-record/src/clip/options.rs",
         ".export_brightness",
     ),
     (

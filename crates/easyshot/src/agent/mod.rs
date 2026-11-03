@@ -1,10 +1,12 @@
 mod access;
 mod capture;
+mod export;
 mod run;
 #[cfg(test)]
 mod tests;
 
 pub use capture::CaptureArgs;
+pub use export::ExportArgs;
 pub use run::{run, usage_error};
 
 use clap::{Args, Subcommand, ValueEnum};
@@ -35,6 +37,8 @@ pub enum AgentCommand {
     /// Read or change an agent access setting
     #[command(subcommand)]
     Config(access::ConfigCommand),
+    /// Re-encode a recording as MP4, WebM or GIF with the trim viewer's export options
+    Export(ExportArgs),
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
@@ -65,6 +69,7 @@ impl AgentArgs {
             AgentCommand::Disable => (AgentRoute::Manage(ManageRoute::Disable), true),
             AgentCommand::Status => (AgentRoute::Manage(ManageRoute::Status), true),
             AgentCommand::Config(c) => (AgentRoute::Manage(c.route()), true),
+            AgentCommand::Export(args) => (AgentRoute::Export(args.spec()), args.wait()),
         };
         AgentCall {
             route,

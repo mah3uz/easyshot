@@ -4,6 +4,7 @@ use futures::future::BoxFuture;
 use std::path::PathBuf;
 
 pub mod audio;
+pub mod clip;
 pub mod gsr;
 pub mod input;
 pub mod process;

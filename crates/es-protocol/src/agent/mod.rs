@@ -1,16 +1,22 @@
 mod access;
 mod capture;
+mod export;
 mod reply;
 mod target;
 
 pub use access::{AccessStatus, AgentKey, ConfigEntry, GrantSpan, GrantStatus, ManageRoute};
 pub use capture::{CaptureSpec, MAX_DELAY_SECONDS, check_out};
+pub use export::{
+    ExportSpec, FORMATS, LOOKS, MAX_BRIGHTNESS_MILLI, QUALITIES, SIZES, TrimRange, check_path,
+    extension_format,
+};
 pub use reply::{
-    AgentReply, CaptureInfo, ErrorCode, OutputEntry, ReplyError, ReplyKind, WindowEntry,
+    AgentReply, CaptureInfo, ErrorCode, ExportInfo, OutputEntry, ReplyError, ReplyKind, WindowEntry,
 };
 pub use target::{AgentTarget, Geometry, OutputName, WindowSelector};
 
 use crate::{ArgValue, Error, Result, RouteArgs};
+use std::path::PathBuf;
 
 /// Raised whenever an agent route's arguments change meaning, so a command and a daemon from
 /// different releases refuse each other instead of misreading the request.
@@ -25,15 +31,17 @@ pub enum AgentRoute {
     ListWindows,
     Capture(CaptureSpec),
     Manage(ManageRoute),
+    Export(ExportSpec),
 }
 
 impl AgentRoute {
     /// The routes access gates, and the only ones; `Manage` routes are outside it.
     /// The capture entry is a sample; its fields are not part of the route's identity.
-    pub const ALL: [AgentRoute; 3] = [
+    pub const ALL: [AgentRoute; 4] = [
         AgentRoute::ListOutputs,
         AgentRoute::ListWindows,
         AgentRoute::Capture(CaptureSpec::new(AgentTarget::Fullscreen)),
+        AgentRoute::Export(ExportSpec::new(PathBuf::new())),
     ];
 
     pub fn route_name(&self) -> &'static str {
@@ -42,6 +50,7 @@ impl AgentRoute {
             AgentRoute::ListWindows => "agent/list-windows",
             AgentRoute::Capture(_) => "agent/capture",
             AgentRoute::Manage(m) => m.route_name(),
+            AgentRoute::Export(_) => "agent/export",
         }
     }
 
@@ -51,6 +60,7 @@ impl AgentRoute {
             AgentRoute::ListWindows => ReplyKind::Windows,
             AgentRoute::Capture(_) => ReplyKind::Capture,
             AgentRoute::Manage(m) => m.kind(),
+            AgentRoute::Export(_) => ReplyKind::Export,
         }
     }
 
@@ -60,6 +70,7 @@ impl AgentRoute {
             AgentRoute::ListWindows => vec!["agent", "list", "windows"],
             AgentRoute::Capture(_) => vec!["agent", "capture"],
             AgentRoute::Manage(m) => m.command_args(),
+            AgentRoute::Export(_) => vec!["agent", "export"],
         }
     }
 
@@ -67,8 +78,10 @@ impl AgentRoute {
         let mut args = RouteArgs::default();
         args.0
             .insert(VERSION_ARG.to_owned(), ArgValue::Int(AGENT_PROTOCOL));
-        if let AgentRoute::Capture(spec) = self {
-            spec.write_args(&mut args);
+        match self {
+            AgentRoute::Capture(spec) => spec.write_args(&mut args),
+            AgentRoute::Export(spec) => spec.write_args(&mut args),
+            _ => {}
         }
         if let AgentRoute::Manage(m) = self {
             m.write_args(&mut args);
@@ -80,7 +93,10 @@ impl AgentRoute {
     pub fn target(&self) -> Option<&AgentTarget> {
         match self {
             AgentRoute::Capture(spec) => Some(&spec.target),
-            AgentRoute::ListOutputs | AgentRoute::ListWindows | AgentRoute::Manage(_) => None,
+            AgentRoute::ListOutputs
+            | AgentRoute::ListWindows
+            | AgentRoute::Export(_)
+            | AgentRoute::Manage(_) => None,
         }
     }
 
@@ -119,6 +135,15 @@ impl AgentRoute {
                 .map(AgentRoute::Capture)
                 .map_err(bad);
         }
+        if let Some(AgentRoute::Export(_)) = route {
+            let known = |k: &str| k == VERSION_ARG || ExportSpec::ARGS.contains(&k);
+            if let Some(extra) = args.0.keys().find(|k| !known(k)) {
+                return Err(bad(format!("unknown argument {extra}")));
+            }
+            return ExportSpec::from_args(args)
+                .map(AgentRoute::Export)
+                .map_err(bad);
+        }
         if let Some(extra) = args.0.keys().find(|k| *k != VERSION_ARG) {
             return Err(bad(format!("unknown argument {extra}")));
         }
@@ -131,9 +156,16 @@ mod tests {
     use super::*;
     use crate::Route;
 
+    fn usable(agent: AgentRoute) -> AgentRoute {
+        match agent {
+            AgentRoute::Export(_) => AgentRoute::Export(ExportSpec::new("/v/a.mkv".into())),
+            other => other,
+        }
+    }
+
     #[test]
     fn every_agent_route_round_trips_through_its_name_and_args() {
-        for agent in AgentRoute::ALL {
+        for agent in AgentRoute::ALL.map(usable) {
             let route = Route::Agent(agent.clone());
             assert_eq!(route.as_str(), agent.route_name());
             assert_eq!(Route::parse(&route.as_str(), &route.args()).unwrap(), route);

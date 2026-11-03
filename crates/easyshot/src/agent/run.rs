@@ -121,6 +121,9 @@ fn print(json: bool, reply: &AgentReply, out: &mut dyn Write, err: &mut dyn Writ
     if let Some(config) = &reply.config {
         let _ = writeln!(out, "{}", config.value);
     }
+    if let Some(done) = &reply.export {
+        let _ = writeln!(out, "{}", done.path);
+    }
     if let Some(job) = reply.job {
         let _ = writeln!(out, "job {job}");
     }

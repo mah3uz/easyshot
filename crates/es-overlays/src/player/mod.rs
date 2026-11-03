@@ -2,14 +2,13 @@
 mod controls;
 #[cfg(feature = "player")]
 pub mod engine;
-pub mod export;
-pub mod options;
 #[cfg(feature = "player")]
 mod scrubber;
 pub mod strip;
-pub mod trim;
 #[cfg(feature = "player")]
 mod view;
+
+pub use es_record::clip::{export, options, trim};
 
 #[cfg(feature = "player")]
 pub use engine::AudioOut;

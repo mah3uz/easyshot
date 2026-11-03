@@ -65,6 +65,7 @@ pub enum ReplyKind {
     Capture,
     Access,
     Config,
+    Export,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -122,8 +123,20 @@ pub struct CaptureInfo {
     pub window: Option<WindowEntry>,
 }
 
+/// What an export wrote; the size is in pixels.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ExportInfo {
+    pub path: String,
+    pub format: String,
+    pub width: u32,
+    pub height: u32,
+    pub duration_ms: u64,
+    pub bytes: u64,
+}
+
 /// The one JSON object an agent command answers with: `{ok, kind, ...fields, error}`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(from = "WireReply")]
 pub struct AgentReply {
     pub ok: bool,
     pub kind: ReplyKind,
@@ -136,12 +149,65 @@ pub struct AgentReply {
     pub windows: Option<Vec<WindowEntry>>,
     #[serde(flatten, default, skip_serializing_if = "Option::is_none")]
     pub capture: Option<Box<CaptureInfo>>,
+    #[serde(flatten, default, skip_serializing_if = "Option::is_none")]
+    pub export: Option<Box<ExportInfo>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub access: Option<AccessStatus>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub config: Option<ConfigEntry>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<ReplyError>,
+}
+
+/// A capture and an export both flatten `path`, `width` and `height`; flattened side by side the
+/// first would swallow them, so reading goes through one untagged choice.
+#[derive(Deserialize)]
+struct WireReply {
+    ok: bool,
+    kind: ReplyKind,
+    #[serde(default)]
+    job: Option<u64>,
+    #[serde(default)]
+    outputs: Option<Vec<OutputEntry>>,
+    #[serde(default)]
+    windows: Option<Vec<WindowEntry>>,
+    #[serde(flatten, default)]
+    made: Option<Made>,
+    #[serde(default)]
+    access: Option<AccessStatus>,
+    #[serde(default)]
+    config: Option<ConfigEntry>,
+    #[serde(default)]
+    error: Option<ReplyError>,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum Made {
+    Export(Box<ExportInfo>),
+    Capture(Box<CaptureInfo>),
+}
+
+impl From<WireReply> for AgentReply {
+    fn from(w: WireReply) -> AgentReply {
+        let (capture, export) = match w.made {
+            Some(Made::Capture(c)) => (Some(c), None),
+            Some(Made::Export(e)) => (None, Some(e)),
+            None => (None, None),
+        };
+        AgentReply {
+            ok: w.ok,
+            kind: w.kind,
+            job: w.job,
+            outputs: w.outputs,
+            windows: w.windows,
+            capture,
+            export,
+            access: w.access,
+            config: w.config,
+            error: w.error,
+        }
+    }
 }
 
 impl AgentReply {
@@ -155,6 +221,7 @@ impl AgentReply {
             capture: None,
             access: None,
             config: None,
+            export: None,
             error: None,
         }
     }
@@ -326,5 +393,28 @@ mod tests {
             ..AgentReply::ok(ReplyKind::Outputs)
         };
         assert_eq!(reply.exit_code(), 1);
+    }
+
+    #[test]
+    fn an_export_reply_is_flat_and_never_mistaken_for_a_capture() {
+        let mut reply = AgentReply::ok(ReplyKind::Export);
+        reply.export = Some(Box::new(ExportInfo {
+            path: "/tmp/a.webm".into(),
+            format: "webm".into(),
+            width: 854,
+            height: 480,
+            duration_ms: 2000,
+            bytes: 12345,
+        }));
+        assert_eq!(
+            value(&reply),
+            json!({
+                "ok": true, "kind": "export", "path": "/tmp/a.webm", "format": "webm",
+                "width": 854, "height": 480, "duration_ms": 2000, "bytes": 12345
+            })
+        );
+        let back = AgentReply::from_json(&reply.to_json()).unwrap();
+        assert_eq!(back, reply);
+        assert!(back.capture.is_none());
     }
 }

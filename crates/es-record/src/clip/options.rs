@@ -166,3 +166,21 @@ impl ExportOptions {
         self.size != Size::Original || self.look != Look::Natural || self.brightness != 0.
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use es_protocol::agent::{FORMATS, LOOKS, MAX_BRIGHTNESS_MILLI, QUALITIES, SIZES};
+
+    #[test]
+    fn the_ids_the_agent_command_accepts_are_the_ones_the_export_knows() {
+        fn same(listed: &[&str], known: &[&str]) {
+            assert_eq!(listed, known);
+        }
+        same(&FORMATS, &Format::ALL.map(Format::id));
+        same(&SIZES, &Size::ALL.map(Size::id));
+        same(&QUALITIES, &Quality::ALL.map(Quality::id));
+        same(&LOOKS, &Look::ALL.map(Look::id));
+        assert!(MAX_BRIGHTNESS_MILLI as f64 / 1000. >= BRIGHTNESS_LIMIT);
+    }
+}

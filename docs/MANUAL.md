@@ -476,6 +476,22 @@ Commands:
     save. With `--out` as well, the file is all that is written: nothing goes to the library.
   - `--wait` (the default) returns when the capture is done; `--no-wait` returns once the
     daemon has accepted it.
+- `agent export VIDEO` re-encodes a recording with the same options as the trim viewer's
+  export and prints the path of the new file. It needs `ffmpeg` and `ffprobe`; a file that is
+  not a video they can read is refused, and a missing one is `not_found`.
+  - `--format mp4|webm|gif` (default: the type of `--out`, else `mp4`).
+  - `--size original|1080p|720p|480p` scales down to that height and never enlarges.
+  - `--quality high|balanced|small` (default `balanced`).
+  - `--trim A..B` keeps the seconds from A to B, decimals allowed; either end may be left out,
+    as in `2.5..8` or `..10`. An end past the video's length is the end of the video.
+  - `--look natural|vivid|muted|mono` and `--brightness AMOUNT` (-1 to 1) change the picture.
+  - `--out PATH` writes the file there; its folder must exist and its type must match the
+    format. Without it the file is `NAME-export.EXT` beside the video. An existing file is
+    never replaced unless you add `--force`.
+  - `--wait` (the default) returns when the export is done; `--no-wait` returns once the
+    daemon has accepted it. With `--json` the answer is
+    `{"ok":true,"kind":"export","path":...,"format":...,"width":...,"height":...,"duration_ms":...,"bytes":...}`.
+    It reads no screen, so it needs no more than agent access being on.
 
 Without `--json` each output or window is one line of tab-separated text, with geometry
 written `x,y WxH`. With `--json` (before or after the subcommand) easyshot prints exactly
@@ -490,7 +506,7 @@ one JSON object on standard output, errors included:
 A capture answer gives the size in pixels, not logical pixels, and `scale`; a window capture
 adds a `window` object like an entry of `agent list windows`.
 
-`kind` is `outputs`, `windows`, `capture`, `access` (enable, disable and status), `config`, or `usage` when the command line itself could not be read.
+`kind` is `outputs`, `windows`, `capture`, `export`, `access` (enable, disable and status), `config`, or `usage` when the command line itself could not be read.
 Fields may be added to these objects in later versions; existing ones keep their meaning.
 
 Exit codes and error codes:

@@ -1,5 +1,7 @@
 #[path = "agent_capture.rs"]
 pub(super) mod capture;
+#[path = "agent_export.rs"]
+mod export;
 #[path = "agent_gate.rs"]
 pub(super) mod gate;
 
@@ -95,6 +97,7 @@ fn answer(route: &AgentRoute, sources: &Sources) -> AgentReply {
             }
         }
         AgentRoute::Capture(_) => unsupported("screen capture"),
+        AgentRoute::Export(spec) => export::export(spec),
         AgentRoute::ListWindows => {
             if !sources.caps.contains(Caps::WINDOW_LIST) {
                 return unsupported("window list");

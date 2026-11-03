@@ -134,7 +134,10 @@ fn list_windows_leaves_out_what_the_compositor_did_not_say(cx: &mut TestAppConte
 #[gpui::test]
 fn a_desktop_without_the_provider_answers_unsupported(cx: &mut TestAppContext) {
     let rig = rig(Caps::empty());
-    for route in AgentRoute::ALL {
+    let needs_desktop = AgentRoute::ALL
+        .into_iter()
+        .filter(|r| !matches!(r, AgentRoute::Export(_)));
+    for route in needs_desktop {
         let (done, reply) = ask(&rig, route, Origin::DBus, cx);
         assert_eq!(done, JobStatus::Error);
         assert_eq!(reply["ok"], json!(false));
@@ -165,4 +168,16 @@ fn the_gate_refuses_agent_routes_from_anywhere_but_the_bus_before_any_work(
         0,
         "nothing was listed for a refused request"
     );
+}
+
+#[gpui::test]
+fn export_needs_no_desktop_provider_and_answers_in_its_own_kind(cx: &mut TestAppContext) {
+    let rig = rig(Caps::empty());
+    let route = AgentRoute::Export(es_protocol::agent::ExportSpec::new(
+        "/no/such/dir/video.mp4".into(),
+    ));
+    let (done, reply) = ask(&rig, route, Origin::DBus, cx);
+    assert_eq!(done, JobStatus::Error);
+    assert_eq!(reply["kind"], json!("export"));
+    assert_eq!(reply["error"]["code"], json!("not_found"));
 }

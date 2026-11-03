@@ -443,7 +443,9 @@ mod tests {
         mknodat(CWD, &fifo, FileType::Fifo, Mode::RUSR | Mode::WUSR, 0).unwrap();
         let (tx, rx) = std::sync::mpsc::channel();
         let args = path_args(&fifo);
-        std::thread::spawn(move || tx.send(Route::parse("open", &args)));
+        std::thread::spawn(move || {
+            let _ = tx.send(Route::parse("open", &args));
+        });
         let parsed = rx
             .recv_timeout(std::time::Duration::from_secs(5))
             .expect("parsing a FIFO must not block");
