@@ -5,6 +5,7 @@ arrow-up-right
 camera
 check
 chevron-down
+chevron-left
 chevron-right
 circle
 circle-alert
