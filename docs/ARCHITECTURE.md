@@ -312,7 +312,9 @@ Run through the daemon in headless sway and, in part, on Hyprland (see section 1
 ## 11. Build and test
 
 Rust 1.98.1, pinned in `rust-toolchain.toml`. `[profile.dev.package."*"] opt-level = 2`,
-because GPUI is too slow unoptimised. `[profile.release]` uses thin LTO, one codegen unit
+because GPUI is too slow unoptimised. `[profile.dev]` keeps line tables only for workspace
+crates, no debug info for dependencies and no incremental output; `[profile.dbg]` is dev with
+full debug info. `[profile.release]` uses thin LTO, one codegen unit
 and stripped symbols; `[profile.fast]` is release without LTO for local installs and bench
 iterations; it builds the pixel crates (tiny-skia, png, image, libblur, es-render and the
 others listed in `Cargo.toml`) with one codegen unit, so its timings match a shipped build.

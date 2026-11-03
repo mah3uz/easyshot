@@ -114,9 +114,22 @@ todo = "warn"
 gpui-pre = { path = "vendor/gpui-pre" }
 gpui-pre-linux = { path = "vendor/gpui-pre-linux" }
 
+# Full debug info in every GPUI-sized test binary filled hundreds of GB; `--profile dbg` restores it.
+[profile.dev]
+debug = "line-tables-only"
+incremental = false
+
 # gpui is too slow to use unoptimised.
 [profile.dev.package."*"]
 opt-level = 2
+debug = false
+
+[profile.dbg]
+inherits = "dev"
+debug = "full"
+
+[profile.dbg.package."*"]
+debug = "full"
 
 [profile.release]
 lto = "thin"

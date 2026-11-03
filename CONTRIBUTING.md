@@ -52,7 +52,10 @@ just test-changed
 Layer 0, 1 and 2 crates test without a display. Window tests run in their own process under
 nextest with a 60 s slow-timeout and one retry, because a window test can hang as it ends.
 The dependency profile uses `opt-level = 2`; without it window tests are about ten times
-slower. Each window test's helper ends the window's own threads before the app, then calls
+slower. Dev builds carry line tables only for our crates and no debug info for dependencies,
+and build without incremental output so sccache can reuse them across worktrees; build with
+`--profile dbg` to step through code in a debugger. Cargo never deletes stale build output:
+`just sweep [MAX_GB]` removes `target/debug` when it is over the limit (80 GB by default). Each window test's helper ends the window's own threads before the app, then calls
 `run_until_parked`.
 
 The full gate (`just check`: lint, layers, grep-guard, i18n-check, gpui-guard, tests, the sway, niri and

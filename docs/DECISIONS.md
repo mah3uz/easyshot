@@ -38,6 +38,16 @@ User simplification, 2026-10-31. The duplicate-crate check is `cargo tree -d` in
 gpui-guard`. Licence and advisory checks arrive with packaging. The toolchain is pinned and
 dependencies are declared up front, so MSRV and unused-dependency tools are not needed.
 
+### Lean dev builds
+`[profile.dev]` has `debug = "line-tables-only"` and `incremental = false`; dependencies have
+`debug = false`; `[profile.dbg]` restores full debug info. Why: every test binary links GPUI
+and wgpu, about half of each was debug info, and the debug target reached 483 GB; relinking
+after a change wrote gigabytes and stalled the desktop on disk I/O. Incremental output is not
+cached by sccache, so each worktree recompiled every workspace crate. Rejected: a shared
+target dir across worktrees (Cargo's unit hash drops the workspace path, so worktrees collide),
+`split-debuginfo = "unpacked"` (unverified with sccache), and a build I/O throttle (user's
+choice).
+
 ### `es-testkit` is dev-only
 The shared headless-window helper is a layer 3 crate that is never a normal dependency.
 Rejected: duplicating the helper per crate. Reason not recorded beyond that.

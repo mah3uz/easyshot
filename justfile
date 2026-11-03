@@ -62,6 +62,19 @@ test:
 test-changed:
     scripts/test-changed.sh
 
+# Delete the dev build output when it is over MAX_GB; cargo never removes stale artifacts itself
+sweep MAX_GB="80":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    [ -d target/debug ] || exit 0
+    gb=$(( $(du -s --block-size=1G target/debug | cut -f1) ))
+    if [ "$gb" -gt "{{ MAX_GB }}" ]; then
+        echo "target/debug is ${gb} GB (over {{ MAX_GB }}): removing it"
+        cargo clean --profile dev
+    else
+        echo "target/debug is ${gb} GB (limit {{ MAX_GB }})"
+    fi
+
 # Check formatting and run clippy with warnings as errors
 lint:
     cargo fmt --check
