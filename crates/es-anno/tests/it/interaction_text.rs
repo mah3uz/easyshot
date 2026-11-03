@@ -30,7 +30,8 @@ fn a_text_tool_click_creates_text_centred_on_the_first_line_and_starts_typing() 
     click(&mut ed, at(300.0, 200.0));
     let id = ed.editing_text_id().expect("typing into the new text");
     let s = ed.doc().shape(id).expect("text in document");
-    assert_eq!((s.x, s.y), (300.0, 200.0 - 20.0 * 1.35 / 2.0));
+    let size = es_model::shape::DEFAULT_TEXT_SIZE;
+    assert_eq!((s.x, s.y), (300.0, 200.0 - size * 1.35 / 2.0));
     assert_eq!(
         ed.selected_ids().iter().copied().collect::<Vec<_>>(),
         vec![id]

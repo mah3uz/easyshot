@@ -361,7 +361,10 @@ fn text_draws_glyph_outlines_in_its_colour_and_underlines_only_when_asked() {
     else {
         panic!("{items:?}");
     };
-    assert_eq!(glyphs.bounding_box().width(), 3.0 * 10.0);
+    assert_eq!(
+        glyphs.bounding_box().width(),
+        3.0 * es_model::shape::DEFAULT_TEXT_SIZE / 2.0
+    );
     assert_eq!(*color, es_model::Swatch::default().to_rgba());
     assert!(underline.is_empty());
 

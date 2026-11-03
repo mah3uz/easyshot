@@ -190,7 +190,8 @@ fn text_geometry_is_the_measured_box() {
     let id = t.id;
     let ed = editor(vec![t], vec![]);
     let b = ed.doc().geometry(id).unwrap().bounds();
-    assert_eq!((b.w, b.h), (51.0, 20.0 * 1.35));
+    let size = es_model::shape::DEFAULT_TEXT_SIZE;
+    assert_eq!((b.w, b.h), (5.0 * size / 2.0 + 1.0, size * 1.35));
 }
 
 #[test]
