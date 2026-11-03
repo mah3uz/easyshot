@@ -21,22 +21,20 @@ pub fn namespace(role: SurfaceRole) -> &'static str {
     }
 }
 
-/// `exclusive_keyboard` is honoured only for the overlay; the caller decides it from the pointer's output and test mode.
+/// `exclusive_keyboard` is honoured only for the overlay and the bar; the caller decides it with [`wants_exclusive`].
 pub fn layer_options(role: SurfaceRole, exclusive_keyboard: bool) -> LayerShellOptions {
     use KeyboardInteractivity as K;
     let all = Anchor::TOP | Anchor::BOTTOM | Anchor::LEFT | Anchor::RIGHT;
     let placed = Anchor::TOP | Anchor::LEFT;
     // -1 keeps margins relative to the output edge rather than to other surfaces' reserved space.
     let free = Some(px(-1.));
+    let grab = if exclusive_keyboard {
+        K::Exclusive
+    } else {
+        K::OnDemand
+    };
     let (layer, anchor, exclusive_zone, keyboard) = match role {
-        SurfaceRole::Overlay => {
-            let k = if exclusive_keyboard {
-                K::Exclusive
-            } else {
-                K::OnDemand
-            };
-            (Layer::Overlay, all, free, k)
-        }
+        SurfaceRole::Overlay => (Layer::Overlay, all, free, grab),
         SurfaceRole::Countdown => (Layer::Overlay, Anchor::empty(), None, K::None),
         SurfaceRole::Toast => (Layer::Top, Anchor::TOP, None, K::None),
         SurfaceRole::Deck => (
@@ -46,7 +44,7 @@ pub fn layer_options(role: SurfaceRole, exclusive_keyboard: bool) -> LayerShellO
             K::OnDemand,
         ),
         SurfaceRole::Pin => (Layer::Top, placed, free, K::OnDemand),
-        SurfaceRole::Bar => (Layer::Top, Anchor::BOTTOM, None, K::OnDemand),
+        SurfaceRole::Bar => (Layer::Top, Anchor::BOTTOM, None, grab),
         SurfaceRole::Highlight | SurfaceRole::Scroll => (Layer::Overlay, placed, free, K::None),
     };
     LayerShellOptions {
@@ -72,7 +70,13 @@ pub fn wants_exclusive(
     pointer_output: Option<&OutputId>,
     output: &OutputId,
 ) -> bool {
-    role == SurfaceRole::Overlay && test_output.is_none() && pointer_output == Some(output)
+    test_output.is_none()
+        && match role {
+            SurfaceRole::Overlay => pointer_output == Some(output),
+            // A compositor may hand an on-demand surface's focus back to the window under the pointer.
+            SurfaceRole::Bar => true,
+            _ => false,
+        }
 }
 
 pub fn output_uuid(output: &OutputId) -> Uuid {

@@ -48,12 +48,29 @@ fn the_overlay_covers_its_whole_output_above_everything() {
 }
 
 #[test]
-fn only_an_overlay_under_the_pointer_outside_test_mode_grabs_the_keyboard() {
+fn the_capture_bar_grabs_the_keyboard_wherever_the_pointer_is_so_esc_reaches_it() {
+    let (a, b) = (out("DP-1"), out("DP-2"));
+    for pointer in [Some(&a), Some(&b), None] {
+        assert!(wants_exclusive(SurfaceRole::Bar, None, pointer, &a));
+    }
+    assert_eq!(
+        layer_options(SurfaceRole::Bar, true).keyboard_interactivity,
+        K::Exclusive
+    );
+    assert_eq!(
+        layer_options(SurfaceRole::Bar, false).keyboard_interactivity,
+        K::OnDemand
+    );
+}
+
+#[test]
+fn only_an_overlay_under_the_pointer_or_the_bar_outside_test_mode_grabs_the_keyboard() {
     let (a, b) = (out("DP-1"), out("DP-2"));
     assert!(wants_exclusive(SurfaceRole::Overlay, None, Some(&a), &a));
     assert!(!wants_exclusive(SurfaceRole::Overlay, None, Some(&b), &a));
     assert!(!wants_exclusive(SurfaceRole::Overlay, None, None, &a));
     assert!(!wants_exclusive(SurfaceRole::Pin, None, Some(&a), &a));
+    assert!(!wants_exclusive(SurfaceRole::Deck, None, Some(&a), &a));
     assert!(!wants_exclusive(
         SurfaceRole::Overlay,
         Some(&a),

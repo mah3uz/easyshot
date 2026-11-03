@@ -177,6 +177,10 @@ A capture bar and recording picker start a recording of an area, a display or a 
 with system audio and microphone if you choose. There is a countdown, and then a control
 bar with stop, pause and resume, restart and discard. The recorded area is highlighted.
 
+The capture bar opens with `easyshot capture-bar`, its key (Super+Shift+2 by default) or the
+tray; opening it again by any of these closes it. While it is open it has the keyboard, so
+Esc closes it, or closes its open menu first.
+
 Each recording is a project folder with an `input.json` holding cursor travel, clicks and
 keystrokes when permitted. A finished recording appears as a deck card, then opens in a
 trim viewer with export.

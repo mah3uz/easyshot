@@ -41,6 +41,8 @@ impl WindowHandle for Open {
     }
 
     fn focus(&self, _: &mut App) {}
+
+    fn close(&self, _: &mut App) {}
 }
 
 struct Rig {

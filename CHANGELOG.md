@@ -17,3 +17,4 @@
 - Deck cards show the capture inside your default look, and saved captures reopen in the editor with that look still editable. `easyshot deck toggle` hides and shows the deck.
 - The Settings window: Home, General, Capture, Overlay, Recording, Shortcuts and About, saved as you change them. "System" theme and Reduce Motion follow your desktop.
 - Settings > Shortcuts writes a bind snippet for Hyprland, sway or niri and checks which keys are already bound.
+- The capture bar takes the keyboard when it opens, so Esc closes it, and opening it again from its key, the tray or `easyshot capture-bar` closes it.

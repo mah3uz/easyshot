@@ -63,6 +63,9 @@ impl WindowHandle for Handle {
     fn focus(&self, cx: &mut App) {
         self.0.focus(cx)
     }
+    fn close(&self, cx: &mut App) {
+        WindowHandle::close(&self.0, cx)
+    }
 }
 
 fn handle(window: impl Into<AnyWindowHandle>) -> Rc<dyn WindowHandle> {
@@ -438,6 +441,9 @@ impl WindowHandle for BarHandle {
     }
     fn focus(&self, cx: &mut App) {
         self.window.focus(cx)
+    }
+    fn close(&self, cx: &mut App) {
+        WindowHandle::close(&self.window, cx)
     }
 }
 

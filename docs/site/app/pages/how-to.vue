@@ -29,7 +29,7 @@ const keys = [
   ['Super Shift 4', 'Capture an area', 'capture region'],
   ['Super Shift 3', 'Capture the whole screen', 'capture fullscreen'],
   ['Super Shift 1', 'Capture the previous area again', 'capture previous'],
-  ['Super Shift 2', 'Open the capture bar', 'capture-bar'],
+  ['Super Shift 2', 'Open or close the capture bar', 'capture-bar'],
   ['Super Shift 5', 'Record the screen', 'record'],
   ['Super Shift O', 'Capture text (OCR)', 'ocr'],
   ['Super Shift C', 'Pick a colour', 'color-picker'],

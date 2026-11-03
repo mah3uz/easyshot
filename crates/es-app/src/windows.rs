@@ -14,6 +14,12 @@ pub enum WindowKind {
     Onboarding,
 }
 
+impl WindowKind {
+    fn toggles(self) -> bool {
+        self == WindowKind::CaptureBar
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum WindowKey {
     Single,
@@ -32,6 +38,7 @@ impl WindowKey {
 pub trait WindowHandle {
     fn is_open(&self, cx: &App) -> bool;
     fn focus(&self, cx: &mut App);
+    fn close(&self, cx: &mut App);
 }
 
 impl WindowHandle for AnyWindowHandle {
@@ -42,6 +49,10 @@ impl WindowHandle for AnyWindowHandle {
     fn focus(&self, cx: &mut App) {
         self.update(cx, |_, window, _| window.activate_window())
             .ok();
+    }
+
+    fn close(&self, cx: &mut App) {
+        self.update(cx, |_, window, _| window.remove_window()).ok();
     }
 }
 
@@ -63,13 +74,18 @@ impl Windows {
         self.inner.openers.borrow_mut().insert(kind, opener);
     }
 
-    /// Focuses the window already open for `key`, otherwise opens one.
+    /// Focuses the window already open for `key` (closes it, for a kind that toggles), otherwise opens one.
     pub fn open(&self, kind: WindowKind, key: WindowKey, cx: &mut App) -> Result<()> {
         let key = key.canonical();
         let existing = self.inner.open.borrow().get(&(kind, key.clone())).cloned();
         if let Some(handle) = existing {
             if handle.is_open(cx) {
-                handle.focus(cx);
+                if kind.toggles() {
+                    handle.close(cx);
+                    self.forget(kind, &key);
+                } else {
+                    handle.focus(cx);
+                }
                 return Ok(());
             }
             self.forget(kind, &key);

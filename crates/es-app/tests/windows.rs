@@ -18,6 +18,10 @@ impl WindowHandle for Fake {
     fn focus(&self, _: &mut App) {
         self.focused.set(self.focused.get() + 1);
     }
+
+    fn close(&self, _: &mut App) {
+        self.open.set(false);
+    }
 }
 
 type Opened = Rc<RefCell<Vec<Rc<Fake>>>>;
@@ -53,6 +57,26 @@ fn a_second_open_for_the_same_key_focuses_instead_of_opening(cx: &mut TestAppCon
     });
     assert_eq!(opened.borrow().len(), 1);
     assert_eq!(opened.borrow()[0].focused.get(), 1);
+}
+
+#[gpui::test]
+fn the_capture_bar_toggles_so_one_key_both_opens_and_dismisses_it(cx: &mut TestAppContext) {
+    let (windows, opened) = registry(WindowKind::CaptureBar);
+    let open = |cx: &mut App| {
+        windows
+            .open(WindowKind::CaptureBar, WindowKey::Single, cx)
+            .unwrap();
+        windows.is_open(WindowKind::CaptureBar, &WindowKey::Single, cx)
+    };
+    cx.update(|cx| {
+        assert!(open(cx));
+        assert!(!open(cx));
+        assert!(open(cx));
+    });
+    let opened = opened.borrow();
+    assert_eq!(opened.len(), 2);
+    assert!(!opened[0].open.get());
+    assert_eq!(opened[0].focused.get(), 0);
 }
 
 #[gpui::test]
