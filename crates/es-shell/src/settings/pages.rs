@@ -2,6 +2,7 @@ use super::widgets::{group, row, switch};
 use super::{Page, SettingsWindow, Toggle};
 use crate::strings::fl;
 use es_model::Config;
+use es_model::recording::InputAccess;
 use es_ui::components::{ButtonKind, EditorButton, InspectorSlider, Segment, Segmented};
 use gpui::{
     AnyElement, Context, Entity, IntoElement, ParentElement, SharedString, Styled, div, px,
@@ -70,6 +71,19 @@ impl SettingsWindow {
         });
         let control = div().w(px(width.min(SEGMENTED_MAX))).child(control);
         row(title, help.map(Into::into), control, cx)
+    }
+
+    /// Where Keystrokes stands now, judged by the check a recording makes.
+    pub fn keystrokes_state(&self, cx: &gpui::App) -> String {
+        if !Toggle::Keystrokes.get(&self.config(cx)) {
+            return fl!("recording-keystrokes-state-off");
+        }
+        match (self.input_access)() {
+            InputAccess::Granted => fl!("recording-keystrokes-state-working"),
+            InputAccess::Denied => fl!("recording-keystrokes-state-denied"),
+            InputAccess::GroupPending => fl!("recording-keystrokes-state-pending"),
+            InputAccess::NotBuilt => fl!("recording-keystrokes-state-not-built"),
+        }
     }
 
     pub(super) fn slider_row(&self, slider: &Entity<InspectorSlider>) -> AnyElement {
@@ -374,7 +388,11 @@ impl SettingsWindow {
                     self.toggle_row(
                         Toggle::Keystrokes,
                         fl!("recording-keystrokes"),
-                        Some(fl!("recording-keystrokes-help")),
+                        Some(format!(
+                            "{} {}",
+                            fl!("recording-keystrokes-help"),
+                            self.keystrokes_state(cx)
+                        )),
                         cx,
                     ),
                 ],

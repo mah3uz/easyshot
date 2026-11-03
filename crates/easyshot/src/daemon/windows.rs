@@ -255,6 +255,7 @@ fn open_home(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>> {
             clipboard: Rc::new(settings::SystemClipboard),
             outputs: (w.outputs)().into_iter().map(|o| o.id.0).collect(),
             version: env!("EASYSHOT_VERSION").to_owned(),
+            input_access: Rc::new(es_record::input::system_access),
         },
     };
     let window = opened(home::open(deps, cx))?;

@@ -57,6 +57,7 @@ pub fn start(
             tracing::warn!(?access, "recording without clicks and keys");
             let title = match access {
                 InputAccess::NotBuilt => "toast-recording-input-not-built",
+                InputAccess::GroupPending => "toast-recording-input-pending",
                 _ => "toast-recording-no-input",
             };
             show_toast(Toast::new(title, IconName::Info), cx);

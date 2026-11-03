@@ -71,6 +71,7 @@ fn rig(mode: ThemeMode, tab: Tab) -> Rig {
                     clipboard: Rc::new(NoClipboard),
                     outputs: vec!["DP-1".into()],
                     version: "v9.9.9".to_owned(),
+                    input_access: Rc::new(|| es_model::recording::InputAccess::Granted),
                 },
             };
             let (root, home) = home::root(deps, tab, window, cx);

@@ -173,11 +173,20 @@ fn render_probes(v: &Value, out: &mut String) {
         let shown = match status {
             "granted" => "can read the keyboard and mouse",
             "denied" => "cannot read the keyboard and mouse",
+            "group_pending" => {
+                "cannot read the keyboard and mouse yet (added to the group, log out and in)"
+            }
             _ => "not in this build",
         };
         let _ = writeln!(out, "\nClicks and keys in recordings: {shown}");
         if let Some(fix) = i["fix"].as_str() {
             let _ = writeln!(out, "  Fix: {fix}");
+        }
+        if let Some(warning) = i["warning"].as_str() {
+            let _ = writeln!(out, "  Note: {warning}");
+        }
+        if let Some(undo) = i["undo"].as_str() {
+            let _ = writeln!(out, "  Undo: {undo}");
         }
         let _ = writeln!(out, "  Records {}", i["records"].as_str().unwrap_or("-"));
     }

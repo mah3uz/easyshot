@@ -20,6 +20,7 @@ use std::thread::JoinHandle;
 use std::time::Duration;
 
 pub const DEV_INPUT: &str = "/dev/input";
+const GROUP_FILE: &str = "/etc/group";
 
 const BTN_FIRST: u16 = 0x110;
 const BTN_LAST: u16 = 0x11f;
@@ -78,17 +79,48 @@ pub fn access(dir: &Path) -> InputAccess {
     }
 }
 
+/// Whether `group_file` lists `user` as a member of the `input` group.
+fn listed_in_input_group(group_file: &Path, user: &str) -> bool {
+    std::fs::read_to_string(group_file).is_ok_and(|text| {
+        text.lines()
+            .filter_map(|l| l.strip_prefix("input:"))
+            .any(|l| {
+                l.splitn(3, ':')
+                    .nth(2)
+                    .is_some_and(|m| m.split(',').any(|n| n == user))
+            })
+    })
+}
+
+/// [`access`], told apart when the user is already in the `input` group but this process
+/// started before they were, which only logging out and in fixes.
+pub fn access_for(dir: &Path, group_file: &Path, user: Option<&str>) -> InputAccess {
+    match access(dir) {
+        InputAccess::Denied if user.is_some_and(|u| listed_in_input_group(group_file, u)) => {
+            InputAccess::GroupPending
+        }
+        other => other,
+    }
+}
+
+/// The one check the daemon, `easyshot doctor` and Settings share.
+pub fn system_access() -> InputAccess {
+    let user = std::env::var("USER")
+        .or_else(|_| std::env::var("LOGNAME"))
+        .ok();
+    access_for(Path::new(DEV_INPUT), Path::new(GROUP_FILE), user.as_deref())
+}
+
 /// Opens every keyboard and mouse under [`DEV_INPUT`]; touches real devices, so never in tests.
 #[cfg(feature = "evdev-input")]
 pub fn open_system(
     clock: Arc<dyn Clock>,
 ) -> std::result::Result<Box<dyn EventSource>, InputAccess> {
-    let dir = Path::new(DEV_INPUT);
-    match access(dir) {
+    match system_access() {
         InputAccess::Granted => {}
         other => return Err(other),
     }
-    let source = EvdevSource::open(&discover_devices(dir), clock);
+    let source = EvdevSource::open(&discover_devices(Path::new(DEV_INPUT)), clock);
     if source.is_empty() {
         return Err(InputAccess::Denied);
     }

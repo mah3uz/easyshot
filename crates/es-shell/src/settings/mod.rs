@@ -15,6 +15,7 @@ use es_app::history::History;
 use es_app::settings_model::{SettingsEvent, SettingsModel};
 use es_backend::{BindHelper, Caps};
 use es_model::Config;
+use es_model::recording::InputAccess;
 use es_protocol::Route;
 use es_store::paths::Paths;
 use es_ui::{
@@ -137,6 +138,7 @@ pub struct SettingsDeps {
     /// Output names for "A specific screen".
     pub outputs: Vec<String>,
     pub version: String,
+    pub input_access: Rc<dyn Fn() -> InputAccess>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -212,6 +214,7 @@ pub struct SettingsWindow {
     caps: Caps,
     outputs: Vec<String>,
     version: String,
+    input_access: Rc<dyn Fn() -> InputAccess>,
     page: Page,
     page_motion: Option<Clocked>,
     problem: Option<ConfigProblem>,
@@ -343,6 +346,7 @@ impl SettingsWindow {
             caps: deps.caps,
             outputs: deps.outputs,
             version: deps.version,
+            input_access: deps.input_access,
             page: Page::Home,
             page_motion: None,
             problem,

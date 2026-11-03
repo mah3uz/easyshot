@@ -110,25 +110,35 @@ pub fn services(names: &es_backend::DbusNames) -> Value {
     })
 }
 
-pub const INPUT_FIX: &str = "sudo usermod -aG input $USER, then log out and back in";
+pub const INPUT_FIX: &str = "sudo usermod -aG input $USER, then log out and in";
+pub const INPUT_PENDING_FIX: &str =
+    "you were added to the input group; log out and in for this session to have it";
+pub const INPUT_WARNING: &str = "the input group lets every program you run read your keyboard and mouse and send input, not only easyshot";
+pub const INPUT_UNDO: &str = "sudo gpasswd -d $USER input";
 
 /// Whether recordings can log clicks and shortcuts, and the fix when they cannot.
 pub fn input(access: es_model::recording::InputAccess) -> Value {
+    use es_model::recording::InputAccess;
     let mut v = json!({
         "status": access,
-        "records": "clicks and shortcuts, never plain typing, into input.json beside each recording, for click effects and key badges",
+        "records": "clicks and shortcuts, never typed text, into input.json beside each recording, for key badges and click effects in the video editor",
     });
-    if access == es_model::recording::InputAccess::Denied {
-        v["fix"] = json!(INPUT_FIX);
+    let fix = match access {
+        InputAccess::Denied => Some(INPUT_FIX),
+        InputAccess::GroupPending => Some(INPUT_PENDING_FIX),
+        _ => None,
+    };
+    if let Some(fix) = fix {
+        v["fix"] = json!(fix);
+        v["warning"] = json!(INPUT_WARNING);
+        v["undo"] = json!(INPUT_UNDO);
     }
     v
 }
 
-/// The input access this process has, read from the device permissions.
+/// The input access this process has: the check the daemon makes when a recording starts.
 pub fn input_here() -> Value {
-    input(es_record::input::access(Path::new(
-        es_record::input::DEV_INPUT,
-    )))
+    input(es_record::input::system_access())
 }
 
 /// A missing or newer-version file still opens; a file that does not parse falls back to defaults.

@@ -36,6 +36,7 @@ fn open(dir: &std::path::Path) -> (Headless<Root>, Entity<SettingsWindow>) {
             clipboard: Rc::new(NoClipboard),
             outputs: vec!["DP-1".into()],
             version: "v9.9.9".to_owned(),
+            input_access: Rc::new(|| es_model::recording::InputAccess::Granted),
         };
         let v = cx.new(|cx| SettingsWindow::new(deps, window, cx));
         view = Some(v.clone());

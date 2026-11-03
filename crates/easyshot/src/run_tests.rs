@@ -409,9 +409,35 @@ fn the_standalone_report_names_services_tool_versions_and_the_config() {
         "languages: eng, deu",
         "(error:",
         "Clicks and keys in recordings: cannot read the keyboard and mouse",
-        "Fix: sudo usermod -aG input $USER, then log out and back in",
-        "never plain typing",
+        "Fix: sudo usermod -aG input $USER, then log out and in",
+        "Note: the input group lets every program you run read your keyboard and mouse and send input",
+        "Undo: sudo gpasswd -d $USER input",
+        "never typed text",
     ] {
         assert!(text.contains(want), "{want} missing from\n{text}");
     }
+}
+
+#[cfg(feature = "evdev-input")]
+#[test]
+fn doctor_and_the_settings_row_agree_when_the_group_is_added_but_not_active() {
+    use es_model::recording::InputAccess;
+    let dir = tempfile::tempdir().unwrap();
+    let groups = dir.path().join("group");
+    std::fs::write(&groups, "wheel:x:998:ann\ninput:x:97:bob,ann\n").unwrap();
+    let nodes = dir.path().join("dev");
+    std::fs::create_dir(&nodes).unwrap();
+    let node = nodes.join("event0");
+    std::fs::write(&node, b"").unwrap();
+    std::fs::set_permissions(&node, std::os::unix::fs::PermissionsExt::from_mode(0o000)).unwrap();
+
+    let access = es_record::input::access_for(&nodes, &groups, Some("ann"));
+    assert_eq!(access, InputAccess::GroupPending);
+    let v = crate::doctor_tools::input(access);
+    assert_eq!(v["status"], "group_pending");
+    assert_eq!(v["fix"], crate::doctor_tools::INPUT_PENDING_FIX);
+    let report = serde_json::json!({"input": v}).to_string();
+    assert!(doctor::render_text(&report).contains("added to the group, log out and in"));
+    let other = es_record::input::access_for(&nodes, &groups, Some("carol"));
+    assert_eq!(other, InputAccess::Denied, "a user not in the group");
 }

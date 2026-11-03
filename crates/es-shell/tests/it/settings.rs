@@ -2,6 +2,7 @@
 
 use es_app::settings_model::{SAVE_DEBOUNCE, SettingsModel};
 use es_backend::{BindHelper, BindSyntax, Caps, Env, Probe, hyprland, niri, wlroots};
+use es_model::recording::InputAccess;
 use es_shell::settings::{BindStatus, ClipboardSink, Page, SettingsDeps, SettingsWindow, Toggle};
 use es_store::{ConfigFile, Paths};
 use es_testkit::Headless;
@@ -16,7 +17,7 @@ use gpui::{
     PlatformInput, point, px,
 };
 use gpui_component::Root;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -35,6 +36,7 @@ struct Fixture {
     app: Headless<Root>,
     view: Entity<SettingsWindow>,
     clipboard: FakeClipboard,
+    access: Rc<Cell<InputAccess>>,
     config: PathBuf,
     paths: Paths,
     _dir: tempfile::TempDir,
@@ -50,6 +52,8 @@ fn fixture(caps: Caps, binds: Option<Arc<dyn BindHelper>>, prepare: impl FnOnce(
     let file = ConfigFile::load(&config).unwrap();
     let clipboard = FakeClipboard::default();
     let sink = clipboard.clone();
+    let access = Rc::new(Cell::new(InputAccess::Granted));
+    let seen = access.clone();
     let mut view = None;
     let (w, h) = es_shell::settings::WINDOW_SIZE;
     let app = Headless::open(Assets, gallery::init, w, h, |window, cx| {
@@ -63,6 +67,7 @@ fn fixture(caps: Caps, binds: Option<Arc<dyn BindHelper>>, prepare: impl FnOnce(
             clipboard: Rc::new(sink),
             outputs: vec!["DP-1".into(), "HDMI-A-1".into()],
             version: "v9.9.9".to_owned(),
+            input_access: Rc::new(move || seen.get()),
         };
         let v = cx.new(|cx| SettingsWindow::new(deps, window, cx));
         view = Some(v.clone());
@@ -73,6 +78,7 @@ fn fixture(caps: Caps, binds: Option<Arc<dyn BindHelper>>, prepare: impl FnOnce(
         app,
         view,
         clipboard,
+        access,
         config,
         paths,
         _dir: dir,
@@ -610,4 +616,31 @@ fn the_low_resolution_switch_is_bound_to_general_low_res_preview() {
             .general
             .low_res_preview
     );
+}
+
+#[test]
+fn the_keystrokes_row_shows_off_working_denied_pending_and_not_built() {
+    let mut fx = fixture(Caps::empty(), None, |_| {});
+    let state = |fx: &mut Fixture, access| {
+        fx.access.set(access);
+        fx.read(|v, cx| v.keystrokes_state(cx))
+    };
+    let off = state(&mut fx, InputAccess::Granted);
+    assert!(off.starts_with("Off:"), "{off}");
+    fx.update(|v, cx| v.set_toggle(Toggle::Keystrokes, true, cx));
+    let working = state(&mut fx, InputAccess::Granted);
+    assert!(working.contains("working"), "{working}");
+    let denied = state(&mut fx, InputAccess::Denied);
+    for want in [
+        "sudo usermod -aG input $USER",
+        "every program you run",
+        "sudo gpasswd -d $USER input",
+    ] {
+        assert!(denied.contains(want), "{want} missing from {denied}");
+    }
+    let pending = state(&mut fx, InputAccess::GroupPending);
+    assert!(pending.contains("log out and in") && !pending.contains("usermod"));
+    assert!(pending.contains("sudo gpasswd -d $USER input"));
+    let not_built = state(&mut fx, InputAccess::NotBuilt);
+    assert!(not_built.contains("this build"), "{not_built}");
 }

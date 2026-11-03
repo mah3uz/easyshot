@@ -32,6 +32,7 @@ fn main() {
                 clipboard: Rc::new(SystemClipboard),
                 outputs: Vec::new(),
                 version: env!("CARGO_PKG_VERSION").to_owned(),
+                input_access: Rc::new(|| es_model::recording::InputAccess::Denied),
             };
             if let Err(error) = settings::open(deps, cx) {
                 eprintln!("{error}");

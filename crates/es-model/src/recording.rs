@@ -21,7 +21,6 @@ pub struct RecordingCapture {
     pub recorder: String,
     pub includes_system_audio: bool,
     pub includes_microphone: bool,
-    /// The cursor is not in the video; `input.json` carries it.
     pub pointer_synthesized: bool,
     pub press_effects_baked: bool,
 }
@@ -42,7 +41,7 @@ impl Default for RecordingCapture {
             recorder: String::new(),
             includes_system_audio: false,
             includes_microphone: false,
-            pointer_synthesized: true,
+            pointer_synthesized: false,
             press_effects_baked: false,
         }
     }
@@ -106,12 +105,14 @@ pub struct RecordingInput {
     pub is_sanitized: bool,
 }
 
-/// Whether recordings can read the keyboards and mice for `input.json`.
+/// Whether recordings can read the keyboards and mice for `input.json`. `GroupPending` is
+/// `Denied` for a user already listed in the `input` group whose session predates it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum InputAccess {
     Granted,
     Denied,
+    GroupPending,
     NotBuilt,
 }
 
@@ -159,7 +160,7 @@ mod tests {
             (c.video_file.as_str(), c.fps, c.pixel_scale),
             ("screen.mkv", 60, 1.0)
         );
-        assert!(c.pointer_synthesized && !c.press_effects_baked);
+        assert!(!c.pointer_synthesized && !c.press_effects_baked);
     }
 
     #[test]

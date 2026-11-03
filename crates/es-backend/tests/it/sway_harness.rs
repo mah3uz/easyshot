@@ -103,3 +103,37 @@ fn platform_sway_tree_rect_matches_the_window_capture() {
         (1920.0, 1080.0)
     );
 }
+
+// Sway gives the seat a keyboard, and so sends a keymap, only when it has an input device;
+// the headless harness has none, so there the keymap stays absent.
+#[test]
+#[ignore = "needs headless sway: tests/harness/sway.sh run"]
+fn platform_sway_client_without_focus_receives_the_keymap_when_the_seat_has_a_keyboard() {
+    let _probe = harness();
+    let inputs = Command::new("swaymsg")
+        .args(["-t", "get_inputs"])
+        .output()
+        .unwrap();
+    let has_keyboard = String::from_utf8_lossy(&inputs.stdout).contains("\"type\": \"keyboard\"");
+    let conn = es_wayland::Connection::connect().unwrap();
+    let deadline = Instant::now() + Duration::from_secs(if has_keyboard { 5 } else { 1 });
+    let mut keymap = None;
+    while keymap.is_none() && Instant::now() < deadline {
+        keymap = conn.keymap();
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    eprintln!(
+        "seat keyboard: {has_keyboard}, keymap bytes: {:?}",
+        keymap.as_ref().map(|k| k.text.len())
+    );
+    match keymap {
+        Some(k) => {
+            assert!(has_keyboard, "a keymap without a keyboard");
+            assert!(k.text.contains("xkb_keymap"));
+        }
+        None => assert!(
+            !has_keyboard,
+            "the seat has a keyboard but no keymap arrived"
+        ),
+    }
+}
