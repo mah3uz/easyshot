@@ -1,8 +1,8 @@
-use super::Editor;
 use super::history::GestureKey;
+use super::{Editor, GestureId};
 use crate::Changes;
 use es_geom::{PVec, Point};
-use es_model::{AnnoShape, AnnoShapeId, ShapeKind, TextAlign, TextProps};
+use es_model::{AnnoShape, AnnoShapeId, ShapeKind, Swatch, TextAlign, TextBorder, TextProps};
 
 impl Editor {
     /// The click lands on the first line's middle at the alignment's anchor, which typing keeps.
@@ -80,6 +80,46 @@ impl Editor {
                 s.x -= d.x;
                 s.y -= d.y;
                 s.kind = ShapeKind::Text(next);
+            })
+        });
+        ch
+    }
+
+    /// Applies to the one selected text shape; calls sharing `gesture` make one undo entry, or join the text session being edited.
+    pub fn set_text_fill(&mut self, fill: Option<Swatch>, gesture: GestureId) -> Changes {
+        self.update_selected_text(gesture, move |p| p.fill = fill.clone())
+    }
+
+    /// A non-finite or negative width leaves the shape as it was.
+    pub fn set_text_border(&mut self, border: Option<TextBorder>, gesture: GestureId) -> Changes {
+        if border
+            .as_ref()
+            .is_some_and(|b| !b.width.is_finite() || b.width < 0.0)
+        {
+            return Changes::default();
+        }
+        self.update_selected_text(gesture, move |p| p.border = border.clone())
+    }
+
+    fn update_selected_text(
+        &mut self,
+        gesture: GestureId,
+        change: impl Fn(&mut TextProps),
+    ) -> Changes {
+        let mut ch = Changes::default();
+        let Some(id) = self.single_selected_text() else {
+            return ch;
+        };
+        let key = match self.editing_text_id {
+            Some(id) => GestureKey::Text(id),
+            None => GestureKey::Style(gesture),
+        };
+        self.begin_gesture(key, &mut ch);
+        self.edit(&mut ch, |doc| {
+            doc.update(id, |s| {
+                if let ShapeKind::Text(p) = &mut s.kind {
+                    change(p);
+                }
             })
         });
         ch

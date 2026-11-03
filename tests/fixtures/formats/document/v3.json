@@ -1,0 +1,12 @@
+{
+  "format": "easyshot.document",
+  "version": 3,
+  "base_image_file_name": "easyshot_2026-01-01-093000.base.png",
+  "shapes": [
+    {
+      "id": "00000000-0000-4000-8000-000000000021",
+      "x": 40.0, "y": 60.0, "rotation": 0.0, "opacity": 1.0,
+      "kind": {"type": "text", "text": "Boxed", "swatch": {"id": "white", "title": "White", "red": 1.0, "green": 1.0, "blue": 1.0, "alpha": 1.0}, "font_size": 36.0, "fill": {"id": "blue", "title": "Blue", "red": 0.1, "green": 0.3, "blue": 0.9, "alpha": 1.0}, "border": {"swatch": {"id": "black", "title": "Black", "red": 0.0, "green": 0.0, "blue": 0.0, "alpha": 1.0}, "width": 4.0}, "padding": 12.0}
+    }
+  ]
+}

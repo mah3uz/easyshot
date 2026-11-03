@@ -202,3 +202,134 @@ fn dragging_an_arrow_end_onto_a_shape_outlines_the_binding_target() {
     let at = at_page(&app, &session, 720.0, 280.0);
     up(&mut app, at);
 }
+
+fn top_edge(
+    app: &App,
+    session: &es_editor::EditorSession,
+    id: es_model::AnnoShapeId,
+    shot: &RgbaImage,
+) -> Vec<[u8; 3]> {
+    let (x, y, w) = session.doc.read_with(&app.cx, |d, _| {
+        let doc = d.editor().doc();
+        let s = doc.shape(id).expect("text");
+        (s.x, s.y, doc.geometry(id).expect("geometry").bounds().w)
+    });
+    (0..w as u32)
+        .map(|i| sample(shot, at_page(app, session, x + f64::from(i), y)))
+        .collect()
+}
+
+fn differing(a: &[[u8; 3]], b: &[[u8; 3]]) -> usize {
+    a.iter()
+        .zip(b)
+        .filter(|(a, b)| !close(**a, **b, 24))
+        .count()
+}
+
+#[test]
+fn the_typing_box_shows_while_editing_and_not_before_or_after() {
+    let shape = crate::text_edit_support::text_shape(
+        300.0,
+        200.0,
+        "Boxed",
+        es_model::TextAlign::Start,
+        0.0,
+    );
+    let id = shape.id;
+    let (mut app, session) = open(
+        900.0,
+        560.0,
+        opened(1200, 640, vec![shape], Default::default()),
+    );
+    app.cx
+        .update(|cx| es_ui::theme::set_mode(ThemeMode::Light, cx));
+    set_tool(&mut app, &session, Tool::Text);
+    let shot = app.screenshot("typing-box-idle");
+    let idle = top_edge(&app, &session, id, &shot);
+    crate::text_edit_support::begin(&mut app, &session, id);
+    let shot = app.screenshot("typing-box-editing");
+    let typing = top_edge(&app, &session, id, &shot);
+    assert!(
+        differing(&idle, &typing) >= idle.len() / 3,
+        "a dashed outline runs along the top edge"
+    );
+    app.cx.update(|cx| {
+        session
+            .doc
+            .update(cx, |d, cx| d.apply(cx, |e| e.stop_text()))
+    });
+    select(&mut app, &session, vec![]);
+    let shot = app.screenshot("typing-box-after");
+    let after = top_edge(&app, &session, id, &shot);
+    assert_eq!(differing(&idle, &after), 0);
+}
+
+#[test]
+fn a_new_empty_text_shows_a_minimum_box() {
+    let (mut app, session) = open(
+        900.0,
+        560.0,
+        opened(1200, 640, Vec::new(), Default::default()),
+    );
+    app.cx
+        .update(|cx| es_ui::theme::set_mode(ThemeMode::Light, cx));
+    set_tool(&mut app, &session, Tool::Text);
+    let before = app.screenshot("typing-box-new-before");
+    app.cx.update(|cx| {
+        session.doc.update(cx, |d, cx| {
+            d.apply(cx, |e| e.create_text(es_geom::Point::new(400.0, 300.0)))
+        })
+    });
+    let shot = app.screenshot("typing-box-new");
+    let (x, y, w, h) = session.doc.read_with(&app.cx, |d, _| {
+        let doc = d.editor().doc();
+        let id = d.editor().editing_text_id().expect("editing");
+        let s = doc.shape(id).expect("text");
+        let b = doc.geometry(id).expect("geometry").bounds();
+        (s.x, s.y, b.w, b.h)
+    });
+    assert!(w >= 8.0 && h >= 8.0, "{w} x {h}");
+    let column = |img: &RgbaImage| -> Vec<[u8; 3]> {
+        (0..h as u32)
+            .map(|i| sample(img, at_page(&app, &session, x + w - 1.0, y + f64::from(i))))
+            .collect()
+    };
+    assert!(differing(&column(&shot), &column(&before)) > 0);
+}
+
+#[test]
+fn a_text_with_a_fill_and_border_paints_them_behind_the_glyphs() {
+    let mut shape = crate::text_edit_support::text_shape(
+        300.0,
+        200.0,
+        "Boxed",
+        es_model::TextAlign::Start,
+        0.0,
+    );
+    let id = shape.id;
+    if let ShapeKind::Text(p) = &mut shape.kind {
+        p.fill = Some(es_model::Swatch::blue());
+        p.border = Some(es_model::TextBorder {
+            swatch: es_model::Swatch::red(),
+            width: 4.0,
+        });
+    }
+    let (mut app, session) = open(
+        900.0,
+        560.0,
+        opened(1200, 640, vec![shape], Default::default()),
+    );
+    app.cx
+        .update(|cx| es_ui::theme::set_mode(ThemeMode::Light, cx));
+    set_tool(&mut app, &session, Tool::Text);
+    let shot = app.screenshot("text-box-fill-border");
+    let h = session.doc.read_with(&app.cx, |d, _| {
+        d.editor().doc().geometry(id).expect("geometry").bounds().h
+    });
+    let blue = es_model::Swatch::blue().to_rgba();
+    let want = [blue.r, blue.g, blue.b].map(|v| (v * 255.0).round() as u8);
+    let inside = sample(&shot, at_page(&app, &session, 296.0, 200.0 + h / 2.0));
+    assert!(close(inside, want, 6), "{inside:?} vs {want:?}");
+    crate::text_edit_support::begin(&mut app, &session, id);
+    app.screenshot("text-box-fill-border-editing");
+}

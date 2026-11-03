@@ -13,6 +13,7 @@ const HANDLE_SIZE: f64 = 8.0;
 const HANDLE_BORDER: f64 = 1.0;
 const GUIDE_WIDTH: f64 = 1.0;
 const GUIDE_DASH: [f64; 2] = [4.0, 4.0];
+const TYPING_DASH: [f64; 2] = [5.0, 3.0];
 const GUIDE_ALPHA: f32 = 0.5;
 
 struct Colours {
@@ -138,6 +139,7 @@ impl EditorCanvas {
             let rect = kurbo::Rect::from_points(a, b).to_path(0.05);
             pen.outlined(&rect, colours.fill, colours.line, FRAME_WIDTH);
         }
+        typing_box(editor, &vp, &colours, &mut pen);
         if editor.tool() == Tool::Select
             && editor.editing_text_id().is_none()
             && !arrow_handles(editor, &vp, &colours, &mut pen)
@@ -162,6 +164,28 @@ fn binding_hint(editor: &Editor, vp: &Viewport, colours: &Colours, pen: &mut Pen
         .corners()
         .map(|c| screen(vp, t.apply_to_point(c)));
     pen.outlined(&quad(corners), colours.fill, colours.hint, FRAME_WIDTH);
+}
+
+/// The empty text still measures to a minimum box, so a new click shows where the typing goes.
+fn typing_box(editor: &Editor, vp: &Viewport, colours: &Colours, pen: &mut Pen) {
+    let doc = editor.doc();
+    let Some((shape, geometry)) = editor
+        .editing_text_id()
+        .and_then(|id| Some((doc.shape(id)?, doc.geometry(id)?)))
+    else {
+        return;
+    };
+    let t = page_transform(shape);
+    let corners = geometry
+        .bounds()
+        .corners()
+        .map(|c| screen(vp, t.apply_to_point(c)));
+    pen.stroke(
+        &quad(corners),
+        GUIDE_WIDTH,
+        Some(&TYPING_DASH),
+        colours.hint,
+    );
 }
 
 /// A lone arrow shows its three handles on a dashed guide instead of a frame.

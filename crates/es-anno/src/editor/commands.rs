@@ -173,7 +173,7 @@ impl Editor {
         ch
     }
 
-    fn single_selected_text(&self) -> Option<AnnoShapeId> {
+    pub(super) fn single_selected_text(&self) -> Option<AnnoShapeId> {
         if self.selected_ids.len() != 1 {
             return None;
         }

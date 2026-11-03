@@ -125,7 +125,9 @@ which mode is on. Pick the colour in the colour control and the thickness with t
 width. Strokes stay on the image, and the editor and export show the same result. The
 Highlight tool, which dims everything outside an area, is separate.
 
-New text starts at size 36. Change the size in the toolbar.
+New text starts at size 36. Change the size in the toolbar. While you type, a dashed box in the
+accent colour shows where the text goes, and an empty text shows a small box so you can see
+where you clicked. The box is only a guide: it is not saved or exported.
 
 Annotations stay on the image. A shape starts only on the image, and drawing, moving,
 resizing and rotating stop at its edge, whatever the shape's rotation. After a crop, the

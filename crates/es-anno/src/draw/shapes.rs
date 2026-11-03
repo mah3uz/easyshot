@@ -12,6 +12,8 @@ use es_model::shape::{
 use es_model::{AnnoShape, ShapeKind};
 use kurbo::{Circle, Shape};
 
+const TEXT_BOX_RADIUS: f64 = 0.2;
+
 pub(super) enum Built {
     Page(Vec<DrawItem>),
     Local(Vec<DrawItem>),
@@ -22,7 +24,7 @@ pub(super) fn build(doc: &Document, shape: &AnnoShape, cx: &BuildContext) -> Bui
         ShapeKind::Geo(p) => Built::Local(geo(p)),
         ShapeKind::Draw(p) => Built::Local(freehand(p)),
         ShapeKind::Arrow(p) => Built::Local(arrow(doc, shape, p)),
-        ShapeKind::Text(p) => Built::Local(text(p, cx)),
+        ShapeKind::Text(p) => Built::Local(text(doc, p, cx)),
         ShapeKind::Numbered(p) => Built::Local(numbered(p, cx)),
         ShapeKind::Redaction(p) => Built::Page(vec![redaction(shape, p)]),
         ShapeKind::Highlight(p) => Built::Page(vec![spotlight_hole(shape, p)]),
@@ -141,8 +143,28 @@ fn text_item(props: &TextProps, cx: &BuildContext) -> Option<DrawItem> {
     })
 }
 
-fn text(p: &TextProps, cx: &BuildContext) -> Vec<DrawItem> {
-    text_item(p, cx).into_iter().collect()
+fn text(doc: &Document, p: &TextProps, cx: &BuildContext) -> Vec<DrawItem> {
+    let mut items = Vec::new();
+    if !p.text.is_empty() && (p.fill.is_some() || p.border.is_some()) {
+        let size = doc.measure_text(p);
+        let pad = p.padding.max(0.0);
+        let rect = kurbo::RoundedRect::new(
+            -pad,
+            -pad,
+            size.width + pad,
+            size.height + pad,
+            p.font_size * TEXT_BOX_RADIUS,
+        )
+        .to_path(0.05);
+        if let Some(fill_swatch) = &p.fill {
+            items.push(fill(rect.clone(), fill_swatch.to_rgba()));
+        }
+        if let Some(border) = &p.border {
+            items.push(stroke(rect, border.swatch.to_rgba(), border.width));
+        }
+    }
+    items.extend(text_item(p, cx));
+    items
 }
 
 fn digit_scale(digits: usize) -> f64 {

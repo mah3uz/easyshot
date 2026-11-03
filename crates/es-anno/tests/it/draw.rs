@@ -533,3 +533,53 @@ fn per_shape_items_do_not_depend_on_the_other_shapes() {
     let together = draw_items(&d, &a, &BuildContext::new(&FakeOutliner));
     assert_eq!(format!("{alone:?}"), format!("{together:?}"));
 }
+
+fn boxed_text(fill: bool, border: bool) -> AnnoShape {
+    let mut s = text(5.0, 6.0, "abc");
+    if let ShapeKind::Text(p) = &mut s.kind {
+        p.fill = fill.then(es_model::Swatch::blue);
+        p.border = border.then(es_model::TextBorder::default);
+    }
+    s
+}
+
+#[test]
+fn a_text_box_is_a_fill_then_an_outline_behind_the_glyphs_padded_around_the_text() {
+    let items = inner(items_of(boxed_text(true, true)));
+    assert_eq!(kinds(&items), ["fill", "stroke", "text"]);
+    let DrawItem::Fill { path, color, .. } = &items[0] else {
+        panic!("{items:?}");
+    };
+    assert_eq!(*color, es_model::Swatch::blue().to_rgba());
+    let b = path.bounding_box();
+    let pad = es_model::shape::DEFAULT_TEXT_PADDING;
+    let size = es_model::shape::DEFAULT_TEXT_SIZE;
+    assert!(
+        (b.x0 + pad).abs() < 0.01 && (b.y0 + pad).abs() < 0.01,
+        "{b:?}"
+    );
+    assert!((b.x1 - (1.5 * size + 1.0 + pad)).abs() < 0.01, "{b:?}");
+    assert!((b.y1 - (size * 1.35 + pad)).abs() < 0.01, "{b:?}");
+}
+
+#[test]
+fn text_without_a_fill_or_border_draws_only_its_glyphs() {
+    assert_eq!(kinds(&inner(items_of(boxed_text(false, false)))), ["text"]);
+    assert_eq!(
+        kinds(&inner(items_of(boxed_text(true, false)))),
+        ["fill", "text"]
+    );
+    assert_eq!(
+        kinds(&inner(items_of(boxed_text(false, true)))),
+        ["stroke", "text"]
+    );
+}
+
+#[test]
+fn empty_text_draws_no_box() {
+    let mut s = boxed_text(true, true);
+    if let ShapeKind::Text(p) = &mut s.kind {
+        p.text.clear();
+    }
+    assert!(items_of(s).is_empty());
+}

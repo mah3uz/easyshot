@@ -92,12 +92,46 @@ fn document_v1_holds_every_shape_kind_and_its_binding() {
 fn document_v2_keeps_a_highlighter_stroke() {
     let src = fixture("document", "v2.json");
     let env: Envelope<AnnotationDocument> = serde_json::from_str(&src).unwrap();
-    assert_eq!(env.version, FormatKind::Document.version());
+    assert_eq!(env.version, 2);
     let ShapeKind::Highlighter(h) = &env.body.shapes[0].kind else {
         panic!("a highlighter");
     };
     assert_eq!((h.points.len(), h.stroke_width), (2, 24.0));
     assert_eq!(env.body.shapes[0].tool(), Tool::Highlighter);
+    let again: Envelope<AnnotationDocument> =
+        serde_json::from_str(&serde_json::to_string(&env).unwrap()).unwrap();
+    assert_eq!(again, env);
+}
+
+#[test]
+fn a_v2_document_migrates_and_its_text_has_no_box() {
+    let src = fixture("document", "v2.json");
+    let value: serde_json::Value = serde_json::from_str(&src).unwrap();
+    let Migrated::Current(v) = migrate(FormatKind::Document, 2, value).unwrap() else {
+        panic!("migrates");
+    };
+    assert_eq!(v["version"], 3);
+    let env: Envelope<AnnotationDocument> = serde_json::from_value(v).unwrap();
+    assert_eq!(env.body.shapes.len(), 1);
+    let old = r#"{"id":"00000000-0000-4000-8000-000000000031","x":0.0,"y":0.0,"rotation":0.0,"opacity":1.0,"kind":{"type":"text","text":"Hi"}}"#;
+    let shape: es_model::AnnoShape = serde_json::from_str(old).unwrap();
+    let ShapeKind::Text(t) = shape.kind else {
+        panic!("text");
+    };
+    assert!(t.fill.is_none() && t.border.is_none());
+}
+
+#[test]
+fn document_v3_keeps_a_text_box() {
+    let src = fixture("document", "v3.json");
+    let env: Envelope<AnnotationDocument> = serde_json::from_str(&src).unwrap();
+    assert_eq!(env.version, FormatKind::Document.version());
+    let ShapeKind::Text(t) = &env.body.shapes[0].kind else {
+        panic!("text");
+    };
+    assert_eq!(t.fill.as_ref().map(|f| f.id.as_str()), Some("blue"));
+    assert_eq!(t.border.as_ref().map(|b| b.width), Some(4.0));
+    assert_eq!(t.padding, 12.0);
     let again: Envelope<AnnotationDocument> =
         serde_json::from_str(&serde_json::to_string(&env).unwrap()).unwrap();
     assert_eq!(again, env);

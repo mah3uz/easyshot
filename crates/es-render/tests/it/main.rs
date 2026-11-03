@@ -12,6 +12,7 @@ mod export_samples;
 mod highlighter;
 mod image_ops;
 mod paint;
+mod text_box;
 mod text_shadow;
 mod wallpaper;
 mod wallpaper_cache;

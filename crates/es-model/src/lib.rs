@@ -31,7 +31,7 @@ pub use shape::{
     AnnoShape, AnnoShapeId, ArrowBinding, ArrowProps, ArrowTerminal, Arrowhead, DashStyle,
     DrawProps, FillStyle, FontFamily, GeoKind, GeoProps, HIGHLIGHTER_WIDTH_FACTOR, HighlightProps,
     HighlighterProps, NormalizedAnchor, NumberedProps, RedactionKind, RedactionProps, ShapeKind,
-    TextAlign, TextProps, Tool,
+    TextAlign, TextBorder, TextProps, Tool,
 };
 pub use state::{LastRegion, LastTarget, Recovery, State};
 pub use style::StylePreset;

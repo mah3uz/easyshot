@@ -2,9 +2,10 @@ mod props;
 mod tool;
 
 pub use props::{
-    ArrowProps, Arrowhead, DEFAULT_TEXT_SIZE, DashStyle, DrawProps, FillStyle, FontFamily, GeoKind,
-    GeoProps, HIGHLIGHTER_WIDTH_FACTOR, HighlightProps, HighlighterProps, NumberedProps,
-    RedactionKind, RedactionProps, TextAlign, TextProps,
+    ArrowProps, Arrowhead, DEFAULT_TEXT_PADDING, DEFAULT_TEXT_SIZE, DashStyle, DrawProps,
+    FillStyle, FontFamily, GeoKind, GeoProps, HIGHLIGHTER_WIDTH_FACTOR, HighlightProps,
+    HighlighterProps, NumberedProps, RedactionKind, RedactionProps, TextAlign, TextBorder,
+    TextProps,
 };
 pub use tool::Tool;
 

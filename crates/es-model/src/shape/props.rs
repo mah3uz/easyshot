@@ -152,6 +152,23 @@ impl Default for ArrowProps {
 }
 
 pub const DEFAULT_TEXT_SIZE: f64 = 36.0;
+pub const DEFAULT_TEXT_PADDING: f64 = 8.0;
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct TextBorder {
+    pub swatch: Swatch,
+    pub width: f64,
+}
+
+impl Default for TextBorder {
+    fn default() -> Self {
+        Self {
+            swatch: Swatch::default(),
+            width: 3.0,
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -167,6 +184,10 @@ pub struct TextProps {
     /// Wrap width; meaningful only when `auto_size` is off.
     pub w: f64,
     pub auto_size: bool,
+    pub fill: Option<Swatch>,
+    pub border: Option<TextBorder>,
+    /// Page pixels between the text and the box edge.
+    pub padding: f64,
 }
 
 impl Default for TextProps {
@@ -182,6 +203,9 @@ impl Default for TextProps {
             align: TextAlign::Start,
             w: 16.0,
             auto_size: true,
+            fill: None,
+            border: None,
+            padding: DEFAULT_TEXT_PADDING,
         }
     }
 }

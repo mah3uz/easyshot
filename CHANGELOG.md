@@ -14,7 +14,7 @@
 - The Highlighter tool (key M) paints translucent colour that keeps the text under it readable, freehand or as a straight line (Shift snaps to 15 degrees; M again switches mode).
 - Smart Redaction scans the image for private text and covers it, flashes what it found, and says what it hid ("Hid 3 items: emails, keys") with an Undo button; Pixelate and Blur keep a minimum strength tied to the text height, so covered text cannot be read back.
 - Hold Space and drag an annotation to move it, with any tool; dragging empty canvas pans.
-- New text starts at size 36.
+- New text starts at size 36, and a dashed box shows where it goes while you type.
 - Esc steps back one level: it commits the text you are typing, leaves crop, clears the selection, then switches to the Select tool.
 - Deck cards show the capture inside your default look, and saved captures reopen in the editor with that look still editable. `easyshot deck toggle` hides and shows the deck. Cards drag into file managers as a copy, and a card that auto-save has saved offers Show in Folder in place of Save.
 - The Home window: the media gallery of your captures and recordings and Settings, one tab each. Settings has Home, General, Capture, Overlay, Recording, Shortcuts and About, saved as you change them. "System" theme and Reduce Motion follow your desktop.
