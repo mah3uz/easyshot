@@ -19,6 +19,14 @@ pub struct UnderlayKey {
     pub image: (u32, u32),
     /// Underlay pixels per page pixel, in steps of √2 and never above 1.
     pub scale: f64,
+    pub morph: Option<Morph>,
+}
+
+/// A change of look part of the way along: layout and shadow come from between the two looks.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Morph {
+    pub from: BackgroundSettings,
+    pub t: f64,
 }
 
 impl UnderlayKey {
@@ -36,7 +44,13 @@ impl UnderlayKey {
             settings: settings.clone(),
             image,
             scale: stepped_scale(device_scale, canvas_edge),
+            morph: None,
         })
+    }
+
+    pub fn morphing(mut self, morph: Option<Morph>) -> Self {
+        self.morph = morph;
+        self
     }
 }
 
@@ -66,10 +80,15 @@ pub fn render(key: &UnderlayKey, wallpapers: &WallpaperCache) -> Option<Pixmap> 
         f64::from(key.image.0) * key.scale,
         f64::from(key.image.1) * key.scale,
     );
-    let lay = layout(w, h, &key.settings).pixel_aligned();
+    let mut lay = layout(w, h, &key.settings).pixel_aligned();
+    let mut settings = key.settings.clone();
+    if let Some(m) = &key.morph {
+        lay = layout(w, h, &m.from).pixel_aligned().lerp(&lay, m.t);
+        settings.shadow = m.from.shadow + (settings.shadow - m.from.shadow) * m.t;
+    }
     let (cw, ch) = lay.canvas_pixels();
     let mut target = Pixmap::new(cw, ch)?;
-    let s = &key.settings;
+    let s = &settings;
     let wallpaper = cached_wallpaper(wallpapers, &s.style, (cw, ch));
     draw_background_with(&mut target, &s.style, wallpaper.as_deref());
     let f = frame(&lay);

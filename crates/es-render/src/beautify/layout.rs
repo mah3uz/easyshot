@@ -31,6 +31,25 @@ impl Layout {
         self.card = shift(self.card);
         self
     }
+
+    /// The layout `t` of the way from `self` to `to`, for drawing a change of look in motion.
+    pub fn lerp(&self, to: &Self, t: f64) -> Self {
+        let f = |a: f64, b: f64| a + (b - a) * t;
+        let r = |a: Rect, b: Rect| {
+            Rect::new(f(a.x0, b.x0), f(a.y0, b.y0), f(a.x1, b.x1), f(a.y1, b.y1))
+        };
+        let radii = |a: [f64; 4], b: [f64; 4]| std::array::from_fn(|i| f(a[i], b[i]));
+        Self {
+            canvas_width: f(self.canvas_width, to.canvas_width),
+            canvas_height: f(self.canvas_height, to.canvas_height),
+            card: r(self.card, to.card),
+            image: r(self.image, to.image),
+            padding: f(self.padding, to.padding),
+            border_width: f(self.border_width, to.border_width),
+            image_radii: radii(self.image_radii, to.image_radii),
+            card_radii: radii(self.card_radii, to.card_radii),
+        }
+    }
 }
 
 fn empty() -> Layout {

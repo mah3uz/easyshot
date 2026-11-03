@@ -528,7 +528,7 @@ impl Render for SettingsWindow {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let mut children = self.banners(cx);
         children.extend(match self.page {
-            Page::Home => self.render_home(cx),
+            Page::Home => self.render_home(window, cx),
             Page::General => self.render_general(cx),
             Page::Capture => self.render_capture(cx),
             Page::Overlay => self.render_overlay(cx),

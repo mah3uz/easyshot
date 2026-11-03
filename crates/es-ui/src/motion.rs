@@ -1,7 +1,7 @@
 use std::time::{Duration, Instant};
 
 use gpui::{
-    Animation, AnimationExt, AnyElement, App, ElementId, Global, IntoElement, Pixels,
+    Animation, AnimationExt, AnyElement, App, ElementId, Global, Hsla, IntoElement, Pixels, Rgba,
     TooltipTiming, Window, px,
 };
 use gpui_component::tooltip::TooltipDefaults;
@@ -133,6 +133,11 @@ impl Clocked {
         self.transition.easing.at(t)
     }
 
+    /// Eased from 0 to 1, without asking for frames.
+    pub fn value(&self, cx: &App) -> f32 {
+        self.transition.easing.at(self.linear(cx))
+    }
+
     fn linear(&self, cx: &App) -> f32 {
         if self.transition.duration.is_zero() {
             return 1.0;
@@ -147,6 +152,93 @@ impl Clocked {
 
 pub fn progress(clocked: Option<Clocked>, window: &mut Window, cx: &App) -> f32 {
     clocked.map_or(1.0, |c| c.progress(window, cx))
+}
+
+struct Changed<T> {
+    value: Option<T>,
+    since: Option<Clocked>,
+}
+
+/// Eased progress of `transition` since `value` last changed for the element `key`: 1 when it has not.
+pub fn since_change<T: PartialEq + 'static>(
+    key: impl Into<ElementId>,
+    value: T,
+    transition: Transition,
+    window: &mut Window,
+    cx: &mut App,
+) -> f32 {
+    let state = window.use_keyed_state(key, cx, |_, _| Changed {
+        value: None,
+        since: None,
+    });
+    let since = state.update(cx, |s, cx| {
+        if s.value.as_ref() != Some(&value) {
+            if s.value.is_some() {
+                s.since = Clocked::start(transition, cx);
+            }
+            s.value = Some(value);
+        }
+        s.since
+    });
+    progress(since, window, cx)
+}
+
+struct Hover {
+    on: bool,
+    from: f32,
+    since: Option<Clocked>,
+}
+
+impl Hover {
+    fn amount(&self, cx: &App) -> f32 {
+        let to = if self.on { 1.0 } else { 0.0 };
+        self.since
+            .map_or(to, |c| self.from + (to - self.from) * c.value(cx))
+    }
+}
+
+pub type HoverListener = Box<dyn Fn(&bool, &mut Window, &mut App)>;
+
+/// How far the element `key`'s hover fill is in, 0 to 1, fading over [`HOVER_FILL`]; the listener
+/// goes to the element's `on_hover`.
+pub fn hover_fade(
+    key: impl Into<ElementId>,
+    window: &mut Window,
+    cx: &mut App,
+) -> (f32, HoverListener) {
+    let state = window.use_keyed_state(key, cx, |_, _| Hover {
+        on: false,
+        from: 0.0,
+        since: None,
+    });
+    let amount = state.read(cx).amount(cx);
+    if state.read(cx).since.is_some() && amount != 0.0 && amount != 1.0 {
+        window.request_animation_frame();
+    }
+    let listener = Box::new(move |on: &bool, _: &mut Window, cx: &mut App| {
+        state.update(cx, |h, cx| {
+            if h.on != *on {
+                h.from = h.amount(cx);
+                h.on = *on;
+                h.since = Clocked::start(HOVER_FILL, cx);
+                cx.notify();
+            }
+        });
+    });
+    (amount, listener)
+}
+
+/// `a` mixed `t` of the way to `b`, channel by channel.
+pub fn mix(a: Hsla, b: Hsla, t: f32) -> Hsla {
+    let (a, b) = (Rgba::from(a), Rgba::from(b));
+    let f = |x: f32, y: f32| x + (y - x) * t;
+    Rgba {
+        r: f(a.r, b.r),
+        g: f(a.g, b.g),
+        b: f(a.b, b.b),
+        a: f(a.a, b.a),
+    }
+    .into()
 }
 
 struct ReduceMotion(bool);

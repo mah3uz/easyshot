@@ -2,7 +2,7 @@ use crate::session::doc::DocModel;
 use crate::session::viewport::ViewportModel;
 use es_anno::crop::{AspectPreset, CropHandle, CropState, ImageOp};
 use es_anno::{EditHistory, Snapshot};
-use es_geom::Point;
+use es_geom::{Point, Rect};
 use es_render::image_ops::{self, ImageTransform};
 use gpui::{App, Context, Entity, EventEmitter};
 use image::RgbaImage;
@@ -20,10 +20,12 @@ pub enum CropTarget {
     Handle(CropHandle),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum CropEvent {
     Started,
     Ended,
+    /// The image was cropped; the rectangle is where the kept region sat in the canvas element.
+    Applied(Rect),
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -154,7 +156,16 @@ impl CropModel {
         ) else {
             return false;
         };
+        let vp = self.viewport.read(cx).viewport();
+        let at = |x: u32, y: u32| {
+            Point::new(
+                vp.origin.x + f64::from(x) * vp.scale,
+                vp.origin.y + f64::from(y) * vp.scale,
+            )
+        };
+        let (a, b) = (at(r.x, r.y), at(r.x + r.width, r.y + r.height));
         self.edit(cropped, |shapes| result.map.apply_to(shapes), cx);
+        cx.emit(CropEvent::Applied(Rect::new(a.x, a.y, b.x, b.y)));
         true
     }
 

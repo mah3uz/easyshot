@@ -9,6 +9,7 @@ use es_model::{
 };
 use es_render::beautify::gradients::{PRESETS, render_gradient};
 use es_ui::components::{InspectorSlider, ValueFormat};
+use es_ui::motion::{PRESET_APPLY, SETTLE};
 use gpui::{
     App, AppContext, Context, Entity, Hsla, PathPromptOptions, RenderImage, Rgba, Subscription,
     Task, Window, px,
@@ -229,7 +230,8 @@ impl BackgroundBody {
             return;
         }
         self.look.update(cx, |look, cx| {
-            look.update(
+            look.animate(
+                PRESET_APPLY,
                 |s| {
                     s.aspect_ratio = aspect;
                     if aspect != AspectRatio::Auto && s.padding == 0.0 {
@@ -248,8 +250,9 @@ impl BackgroundBody {
 
     pub fn set_alignment(&mut self, alignment: Alignment, cx: &mut Context<Self>) {
         if self.alignment_enabled(cx) {
-            self.look
-                .update(cx, |look, cx| look.update(|s| s.alignment = alignment, cx));
+            self.look.update(cx, |look, cx| {
+                look.animate(SETTLE, |s| s.alignment = alignment, cx)
+            });
         }
     }
 

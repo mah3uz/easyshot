@@ -108,3 +108,53 @@ fn the_kit_tooltips_use_the_same_tokens() {
         (TOOLTIP_DELAY, TOOLTIP_WARM)
     );
 }
+
+struct Fill;
+
+impl Render for Fill {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let (amount, on_hover) = es_ui::motion::hover_fade("fill", window, cx);
+        div().size_full().child(
+            div()
+                .id("fill")
+                .absolute()
+                .left(px(10.))
+                .top(px(10.))
+                .size(px(60.))
+                .bg(gpui::white().opacity(amount))
+                .on_hover(on_hover),
+        )
+    }
+}
+
+fn fill_at(app: &mut App) -> u8 {
+    let handle = app.window.into();
+    app.cx
+        .update_window(handle, |_, window, _| window.refresh())
+        .expect("window is open");
+    app.screenshot("hover-fill").get_pixel(80, 80).0[0]
+}
+
+#[test]
+fn a_hover_fill_fades_in_over_its_token_and_out_again_even_under_reduce_motion() {
+    use es_ui::motion::{HOVER_FILL, set_reduce_motion};
+    for reduce in [false, true] {
+        let (mut app, _) = open(100., |_, _| Fill);
+        app.cx.update(|cx| set_reduce_motion(reduce, cx));
+        let rest = fill_at(&mut app);
+        hover(&mut app, 40.);
+        wait(&mut app, HOVER_FILL.duration / 2);
+        let mid = fill_at(&mut app);
+        wait(&mut app, HOVER_FILL.duration / 2 - MS * 4);
+        let late = fill_at(&mut app);
+        wait(&mut app, MS * 4);
+        let full = fill_at(&mut app);
+        assert!(
+            rest < mid && mid < late && late < full,
+            "{rest} {mid} {late} {full}"
+        );
+        hover(&mut app, 150.);
+        wait(&mut app, HOVER_FILL.duration);
+        assert_eq!(fill_at(&mut app), rest, "the fill leaves with the pointer");
+    }
+}

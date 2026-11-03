@@ -7,11 +7,12 @@ use es_ui::{
     a11y::{Accessible, Role},
     components::{ButtonKind, EditorButton},
     icons::IconName,
+    motion::{hover_fade, mix},
     theme::tokens,
 };
 use gpui::{
     AnyElement, Context, FontWeight, InteractiveElement, IntoElement, ParentElement, SharedString,
-    StatefulInteractiveElement, Styled, div, img, px,
+    StatefulInteractiveElement, Styled, Window, div, img, px,
 };
 use gpui_component::{Icon, h_flex, v_flex};
 
@@ -107,8 +108,12 @@ impl SettingsWindow {
             .collect()
     }
 
-    pub(super) fn render_home(&mut self, cx: &mut Context<Self>) -> Vec<AnyElement> {
-        let t = tokens(cx);
+    pub(super) fn render_home(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Vec<AnyElement> {
+        let t = &tokens(cx).clone();
         let mut grid = div().grid().grid_cols(3).gap(px(10.));
         for (id, icon, route) in TILES {
             let title = tile_title(id);
@@ -117,9 +122,11 @@ impl SettingsWindow {
                 .global_trigger(id)
                 .map(|t| t.label())
                 .unwrap_or_else(|| fl!("home-tile-no-shortcut"));
+            let key = SharedString::from(format!("tile-{id}"));
+            let (hovered, on_hover) = hover_fade(key.clone(), window, cx);
             grid = grid.child(
                 v_flex()
-                    .id(SharedString::from(format!("tile-{id}")))
+                    .id(key)
                     .accessible(
                         Role::Button,
                         fl!(
@@ -131,10 +138,10 @@ impl SettingsWindow {
                     .p(px(12.))
                     .gap(px(8.))
                     .rounded(px(12.))
-                    .bg(card_fill(t))
+                    .bg(mix(card_fill(t), t.hover_fill, hovered))
                     .border_1()
                     .border_color(t.border)
-                    .hover(|d| d.bg(t.hover_fill))
+                    .on_hover(on_hover)
                     .child(Icon::new(icon).size(px(18.)).text_color(t.text_secondary))
                     .child(
                         v_flex()
@@ -190,8 +197,10 @@ impl SettingsWindow {
                 .map(|entry| {
                     let file = entry.file.clone();
                     let when = es_store::datefmt::format(entry.created_at, "yyyy-MM-dd HH:mm");
+                    let key = SharedString::from(format!("recent-{}", entry.id));
+                    let (hovered, on_hover) = hover_fade(key.clone(), window, cx);
                     h_flex()
-                        .id(SharedString::from(format!("recent-{}", entry.id)))
+                        .id(key)
                         .accessible(
                             Role::Button,
                             fl!("home-recent-open-a11y", name = entry.name.clone()),
@@ -199,7 +208,8 @@ impl SettingsWindow {
                         .px(px(16.))
                         .py(px(8.))
                         .gap(px(10.))
-                        .hover(|d| d.bg(t.hover_fill))
+                        .bg(t.hover_fill.opacity(hovered))
+                        .on_hover(on_hover)
                         .child(
                             Icon::new(IconName::Image)
                                 .size(px(16.))

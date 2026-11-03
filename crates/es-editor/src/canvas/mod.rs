@@ -6,6 +6,7 @@ pub mod grid;
 mod highlighter;
 mod input;
 mod live;
+mod motion;
 pub mod paths;
 mod prepare;
 pub mod redaction;
@@ -19,7 +20,7 @@ pub use text_edit::{CARET_BLINK, TextEditState};
 
 use crate::budget::Lease;
 use crate::session::EditorSession;
-use crate::session::crop::CropModel;
+use crate::session::crop::{CropEvent, CropModel};
 use crate::session::doc::DocModel;
 use crate::session::viewport::{ViewportModel, WHEEL_ZOOM_RATE};
 use es_anno::{DrawItem, Viewport};
@@ -110,6 +111,7 @@ pub struct EditorCanvas {
     space_held: bool,
     pan_from: Option<gpui::Point<Pixels>>,
     stats: FrameStats,
+    motion: Option<motion::CanvasMotion>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -120,6 +122,11 @@ impl EditorCanvas {
             cx.observe(&session.doc, |_, _, cx| cx.notify()),
             cx.observe(&session.viewport, |_, _, cx| cx.notify()),
             cx.observe(&session.crop, |_, _, cx| cx.notify()),
+            cx.subscribe(&session.crop, |this, _, event: &CropEvent, cx| {
+                if let CropEvent::Applied(from) = *event {
+                    this.crop_committed(from, cx);
+                }
+            }),
         ];
         let redactions = Rc::new(RefCell::new(Redactions::default()));
         let painter = redaction::painter(redactions.clone(), session.doc.clone(), cx.weak_entity());
@@ -159,6 +166,7 @@ impl EditorCanvas {
             space_held: false,
             pan_from: None,
             stats: FrameStats::default(),
+            motion: None,
             _subscriptions: subscriptions,
         }
     }
@@ -201,9 +209,20 @@ impl EditorCanvas {
     }
 
     pub fn set_background(&mut self, settings: BackgroundSettings, cx: &mut Context<Self>) {
+        self.change_background(settings, None, cx);
+    }
+
+    /// Only the drawing moves: the new look is in place for everything else at once.
+    pub fn change_background(
+        &mut self,
+        settings: BackgroundSettings,
+        transition: Option<es_ui::motion::Transition>,
+        cx: &mut Context<Self>,
+    ) {
         if settings == self.background {
             return;
         }
+        self.look_changing(&settings, transition, cx);
         self.viewport
             .update(cx, |v, cx| v.set_background(&settings, cx));
         self.background = settings;

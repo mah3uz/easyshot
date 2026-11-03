@@ -4,6 +4,7 @@ use es_model::{
 };
 use es_store::{Paths, presets::BackgroundPresetFile};
 use es_ui::components::{InspectorSlider, SliderEvent};
+use es_ui::motion::{PRESET_APPLY, Transition};
 use gpui::{App, Context, Entity, EventEmitter, Subscription};
 use uuid::Uuid;
 
@@ -42,6 +43,8 @@ impl Section {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LookEvent {
     Changed,
+    /// Changed, and the canvas draws its way to the new look over the transition.
+    Moved(Transition),
     LiveAdjust(bool),
     PresetsChanged,
 }
@@ -138,13 +141,33 @@ impl LookModel {
         self.set(next, cx);
     }
 
+    pub fn animate(
+        &mut self,
+        transition: Transition,
+        f: impl FnOnce(&mut BackgroundSettings),
+        cx: &mut Context<Self>,
+    ) {
+        let mut next = self.settings.clone();
+        f(&mut next);
+        self.change(next, Some(transition), cx);
+    }
+
     pub fn set(&mut self, settings: BackgroundSettings, cx: &mut Context<Self>) {
+        self.change(settings, None, cx);
+    }
+
+    fn change(
+        &mut self,
+        settings: BackgroundSettings,
+        transition: Option<Transition>,
+        cx: &mut Context<Self>,
+    ) {
         if settings == self.settings {
             return;
         }
         self.settings = settings.clone();
         self.doc.update(cx, |d, cx| d.set_background(settings, cx));
-        cx.emit(LookEvent::Changed);
+        cx.emit(transition.map_or(LookEvent::Changed, LookEvent::Moved));
         cx.notify();
     }
 
@@ -230,6 +253,9 @@ impl LookModel {
         cx.subscribe(look, move |look, event: &LookEvent, cx| {
             let _ = canvas.update(cx, |canvas, cx| match *event {
                 LookEvent::Changed => canvas.set_background(look.read(cx).settings.clone(), cx),
+                LookEvent::Moved(t) => {
+                    canvas.change_background(look.read(cx).settings.clone(), Some(t), cx)
+                }
                 LookEvent::LiveAdjust(true) => canvas.begin_live_adjust(cx),
                 LookEvent::LiveAdjust(false) => canvas.end_live_adjust(cx),
                 LookEvent::PresetsChanged => {}
@@ -267,7 +293,7 @@ impl LookModel {
         let look = id.and_then(|id| self.presets().iter().find(|p| p.id == id).cloned());
         self.applied = look.as_ref().map(|p| p.id);
         if let Some(preset) = look {
-            self.set(preset.background, cx);
+            self.change(preset.background, Some(PRESET_APPLY), cx);
         }
         cx.emit(LookEvent::PresetsChanged);
         cx.notify();

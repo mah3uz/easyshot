@@ -59,7 +59,8 @@ impl EditorCanvas {
             self.viewport
                 .update(cx, |v, cx| v.set_container(container, f64::from(sf), cx));
         }
-        let math = *self.viewport.read(cx).math();
+        let display = self.shown(*self.viewport.read(cx).math(), window, cx);
+        let math = display.math;
         let vp = math.viewport();
         let mut stats = FrameStats::default();
         let released_before = self.stats.images_released;
@@ -160,7 +161,8 @@ impl EditorCanvas {
             (base.width(), base.height()),
             canvas_edge,
             vp.scale * f64::from(sf),
-        );
+        )
+        .map(|k| k.morphing(display.morph));
         self.request_underlay(key, &mut retired, cx);
         match &self.underlay {
             Some((_, image)) => self.lease.hold(cx, "underlay", image),
@@ -369,7 +371,8 @@ impl EditorCanvas {
             self.underlay_pending = None;
             return;
         }
-        if pending {
+        // A render in flight finishes while the look moves, or no frame of the motion would get one.
+        if pending || (key.morph.is_some() && self.underlay_pending.is_some()) {
             return;
         }
         let job = key.clone();

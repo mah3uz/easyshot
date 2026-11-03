@@ -76,7 +76,31 @@ Custom bitmaps:
 - windowCamera: the Lucide `camera` at 18 px, black with a 1.5 px white halo, hotspot at
   the centre.
 
-## 5. Where the rest is recorded
+## 5. Motion
+
+A change takes effect the moment you make it; only its drawing moves, so a click or a key
+pressed during a motion acts on the new state. Every motion is timed from one table of
+tokens (`es-ui` `motion`), so the same kind of change always moves the same way. "Snappy"
+is a fast start that settles softly, `cubic-bezier(.2, .8, .2, 1)`.
+
+| Motion | Token | Time and easing |
+|---|---|---|
+| Editor: after Crop, the kept region grows from the crop rectangle to fill the view | `CROP_COMMIT` | 220 ms, snappy |
+| Editor: a preset, or a canvas shape, draws its padding, corners, shadow and shape into place | `PRESET_APPLY` | 200 ms, snappy |
+| Editor: picking an alignment slides the card to its new place | `SETTLE` | 180 ms, snappy |
+| Settings home: tiles and recent rows fill in under the pointer and fade back after it | `HOVER_FILL` | 120 ms fade, ease-out |
+| Settings: a page rises 8 px into place and fades in | `PAGE_CHANGE` | 180 ms, ease-out |
+| Introduction: a step slides in from the side you are heading to | `STEP_CHANGE` | 200 ms, ease-out |
+| Tooltips open after a rest, and at once while you move straight on | `TOOLTIP_DELAY`, `TOOLTIP_WARM` | 160 ms, 500 ms |
+
+The preset and shape motion goes through the one canvas renderer, a step at a time; a look
+with the camera or the scene blur is drawn as one finished image, so it changes at once.
+Dragging a slider shows each value at once, since your hand is already the motion.
+
+With Reduce Motion on (from the desktop's setting), anything that moves appears at its end
+at once. A fade of 120 ms or less carries no movement and stays, so hover fills still fade.
+
+## 6. Where the rest is recorded
 
 The full per-surface, per-tool cursor table, the editor's visual specifications and the
 design tokens are not written down yet.
