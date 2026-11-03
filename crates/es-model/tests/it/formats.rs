@@ -1,7 +1,7 @@
 use es_model::{
-    AnnotationDocument, Envelope, FormatKind, Header, LastRegion, LastTarget, Migrated,
-    PresetLibrary, RecordingCapture, RecordingInput, RecordingProject, Recovery, ShapeKind, State,
-    StylePreset, Tool, migrate,
+    AgentRecord, AnnotationDocument, Envelope, FormatKind, Header, LastRegion, LastTarget,
+    Migrated, PresetLibrary, RecordingCapture, RecordingInput, RecordingProject, Recovery,
+    ShapeKind, State, StylePreset, Tool, migrate,
 };
 use serde::{Serialize, de::DeserializeOwned};
 use std::path::PathBuf;
@@ -214,6 +214,15 @@ fn state_v1() {
 }
 
 #[test]
+fn agent_v1() {
+    let a: AgentRecord = load_v1(FormatKind::Agent);
+    assert!(a.always.is_some());
+    assert_eq!(a.log.len(), 2);
+    assert_eq!(a.log[0].comm.as_deref(), Some("claude"));
+    assert_eq!(a.log[1].result, "access_denied");
+}
+
+#[test]
 fn state_v1_migrates_its_region_into_the_target_capture_previous_repeats() {
     let value: serde_json::Value = serde_json::from_str(&fixture("state", "v1.json")).unwrap();
     let Migrated::Current(v2) = migrate(FormatKind::State, 1, value).unwrap() else {
@@ -276,6 +285,7 @@ fn unknown_fields_are_tolerated_in_every_body() {
     tolerant::<RecordingProject>(FormatKind::Project);
     tolerant::<Recovery>(FormatKind::Recovery);
     tolerant::<State>(FormatKind::State);
+    tolerant::<AgentRecord>(FormatKind::Agent);
 }
 
 #[test]
@@ -289,6 +299,7 @@ fn an_empty_body_is_a_valid_default_for_every_kind() {
     empty::<RecordingInput>();
     empty::<State>();
     empty::<StylePreset>();
+    empty::<AgentRecord>();
 }
 
 #[test]

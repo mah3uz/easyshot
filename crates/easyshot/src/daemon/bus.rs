@@ -50,6 +50,9 @@ impl Bridge {
             futures::executor::block_on(Service::start(endpoint(backend), callbacks(backend)))
                 .context("claiming the D-Bus name")?;
         let service = Arc::new(service);
+        let callers = cx
+            .try_global::<super::agent::gate::Gate>()
+            .map_or_else(Default::default, super::agent::gate::Gate::callers);
         let map = JobMap::default();
         let incoming = service.incoming();
         #[cfg(feature = "test-hooks")]
@@ -58,15 +61,19 @@ impl Bridge {
         let inbound = cx.spawn(async move |cx| {
             while let Ok(message) = incoming.recv().await {
                 cx.update(|_| match message {
-                    Incoming::Command { job, route } => {
+                    Incoming::Command { job, route, caller } => {
                         let id = jobs.allocate();
                         inbound_map.borrow_mut().insert(id, job);
+                        if let Some(caller) = caller {
+                            callers.borrow_mut().insert(id, caller);
+                        }
                         let command = PlatformEvent::Command {
                             route,
                             origin: Origin::DBus,
                             job: id,
                         };
                         if events.try_send(command).is_err() {
+                            callers.borrow_mut().remove(&id);
                             tracing::warn!("event pump closed");
                         }
                     }

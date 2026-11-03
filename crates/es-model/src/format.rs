@@ -38,10 +38,11 @@ pub enum FormatKind {
     Project,
     Recovery,
     State,
+    Agent,
 }
 
 impl FormatKind {
-    pub const ALL: [FormatKind; 10] = [
+    pub const ALL: [FormatKind; 11] = [
         FormatKind::Style,
         FormatKind::BgPresets,
         FormatKind::Document,
@@ -52,6 +53,7 @@ impl FormatKind {
         FormatKind::Project,
         FormatKind::Recovery,
         FormatKind::State,
+        FormatKind::Agent,
     ];
 
     pub fn from_name(name: &str) -> Option<FormatKind> {
@@ -79,6 +81,7 @@ impl FormatKind {
             FormatKind::Project => "easyshot.project",
             FormatKind::Recovery => "easyshot.recovery",
             FormatKind::State => "easyshot.state",
+            FormatKind::Agent => "easyshot.agent",
         }
     }
 }

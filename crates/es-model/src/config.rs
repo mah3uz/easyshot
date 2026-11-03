@@ -1,3 +1,4 @@
+use crate::agent::AgentCfg;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -14,6 +15,7 @@ pub struct Config {
     pub default_look: DefaultLook,
     pub editor: Editor,
     pub ocr: Ocr,
+    pub agent: AgentCfg,
     /// Editor-scope overrides: catalogue id to trigger.
     pub shortcuts: BTreeMap<String, String>,
     /// Global shortcuts the compositor binds to `easyshot <command>`: catalogue id to trigger.
@@ -32,6 +34,7 @@ impl Default for Config {
             default_look: DefaultLook::default(),
             editor: Editor::default(),
             ocr: Ocr::default(),
+            agent: AgentCfg::default(),
             shortcuts: BTreeMap::new(),
             global_shortcuts: BTreeMap::new(),
         }

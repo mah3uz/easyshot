@@ -1,13 +1,15 @@
 #[path = "agent_capture.rs"]
 pub(super) mod capture;
+#[path = "agent_gate.rs"]
+pub(super) mod gate;
 
 use es_app::dispatcher::AgentHandler;
-use es_app::events::Origin;
 use es_app::jobs::{Jobs, run_cpu};
 use es_backend::{Backend, Caps};
 use es_model::platform::{OutputInfo, WindowInfo};
 use es_protocol::agent::{AgentReply, ErrorCode, OutputEntry, WindowEntry};
 use es_protocol::{AgentRoute, JobStatus};
+use gate::{Gate, Work};
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -30,49 +32,39 @@ pub fn sources(backend: &Arc<Backend>) -> Sources {
     }
 }
 
-/// Every agent route passes here, and nowhere else, before any of its work starts.
-fn admit(route: &AgentRoute, origin: Origin) -> Result<(), AgentReply> {
-    match origin {
-        Origin::DBus => Ok(()),
-        Origin::Tray | Origin::Shortcut | Origin::Url | Origin::Internal => {
-            Err(AgentReply::failed(
-                route.kind(),
-                ErrorCode::AccessDenied,
-                "agent commands are accepted over D-Bus only",
-            ))
-        }
-    }
-}
-
 #[cfg(test)]
-pub fn handler(sources: Sources, jobs: Jobs) -> AgentHandler {
-    handler_with(sources, jobs, None)
+pub fn handler(sources: Sources, jobs: Jobs, gate: Gate) -> AgentHandler {
+    handler_with(sources, jobs, gate, None)
 }
 
 pub fn handler_with(
     sources: Sources,
     jobs: Jobs,
+    gate: Gate,
     capture: Option<capture::CaptureRunner>,
 ) -> AgentHandler {
     Rc::new(move |job, route, origin, cx| {
         let kind = route.kind();
-        let work = admit(&route, origin).map(|()| match (&route, &capture) {
-            (AgentRoute::Capture(spec), Some(capture)) => capture(spec.clone(), cx),
-            _ => {
-                let sources = sources.clone();
-                let task = run_cpu(cx, move || answer(&route, &sources));
-                cx.spawn(async move |_| {
-                    task.await.unwrap_or_else(|e| {
-                        AgentReply::failed(kind, ErrorCode::Failed, e.to_string())
+        let work: Work = {
+            let (sources, capture) = (sources.clone(), capture.clone());
+            Box::new(move |route, scope, cx| match (route, capture) {
+                (AgentRoute::Capture(spec), Some(capture)) => {
+                    capture(spec.clone(), scope.clone(), cx)
+                }
+                _ => {
+                    let route = route.clone();
+                    let task = run_cpu(cx, move || answer(&route, &sources));
+                    cx.background_executor().spawn(async move {
+                        task.await.unwrap_or_else(|e| {
+                            AgentReply::failed(kind, ErrorCode::Failed, e.to_string())
+                        })
                     })
-                })
-            }
-        });
+                }
+            })
+        };
+        let reply = gate.pass(job, route, origin, &sources, work, cx);
         jobs.spawn_answer(job, cx, move |_| async move {
-            let reply = match work {
-                Ok(task) => task.await,
-                Err(refused) => refused,
-            };
+            let reply = reply.await;
             let status = if reply.ok {
                 JobStatus::Ok
             } else {
@@ -111,6 +103,9 @@ fn answer(route: &AgentRoute, sources: &Sources) -> AgentReply {
                 windows: Some((sources.windows)().iter().map(window_entry).collect()),
                 ..AgentReply::ok(kind)
             }
+        }
+        AgentRoute::Manage(_) => {
+            AgentReply::failed(kind, ErrorCode::Failed, "answered by the gate")
         }
     }
 }

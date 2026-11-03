@@ -1830,6 +1830,7 @@ dependencies = [
  "gpui-pre-platform",
  "image",
  "rayon",
+ "rustix",
  "serde",
  "serde_json",
  "tempfile",

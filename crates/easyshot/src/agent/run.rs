@@ -115,6 +115,12 @@ fn print(json: bool, reply: &AgentReply, out: &mut dyn Write, err: &mut dyn Writ
     if let Some(shot) = &reply.capture {
         let _ = writeln!(out, "{}", shot.path);
     }
+    if let Some(access) = &reply.access {
+        super::access::print_status(access, out);
+    }
+    if let Some(config) = &reply.config {
+        let _ = writeln!(out, "{}", config.value);
+    }
     if let Some(job) = reply.job {
         let _ = writeln!(out, "job {job}");
     }

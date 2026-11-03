@@ -1,3 +1,4 @@
+mod access;
 mod capture;
 mod run;
 #[cfg(test)]
@@ -8,6 +9,7 @@ pub use run::{run, usage_error};
 
 use clap::{Args, Subcommand, ValueEnum};
 use es_protocol::AgentRoute;
+use es_protocol::agent::ManageRoute;
 
 #[derive(Args, Debug)]
 pub struct AgentArgs {
@@ -24,6 +26,15 @@ pub enum AgentCommand {
     List { what: ListWhat },
     /// Take a screenshot of one target and print where it was saved
     Capture(CaptureArgs),
+    /// Turn agent access on
+    Enable,
+    /// Turn agent access off and end every grant
+    Disable,
+    /// Show whether agent access is on, the grant in force and the limits
+    Status,
+    /// Read or change an agent access setting
+    #[command(subcommand)]
+    Config(access::ConfigCommand),
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
@@ -50,6 +61,10 @@ impl AgentArgs {
                 what: ListWhat::Windows,
             } => (AgentRoute::ListWindows, true),
             AgentCommand::Capture(args) => (AgentRoute::Capture(args.spec()), args.wait()),
+            AgentCommand::Enable => (AgentRoute::Manage(ManageRoute::Enable), true),
+            AgentCommand::Disable => (AgentRoute::Manage(ManageRoute::Disable), true),
+            AgentCommand::Status => (AgentRoute::Manage(ManageRoute::Status), true),
+            AgentCommand::Config(c) => (AgentRoute::Manage(c.route()), true),
         };
         AgentCall {
             route,

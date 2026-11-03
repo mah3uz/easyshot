@@ -109,7 +109,7 @@ pub(crate) fn serve(
             ready_tx.send(()).unwrap();
             let mut seen = Vec::new();
             for _ in 0..jobs {
-                let Incoming::Command { job, route } = incoming.recv().await.unwrap() else {
+                let Incoming::Command { job, route, .. } = incoming.recv().await.unwrap() else {
                     panic!("expected a command");
                 };
                 seen.push(route);

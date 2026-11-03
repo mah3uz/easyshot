@@ -39,7 +39,12 @@ fn dispatch_all(
         outputs: Arc::new(Vec::new),
         windows: Arc::new(Vec::new),
     };
-    dispatcher.set_agent_handler(crate::daemon::agent::handler(sources, jobs));
+    let gate = crate::daemon::agent::gate::tests::GateRig::permissive(cx);
+    dispatcher.set_agent_handler(crate::daemon::agent::handler(
+        sources,
+        jobs,
+        gate.gate.clone(),
+    ));
     let wiring = rig.wiring.clone();
     dispatcher.set_action_handler(Rc::new(move |action, cx| match action {
         Action::ShowHome(tab) => {

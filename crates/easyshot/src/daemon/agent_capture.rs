@@ -1,3 +1,4 @@
+use super::gate::{self as agent_gate, scope::Scope};
 use super::window_entry;
 use crate::daemon::capture::{Direct, cut, shoot};
 use es_app::agent_capture::{Options, Saved, save};
@@ -22,7 +23,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
-pub type CaptureRunner = Rc<dyn Fn(CaptureSpec, &mut App) -> Task<AgentReply>>;
+pub type CaptureRunner = Rc<dyn Fn(CaptureSpec, Scope, &mut App) -> Task<AgentReply>>;
 
 pub struct Deps {
     pub backend: Arc<Backend>,
@@ -55,6 +56,7 @@ pub(super) struct Shot {
 }
 
 pub fn install(
+    cx: &mut App,
     dispatcher: &RouteDispatcher,
     jobs: &Jobs,
     backend: &Arc<Backend>,
@@ -73,16 +75,17 @@ pub fn install(
     dispatcher.set_agent_handler(super::handler_with(
         super::sources(backend),
         jobs.clone(),
+        agent_gate::install(cx),
         Some(runner),
     ));
 }
 
 fn runner(deps: Deps) -> CaptureRunner {
     let deps = Rc::new(deps);
-    Rc::new(move |spec, cx| {
+    Rc::new(move |spec, scope, cx| {
         let deps = deps.clone();
         cx.spawn(async move |cx| {
-            run(&deps, spec, cx)
+            run(&deps, spec, &scope, cx)
                 .await
                 .unwrap_or_else(|Fail(code, message)| {
                     AgentReply::failed(ReplyKind::Capture, code, message)
@@ -91,7 +94,12 @@ fn runner(deps: Deps) -> CaptureRunner {
     })
 }
 
-async fn run(deps: &Deps, spec: CaptureSpec, cx: &mut AsyncApp) -> Result<AgentReply, Fail> {
+async fn run(
+    deps: &Deps,
+    spec: CaptureSpec,
+    scope: &Scope,
+    cx: &mut AsyncApp,
+) -> Result<AgentReply, Fail> {
     if let Some(out) = &spec.out {
         check_out(out)?;
     }
@@ -101,7 +109,7 @@ async fn run(deps: &Deps, spec: CaptureSpec, cx: &mut AsyncApp) -> Result<AgentR
             .timer(Duration::from_secs(u64::from(spec.delay)))
             .await;
     }
-    let shot = acquire(deps, &spec.target, cx).await?;
+    let shot = acquire(deps, &spec.target, scope, cx).await?;
     let options = Options {
         out: spec.out,
         ui: !spec.no_ui,
@@ -161,14 +169,22 @@ fn check_caps(caps: Caps, target: &AgentTarget) -> Result<(), Fail> {
     }
 }
 
-async fn acquire(deps: &Deps, target: &AgentTarget, cx: &mut AsyncApp) -> Result<Shot, Fail> {
+async fn acquire(
+    deps: &Deps,
+    target: &AgentTarget,
+    scope: &Scope,
+    cx: &mut AsyncApp,
+) -> Result<Shot, Fail> {
     if matches!(target, AgentTarget::Fullscreen) {
         let picked = cx
             .update(|cx| deps.direct.run(Source::Fullscreen, cx))
             .await
             .map_err(fail_of)?;
         return match picked {
-            Selection::Region { frame, .. } | Selection::Window { frame, .. } => Ok(Shot {
+            Selection::Region { output, .. } if !scope.allows_output(&output.0) => {
+                Err(outside(&format!("output {}", output.0)))
+            }
+            Selection::Region { frame, .. } => Ok(Shot {
                 frame,
                 kind: StoredKind::Fullscreen,
                 window: None,
@@ -176,9 +192,9 @@ async fn acquire(deps: &Deps, target: &AgentTarget, cx: &mut AsyncApp) -> Result
             _ => Err(Fail::new(ErrorCode::Failed, "nothing was captured")),
         };
     }
-    let (backend, target) = (deps.backend.clone(), target.clone());
+    let (backend, target, scope) = (deps.backend.clone(), target.clone(), scope.clone());
     cx.background_executor()
-        .spawn(async move { grab(&*backend.capture, &*backend.windows, &target) })
+        .spawn(async move { grab(&*backend.capture, &*backend.windows, &target, &scope) })
         .await
 }
 
@@ -186,8 +202,14 @@ pub(super) fn grab(
     capture: &dyn Capture,
     windows: &dyn WindowList,
     target: &AgentTarget,
+    scope: &Scope,
 ) -> Result<Shot, Fail> {
     let outputs = capture.outputs();
+    if !scope.is_open() && !matches!(target, AgentTarget::Window(_)) {
+        scope
+            .check(target, &outputs, &[])
+            .map_err(|m| Fail::new(ErrorCode::AccessDenied, m))?;
+    }
     let names = || {
         outputs
             .iter()
@@ -250,6 +272,9 @@ pub(super) fn grab(
         }
         AgentTarget::Window(selector) => {
             let info = resolve_window(&windows.snapshot(), selector)?;
+            if !scope.allows_window(&info) {
+                return Err(outside(&format!("window {}", describe(&info))));
+            }
             let last = LastTarget::Window {
                 id: info.id.0.clone(),
                 app: info.app_id.clone(),
@@ -269,6 +294,15 @@ pub(super) fn grab(
             }
         }
     }
+}
+
+fn outside(what: &str) -> Fail {
+    Fail::new(
+        ErrorCode::AccessDenied,
+        format!(
+            "{what} is outside what agents may capture; change it with `easyshot agent config set` or in Settings › Agents"
+        ),
+    )
 }
 
 fn describe(w: &WindowInfo) -> String {

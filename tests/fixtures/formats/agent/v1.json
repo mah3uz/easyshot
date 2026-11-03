@@ -1,0 +1,22 @@
+{
+  "format": "easyshot.agent",
+  "version": 1,
+  "always": {
+    "granted_at": "2026-11-03T09:30:00Z"
+  },
+  "log": [
+    {
+      "at": "2026-11-03T09:31:05Z",
+      "route": "agent/list-windows",
+      "result": "ok",
+      "pid": 4242,
+      "comm": "claude"
+    },
+    {
+      "at": "2026-11-03T09:30:58+10:00",
+      "route": "agent/list-outputs",
+      "target": "DP-1",
+      "result": "access_denied"
+    }
+  ]
+}

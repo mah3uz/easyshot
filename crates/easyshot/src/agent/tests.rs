@@ -209,3 +209,61 @@ fn a_bad_agent_command_line_exits_four_and_is_json_under_json() {
     assert_eq!(parse(&["capture", "bogus", "--json"]).0, None);
     assert_eq!(parse(&["agent", "--help"]).0, None);
 }
+
+#[test]
+fn access_commands_build_their_typed_routes() {
+    use es_protocol::agent::{AgentKey, ManageRoute};
+    let manage = |words: &[&str]| match call(words).route {
+        AgentRoute::Manage(m) => m,
+        other => panic!("{words:?}: {other:?}"),
+    };
+    assert_eq!(manage(&["agent", "enable"]), ManageRoute::Enable);
+    assert_eq!(manage(&["ai", "disable"]), ManageRoute::Disable);
+    assert_eq!(manage(&["agent", "status", "--json"]), ManageRoute::Status);
+    assert_eq!(
+        manage(&["agent", "config", "get", "consent"]),
+        ManageRoute::ConfigGet(AgentKey::Consent)
+    );
+    assert_eq!(
+        manage(&["agent", "config", "set", "allowed_outputs", "DP-1,HDMI-A-1"]),
+        ManageRoute::ConfigSet(AgentKey::AllowedOutputs, "DP-1,HDMI-A-1".into())
+    );
+    for bad in [
+        &["agent", "config", "get", "network"][..],
+        &["agent", "config", "set", "consent"],
+        &["agent", "config"],
+    ] {
+        assert!(
+            Cli::try_parse_from(std::iter::once("easyshot").chain(bad.iter().copied())).is_err(),
+            "{bad:?}"
+        );
+    }
+}
+
+#[test]
+fn status_text_names_each_setting_on_its_own_line() {
+    const STATUS: &str = r#"{"ok":true,"kind":"access","access":{"enabled":true,"consent":"once-per-session","grant":{"span":"hour","expires":"2026-11-03T10:00:00Z"},"allowed_outputs":["DP-1"],"allowed_windows":[],"redact_secrets":true,"recent_actions":3}}"#;
+    let bus = PrivateBus::start();
+    let dir = tempfile::tempdir().unwrap();
+    let server = serve(&bus, 1, JobStatus::Ok, STATUS);
+    let (code, out, _) = run_cli(&["agent", "status"], &env(&bus, dir.path()));
+    assert_eq!(code, 0);
+    assert_eq!(
+        out,
+        "agent access\ton\nconsent\tonce-per-session\ngrant\thour until 2026-11-03T10:00:00Z\n\
+         outputs\tDP-1\nwindows\tall\nredact secrets\ton\nrecent actions\t3\n"
+    );
+    server.finish();
+}
+
+#[test]
+fn access_off_exits_seven_with_the_daemons_message() {
+    const OFF: &str = r#"{"ok":false,"kind":"outputs","error":{"code":"access_off","message":"agent access is off. Turn it on with `easyshot agent enable` or in Settings › Agents."}}"#;
+    let bus = PrivateBus::start();
+    let dir = tempfile::tempdir().unwrap();
+    let server = serve(&bus, 1, JobStatus::Error, OFF);
+    let (code, out, err) = run_cli(&["agent", "list", "outputs"], &env(&bus, dir.path()));
+    assert_eq!((code, out.as_str()), (7, ""));
+    assert!(err.contains("easyshot agent enable"), "{err}");
+    server.finish();
+}

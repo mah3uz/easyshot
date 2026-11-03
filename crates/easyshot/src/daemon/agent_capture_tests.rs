@@ -1,6 +1,8 @@
 use super::*;
+use crate::daemon::agent::gate::tests::{GateRig, ME};
 use es_app::events::Origin;
 use es_app::jobs::{JobId, Jobs};
+use es_model::AgentCfg;
 use es_model::platform::{CaptureOpts, OutputEvent, OutputInfo, Transform, WindowEvent, WindowId};
 use es_protocol::agent::{Geometry, OutputName};
 use es_protocol::{AgentRoute, JobStatus};
@@ -98,7 +100,7 @@ fn desk() -> Windows {
 }
 
 fn shot(target: &AgentTarget) -> Result<Shot, Fail> {
-    grab(&Screens, &desk(), target)
+    grab(&Screens, &desk(), target, &Scope::default())
 }
 
 fn selector(text: &str) -> WindowSelector {
@@ -234,7 +236,15 @@ fn ask(
         outputs: Arc::new(Vec::new),
         windows: Arc::new(Vec::new),
     };
-    let handler = super::super::handler_with(sources, jobs, capture);
+    let rig = GateRig::permissive(cx);
+    rig.gate.callers().borrow_mut().insert(
+        JobId(3),
+        es_desktop::dbus::Caller {
+            uid: Some(ME),
+            pid: None,
+        },
+    );
+    let handler = super::super::handler_with(sources, jobs, rig.gate.clone(), capture);
     let route = AgentRoute::Capture(CaptureSpec::new(AgentTarget::Fullscreen));
     cx.update(|cx| handler(JobId(3), route, origin, cx));
     cx.run_until_parked();
@@ -252,7 +262,7 @@ fn ask(
 fn the_capture_route_runs_the_runner_only_for_a_request_the_gate_lets_in(cx: &mut TestAppContext) {
     let runs = Rc::new(Cell::new(0));
     let counted = runs.clone();
-    let runner: CaptureRunner = Rc::new(move |_, cx| {
+    let runner: CaptureRunner = Rc::new(move |_, _, cx| {
         counted.set(counted.get() + 1);
         cx.spawn(async move |_| AgentReply {
             capture: Some(Box::new(CaptureInfo {
@@ -281,4 +291,33 @@ fn the_capture_route_runs_the_runner_only_for_a_request_the_gate_lets_in(cx: &mu
 fn without_a_capture_runner_the_route_answers_unsupported(cx: &mut TestAppContext) {
     let reply = ask(None, Origin::DBus, cx);
     assert_eq!(reply["error"]["code"], "unsupported");
+}
+
+#[test]
+fn a_window_or_output_outside_the_scope_is_refused_where_the_capture_resolves_it() {
+    let only = |windows: &[&str], outputs: &[&str]| {
+        Scope::new(&AgentCfg {
+            allowed_windows: windows.iter().map(|w| (*w).to_owned()).collect(),
+            allowed_outputs: outputs.iter().map(|o| (*o).to_owned()).collect(),
+            ..AgentCfg::default()
+        })
+    };
+    let by_id = |id: &str| AgentTarget::Window(WindowSelector::id(id).unwrap());
+    let mpv = only(&["mpv"], &[]);
+    assert!(grab(&Screens, &desk(), &by_id("3"), &mpv).is_ok());
+    let Err(Fail(code, message)) = grab(&Screens, &desk(), &by_id("4"), &mpv) else {
+        panic!("a firefox window the gate never saw was captured outside the scope");
+    };
+    assert_eq!(code, ErrorCode::AccessDenied, "{message}");
+    let other = Scope::new(&AgentCfg {
+        allowed_outputs: vec!["NOT-THERE".into()],
+        ..AgentCfg::default()
+    });
+    for target in [
+        AgentTarget::Output(OutputName::new(&Screens.outputs()[0].id.0).unwrap()),
+        by_id("3"),
+    ] {
+        let refused = grab(&Screens, &desk(), &target, &other).err().map(|f| f.0);
+        assert_eq!(refused, Some(ErrorCode::AccessDenied), "{target:?}");
+    }
 }

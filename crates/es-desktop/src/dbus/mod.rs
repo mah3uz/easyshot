@@ -48,12 +48,21 @@ impl Endpoint {
     }
 }
 
+/// What the bus daemon knows of the process that sent a command.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Caller {
+    pub uid: Option<u32>,
+    pub pid: Option<u32>,
+}
+
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Incoming {
     Command {
         job: JobId,
         route: Route,
+        /// Present for agent routes only.
+        caller: Option<Caller>,
     },
     Cancel {
         job: JobId,

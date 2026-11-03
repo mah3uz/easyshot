@@ -1,3 +1,4 @@
+use super::access::{AccessStatus, ConfigEntry};
 use serde::{Deserialize, Serialize};
 
 /// Each code has its own process exit status, so a script can branch without reading the JSON.
@@ -62,6 +63,8 @@ pub enum ReplyKind {
     Outputs,
     Windows,
     Capture,
+    Access,
+    Config,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -134,6 +137,10 @@ pub struct AgentReply {
     #[serde(flatten, default, skip_serializing_if = "Option::is_none")]
     pub capture: Option<Box<CaptureInfo>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub access: Option<AccessStatus>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub config: Option<ConfigEntry>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<ReplyError>,
 }
 
@@ -146,6 +153,8 @@ impl AgentReply {
             outputs: None,
             windows: None,
             capture: None,
+            access: None,
+            config: None,
             error: None,
         }
     }

@@ -1,4 +1,4 @@
-use super::{Endpoint, Incoming, JobId, ServiceError};
+use super::{Caller, Endpoint, Incoming, JobId, ServiceError};
 use es_protocol::{ArgValue, JobStatus, OBJECT_PATH, Route, RouteArgs};
 use futures::future::BoxFuture;
 use std::collections::HashMap;
@@ -50,14 +50,23 @@ impl CommandIface {
     async fn command(
         &self,
         #[zbus(header)] header: Header<'_>,
+        #[zbus(connection)] conn: &Connection,
         route: String,
         args: HashMap<String, OwnedValue>,
     ) -> fdo::Result<u64> {
         let caller = sender(&header)?;
         let parsed = parse_off_the_bus(route, args).await?;
+        let credentials = match parsed {
+            Route::Agent(_) => Some(credentials(conn, &caller).await),
+            _ => None,
+        };
         let job = self.next.fetch_add(1, Ordering::Relaxed);
         lock(&self.live).insert(job, caller);
-        let route = Incoming::Command { job, route: parsed };
+        let route = Incoming::Command {
+            job,
+            route: parsed,
+            caller: credentials,
+        };
         if self.tx.send(route).await.is_err() {
             lock(&self.live).remove(&job);
             return Err(fdo::Error::Failed("the app is shutting down".into()));
@@ -94,6 +103,26 @@ fn sender(header: &Header<'_>) -> fdo::Result<OwnedUniqueName> {
         .sender()
         .map(|s| s.to_owned().into())
         .ok_or_else(|| fdo::Error::AccessDenied("a command needs a sender".into()))
+}
+
+/// Asked of the bus daemon, which took them from the socket; the message itself cannot claim them.
+async fn credentials(conn: &Connection, name: &OwnedUniqueName) -> Caller {
+    let asked = async {
+        fdo::DBusProxy::new(conn)
+            .await?
+            .get_connection_credentials(BusName::Unique(name.as_ref()))
+            .await
+    };
+    match asked.await {
+        Ok(c) => Caller {
+            uid: c.unix_user_id(),
+            pid: c.process_id(),
+        },
+        Err(e) => {
+            tracing::warn!(error = %e, "caller credentials unavailable");
+            Caller::default()
+        }
+    }
 }
 
 /// `open` touches the file system; a slow disk must not stall the bus executor.

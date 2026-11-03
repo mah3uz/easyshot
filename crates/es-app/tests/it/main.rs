@@ -1,3 +1,4 @@
+mod agent_access;
 mod capture_queue;
 mod deck;
 mod dispatcher;

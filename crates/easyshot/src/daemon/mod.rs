@@ -477,7 +477,7 @@ fn start(
     coordinator.set_before_capture(bar::close_before_capture(&windows));
     let dispatcher = RouteDispatcher::new(jobs.clone(), coordinator, windows);
     wiring.set_dispatcher(dispatcher.clone());
-    agent::capture::install(&dispatcher, &jobs, backend, &surfaces, &pipeline_deps);
+    agent::capture::install(cx, &dispatcher, &jobs, backend, &surfaces, &pipeline_deps);
     let action_deps = routes::ActionDeps {
         deck: deck.clone(),
         history: history.clone(),

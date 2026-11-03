@@ -36,7 +36,8 @@ fn a_valid_command_returns_a_job_and_reaches_the_app() {
 
         let run = client.run("capture/region", &no_args, never());
         let app = async {
-            let Incoming::Command { job, route } = incoming.recv().await.expect("command") else {
+            let Incoming::Command { job, route, .. } = incoming.recv().await.expect("command")
+            else {
                 panic!("expected a command");
             };
             assert_eq!(route, Route::CaptureRegion);
@@ -121,7 +122,7 @@ fn each_client_gets_the_result_of_its_own_job() {
         let app = async {
             let mut jobs = Vec::new();
             for _ in 0..2 {
-                let Incoming::Command { job, route } = incoming.recv().await.expect("command")
+                let Incoming::Command { job, route, .. } = incoming.recv().await.expect("command")
                 else {
                     panic!("expected a command");
                 };

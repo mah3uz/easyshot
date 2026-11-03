@@ -1,3 +1,4 @@
+pub mod agent;
 pub mod background;
 pub mod capture;
 pub mod config;
@@ -12,6 +13,7 @@ pub mod style;
 pub mod swatch;
 mod time_serde;
 
+pub use agent::{ActionRecord, AgentCfg, AgentRecord, AlwaysGrant, Consent};
 pub use background::{
     Alignment, AspectRatio, BackgroundColor, BackgroundGradient, BackgroundPreset,
     BackgroundSettings, BackgroundStyle, BlurEdgeMode, BlurMode, BorderSettings, CameraSettings,

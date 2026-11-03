@@ -20,6 +20,7 @@ bitflags! {
         const EDITOR = 1 << 7;
         const OCR = 1 << 8;
         const SHORTCUTS = 1 << 9;
+        const AGENT = 1 << 10;
     }
 }
 
@@ -34,6 +35,7 @@ impl SectionMask {
         mask.set(Self::DEFAULT_LOOK, a.default_look != b.default_look);
         mask.set(Self::EDITOR, a.editor != b.editor);
         mask.set(Self::OCR, a.ocr != b.ocr);
+        mask.set(Self::AGENT, a.agent != b.agent);
         mask.set(
             Self::SHORTCUTS,
             a.shortcuts != b.shortcuts || a.global_shortcuts != b.global_shortcuts,

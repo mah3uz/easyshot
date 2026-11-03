@@ -1,5 +1,6 @@
 use super::*;
-use es_app::jobs::{JobFinished, JobId};
+use crate::daemon::agent::gate::tests::{GateRig, ME};
+use es_app::events::Origin;
 use es_geom::Rect;
 use es_model::platform::{OutputId, Transform, WindowId};
 use gpui::TestAppContext;
@@ -86,25 +87,16 @@ fn ask(
     route: AgentRoute,
     origin: Origin,
     cx: &mut TestAppContext,
-) -> (JobFinished, Value) {
-    let (jobs, finished) = Jobs::new();
-    let handler = handler(rig.sources.clone(), jobs);
-    cx.update(|cx| handler(JobId(7), route, origin, cx));
-    cx.run_until_parked();
-    let done = finished
-        .try_recv()
-        .expect("the agent handler finishes its job");
-    assert_eq!(done.id, JobId(7));
-    let reply: Value =
-        serde_json::from_str(done.detail.as_deref().expect("a JSON answer")).unwrap();
-    (done, reply)
+) -> (JobStatus, Value) {
+    let gate = GateRig::permissive(cx);
+    gate.ask(&rig.sources, route, origin, Some(ME), cx)
 }
 
 #[gpui::test]
 fn list_outputs_reports_each_output_in_logical_pixels(cx: &mut TestAppContext) {
     let rig = rig(Caps::all());
     let (done, reply) = ask(&rig, AgentRoute::ListOutputs, Origin::DBus, cx);
-    assert_eq!(done.status, JobStatus::Ok);
+    assert_eq!(done, JobStatus::Ok);
     assert_eq!(
         reply,
         json!({
@@ -123,7 +115,7 @@ fn list_outputs_reports_each_output_in_logical_pixels(cx: &mut TestAppContext) {
 fn list_windows_leaves_out_what_the_compositor_did_not_say(cx: &mut TestAppContext) {
     let rig = rig(Caps::all());
     let (done, reply) = ask(&rig, AgentRoute::ListWindows, Origin::DBus, cx);
-    assert_eq!(done.status, JobStatus::Ok);
+    assert_eq!(done, JobStatus::Ok);
     assert_eq!(
         reply,
         json!({
@@ -144,7 +136,7 @@ fn a_desktop_without_the_provider_answers_unsupported(cx: &mut TestAppContext) {
     let rig = rig(Caps::empty());
     for route in AgentRoute::ALL {
         let (done, reply) = ask(&rig, route, Origin::DBus, cx);
-        assert_eq!(done.status, JobStatus::Error);
+        assert_eq!(done, JobStatus::Error);
         assert_eq!(reply["ok"], json!(false));
         assert_eq!(reply["error"]["code"], json!("unsupported"));
     }
@@ -164,7 +156,7 @@ fn the_gate_refuses_agent_routes_from_anywhere_but_the_bus_before_any_work(
     ] {
         for route in AgentRoute::ALL {
             let (done, reply) = ask(&rig, route, origin, cx);
-            assert_eq!(done.status, JobStatus::Error, "{origin:?}");
+            assert_eq!(done, JobStatus::Error, "{origin:?}");
             assert_eq!(reply["error"]["code"], json!("access_denied"), "{origin:?}");
         }
     }

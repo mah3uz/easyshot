@@ -99,6 +99,10 @@ impl Paths {
         self.state.join("state.json")
     }
 
+    pub fn agent_file(&self) -> PathBuf {
+        self.state.join("agent.json")
+    }
+
     pub fn log_dir(&self) -> PathBuf {
         self.state.join("log")
     }

@@ -28,7 +28,8 @@ fn an_agent_route_crosses_the_bus_typed_and_its_json_answer_comes_back_whole() {
 
         let asked = client.run(agent.route_name(), &args, futures::future::pending());
         let app = async {
-            let Incoming::Command { job, route } = incoming.recv().await.expect("command") else {
+            let Incoming::Command { job, route, .. } = incoming.recv().await.expect("command")
+            else {
                 panic!("expected a command");
             };
             assert_eq!(route, Route::Agent(AgentRoute::ListWindows));
@@ -78,9 +79,43 @@ fn submit_returns_the_job_without_waiting_for_it() {
             .submit(agent.route_name(), &agent.args())
             .await
             .expect("accepted");
-        let Ok(Incoming::Command { job: seen, route }) = svc.incoming().recv().await else {
+        let Ok(Incoming::Command {
+            job: seen, route, ..
+        }) = svc.incoming().recv().await
+        else {
             panic!("expected a command");
         };
         assert_eq!((seen, route), (job, Route::Agent(agent)));
+    });
+}
+
+#[test]
+fn an_agent_route_arrives_with_the_sender_credentials_the_bus_vouches_for() {
+    use std::os::unix::fs::MetadataExt as _;
+    run(async {
+        let bus = PrivateBus::start();
+        let svc = service(&bus.endpoint()).await;
+        let client = connect(&bus).await;
+        let agent = AgentRoute::ListOutputs;
+        client
+            .submit(agent.route_name(), &agent.args())
+            .await
+            .expect("accepted");
+        let Ok(Incoming::Command { caller, .. }) = svc.incoming().recv().await else {
+            panic!("expected a command");
+        };
+        let me = std::fs::metadata("/proc/self").expect("proc").uid();
+        let caller = caller.expect("an agent route carries its caller");
+        assert_eq!(caller.uid, Some(me));
+        assert_eq!(caller.pid, Some(std::process::id()));
+
+        client
+            .submit("deck/toggle", &RouteArgs::default())
+            .await
+            .expect("accepted");
+        let Ok(Incoming::Command { caller, .. }) = svc.incoming().recv().await else {
+            panic!("expected a command");
+        };
+        assert_eq!(caller, None, "other routes cost no extra bus call");
     });
 }

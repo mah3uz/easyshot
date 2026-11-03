@@ -277,6 +277,36 @@ const READERS: &[(&str, &str, &str)] = &[
         "ocr.languages",
     ),
     (
+        "agent.enabled",
+        "crates/easyshot/src/daemon/agent_gate.rs",
+        "cfg.enabled",
+    ),
+    (
+        "agent.consent",
+        "crates/easyshot/src/daemon/agent_gate.rs",
+        "cfg.consent",
+    ),
+    (
+        "agent.allowed_outputs",
+        "crates/easyshot/src/daemon/agent_scope.rs",
+        "cfg.allowed_outputs",
+    ),
+    (
+        "agent.allowed_windows",
+        "crates/easyshot/src/daemon/agent_scope.rs",
+        "cfg.allowed_windows",
+    ),
+    (
+        "agent.redact_secrets",
+        "crates/easyshot/src/daemon/agent_gate.rs",
+        "cfg.redact_secrets",
+    ),
+    (
+        "agent.log_limit",
+        "crates/easyshot/src/daemon/agent_gate.rs",
+        "log_limit()",
+    ),
+    (
         "shortcuts",
         "crates/easyshot/src/daemon/look.rs",
         "config.shortcuts",

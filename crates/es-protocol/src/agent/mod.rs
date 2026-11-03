@@ -1,7 +1,9 @@
+mod access;
 mod capture;
 mod reply;
 mod target;
 
+pub use access::{AccessStatus, AgentKey, ConfigEntry, GrantSpan, GrantStatus, ManageRoute};
 pub use capture::{CaptureSpec, MAX_DELAY_SECONDS, check_out};
 pub use reply::{
     AgentReply, CaptureInfo, ErrorCode, OutputEntry, ReplyError, ReplyKind, WindowEntry,
@@ -22,9 +24,11 @@ pub enum AgentRoute {
     ListOutputs,
     ListWindows,
     Capture(CaptureSpec),
+    Manage(ManageRoute),
 }
 
 impl AgentRoute {
+    /// The routes access gates, and the only ones; `Manage` routes are outside it.
     /// The capture entry is a sample; its fields are not part of the route's identity.
     pub const ALL: [AgentRoute; 3] = [
         AgentRoute::ListOutputs,
@@ -37,6 +41,7 @@ impl AgentRoute {
             AgentRoute::ListOutputs => "agent/list-outputs",
             AgentRoute::ListWindows => "agent/list-windows",
             AgentRoute::Capture(_) => "agent/capture",
+            AgentRoute::Manage(m) => m.route_name(),
         }
     }
 
@@ -45,6 +50,7 @@ impl AgentRoute {
             AgentRoute::ListOutputs => ReplyKind::Outputs,
             AgentRoute::ListWindows => ReplyKind::Windows,
             AgentRoute::Capture(_) => ReplyKind::Capture,
+            AgentRoute::Manage(m) => m.kind(),
         }
     }
 
@@ -53,6 +59,7 @@ impl AgentRoute {
             AgentRoute::ListOutputs => vec!["agent", "list", "outputs"],
             AgentRoute::ListWindows => vec!["agent", "list", "windows"],
             AgentRoute::Capture(_) => vec!["agent", "capture"],
+            AgentRoute::Manage(m) => m.command_args(),
         }
     }
 
@@ -63,14 +70,26 @@ impl AgentRoute {
         if let AgentRoute::Capture(spec) = self {
             spec.write_args(&mut args);
         }
+        if let AgentRoute::Manage(m) = self {
+            m.write_args(&mut args);
+        }
         args
     }
 
+    /// What the route would capture, for the access scope to check.
+    pub fn target(&self) -> Option<&AgentTarget> {
+        match self {
+            AgentRoute::Capture(spec) => Some(&spec.target),
+            AgentRoute::ListOutputs | AgentRoute::ListWindows | AgentRoute::Manage(_) => None,
+        }
+    }
+
     pub(crate) fn parse(name: &str, args: &RouteArgs) -> Result<AgentRoute> {
-        let route = Self::ALL
-            .into_iter()
-            .find(|r| r.route_name() == name)
-            .ok_or_else(|| Error::UnknownRoute(name.to_owned()))?;
+        let manage = ManageRoute::is_name(name);
+        let route = Self::ALL.into_iter().find(|r| r.route_name() == name);
+        if route.is_none() && !manage {
+            return Err(Error::UnknownRoute(name.to_owned()));
+        }
         let bad = |reason: String| Error::InvalidArgs {
             route: name.to_owned(),
             reason,
@@ -84,7 +103,12 @@ impl AgentRoute {
             }
             _ => return Err(bad(format!("{VERSION_ARG} must be a whole number"))),
         }
-        if let AgentRoute::Capture(_) = route {
+        if manage {
+            return ManageRoute::parse(name, args)
+                .map(AgentRoute::Manage)
+                .map_err(bad);
+        }
+        if let Some(AgentRoute::Capture(_)) = route {
             let known = |k: &str| {
                 k == VERSION_ARG || AgentTarget::ARGS.contains(&k) || CaptureSpec::ARGS.contains(&k)
             };
@@ -98,7 +122,7 @@ impl AgentRoute {
         if let Some(extra) = args.0.keys().find(|k| *k != VERSION_ARG) {
             return Err(bad(format!("unknown argument {extra}")));
         }
-        Ok(route)
+        route.ok_or_else(|| Error::UnknownRoute(name.to_owned()))
     }
 }
 

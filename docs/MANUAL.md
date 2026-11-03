@@ -490,7 +490,7 @@ one JSON object on standard output, errors included:
 A capture answer gives the size in pixels, not logical pixels, and `scale`; a window capture
 adds a `window` object like an entry of `agent list windows`.
 
-`kind` is `outputs`, `windows`, `capture`, or `usage` when the command line itself could not be read.
+`kind` is `outputs`, `windows`, `capture`, `access` (enable, disable and status), `config`, or `usage` when the command line itself could not be read.
 Fields may be added to these objects in later versions; existing ones keep their meaning.
 
 Exit codes and error codes:
@@ -507,9 +507,55 @@ Exit codes and error codes:
 | 7 | `access_off` | agent access is turned off |
 | 8 | `access_denied` | agent access was refused |
 
-Agent access has no switch in this version: the daemon answers every agent command that
-arrives over the session bus, and refuses one from anywhere else. `agent capture` reads your
-screen: it takes the one still frame you asked for, and nothing records or watches it.
+`agent capture` reads your screen: it takes the one still frame you asked for, and nothing
+records or watches it.
+
+### Turning agent access on
+
+Agent access is off until you turn it on. While it is off, every agent command except the
+ones below exits with status 7 and says how to turn it on. These always work:
+
+- `agent enable` turns access on; `agent disable` turns it off and ends every grant.
+- `agent status` shows whether access is on, the consent setting, the grant in force and
+  when it ends, the outputs and windows agents may capture, whether secrets are hidden, and
+  how many recent actions are logged. `--json` gives the same as one object.
+- `agent config get <key>` and `agent config set <key> <value>` read and change one setting
+  of the `[agent]` section of `config.toml`: `enabled` (`true` or `false`), `consent`,
+  `allowed_outputs` and `allowed_windows` (comma-separated output names and app ids; empty
+  means all), `redact_secrets` (`true` or `false`) and `log_limit` (1 to 10000).
+
+Only your own user can send agent commands: easyshot asks the session bus which user sent
+each one and refuses any other user with status 8. Nothing is ever sent over the network.
+
+### Consent
+
+`consent` decides when easyshot asks you before it answers an agent:
+
+- `once-per-session` (the default): the first request asks; you can allow it for 1 hour,
+  until you log out, or always, or deny it. Requests that arrive while easyshot is asking
+  wait for the same answer.
+- `always-ask`: every request asks, and an answer covers that request only.
+- `always-allow`: nothing is asked.
+
+"Always" is kept in `$XDG_STATE_HOME/easyshot/agent.json` and survives a restart; the other
+grants end when the daemon stops. `agent disable` ends every grant, "Always" included. This
+version has no consent dialog yet, so a request that would ask you is denied (status 8)
+unless `consent` is `always-allow`.
+
+### Scope
+
+`allowed_outputs` limits agents to those outputs: an agent command whose target reaches any other output is
+refused with status 8, and `agent list outputs` shows only those outputs. `allowed_windows`
+limits agents to windows with those app ids: only commands that target those windows are
+allowed, and `agent list windows` shows only those windows. Both are empty by default, which
+allows everything.
+
+### The log
+
+easyshot logs each agent request it answers or refuses, with the time, the command, its
+target, the result and the program that sent it, newest first, in
+`$XDG_STATE_HOME/easyshot/agent.json`. It keeps the last `log_limit` entries (200 by
+default). `agent status` and `agent config get` are not logged.
 
 ## Files
 
@@ -520,6 +566,7 @@ screen: it takes the one still frame you asked for, and nothing records or watch
 | Screenshots and edit sidecars | `$XDG_DATA_HOME/easyshot/library/` |
 | Recordings | `$XDG_DATA_HOME/easyshot/recordings/` |
 | Logs and crash reports | `$XDG_STATE_HOME/easyshot/log/`, `crash/` |
+| Agent grant and log | `$XDG_STATE_HOME/easyshot/agent.json` |
 | Default save folder | `Screenshots` inside your Pictures folder |
 | Saved recordings and video exports | `easyshot` inside your Videos folder |
 

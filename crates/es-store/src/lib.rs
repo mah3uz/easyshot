@@ -1,3 +1,4 @@
+pub mod agent;
 pub mod atomic;
 pub mod binds;
 pub mod bundle;
