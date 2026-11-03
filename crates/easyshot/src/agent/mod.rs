@@ -1,7 +1,9 @@
+mod capture;
 mod run;
 #[cfg(test)]
 mod tests;
 
+pub use capture::CaptureArgs;
 pub use run::{run, usage_error};
 
 use clap::{Args, Subcommand, ValueEnum};
@@ -20,6 +22,8 @@ pub struct AgentArgs {
 pub enum AgentCommand {
     /// List the outputs or the open windows
     List { what: ListWhat },
+    /// Take a screenshot of one target and print where it was saved
+    Capture(CaptureArgs),
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
@@ -38,18 +42,19 @@ pub struct AgentCall {
 
 impl AgentArgs {
     pub fn call(&self) -> AgentCall {
-        let route = match self.command {
+        let (route, wait) = match &self.command {
             AgentCommand::List {
                 what: ListWhat::Outputs,
-            } => AgentRoute::ListOutputs,
+            } => (AgentRoute::ListOutputs, true),
             AgentCommand::List {
                 what: ListWhat::Windows,
-            } => AgentRoute::ListWindows,
+            } => (AgentRoute::ListWindows, true),
+            AgentCommand::Capture(args) => (AgentRoute::Capture(args.spec()), args.wait()),
         };
         AgentCall {
             route,
             json: self.json,
-            wait: true,
+            wait,
         }
     }
 }

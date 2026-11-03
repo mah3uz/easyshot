@@ -462,6 +462,20 @@ Commands:
 - `agent list windows` lists the open windows: id, app id, title, position and size in
   logical pixels, output, and `focused`, which is true for the window that has or last had
   focus. What your compositor does not report is left out rather than guessed.
+- `agent capture` takes a screenshot and prints the path of the PNG. Give exactly one target:
+  `--output NAME`, `--geometry "x,y WxH"` (logical pixels, within one output),
+  `--window <id|app_id|title>` or `--fullscreen` (the focused output). A window name is tried
+  as an id, then as an exact app id, then as an exact title; a name that fits several windows
+  is refused with the candidates listed, so name one by its id. The capture is a still frame
+  taken at once, cropped to the target, with no selector. It is kept in the library like any
+  other capture, and is saved to your folder too when auto-save is on.
+  - `--out PATH` also writes the PNG to an absolute or relative `.png` path whose folder
+    exists.
+  - `--delay SECONDS` waits 0 to 60 seconds first.
+  - `--no-ui` shows no deck card or notification and runs no after-capture step except the
+    save. With `--out` as well, the file is all that is written: nothing goes to the library.
+  - `--wait` (the default) returns when the capture is done; `--no-wait` returns once the
+    daemon has accepted it.
 
 Without `--json` each output or window is one line of tab-separated text, with geometry
 written `x,y WxH`. With `--json` (before or after the subcommand) easyshot prints exactly
@@ -469,10 +483,14 @@ one JSON object on standard output, errors included:
 
 ```json
 {"ok":true,"kind":"outputs","outputs":[{"name":"DP-1","description":"Dell U2720Q","x":0,"y":0,"width":2560,"height":1440,"scale":1.5,"focused":true}]}
+{"ok":true,"kind":"capture","path":"/home/you/.local/share/easyshot/library/easyshot_2026-11-03-15-29-54.png","width":480,"height":300,"scale":1.5,"output":"DP-1"}
 {"ok":false,"kind":"windows","error":{"code":"unsupported","message":"this desktop gives easyshot no window list"}}
 ```
 
-`kind` is `outputs`, `windows`, or `usage` when the command line itself could not be read.
+A capture answer gives the size in pixels, not logical pixels, and `scale`; a window capture
+adds a `window` object like an entry of `agent list windows`.
+
+`kind` is `outputs`, `windows`, `capture`, or `usage` when the command line itself could not be read.
 Fields may be added to these objects in later versions; existing ones keep their meaning.
 
 Exit codes and error codes:
@@ -484,14 +502,14 @@ Exit codes and error codes:
 | 2 | `cancelled` | cancelled, for example with Ctrl+C |
 | 3 | `no_daemon` | the daemon is not running, could not be started or went away |
 | 4 | `invalid_arguments` | the command line or its arguments are wrong, or the daemon is from a different easyshot version |
-| 5 | `not_found` | the output or window asked for does not exist |
-| 6 | `unsupported` | your compositor gives easyshot no output or window list |
+| 5 | `not_found` | the output, window or area asked for does not exist |
+| 6 | `unsupported` | your compositor gives easyshot no output list, window list or capture |
 | 7 | `access_off` | agent access is turned off |
 | 8 | `access_denied` | agent access was refused |
 
 Agent access has no switch in this version: the daemon answers every agent command that
-arrives over the session bus, and refuses one from anywhere else. The commands only list
-outputs and windows; none captures, records or reads your screen.
+arrives over the session bus, and refuses one from anywhere else. `agent capture` reads your
+screen: it takes the one still frame you asked for, and nothing records or watches it.
 
 ## Files
 

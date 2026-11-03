@@ -1,3 +1,6 @@
+#[path = "agent_capture.rs"]
+pub(super) mod capture;
+
 use es_app::dispatcher::AgentHandler;
 use es_app::events::Origin;
 use es_app::jobs::{Jobs, run_cpu};
@@ -41,18 +44,33 @@ fn admit(route: &AgentRoute, origin: Origin) -> Result<(), AgentReply> {
     }
 }
 
+#[cfg(test)]
 pub fn handler(sources: Sources, jobs: Jobs) -> AgentHandler {
+    handler_with(sources, jobs, None)
+}
+
+pub fn handler_with(
+    sources: Sources,
+    jobs: Jobs,
+    capture: Option<capture::CaptureRunner>,
+) -> AgentHandler {
     Rc::new(move |job, route, origin, cx| {
         let kind = route.kind();
-        let work = admit(&route, origin).map(|()| {
-            let sources = sources.clone();
-            run_cpu(cx, move || answer(&route, &sources))
+        let work = admit(&route, origin).map(|()| match (&route, &capture) {
+            (AgentRoute::Capture(spec), Some(capture)) => capture(spec.clone(), cx),
+            _ => {
+                let sources = sources.clone();
+                let task = run_cpu(cx, move || answer(&route, &sources));
+                cx.spawn(async move |_| {
+                    task.await.unwrap_or_else(|e| {
+                        AgentReply::failed(kind, ErrorCode::Failed, e.to_string())
+                    })
+                })
+            }
         });
         jobs.spawn_answer(job, cx, move |_| async move {
             let reply = match work {
-                Ok(task) => task
-                    .await
-                    .unwrap_or_else(|e| AgentReply::failed(kind, ErrorCode::Failed, e.to_string())),
+                Ok(task) => task.await,
                 Err(refused) => refused,
             };
             let status = if reply.ok {
@@ -84,6 +102,7 @@ fn answer(route: &AgentRoute, sources: &Sources) -> AgentReply {
                 ..AgentReply::ok(kind)
             }
         }
+        AgentRoute::Capture(_) => unsupported("screen capture"),
         AgentRoute::ListWindows => {
             if !sources.caps.contains(Caps::WINDOW_LIST) {
                 return unsupported("window list");
@@ -121,7 +140,7 @@ fn output_entry(o: &OutputInfo) -> OutputEntry {
     }
 }
 
-fn window_entry(w: &WindowInfo) -> WindowEntry {
+pub(super) fn window_entry(w: &WindowInfo) -> WindowEntry {
     let rect = w.logical;
     WindowEntry {
         id: w.id.0.clone(),

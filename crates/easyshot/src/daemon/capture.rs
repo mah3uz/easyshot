@@ -143,7 +143,7 @@ fn grab(capture: &dyn Capture, output: &OutputId) -> Result<Frame> {
         .ok_or_else(|| Error::NotFound(format!("a frame of {}", output.0)))
 }
 
-fn cut(
+pub(super) fn cut(
     capture: &dyn Capture,
     output: &OutputId,
     global: Option<Rect>,
@@ -160,7 +160,7 @@ fn cut(
 }
 
 /// A fresh frame of `target`; `None` when it was a window that has closed since.
-fn shoot(
+pub(super) fn shoot(
     capture: &dyn Capture,
     windows: &dyn WindowList,
     target: LastTarget,

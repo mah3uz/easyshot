@@ -112,6 +112,9 @@ fn print(json: bool, reply: &AgentReply, out: &mut dyn Write, err: &mut dyn Writ
             w.title.as_deref().map(clean).unwrap_or_default(),
         );
     }
+    if let Some(shot) = &reply.capture {
+        let _ = writeln!(out, "{}", shot.path);
+    }
     if let Some(job) = reply.job {
         let _ = writeln!(out, "job {job}");
     }

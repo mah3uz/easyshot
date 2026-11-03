@@ -15,6 +15,7 @@ const X_ARG: &str = "x";
 const Y_ARG: &str = "y";
 const WIDTH_ARG: &str = "width";
 const HEIGHT_ARG: &str = "height";
+const WINDOW_ARG: &str = "window";
 const WINDOW_ID_ARG: &str = "window_id";
 const APP_ID_ARG: &str = "window_app_id";
 const TITLE_ARG: &str = "window_title";
@@ -105,12 +106,18 @@ impl fmt::Display for Geometry {
 /// Matched against the compositor's window list; an id is stable, an app id or title may match several.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WindowSelector {
+    /// Tried as an id first, then as an exact app id, then as an exact title.
+    Any(String),
     Id(String),
     AppId(String),
     Title(String),
 }
 
 impl WindowSelector {
+    pub fn any(query: &str) -> Result<WindowSelector, String> {
+        text("a window", query, MAX_TITLE).map(WindowSelector::Any)
+    }
+
     pub fn id(id: &str) -> Result<WindowSelector, String> {
         if id.is_empty() || id.len() > MAX_WINDOW_ID || !id.bytes().all(|b| b.is_ascii_graphic()) {
             return Err(format!("{id:?} is not a window id"));
@@ -128,6 +135,7 @@ impl WindowSelector {
 
     fn arg(&self) -> (&'static str, &str) {
         match self {
+            WindowSelector::Any(s) => (WINDOW_ARG, s),
             WindowSelector::Id(s) => (WINDOW_ID_ARG, s),
             WindowSelector::AppId(s) => (APP_ID_ARG, s),
             WindowSelector::Title(s) => (TITLE_ARG, s),
@@ -155,12 +163,13 @@ pub enum AgentTarget {
 }
 
 impl AgentTarget {
-    pub const ARGS: [&'static str; 9] = [
+    pub const ARGS: [&'static str; 10] = [
         OUTPUT_ARG,
         X_ARG,
         Y_ARG,
         WIDTH_ARG,
         HEIGHT_ARG,
+        WINDOW_ARG,
         WINDOW_ID_ARG,
         APP_ID_ARG,
         TITLE_ARG,
@@ -211,6 +220,7 @@ impl AgentTarget {
                 Geometry::new(int(X_ARG)?, int(Y_ARG)?, int(WIDTH_ARG)?, int(HEIGHT_ARG)?)
                     .map(AgentTarget::Geometry)
             }
+            [WINDOW_ARG] => WindowSelector::any(string(WINDOW_ARG)?).map(AgentTarget::Window),
             [WINDOW_ID_ARG] => WindowSelector::id(string(WINDOW_ID_ARG)?).map(AgentTarget::Window),
             [APP_ID_ARG] => WindowSelector::app_id(string(APP_ID_ARG)?).map(AgentTarget::Window),
             [TITLE_ARG] => WindowSelector::title(string(TITLE_ARG)?).map(AgentTarget::Window),
@@ -317,6 +327,7 @@ mod tests {
             AgentTarget::Fullscreen,
             AgentTarget::Output(OutputName::new("DP-1").unwrap()),
             AgentTarget::Geometry(Geometry::parse("-10,20 300x400").unwrap()),
+            AgentTarget::Window(WindowSelector::any("foot").unwrap()),
             AgentTarget::Window(WindowSelector::id("0xabc").unwrap()),
             AgentTarget::Window(WindowSelector::app_id("foot").unwrap()),
             AgentTarget::Window(WindowSelector::title("a title").unwrap()),

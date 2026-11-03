@@ -540,3 +540,6 @@ fn a_pin_that_is_never_saved_is_not_staged_so_it_cannot_return_as_a_card(cx: &mu
         .unwrap();
     assert!(restored.is_empty());
 }
+
+#[path = "pipeline_agent.rs"]
+mod agent;

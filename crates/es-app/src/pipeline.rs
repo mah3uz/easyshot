@@ -203,15 +203,15 @@ fn read_text(
     })
 }
 
-struct Prepared {
+pub(crate) struct Prepared {
     /// Present when the plan shows a card.
-    card: Option<DeckItem>,
+    pub(crate) card: Option<DeckItem>,
     /// Where a capture that is shown, saved and kept nowhere lives until its pin or editor is done.
-    transient: Option<PathBuf>,
-    png: Arc<[u8]>,
-    image: Arc<RgbaImage>,
-    saved: Option<Result<PathBuf>>,
-    library: Option<Result<HistoryEntry>>,
+    pub(crate) transient: Option<PathBuf>,
+    pub(crate) png: Arc<[u8]>,
+    pub(crate) image: Arc<RgbaImage>,
+    pub(crate) saved: Option<Result<PathBuf>>,
+    pub(crate) library: Option<Result<HistoryEntry>>,
 }
 
 pub(crate) struct Work {
@@ -294,7 +294,7 @@ pub(crate) fn retain(
     Ok(entry)
 }
 
-fn prepare(work: &Work, frame: &Frame) -> Result<Prepared> {
+pub(crate) fn prepare(work: &Work, frame: &Frame) -> Result<Prepared> {
     let image = frame_rgba(frame)?;
     let raw = pixmap(&image)?;
     let raw_png = encode_png(&raw, PngProfile::Fast).map_err(|e| encoding(&e))?;
@@ -390,7 +390,7 @@ fn library_card(work: &Work, entry: &HistoryEntry) -> Option<DeckItem> {
 }
 
 /// Spends a `{counter}` number only when the template uses one; state is written on the UI thread only.
-fn next_stem(paths: &Paths, config: &Config) -> String {
+pub(crate) fn next_stem(paths: &Paths, config: &Config) -> String {
     let template = &config.general.file_name_template;
     let now = OffsetDateTime::now_utc();
     let mut state = match es_store::state::open(paths) {
@@ -440,7 +440,7 @@ fn screenshot(
     })
 }
 
-async fn finish(
+pub(crate) async fn finish(
     deps: &Rc<PipelineDeps>,
     plan: &[Step],
     p: Prepared,

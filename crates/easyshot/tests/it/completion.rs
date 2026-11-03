@@ -249,8 +249,8 @@ fn the_top_level_offers_agent_and_ai_but_none_of_their_subcommands() {
                 shell,
                 cwd,
                 &[namespace, ""],
-                &["list"],
-                &["capture", "outputs"],
+                &["list", "capture"],
+                &["outputs"],
             );
             assert_offers(
                 shell,

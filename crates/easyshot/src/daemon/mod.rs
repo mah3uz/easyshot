@@ -421,7 +421,7 @@ fn start(
         surfaces.clone(),
         Rc::new(move |cx| timer.read(cx).config().capture.self_timer),
     ));
-    let screenshots = pipeline::pipeline(Rc::new(PipelineDeps {
+    let pipeline_deps = Rc::new(PipelineDeps {
         paths: paths.clone(),
         settings: settings.clone(),
         history: history.clone(),
@@ -433,7 +433,8 @@ fn start(
             let wiring = wiring.clone();
             Rc::new(move |file, cx| wiring.open_editor_for(&file, cx))
         },
-    }));
+    });
+    let screenshots = pipeline::pipeline(pipeline_deps.clone());
     let recordings = recording::Recordings::new(recording::Deps {
         settings: settings.clone(),
         paths: paths.clone(),
@@ -473,10 +474,10 @@ fn start(
             screenshots(request, selection, cx)
         }
     }));
-
     coordinator.set_before_capture(bar::close_before_capture(&windows));
     let dispatcher = RouteDispatcher::new(jobs.clone(), coordinator, windows);
     wiring.set_dispatcher(dispatcher.clone());
+    agent::capture::install(&dispatcher, &jobs, backend, &surfaces, &pipeline_deps);
     let action_deps = routes::ActionDeps {
         deck: deck.clone(),
         history: history.clone(),

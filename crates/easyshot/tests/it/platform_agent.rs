@@ -129,3 +129,210 @@ fn platform_agent_lists_outputs_and_windows_as_sway_reports_them() {
         assert!(w[key].is_i64(), "{key} in {w}");
     }
 }
+
+fn capture(root: &Path, args: &[&str]) -> (i32, Value) {
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_easyshot"));
+    cmd.args(["agent", "capture", "--json"]).args(args);
+    xdg(&mut cmd, root);
+    let out = cmd.output().unwrap();
+    let text = String::from_utf8(out.stdout).unwrap();
+    (out.status.code().unwrap_or(-1), json_line(&text))
+}
+
+fn dirs_named(root: &Path, name: &str) -> Vec<std::path::PathBuf> {
+    let mut found = Vec::new();
+    let mut todo = vec![root.to_path_buf()];
+    while let Some(dir) = todo.pop() {
+        for entry in std::fs::read_dir(&dir).into_iter().flatten().flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                if path.file_name().is_some_and(|n| n == name) {
+                    found.push(path.clone());
+                }
+                todo.push(path);
+            }
+        }
+    }
+    found
+}
+
+fn entries(root: &Path, name: &str) -> Vec<std::path::PathBuf> {
+    dirs_named(&root.join("data"), name)
+        .iter()
+        .flat_map(|d| std::fs::read_dir(d).into_iter().flatten().flatten())
+        .map(|e| e.path())
+        .collect()
+}
+
+fn library_images(root: &Path) -> Vec<std::path::PathBuf> {
+    let mut found = entries(root, "library");
+    found.retain(|p| p.extension().is_some_and(|e| e == "png"));
+    found
+}
+
+fn within(a: u32, b: f64) -> bool {
+    (f64::from(a) - b).abs() <= 2.0
+}
+
+#[test]
+fn platform_agent_captures_by_geometry_output_window_and_fullscreen() {
+    if std::env::var("EASYSHOT_TEST").as_deref() != Ok("1")
+        || std::env::var("EASYSHOT_TEST_OUTPUT").as_deref() != Ok("HEADLESS-1")
+    {
+        eprintln!("skipped: not inside the headless sway harness");
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let root = root.path();
+    std::fs::create_dir_all(root.join("config/easyshot")).unwrap();
+    std::fs::write(
+        root.join("config/easyshot/config.toml"),
+        "[capture]\nkeep_in_deck_until_saved = true\n",
+    )
+    .unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_easyshot"));
+    cmd.arg("daemon");
+    xdg(&mut cmd, root);
+    let log = std::fs::File::create(root.join("daemon.log")).unwrap();
+    let _daemon = Daemon(cmd.stderr(Stdio::from(log)).spawn().unwrap());
+    let end = Instant::now() + Duration::from_secs(30);
+    while agent(root, "outputs").0 == 3 && Instant::now() < end {
+        sleep(Duration::from_millis(200));
+    }
+
+    let size = |reply: &Value| {
+        let path = reply["path"].as_str().unwrap();
+        let (w, h) = image::image_dimensions(path).unwrap();
+        assert_eq!(
+            (reply["width"].as_u64(), reply["height"].as_u64()),
+            (Some(w.into()), Some(h.into()))
+        );
+        (w, h)
+    };
+
+    let (code, reply) = capture(root, &["--geometry", "100,50 320x200", "--no-ui"]);
+    assert_eq!(code, 0, "{reply}");
+    assert_eq!(
+        (reply["kind"].as_str(), reply["output"].as_str()),
+        (Some("capture"), Some("HEADLESS-1"))
+    );
+    assert_eq!(reply["scale"], 1.5);
+    assert_eq!(size(&reply), (480, 300), "logical 320x200 at scale 1.5");
+    assert!(reply.get("window").is_none());
+    assert_eq!(library_images(root).len(), 1, "{:?}", library_images(root));
+    assert!(entries(root, "deck").is_empty(), "no deck card for --no-ui");
+
+    let (code, reply) = capture(root, &["--output", "HEADLESS-1", "--no-ui"]);
+    assert_eq!(code, 0, "{reply}");
+    assert_eq!(size(&reply), (1920, 1080));
+    let (code, reply) = capture(root, &["--fullscreen", "--no-ui"]);
+    assert_eq!(code, 0, "{reply}");
+    assert_eq!(size(&reply), (1920, 1080));
+    assert!(entries(root, "deck").is_empty());
+
+    let (code, reply) = capture(root, &["--fullscreen"]);
+    assert_eq!(code, 0, "{reply}");
+    assert!(
+        !entries(root, "deck").is_empty(),
+        "a capture with the interface stages a card"
+    );
+
+    std::fs::create_dir_all(root.join("exports")).unwrap();
+    let out = root.join("exports/shot.png");
+    let library = library_images(root).len();
+    let (code, reply) = capture(
+        root,
+        &[
+            "--geometry",
+            "0,0 64x48",
+            "--no-ui",
+            "--out",
+            out.to_str().unwrap(),
+        ],
+    );
+    assert_eq!(code, 0, "{reply}");
+    assert_eq!(reply["path"].as_str(), out.to_str());
+    assert_eq!(image::image_dimensions(&out).unwrap(), (96, 72));
+    assert_eq!(
+        library_images(root).len(),
+        library,
+        "--out with --no-ui writes only the file"
+    );
+
+    let started = Instant::now();
+    let (code, _) = capture(root, &["--fullscreen", "--no-ui", "--delay", "1"]);
+    assert_eq!(code, 0);
+    assert!(started.elapsed() >= Duration::from_secs(1));
+
+    let (code, reply) = capture(root, &["--output", "NOPE-9", "--no-ui"]);
+    assert_eq!(
+        (code, reply["error"]["code"].as_str()),
+        (5, Some("not_found")),
+        "{reply}"
+    );
+    let (code, reply) = capture(root, &["--geometry", "5000,5000 10x10", "--no-ui"]);
+    assert_eq!(
+        (code, reply["error"]["code"].as_str()),
+        (5, Some("not_found")),
+        "{reply}"
+    );
+    let (code, reply) = capture(root, &["--window", "no such window", "--no-ui"]);
+    assert_eq!(
+        (code, reply["error"]["code"].as_str()),
+        (5, Some("not_found")),
+        "{reply}"
+    );
+
+    let library_png = library_images(root).remove(0);
+    for args in [
+        vec!["gallery"],
+        vec!["open", out.to_str().unwrap()],
+        vec!["open", library_png.to_str().unwrap()],
+    ] {
+        let mut open = Command::new(env!("CARGO_BIN_EXE_easyshot"));
+        open.args(args);
+        xdg(&mut open, root);
+        assert!(open.status().unwrap().success());
+    }
+    let end = Instant::now() + Duration::from_secs(30);
+    let windows = loop {
+        let (_, text) = agent(root, "windows");
+        let windows = json_line(&text)["windows"].as_array().unwrap().clone();
+        if windows.len() >= 3 || Instant::now() > end {
+            break windows;
+        }
+        sleep(Duration::from_millis(200));
+    };
+    assert_eq!(windows.len(), 3, "{windows:?}");
+    sleep(Duration::from_millis(500));
+    let (_, text) = agent(root, "windows");
+    let windows = json_line(&text)["windows"].as_array().unwrap().clone();
+    let target = &windows[0];
+    let id = target["id"].as_str().unwrap();
+    let (code, reply) = capture(root, &["--window", id, "--no-ui"]);
+    assert_eq!(code, 0, "{reply}");
+    assert_eq!(reply["window"]["id"].as_str(), Some(id));
+    let (w, h) = size(&reply);
+    assert!(
+        within(w, target["width"].as_f64().unwrap() * 1.5)
+            && within(h, target["height"].as_f64().unwrap() * 1.5),
+        "{w}x{h} against {target}"
+    );
+
+    let shared = "dev.easyshot.app.editor";
+    let editors: Vec<&Value> = windows
+        .iter()
+        .filter(|w| w["app_id"].as_str() == Some(shared))
+        .collect();
+    assert_eq!(editors.len(), 2, "two editor windows: {windows:?}");
+    let (code, reply) = capture(root, &["--window", shared, "--no-ui"]);
+    assert_eq!(
+        (code, reply["error"]["code"].as_str()),
+        (4, Some("invalid_arguments")),
+        "{reply}"
+    );
+    let message = reply["error"]["message"].as_str().unwrap();
+    for w in editors {
+        assert!(message.contains(w["id"].as_str().unwrap()), "{message}");
+    }
+}

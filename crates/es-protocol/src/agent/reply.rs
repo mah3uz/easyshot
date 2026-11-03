@@ -61,6 +61,7 @@ pub enum ReplyKind {
     Usage,
     Outputs,
     Windows,
+    Capture,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -105,6 +106,19 @@ pub struct WindowEntry {
     pub focused: Option<bool>,
 }
 
+/// What a capture made; the size is in pixels.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CaptureInfo {
+    pub path: String,
+    pub width: u32,
+    pub height: u32,
+    pub scale: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub window: Option<WindowEntry>,
+}
+
 /// The one JSON object an agent command answers with: `{ok, kind, ...fields, error}`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AgentReply {
@@ -117,6 +131,8 @@ pub struct AgentReply {
     pub outputs: Option<Vec<OutputEntry>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub windows: Option<Vec<WindowEntry>>,
+    #[serde(flatten, default, skip_serializing_if = "Option::is_none")]
+    pub capture: Option<Box<CaptureInfo>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<ReplyError>,
 }
@@ -129,6 +145,7 @@ impl AgentReply {
             job: None,
             outputs: None,
             windows: None,
+            capture: None,
             error: None,
         }
     }
@@ -210,6 +227,41 @@ mod tests {
             })
         );
         assert_eq!(reply.exit_code(), 0);
+    }
+
+    #[test]
+    fn a_capture_reply_is_flat_with_the_window_only_when_there_is_one() {
+        let mut reply = AgentReply::ok(ReplyKind::Capture);
+        let mut info = CaptureInfo {
+            path: "/tmp/a.png".into(),
+            width: 640,
+            height: 360,
+            scale: 1.5,
+            output: Some("DP-1".into()),
+            window: None,
+        };
+        reply.capture = Some(Box::new(info.clone()));
+        assert_eq!(
+            value(&reply),
+            json!({
+                "ok": true, "kind": "capture", "path": "/tmp/a.png",
+                "width": 640, "height": 360, "scale": 1.5, "output": "DP-1"
+            })
+        );
+        info.window = Some(WindowEntry {
+            id: "7".into(),
+            app_id: None,
+            title: None,
+            x: None,
+            y: None,
+            width: None,
+            height: None,
+            output: None,
+            focused: None,
+        });
+        reply.capture = Some(Box::new(info));
+        assert_eq!(value(&reply)["window"], json!({"id": "7"}));
+        assert_eq!(AgentReply::from_json(&reply.to_json()).unwrap(), reply);
     }
 
     #[test]

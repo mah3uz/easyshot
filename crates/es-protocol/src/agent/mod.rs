@@ -1,7 +1,11 @@
+mod capture;
 mod reply;
 mod target;
 
-pub use reply::{AgentReply, ErrorCode, OutputEntry, ReplyError, ReplyKind, WindowEntry};
+pub use capture::{CaptureSpec, MAX_DELAY_SECONDS, check_out};
+pub use reply::{
+    AgentReply, CaptureInfo, ErrorCode, OutputEntry, ReplyError, ReplyKind, WindowEntry,
+};
 pub use target::{AgentTarget, Geometry, OutputName, WindowSelector};
 
 use crate::{ArgValue, Error, Result, RouteArgs};
@@ -17,15 +21,22 @@ pub(crate) const PREFIX: &str = "agent/";
 pub enum AgentRoute {
     ListOutputs,
     ListWindows,
+    Capture(CaptureSpec),
 }
 
 impl AgentRoute {
-    pub const ALL: [AgentRoute; 2] = [AgentRoute::ListOutputs, AgentRoute::ListWindows];
+    /// The capture entry is a sample; its fields are not part of the route's identity.
+    pub const ALL: [AgentRoute; 3] = [
+        AgentRoute::ListOutputs,
+        AgentRoute::ListWindows,
+        AgentRoute::Capture(CaptureSpec::new(AgentTarget::Fullscreen)),
+    ];
 
     pub fn route_name(&self) -> &'static str {
         match self {
             AgentRoute::ListOutputs => "agent/list-outputs",
             AgentRoute::ListWindows => "agent/list-windows",
+            AgentRoute::Capture(_) => "agent/capture",
         }
     }
 
@@ -33,6 +44,7 @@ impl AgentRoute {
         match self {
             AgentRoute::ListOutputs => ReplyKind::Outputs,
             AgentRoute::ListWindows => ReplyKind::Windows,
+            AgentRoute::Capture(_) => ReplyKind::Capture,
         }
     }
 
@@ -40,6 +52,7 @@ impl AgentRoute {
         match self {
             AgentRoute::ListOutputs => vec!["agent", "list", "outputs"],
             AgentRoute::ListWindows => vec!["agent", "list", "windows"],
+            AgentRoute::Capture(_) => vec!["agent", "capture"],
         }
     }
 
@@ -47,6 +60,9 @@ impl AgentRoute {
         let mut args = RouteArgs::default();
         args.0
             .insert(VERSION_ARG.to_owned(), ArgValue::Int(AGENT_PROTOCOL));
+        if let AgentRoute::Capture(spec) = self {
+            spec.write_args(&mut args);
+        }
         args
     }
 
@@ -67,6 +83,17 @@ impl AgentRoute {
                 )));
             }
             _ => return Err(bad(format!("{VERSION_ARG} must be a whole number"))),
+        }
+        if let AgentRoute::Capture(_) = route {
+            let known = |k: &str| {
+                k == VERSION_ARG || AgentTarget::ARGS.contains(&k) || CaptureSpec::ARGS.contains(&k)
+            };
+            if let Some(extra) = args.0.keys().find(|k| !known(k)) {
+                return Err(bad(format!("unknown argument {extra}")));
+            }
+            return CaptureSpec::from_args(args)
+                .map(AgentRoute::Capture)
+                .map_err(bad);
         }
         if let Some(extra) = args.0.keys().find(|k| *k != VERSION_ARG) {
             return Err(bad(format!("unknown argument {extra}")));
@@ -116,7 +143,7 @@ mod tests {
 
     #[test]
     fn list_routes_take_no_other_argument() {
-        for agent in AgentRoute::ALL {
+        for agent in [AgentRoute::ListOutputs, AgentRoute::ListWindows] {
             let mut args = agent.args();
             args.0.insert("output".into(), ArgValue::Str("DP-1".into()));
             assert!(matches!(
@@ -124,6 +151,30 @@ mod tests {
                 Err(Error::InvalidArgs { .. })
             ));
         }
+    }
+
+    #[test]
+    fn a_capture_route_carries_its_spec_and_refuses_what_it_does_not_know() {
+        let spec = CaptureSpec {
+            target: AgentTarget::Window(WindowSelector::any("foot").unwrap()),
+            out: Some("/tmp/a.png".into()),
+            delay: 5,
+            no_ui: true,
+        };
+        let route = Route::Agent(AgentRoute::Capture(spec));
+        assert_eq!(Route::parse(&route.as_str(), &route.args()).unwrap(), route);
+        let mut args = route.args();
+        args.0.insert("shell".into(), ArgValue::Str("rm".into()));
+        assert!(matches!(
+            Route::parse("agent/capture", &args),
+            Err(Error::InvalidArgs { .. })
+        ));
+        let mut none = AgentRoute::Capture(CaptureSpec::new(AgentTarget::Fullscreen)).args();
+        none.0.remove("fullscreen");
+        assert!(matches!(
+            Route::parse("agent/capture", &none),
+            Err(Error::InvalidArgs { .. })
+        ));
     }
 
     #[test]
