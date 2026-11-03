@@ -298,9 +298,12 @@ from a recording.
 Pages: Home, General, Capture, Overlay, Recording, Shortcuts, About. Sharing is not part of
 version 1.
 
-Settings are stored in `config.toml`; see Files. You can edit it by hand. easyshot watches
-the file and applies changes live. If the file has a syntax error, easyshot keeps running
-on the last good settings, never overwrites your file, and tells you the line and column.
+Settings are stored in `config.toml`; see Files. You can edit it by hand. While easyshot
+runs it watches the file and applies your edits at once, without a restart, and a later change
+in Settings keeps them. If the file has a syntax error, easyshot keeps running on the last
+good settings and tells you the line and column. It does not write to the file while the
+error is there, so changes made in Settings stay until you quit; fix the file and its
+contents apply again.
 
 Home shows the capture buttons with their keys, your five most recent captures, and Setup:
 a list of what your compositor and installed tools offer, such as the selection overlay,

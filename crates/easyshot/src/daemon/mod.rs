@@ -1,6 +1,7 @@
 mod bar;
 mod bus;
 mod capture;
+mod config_watch;
 mod crash;
 #[cfg(feature = "test-hooks")]
 mod inject;
@@ -40,6 +41,7 @@ use es_overlays::pin::Pins;
 use es_shell::gallery::DesktopFiles;
 use es_store::{ConfigFile, Paths};
 use gpui::{App, AppContext as _, Entity, Global, QuitMode, Task};
+use recovery::reopen_recovered;
 use std::rc::Rc;
 use std::sync::Arc;
 use tracing_subscriber::EnvFilter;
@@ -490,6 +492,7 @@ fn start(
         handlers,
         cx,
     )];
+    tasks.extend(config_watch::install(&settings, cx));
     tasks.extend(bus::platform_sources(backend, &history, &events_tx, cx));
     let bridge = bus::Bridge::start(backend, events_tx, dispatcher, jobs, finished, cx)?;
 
@@ -531,26 +534,6 @@ fn first_launch_pending(paths: &Paths) -> bool {
     !test_mode_requested()
         && es_store::state::open(paths)
             .is_ok_and(|state| es_shell::onboarding::should_present(&state.value))
-}
-
-fn reopen_recovered(
-    wiring: &Wiring,
-    recovered: Vec<es_editor::session::journal::Recovered>,
-    cx: &mut App,
-) {
-    let mut opened = 0;
-    for found in recovered {
-        match wiring.recover(&found.entry.display, found.path, cx) {
-            Ok(()) => opened += 1,
-            Err(e) => tracing::warn!(error = %e, "recovered edits not reopened"),
-        }
-    }
-    if opened > 0 {
-        es_app::toast::show_toast(
-            es_app::toast::Toast::new("toast-recovered-edits", es_app::toast::IconName::Info),
-            cx,
-        );
-    }
 }
 
 /// Picks the recorder the settings name, else the best one the backend found; test mode fakes one.

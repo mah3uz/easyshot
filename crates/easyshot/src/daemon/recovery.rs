@@ -5,6 +5,22 @@ use gpui::{App, Entity};
 use std::path::Path;
 use time::OffsetDateTime;
 
+pub fn reopen_recovered(wiring: &super::Wiring, recovered: Vec<Recovered>, cx: &mut App) {
+    let mut opened = 0;
+    for found in recovered {
+        match wiring.recover(&found.entry.display, found.path, cx) {
+            Ok(()) => opened += 1,
+            Err(e) => tracing::warn!(error = %e, "recovered edits not reopened"),
+        }
+    }
+    if opened > 0 {
+        es_app::toast::show_toast(
+            es_app::toast::Toast::new("toast-recovered-edits", es_app::toast::IconName::Info),
+            cx,
+        );
+    }
+}
+
 /// Restores deck cards, finishes interrupted recordings and collects editor journals for reopening.
 pub fn run(
     paths: &Paths,

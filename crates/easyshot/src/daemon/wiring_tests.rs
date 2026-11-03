@@ -25,7 +25,7 @@ use es_shell::onboarding::Onboarding;
 use es_shell::settings::Page;
 use es_store::{ConfigFile, Paths};
 use futures::future::BoxFuture;
-use gpui::{App, AppContext as _, Task, TestAppContext};
+use gpui::{App, AppContext as _, Entity, Task, TestAppContext};
 use gpui_component::Root;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -69,6 +69,8 @@ struct Rig {
     dispatcher: RouteDispatcher,
     paths: Paths,
     dir: tempfile::TempDir,
+    settings: Entity<SettingsModel>,
+    _watch: Option<Task<()>>,
 }
 
 fn png(path: &Path) {
@@ -119,11 +121,12 @@ fn rig_with(cx: &mut TestAppContext, binds: Option<Arc<dyn BindHelper>>) -> Rig 
         let config = ConfigFile::load(&paths.config_file()).unwrap();
         let settings = cx.new(|_| SettingsModel::new(config));
         std::mem::forget(super::look::install(&settings, None, cx));
+        let watch = super::config_watch::install(&settings, cx);
         let history = cx.new(|_| History::open(&paths, 10).unwrap());
         let windows = Windows::default();
         let wiring = Wiring::new(
             paths.clone(),
-            settings,
+            settings.clone(),
             history,
             Rc::new(NoClipboard),
             Rc::new(Declining),
@@ -152,6 +155,8 @@ fn rig_with(cx: &mut TestAppContext, binds: Option<Arc<dyn BindHelper>>) -> Rig 
             dispatcher,
             paths,
             dir,
+            settings,
+            _watch: watch,
         }
     })
 }
@@ -419,4 +424,101 @@ fn editors_open_fullscreen_only_when_the_setting_is_on() {
         super::windows::editor_bounds(false, bounds),
         gpui::WindowBounds::Windowed(_)
     ));
+}
+
+fn wait_until(
+    cx: &mut TestAppContext,
+    what: &str,
+    mut done: impl FnMut(&mut TestAppContext) -> bool,
+) {
+    cx.executor().allow_parking();
+    for _ in 0..100 {
+        cx.run_until_parked();
+        if done(cx) {
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    panic!("timed out waiting for {what}");
+}
+
+fn history_limit(rig: &Rig, cx: &mut TestAppContext) -> u32 {
+    cx.update(|cx| rig.settings.read(cx).config().general.history_limit)
+}
+
+fn settle(cx: &mut TestAppContext) {
+    cx.executor().allow_parking();
+    std::thread::sleep(std::time::Duration::from_millis(600));
+    cx.run_until_parked();
+}
+
+#[gpui::test]
+fn a_hand_edit_applies_live_and_survives_the_next_settings_save(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    let file = rig.paths.config_file();
+    std::fs::write(&file, "[general]\nhistory_limit = 7\n").unwrap();
+    wait_until(cx, "the edit to apply", |cx| history_limit(&rig, cx) == 7);
+
+    cx.update(|cx| {
+        rig.settings
+            .update(cx, |s, cx| s.update(|c| c.general.play_sound = false, cx));
+        rig.settings.update(cx, |s, cx| s.flush(cx));
+    });
+    let text = std::fs::read_to_string(&file).unwrap();
+    assert!(text.contains("history_limit = 7"), "{text}");
+    assert!(text.contains("play_sound = false"), "{text}");
+}
+
+#[gpui::test]
+fn an_edit_made_while_a_save_is_pending_wins(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    cx.update(|cx| {
+        rig.settings
+            .update(cx, |s, cx| s.update(|c| c.general.history_limit = 3, cx))
+    });
+    std::fs::write(rig.paths.config_file(), "[general]\nhistory_limit = 9\n").unwrap();
+    wait_until(cx, "the edit to apply", |cx| history_limit(&rig, cx) == 9);
+    settle(cx);
+    assert_eq!(history_limit(&rig, cx), 9);
+    let text = std::fs::read_to_string(rig.paths.config_file()).unwrap();
+    assert!(text.contains("history_limit = 9"), "{text}");
+}
+
+#[gpui::test]
+fn a_broken_file_keeps_the_last_good_settings_and_is_not_overwritten(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    let file = rig.paths.config_file();
+    std::fs::write(&file, "[general]\nhistory_limit = 7\n").unwrap();
+    wait_until(cx, "the edit to apply", |cx| history_limit(&rig, cx) == 7);
+
+    let broken = "[general\nhistory_limit = ";
+    std::fs::write(&file, broken).unwrap();
+    wait_until(cx, "the file to be seen as broken", |cx| {
+        cx.update(|cx| rig.settings.read(cx).load_error().is_some())
+    });
+    cx.update(|cx| {
+        rig.settings
+            .update(cx, |s, cx| s.update(|c| c.general.history_limit = 11, cx));
+        rig.settings.update(cx, |s, cx| s.flush(cx));
+    });
+    settle(cx);
+    assert_eq!(std::fs::read_to_string(&file).unwrap(), broken);
+    assert_eq!(history_limit(&rig, cx), 11);
+}
+
+#[gpui::test]
+fn the_daemons_own_save_does_not_come_back_as_an_edit(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    let seen = Rc::new(std::cell::Cell::new(0));
+    let counter = seen.clone();
+    let _sub =
+        cx.update(|cx| cx.subscribe(&rig.settings, move |_, _, _| counter.set(counter.get() + 1)));
+    cx.update(|cx| {
+        rig.settings
+            .update(cx, |s, cx| s.update(|c| c.general.history_limit = 5, cx));
+        rig.settings.update(cx, |s, cx| s.flush(cx));
+    });
+    settle(cx);
+    assert_eq!(seen.get(), 1);
+    assert_eq!(history_limit(&rig, cx), 5);
 }
