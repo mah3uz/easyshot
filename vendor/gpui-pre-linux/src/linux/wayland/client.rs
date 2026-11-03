@@ -589,6 +589,11 @@ impl Drop for DragIcon {
     }
 }
 
+const FILE_DRAG_MIME_TYPES: [&str; 1] = [FILE_LIST_MIME_TYPE];
+// Hyprland selects Move whenever the source allows it, whatever the target prefers; a file manager
+// then takes the file away from an app that never asked to give it up.
+const FILE_DRAG_ACTIONS: DndAction = DndAction::Copy;
+
 fn file_uri_list(paths: &FileDragPaths) -> String {
     paths
         .entries()
@@ -755,8 +760,10 @@ impl WaylandClientStatePtr {
         let serial = state.serial_tracker.get(SerialKind::MousePress);
         let source =
             data_device_manager.create_data_source(&state.globals.qh, DataSourceKind::Drag);
-        source.offer(FILE_LIST_MIME_TYPE.to_string());
-        source.set_actions(DndAction::Copy | DndAction::Move);
+        for mime_type in FILE_DRAG_MIME_TYPES {
+            source.offer(mime_type.to_string());
+        }
+        source.set_actions(FILE_DRAG_ACTIONS);
         let icon = payload
             .icon()
             .and_then(|image| Some((image, DragIcon::new(&state.globals, image)?)));
@@ -3502,6 +3509,26 @@ mod tests {
             file_uri_list(&paths),
             "file:///tmp/first\r\nfile:///tmp/nested%20directory\r\n"
         );
+    }
+
+    #[test]
+    fn file_drags_offer_a_uri_list_for_copying_only() {
+        assert!(FILE_DRAG_MIME_TYPES.contains(&"text/uri-list"));
+        assert_eq!(FILE_DRAG_ACTIONS, DndAction::Copy);
+    }
+
+    #[test]
+    fn uri_list_names_the_existing_file_percent_encoded() {
+        let dir = std::env::temp_dir().join(format!("gpui drag ü {}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("shot #1 ü.png");
+        std::fs::write(&file, b"png").unwrap();
+        let list = file_uri_list(&FileDragPaths::new([(file.clone(), false)]));
+        let uri = list.strip_suffix("\r\n").unwrap();
+        assert!(!uri.contains(' ') && !uri.contains('ü') && uri.contains("%23"));
+        let back = Url::parse(uri).unwrap().to_file_path().unwrap();
+        assert!(back == file && back.exists());
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
