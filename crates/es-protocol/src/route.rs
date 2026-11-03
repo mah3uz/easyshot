@@ -40,6 +40,7 @@ static PLAIN: &[(&str, Route)] = &[
     ("deck/save-all", Route::DeckSaveAll),
     ("deck/close-all", Route::DeckCloseAll),
     ("quit", Route::Quit),
+    ("agent-revoke", Route::AgentRevoke),
 ];
 
 static URL_ROUTES: &[(&str, Route)] = &[
@@ -321,7 +322,8 @@ mod tests {
             Route::DeckSaveAll => 30,
             Route::DeckCloseAll => 31,
             Route::Quit => 32,
-            Route::Agent(_) => 33,
+            Route::AgentRevoke => 33,
+            Route::Agent(_) => 34,
         }
     }
 
@@ -331,7 +333,7 @@ mod tests {
             Route::all().iter().map(variant_index).collect();
         assert_eq!(
             seen,
-            (0..=33).collect(),
+            (0..=34).collect(),
             "a variant is missing from Route::all"
         );
     }
@@ -343,7 +345,7 @@ mod tests {
             assert_eq!(route.to_string(), *name);
             assert_eq!(&Route::parse(name, &no_args()).unwrap(), route);
         }
-        assert_eq!(PLAIN.len(), 30);
+        assert_eq!(PLAIN.len(), 31);
     }
 
     #[test]

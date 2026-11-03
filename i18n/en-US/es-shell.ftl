@@ -1,6 +1,8 @@
 ## Shell surfaces: tray popover, settings window, media gallery, onboarding.
 ## Shortcuts are passed in as { $shortcut }. Some platform wording still needs adapting to Linux.
 
+-app-name = easyshot
+
 ## Tray popover
 tray-region = Region
 tray-screen = Screen
@@ -19,6 +21,9 @@ tray-gallery = Media Gallery
 tray-unpin-all = Unpin All Windows
 tray-settings = Settings
 tray-quit = Quit
+tray-agent-until = Agent access until { $time } — Revoke
+tray-agent-session = Agent access until logout — Revoke
+tray-agent-always = Agent access always — Revoke
 tray-version = Version { $version }
 tray-recording = Recording { $elapsed }
 tray-recording-paused = Paused { $elapsed }

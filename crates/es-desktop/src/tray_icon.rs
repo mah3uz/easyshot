@@ -5,6 +5,7 @@ const SVG: &str = include_str!("../../../assets/icons/app/easyshot.svg");
 pub const SIZES: [u32; 4] = [16, 22, 32, 44];
 const RED: [u8; 3] = [0xe5, 0x48, 0x4d];
 const AMBER: [u8; 3] = [0xe5, 0xa5, 0x0a];
+const BLUE: [u8; 3] = [0x2f, 0x80, 0xed];
 
 fn render(size: u32) -> Option<IconPixmap> {
     let tree = usvg::Tree::from_str(SVG, &usvg::Options::default()).ok()?;
@@ -34,11 +35,20 @@ pub fn tray_icons() -> Vec<IconPixmap> {
 
 /// Draws the recording dot, red or amber when paused, in the lower right corner.
 pub fn with_dot(icon: &IconPixmap, paused: bool) -> IconPixmap {
+    paint(icon, if paused { AMBER } else { RED }, false)
+}
+
+/// Draws the blue badge that shows an agent may use easyshot, in the upper right corner.
+pub fn with_badge(icon: &IconPixmap) -> IconPixmap {
+    paint(icon, BLUE, true)
+}
+
+fn paint(icon: &IconPixmap, rgb: [u8; 3], top: bool) -> IconPixmap {
     let mut out = icon.clone();
     let side = icon.width.min(icon.height) as f32;
     let radius = side * 0.24;
-    let (cx, cy) = (side - radius - side * 0.02, side - radius - side * 0.02);
-    let rgb = if paused { AMBER } else { RED };
+    let edge = radius + side * 0.02;
+    let (cx, cy) = (side - edge, if top { edge } else { side - edge });
     for y in 0..icon.height {
         for x in 0..icon.width {
             let d = ((x as f32 + 0.5 - cx).powi(2) + (y as f32 + 0.5 - cy).powi(2)).sqrt();
@@ -79,6 +89,19 @@ mod tests {
             assert_eq!(icon.argb.len(), (icon.width * icon.height * 4) as usize);
             assert!(icon.argb.chunks(4).any(|p| p[0] > 200));
         }
+    }
+
+    #[test]
+    fn the_badge_is_blue_in_the_upper_corner_and_leaves_the_lower_one_alone() {
+        let idle = &tray_icons()[1];
+        let badge = with_badge(idle);
+        let top = (3 * badge.width + 18) as usize * 4;
+        assert_eq!(badge.argb[top..top + 4], [255, BLUE[0], BLUE[1], BLUE[2]]);
+        let low = (18 * badge.width + 18) as usize * 4;
+        assert_eq!(badge.argb[low..low + 4], idle.argb[low..low + 4]);
+        let both = with_dot(&badge, false);
+        assert_eq!(both.argb[top..top + 4], badge.argb[top..top + 4]);
+        assert_eq!(both.argb[low + 1..low + 4], RED);
     }
 
     #[test]

@@ -23,7 +23,7 @@ pub use portal::{PortalAppearance, PortalFilePicker, PortalShortcuts, portal_tri
 pub use sound::RodioSound;
 pub use sound::Sound;
 pub use tray::{IconPixmap, KsniTray, watcher_present};
-pub use tray_icon::{tray_icons, with_dot};
+pub use tray_icon::{tray_icons, with_badge, with_dot};
 
 use es_protocol::{Route, ShortcutEntry};
 use futures::future::BoxFuture;
@@ -68,6 +68,7 @@ pub trait Shortcuts: Send + Sync {
 pub trait Tray: Send + Sync {
     fn set_menu(&self, m: TrayModel);
     fn set_recording(&self, s: Option<RecordingTrayState>);
+    fn set_agent(&self, active: bool);
     fn activations(&self) -> async_channel::Receiver<Route>;
 }
 

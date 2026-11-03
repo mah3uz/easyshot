@@ -622,6 +622,8 @@ dialog denies, and so does leaving it unanswered for 60 seconds. Enter does noth
 when the dialog opens cannot answer it. While it is open, the keyboard goes to the dialog.
 If the dialog cannot be shown, the request is denied.
 
+While a grant is in force the tray icon carries a blue badge and the tray menu has a row, "Agent access until 14:05 — Revoke" (or "until logout" or "always"), that ends the grant in one click. Times are in your local time.
+
 Settings › Agents shows the grant in force with a Revoke button, and the recent actions
 (time, program, what it asked for and the result) as they happen. Times are in UTC.
 

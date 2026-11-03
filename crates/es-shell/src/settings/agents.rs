@@ -1,5 +1,6 @@
 use super::SettingsWindow;
 use super::widgets::{caption, group, row, switch};
+use crate::local_time::local_clock;
 use crate::strings::fl;
 use es_app::agent_access::{AccessEvent, AgentAccess, AgentAccessHandle, Grant};
 use es_model::{ActionRecord, Config, Consent};
@@ -14,7 +15,6 @@ use gpui_component::{
     h_flex,
     input::{Input, InputEvent, InputState},
 };
-use time::OffsetDateTime;
 
 const LOG_SHOWN: usize = 20;
 
@@ -36,14 +36,10 @@ fn names(value: &str) -> Vec<String> {
     out
 }
 
-fn clock(t: OffsetDateTime) -> String {
-    format!("{:02}:{:02}", t.hour(), t.minute())
-}
-
 /// The grant in force, in words, for Settings and the tray.
 pub fn grant_text(grant: Option<Grant>) -> String {
     match grant {
-        Some(Grant::Until(t)) => fl!("agents-grant-until", time = clock(t)),
+        Some(Grant::Until(t)) => fl!("agents-grant-until", time = local_clock(t, false)),
         Some(Grant::Session) => fl!("agents-grant-session"),
         Some(Grant::Always(_)) => fl!("agents-grant-always"),
         None => fl!("agents-grant-none"),
@@ -51,6 +47,23 @@ pub fn grant_text(grant: Option<Grant>) -> String {
 }
 
 impl Agents {
+    pub(super) fn follow(
+        &self,
+        config: &Config,
+        window: &mut Window,
+        cx: &mut Context<SettingsWindow>,
+    ) {
+        for (input, values) in [
+            (&self.outputs, &config.agent.allowed_outputs),
+            (&self.windows, &config.agent.allowed_windows),
+        ] {
+            if names(&input.read(cx).value()) != *values {
+                let joined = values.join(", ");
+                input.update(cx, |state, cx| state.set_value(joined, window, cx));
+            }
+        }
+    }
+
     pub(super) fn new(
         config: &Config,
         window: &mut Window,
@@ -89,6 +102,10 @@ impl Agents {
     }
 }
 
+fn set_consent(c: &mut Config, v: Consent) {
+    c.agent.consent = v;
+}
+
 fn result_text(result: &str) -> String {
     match result {
         "ok" => fl!("agents-log-ok"),
@@ -99,6 +116,26 @@ fn result_text(result: &str) -> String {
 }
 
 impl SettingsWindow {
+    pub fn set_agent_enabled(&mut self, on: bool, cx: &mut Context<Self>) {
+        self.edit(move |c| c.agent.enabled = on, cx);
+        if !on && let Some(access) = &self.agents.access {
+            access.update(cx, |access, cx| access.revoke(cx));
+        }
+    }
+
+    pub fn set_agent_consent(&mut self, consent: Consent, cx: &mut Context<Self>) {
+        self.edit(move |c| set_consent(c, consent), cx);
+    }
+
+    pub fn set_agent_redact(&mut self, on: bool, cx: &mut Context<Self>) {
+        self.edit(move |c| c.agent.redact_secrets = on, cx);
+    }
+
+    /// The allowed-outputs and allowed-windows fields.
+    pub fn agent_scope_fields(&self) -> (Entity<InputState>, Entity<InputState>) {
+        (self.agents.outputs.clone(), self.agents.windows.clone())
+    }
+
     pub(super) fn render_agents(&mut self, cx: &mut Context<Self>) -> Vec<AnyElement> {
         let c = self.config(cx);
         let a = &c.agent;
@@ -144,13 +181,7 @@ impl SettingsWindow {
                         "agents-enabled",
                         fl!("agents-enabled"),
                         on,
-                        cx.listener(|this, on: &bool, _, cx| {
-                            let on = *on;
-                            this.edit(move |c| c.agent.enabled = on, cx);
-                            if !on && let Some(access) = &this.agents.access {
-                                access.update(cx, |access, cx| access.revoke(cx));
-                            }
-                        }),
+                        cx.listener(|this, on: &bool, _, cx| this.set_agent_enabled(*on, cx)),
                     ),
                     cx,
                 )],
@@ -171,7 +202,7 @@ impl SettingsWindow {
                             (Consent::AlwaysAllow, fl!("agents-consent-never-ask")),
                         ],
                         &a.consent,
-                        |c, v| c.agent.consent = v,
+                        set_consent,
                         cx,
                     ),
                     row(
@@ -207,10 +238,7 @@ impl SettingsWindow {
                             "agents-redact",
                             fl!("agents-redact"),
                             redact,
-                            cx.listener(|this, on: &bool, _, cx| {
-                                let on = *on;
-                                this.edit(move |c| c.agent.redact_secrets = on, cx);
-                            }),
+                            cx.listener(|this, on: &bool, _, cx| this.set_agent_redact(*on, cx)),
                         ),
                         cx,
                     ),
@@ -236,7 +264,7 @@ impl SettingsWindow {
                         Some(target) => format!("{what} · {target}"),
                         None => what,
                     };
-                    let time = format!("{}:{:02}", clock(e.at), e.at.second());
+                    let time = local_clock(e.at, true);
                     h_flex()
                         .px(px(16.))
                         .py(px(8.))

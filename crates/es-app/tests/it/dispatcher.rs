@@ -136,6 +136,7 @@ fn every_route() -> Vec<(Route, Vec<&'static str>)> {
         (Route::DeckSaveAll, vec!["DeckSaveAll"]),
         (Route::DeckCloseAll, vec!["DeckCloseAll"]),
         (Route::Quit, vec!["Quit"]),
+        (Route::AgentRevoke, vec!["RevokeAgent"]),
         (
             Route::Open(path.clone()),
             vec!["Editor Path(\"/nonexistent/shot.png\")"],
@@ -155,7 +156,7 @@ fn every_route() -> Vec<(Route, Vec<&'static str>)> {
 
 #[gpui::test]
 fn every_route_reaches_its_handler_and_its_job_finishes_ok(cx: &mut TestAppContext) {
-    assert_eq!(every_route().len(), 34 + SettingsPage::ALL.len());
+    assert_eq!(every_route().len(), 35 + SettingsPage::ALL.len());
     let rig = rig(true);
     for (route, expected) in every_route() {
         rig.log.borrow_mut().clear();

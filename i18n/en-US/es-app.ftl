@@ -1,6 +1,8 @@
 ## App-level toasts, desktop notifications and modal alerts.
 ## Some platform wording still needs adapting to Linux.
 
+-app-name = easyshot
+
 ## Toasts
 toast-saved = Saved
 toast-saved-message = Saved to { $path }

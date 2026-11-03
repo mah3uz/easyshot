@@ -5,4 +5,5 @@ mod onboarding;
 mod settings;
 mod settings_agents;
 mod settings_motion;
+mod strings;
 mod tray;

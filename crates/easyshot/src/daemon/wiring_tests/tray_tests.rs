@@ -157,3 +157,31 @@ fn without_a_recorder_the_tray_record_row_is_disabled_and_names_the_package(
         "OCR still reads QR codes"
     );
 }
+
+#[gpui::test]
+fn an_agent_grant_badges_the_tray_and_its_revoke_row_ends_it(cx: &mut TestAppContext) {
+    use es_app::agent_access::{AgentAccess, AgentAccessHandle};
+    use es_protocol::agent::GrantSpan;
+    use gpui::AppContext as _;
+    let rig = rig(cx);
+    let tray = tray_rig(&rig, false, cx);
+    let file = es_store::agent::open(&rig.paths);
+    let (access, _follow) = cx.update(|cx| {
+        let access = cx.new(|_| AgentAccess::new(file, es_app::agent_access::system_clock()));
+        cx.set_global(AgentAccessHandle(access.clone()));
+        let follow = tray.feed.follow_access_of(&access, cx);
+        tray.feed.refresh(cx);
+        (access, follow)
+    });
+    assert!(tray.item("tray-agent-revoke").is_none());
+    assert_eq!(tray.tray.agent_states().last(), Some(&false));
+
+    cx.update(|cx| access.update(cx, |a, cx| a.allow(GrantSpan::Session, cx)));
+    let row = tray.item("tray-agent-revoke").expect("a revoke row");
+    assert_eq!(row.route, Some(es_protocol::Route::AgentRevoke));
+    assert_eq!(tray.tray.agent_states().last(), Some(&true));
+
+    cx.update(crate::daemon::routes::revoke_agent);
+    assert!(tray.item("tray-agent-revoke").is_none());
+    assert_eq!(tray.tray.agent_states().last(), Some(&false));
+}

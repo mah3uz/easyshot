@@ -13,6 +13,7 @@ fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 pub struct RecordingTray {
     menus: Mutex<Vec<TrayModel>>,
     states: Mutex<Vec<Option<RecordingTrayState>>>,
+    agent: Mutex<Vec<bool>>,
     tx: async_channel::Sender<Route>,
     rx: async_channel::Receiver<Route>,
 }
@@ -23,6 +24,7 @@ impl Default for RecordingTray {
         RecordingTray {
             menus: Mutex::default(),
             states: Mutex::default(),
+            agent: Mutex::default(),
             tx,
             rx,
         }
@@ -38,6 +40,10 @@ impl RecordingTray {
         lock(&self.states).clone()
     }
 
+    pub fn agent_states(&self) -> Vec<bool> {
+        lock(&self.agent).clone()
+    }
+
     pub fn activate(&self, route: Route) {
         let _ = self.tx.try_send(route);
     }
@@ -50,6 +56,10 @@ impl Tray for RecordingTray {
 
     fn set_recording(&self, s: Option<RecordingTrayState>) {
         lock(&self.states).push(s);
+    }
+
+    fn set_agent(&self, active: bool) {
+        lock(&self.agent).push(active);
     }
 
     fn activations(&self) -> async_channel::Receiver<Route> {

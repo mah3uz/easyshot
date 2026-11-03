@@ -30,6 +30,7 @@ pub struct IconPixmap {
 struct EsTray {
     items: Vec<TrayItem>,
     recording: Option<RecordingTrayState>,
+    agent: bool,
     labels: Labels,
     pixmaps: Vec<IconPixmap>,
     tx: async_channel::Sender<Route>,
@@ -98,6 +99,13 @@ impl ksni::Tray for EsTray {
                 Some(state) => crate::tray_icon::with_dot(p, state.paused),
                 None => p.clone(),
             })
+            .map(|p| {
+                if self.agent {
+                    crate::tray_icon::with_badge(&p)
+                } else {
+                    p
+                }
+            })
             .map(|p| Icon {
                 width: p.width,
                 height: p.height,
@@ -121,6 +129,7 @@ impl ksni::Tray for EsTray {
 enum Command {
     Menu(TrayModel),
     Recording(Option<RecordingTrayState>),
+    Agent(bool),
 }
 
 pub struct KsniTray {
@@ -136,6 +145,7 @@ impl KsniTray {
         let handle = EsTray {
             items: Vec::new(),
             recording: None,
+            agent: false,
             labels,
             pixmaps,
             tx,
@@ -155,6 +165,7 @@ impl KsniTray {
                     block(handle.update(|t| match command {
                         Command::Menu(model) => t.items = model.items,
                         Command::Recording(state) => t.recording = state,
+                        Command::Agent(on) => t.agent = on,
                     }));
                 }
             })
@@ -176,6 +187,10 @@ impl Tray for KsniTray {
 
     fn set_recording(&self, s: Option<RecordingTrayState>) {
         let _ = self.commands.try_send(Command::Recording(s));
+    }
+
+    fn set_agent(&self, active: bool) {
+        let _ = self.commands.try_send(Command::Agent(active));
     }
 
     fn activations(&self) -> async_channel::Receiver<Route> {

@@ -423,6 +423,7 @@ impl SettingsWindow {
                         entity.update(cx, |s, cx| s.set_value(value, window, cx));
                     }
                 }
+                self.agents.follow(&c, window, cx);
             }
             SettingsEvent::Invalid { line, col, message } => {
                 self.problem = Some(ConfigProblem {

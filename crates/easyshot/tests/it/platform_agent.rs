@@ -37,6 +37,15 @@ fn xdg(cmd: &mut Command, root: &Path) {
     cmd.env("EASYSHOT_TEST_DIR", root.join("test"));
 }
 
+fn allow_agents(root: &Path) {
+    std::fs::create_dir_all(root.join("config/easyshot")).unwrap();
+    std::fs::write(
+        root.join("config/easyshot/config.toml"),
+        "[agent]\nenabled = true\nconsent = \"always-allow\"\n",
+    )
+    .unwrap();
+}
+
 fn agent(root: &Path, what: &str) -> (i32, String) {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_easyshot"));
     cmd.args(["agent", "list", what, "--json"]);
@@ -69,6 +78,7 @@ fn platform_agent_lists_outputs_and_windows_as_sway_reports_them() {
         return;
     }
     let root = tempfile::tempdir().unwrap();
+    allow_agents(root.path());
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_easyshot"));
     cmd.arg("daemon");
     xdg(&mut cmd, root.path());
@@ -187,7 +197,7 @@ fn platform_agent_captures_by_geometry_output_window_and_fullscreen() {
     std::fs::create_dir_all(root.join("config/easyshot")).unwrap();
     std::fs::write(
         root.join("config/easyshot/config.toml"),
-        "[capture]\nkeep_in_deck_until_saved = true\n",
+        "[capture]\nkeep_in_deck_until_saved = true\n\n[agent]\nenabled = true\nconsent = \"always-allow\"\n",
     )
     .unwrap();
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_easyshot"));
@@ -347,6 +357,7 @@ fn platform_agent_reads_text_from_a_geometry_target_and_a_file() {
     }
     let root = tempfile::tempdir().unwrap();
     let root = root.path();
+    allow_agents(root);
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_easyshot"));
     cmd.arg("daemon")
         .env("EASYSHOT_TEST_OCR_TEXT", "fixed words");
@@ -356,15 +367,6 @@ fn platform_agent_reads_text_from_a_geometry_target_and_a_file() {
     let end = Instant::now() + Duration::from_secs(30);
     while agent(root, "outputs").0 == 3 && Instant::now() < end {
         sleep(Duration::from_millis(200));
-    }
-    for args in [
-        &["agent", "enable"][..],
-        &["agent", "config", "set", "consent", "always-allow"],
-    ] {
-        let mut setup = Command::new(env!("CARGO_BIN_EXE_easyshot"));
-        setup.args(args);
-        xdg(&mut setup, root);
-        assert!(setup.status().unwrap().success(), "{args:?}");
     }
     let ocr = |args: &[&str]| {
         let mut cmd = Command::new(env!("CARGO_BIN_EXE_easyshot"));
@@ -403,4 +405,58 @@ fn platform_agent_reads_text_from_a_geometry_target_and_a_file() {
         (code, reply["error"]["code"].as_str()),
         (5, Some("not_found"))
     );
+}
+
+#[test]
+fn platform_agent_records_a_geometry_target_and_stop_leaves_the_video() {
+    if std::env::var("EASYSHOT_TEST").as_deref() != Ok("1")
+        || std::env::var("EASYSHOT_TEST_OUTPUT").as_deref() != Ok("HEADLESS-1")
+    {
+        eprintln!("skipped: not inside the headless sway harness");
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let root = root.path();
+    std::fs::create_dir_all(root.join("config/easyshot")).unwrap();
+    std::fs::write(
+        root.join("config/easyshot/config.toml"),
+        "[agent]\nenabled = true\nconsent = \"always-allow\"\n",
+    )
+    .unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_easyshot"));
+    cmd.arg("daemon");
+    xdg(&mut cmd, root);
+    let log = std::fs::File::create(root.join("daemon.log")).unwrap();
+    let _daemon = Daemon(cmd.stderr(Stdio::from(log)).spawn().unwrap());
+    let end = Instant::now() + Duration::from_secs(30);
+    while agent(root, "outputs").0 == 3 && Instant::now() < end {
+        sleep(Duration::from_millis(200));
+    }
+    let record = |args: &[&str]| {
+        let mut cmd = Command::new(env!("CARGO_BIN_EXE_easyshot"));
+        cmd.args(["agent", "record"]).args(args).arg("--json");
+        xdg(&mut cmd, root);
+        let out = cmd.output().unwrap();
+        let text = String::from_utf8(out.stdout).unwrap();
+        (out.status.code().unwrap_or(-1), json_line(&text))
+    };
+    let (code, started) = record(&["start", "--geometry", "100,50 320x200"]);
+    assert_eq!(code, 0, "{started}");
+    assert_eq!(started["ok"], Value::Bool(true));
+    assert_eq!(started["kind"], "recording");
+    assert_eq!(started["state"], "recording", "{started}");
+    let id = started["id"].as_str().unwrap().to_owned();
+    assert!(!id.is_empty());
+
+    sleep(Duration::from_millis(500));
+    let (code, status) = record(&["status"]);
+    assert_eq!(code, 0, "{status}");
+    assert_eq!(status["id"].as_str(), Some(id.as_str()));
+
+    let (code, stopped) = record(&["stop", "--id", &id]);
+    assert_eq!(code, 0, "{stopped}");
+    assert_eq!(stopped["kind"], "recording");
+    let path = stopped["path"].as_str().unwrap();
+    assert!(Path::new(path).is_file(), "no video at {path}: {stopped}");
+    assert!(stopped["bytes"].as_u64().unwrap() > 0, "{stopped}");
 }

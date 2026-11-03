@@ -31,6 +31,7 @@ fn input() -> TrayInput {
         has_pins: false,
         recorder_missing: false,
         recording: None,
+        agent: None,
         version: "0.1.0".into(),
     }
 }
@@ -339,4 +340,36 @@ fn a_missing_recorder_disables_the_record_row_with_an_install_hint() {
     assert_eq!(record.route, None);
     assert!(record.label.as_deref().unwrap().contains("wf-recorder"));
     assert!(find(&items, "tray-ocr").enabled);
+}
+
+#[test]
+fn a_grant_adds_a_revoke_row_and_the_badge_and_ending_it_removes_both() {
+    use es_app::agent_access::Grant;
+    use time::OffsetDateTime;
+    let at = OffsetDateTime::from_unix_timestamp(1_793_793_600).expect("a time");
+    let granted = |agent| TrayInput { agent, ..input() };
+    let tray = RecordingTray::default();
+    tray::show(&tray, &input());
+    assert!(!ids(&shown(&tray)).contains(&"tray-agent-revoke"));
+    for (grant, label) in [
+        (Grant::Session, "Agent access until logout — Revoke"),
+        (Grant::Always(at), "Agent access always — Revoke"),
+    ] {
+        tray::show(&tray, &granted(Some(grant)));
+        let row = find(&shown(&tray), "tray-agent-revoke").clone();
+        assert_eq!(row.label.as_deref(), Some(label));
+        assert_eq!(row.route, Some(Route::AgentRevoke));
+        assert!(row.enabled);
+    }
+    tray::show(&tray, &granted(Some(Grant::Until(at))));
+    let label = find(&shown(&tray), "tray-agent-revoke").label.clone();
+    let label = label.expect("a label");
+    let clock = label
+        .strip_prefix("Agent access until ")
+        .and_then(|l| l.strip_suffix(" — Revoke"))
+        .expect("the row names the end time");
+    assert_eq!(clock.len(), 5, "{clock}");
+    tray::show(&tray, &input());
+    assert!(!ids(&shown(&tray)).contains(&"tray-agent-revoke"));
+    assert_eq!(tray.agent_states(), [false, true, true, true, false]);
 }

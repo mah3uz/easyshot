@@ -26,6 +26,7 @@ futures.workspace = true
 i18n-embed.workspace = true
 i18n-embed-fl.workspace = true
 rust-embed.workspace = true
+chrono.workspace = true
 time.workspace = true
 async-channel.workspace = true
 thiserror.workspace = true

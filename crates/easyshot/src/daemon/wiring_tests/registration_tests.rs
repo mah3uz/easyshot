@@ -62,6 +62,7 @@ fn dispatch_all(
         | Action::RecordPause
         | Action::RecordRestart
         | Action::RecordDiscard
+        | Action::RevokeAgent
         | Action::Quit => Ok(()),
     }));
     let mut sent = Vec::new();

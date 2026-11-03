@@ -280,6 +280,7 @@ impl Tray for NoopTray {
     fn set_recording(&self, s: Option<RecordingTrayState>) {
         tracing::debug!(?s, "test mode: tray recording state");
     }
+    fn set_agent(&self, _active: bool) {}
     fn activations(&self) -> async_channel::Receiver<Route> {
         self.activations.clone()
     }

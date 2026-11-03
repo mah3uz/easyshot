@@ -23,6 +23,7 @@ pub enum Action {
     RecordPause,
     RecordRestart,
     RecordDiscard,
+    RevokeAgent,
     ShowHome(HomeTab),
     Quit,
 }
@@ -98,6 +99,7 @@ fn target(route: Route) -> Target {
         Route::DeckSaveAll => Target::Action(Action::DeckSaveAll),
         Route::DeckCloseAll => Target::Action(Action::DeckCloseAll),
         Route::Quit => Target::Action(Action::Quit),
+        Route::AgentRevoke => Target::Action(Action::RevokeAgent),
         Route::Agent(route) => Target::Agent(route),
     }
 }

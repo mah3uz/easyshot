@@ -1,5 +1,6 @@
 use super::recording::Recordings;
 use super::windows::Wiring;
+use es_app::agent_access::AgentAccessHandle;
 use es_app::deck::{Deck, DeckAction, DeckEvent, DeckItem, ItemStatus};
 use es_app::deck_save;
 use es_app::dispatcher::{Action, ActionHandler};
@@ -90,6 +91,11 @@ fn edit_clipboard(d: &ActionDeps, cx: &mut App) -> Result<(), Error> {
     d.wiring.open_editor_for(&file, cx)
 }
 
+pub fn revoke_agent(cx: &mut App) {
+    let access = cx.global::<AgentAccessHandle>().0.clone();
+    access.update(cx, |access, cx| access.revoke(cx));
+}
+
 pub fn actions(d: ActionDeps) -> ActionHandler {
     Rc::new(move |action, cx| {
         match action {
@@ -103,6 +109,7 @@ pub fn actions(d: ActionDeps) -> ActionHandler {
             Action::RecordDiscard => d.recordings.discard(cx)?,
             Action::ShowHome(tab) => d.wiring.show_home(tab, cx),
             Action::UnpinAll => d.pins.unpin_all(cx),
+            Action::RevokeAgent => revoke_agent(cx),
             Action::PinLast => {
                 let entry =
                     latest(&d.history, cx).ok_or_else(|| Error::NotFound("a capture".into()))?;

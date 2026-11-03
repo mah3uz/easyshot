@@ -490,10 +490,10 @@ fn start(
         routes::deck_events(&action_deps, clipboard, cx),
         routes::video_cards(&action_deps, cx),
         live_settings::install(&settings, &deck, &deck_surface, &history, cx),
+        tray_feed.follow_access(cx),
     ];
     subscriptions.extend(tray_subscriptions);
     dispatcher.set_action_handler(routes::actions(action_deps));
-
     let crash_notice = Rc::new(std::cell::RefCell::new(crash::announce(
         paths,
         &BackendNotifier(backend.clone()),

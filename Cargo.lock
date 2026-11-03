@@ -2265,6 +2265,7 @@ name = "es-shell"
 version = "0.1.0"
 dependencies = [
  "async-channel",
+ "chrono",
  "es-app",
  "es-backend",
  "es-desktop",

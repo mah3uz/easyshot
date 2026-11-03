@@ -2,6 +2,7 @@ use std::cell::Cell;
 use std::path::PathBuf;
 use std::rc::Rc;
 
+use es_app::agent_access::{AccessEvent, AgentAccess, AgentAccessHandle};
 use es_app::deck::Deck;
 use es_app::history::{History, HistoryEvent};
 use es_app::settings_model::SettingsModel;
@@ -55,6 +56,9 @@ impl TrayFeed {
             has_pins: (self.has_pins)(),
             recorder_missing: self.recorder_missing,
             recording: self.recording.get(),
+            agent: cx
+                .try_global::<AgentAccessHandle>()
+                .and_then(|h| h.0.read(cx).grant()),
             version: env!("EASYSHOT_VERSION").to_owned(),
         }
     }
@@ -66,6 +70,26 @@ impl TrayFeed {
     pub fn set_recording(&self, state: Option<RecordingTrayState>, cx: &App) {
         self.recording.set(state);
         self.refresh(cx);
+    }
+
+    /// The grant is read when the menu is built; this only says when to build it again.
+    pub fn follow_access_of(
+        self: &Rc<Self>,
+        access: &Entity<AgentAccess>,
+        cx: &mut App,
+    ) -> Subscription {
+        let feed = self.clone();
+        self.refresh(cx);
+        cx.subscribe(access, move |_, event: &AccessEvent, cx| {
+            if matches!(event, AccessEvent::GrantChanged(_)) {
+                feed.refresh(cx);
+            }
+        })
+    }
+
+    pub fn follow_access(self: &Rc<Self>, cx: &mut App) -> Subscription {
+        let access = cx.global::<AgentAccessHandle>().0.clone();
+        self.follow_access_of(&access, cx)
     }
 
     /// Re-shows the menu when history, settings or the deck change; pin changes call `refresh` themselves.

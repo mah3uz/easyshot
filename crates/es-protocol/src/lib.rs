@@ -89,6 +89,7 @@ pub enum Route {
     DeckSaveAll,
     DeckCloseAll,
     Quit,
+    AgentRevoke,
     Agent(AgentRoute),
 }
 

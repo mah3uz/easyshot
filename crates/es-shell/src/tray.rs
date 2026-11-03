@@ -2,10 +2,12 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use es_app::agent_access::Grant;
 use es_desktop::{RecordingTrayState, Tray, TrayItem, TrayModel};
 use es_model::HistoryEntry;
 use es_protocol::{CATALOGUE, Route, Target, Trigger};
 
+use crate::local_time::local_clock;
 use crate::strings::fl;
 
 pub const RECENT_PER_KIND: usize = 8;
@@ -77,6 +79,7 @@ pub struct TrayInput {
     pub has_pins: bool,
     pub recorder_missing: bool,
     pub recording: Option<RecordingTrayState>,
+    pub agent: Option<Grant>,
     pub version: String,
 }
 
@@ -170,6 +173,13 @@ pub fn menu(input: &TrayInput) -> TrayModel {
         ));
     }
     items.push(separator());
+    if let Some(grant) = input.agent {
+        items.push(item(
+            "tray-agent-revoke",
+            agent_text(grant),
+            Some(Route::AgentRevoke),
+        ));
+    }
     items.push(item(
         "tray-settings",
         fl!("tray-settings"),
@@ -192,6 +202,15 @@ pub fn menu(input: &TrayInput) -> TrayModel {
 pub fn show(tray: &dyn Tray, input: &TrayInput) {
     tray.set_menu(menu(input));
     tray.set_recording(input.recording);
+    tray.set_agent(input.agent.is_some());
+}
+
+fn agent_text(grant: Grant) -> String {
+    match grant {
+        Grant::Until(t) => fl!("tray-agent-until", time = local_clock(t, false)),
+        Grant::Session => fl!("tray-agent-session"),
+        Grant::Always(_) => fl!("tray-agent-always"),
+    }
 }
 
 pub fn elapsed_text(elapsed: Duration) -> String {
