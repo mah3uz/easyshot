@@ -874,5 +874,6 @@ fn smart_redaction_uses_the_configured_ocr_languages(cx: &mut TestAppContext) {
     assert_eq!(languages(cx), ["spa"]);
 }
 
+mod low_res_tests;
 mod style_tests;
 mod tray_tests;

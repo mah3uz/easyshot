@@ -3,6 +3,7 @@ pub mod doc;
 pub mod io;
 pub mod journal;
 pub mod look;
+pub mod preview;
 pub mod style;
 pub mod viewport;
 

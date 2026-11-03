@@ -229,6 +229,14 @@ radius is at least 40% of it and never under 8 px. The Strength slider can only 
 these. Export uses the same values, and the edges of an unrotated shape are covered to
 whole pixels. Smart Redaction uses a high strength.
 
+A screenshot over 40 megapixels, or with a side over 16384 px, opens with a low-resolution
+preview: the editor shows a copy shrunk to at most 8192 px on its long edge and 32 megapixels,
+so it stays fast. A small info button in the footer explains this. Only the picture on screen
+is smaller. Annotations keep their exact positions, and Save, Export, Copy, Crop, Smart
+Redaction and the blur and pixelate shapes work on the full image. Settings > General > Always
+use a low-resolution preview shows every screenshot at half size the same way; it applies to
+editors already open as well as new ones.
+
 Saving keeps a sidecar file so you can reopen and edit again. Export writes PNG or JPEG.
 Closing with unsaved changes asks first. If easyshot stops unexpectedly, it reopens your
 unsaved edits the next time it starts ("Recovered unsaved edits").

@@ -1,4 +1,5 @@
 mod crop_bar;
+mod preview;
 pub mod redact;
 mod states;
 mod title_bar;
@@ -96,6 +97,9 @@ pub struct EditorWindow {
     inspector_open: bool,
     pub(crate) low_res: bool,
     pub(crate) low_res_expanded: bool,
+    force_low_res: bool,
+    preview_request: Option<(u64, bool)>,
+    _preview: Option<Task<()>>,
     save: Action,
     export: Action,
     copy: Action,
@@ -123,6 +127,9 @@ impl EditorWindow {
             inspector_open: true,
             low_res: false,
             low_res_expanded: false,
+            force_low_res: false,
+            preview_request: None,
+            _preview: None,
             save: Action::default(),
             export: Action::default(),
             copy: Action::default(),
@@ -165,7 +172,10 @@ impl EditorWindow {
                 let inspector = cx.new(|cx| Inspector::new(look, &canvas, cx));
                 self.inspector = Some(inspector.into());
                 self._subscriptions = vec![
-                    cx.observe(&session.doc, |_, _, cx| cx.notify()),
+                    cx.observe(&session.doc, |this, _, cx| {
+                        cx.notify();
+                        this.refresh_preview(cx);
+                    }),
                     cx.observe(&session.viewport, |_, _, cx| cx.notify()),
                     cx.observe(&session.io, |_, _, cx| cx.notify()),
                     cx.subscribe_self(|this, event: &EditorWindowEvent, cx| {
@@ -202,6 +212,8 @@ impl EditorWindow {
                     canvas,
                 };
                 self.focus_canvas = true;
+                self.preview_request = None;
+                self.refresh_preview(cx);
             }
             Err(error) => {
                 tracing::warn!(%error, "cannot open the screenshot");
@@ -311,8 +323,12 @@ impl EditorWindow {
         cx.notify();
     }
 
-    /// Applies the `[editor]` zoom anchor and the `[ocr]` languages to this window.
+    /// Applies the `[editor]` zoom anchor, the `[ocr]` languages and the low-resolution preview setting to this window.
     pub fn apply_config(&mut self, config: &es_model::Config, cx: &mut Context<Self>) {
+        if self.force_low_res != config.general.low_res_preview {
+            self.force_low_res = config.general.low_res_preview;
+            self.refresh_preview(cx);
+        }
         if let Some(session) = self.session() {
             let at_pointer = config.editor.zoom_anchor != "centre";
             session
@@ -326,6 +342,10 @@ impl EditorWindow {
             };
             self.set_ocr_options(options, cx);
         }
+    }
+
+    pub fn is_low_res(&self) -> bool {
+        self.low_res
     }
 
     pub fn set_low_res(&mut self, low_res: bool, cx: &mut Context<Self>) {

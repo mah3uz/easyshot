@@ -83,16 +83,20 @@ impl EditorCanvas {
             .as_ref()
             .map(|(_, img)| (img.clone(), grid::cells(bounds)));
 
-        let (base, base_revision) = {
+        let (base, shown, shown_revision) = {
             let doc = self.doc.read(cx);
-            (doc.base().clone(), doc.base_revision())
+            (
+                doc.base().clone(),
+                doc.shown().clone(),
+                doc.shown_revision(),
+            )
         };
         if self
             .tiles
             .as_ref()
-            .is_none_or(|t| t.revision() != base_revision)
+            .is_none_or(|t| t.revision() != shown_revision)
         {
-            let fresh = BaseTiles::new(base_revision, base.width(), base.height());
+            let fresh = BaseTiles::new(shown_revision, shown.width(), shown.height());
             if let Some(old) = self.tiles.replace(fresh) {
                 retired.extend(old.into_images());
             }
@@ -114,18 +118,26 @@ impl EditorCanvas {
         let radii = math.layout.image_radii.map(|r| px((r * vp.scale) as f32));
         let mut tiles_out = Vec::new();
         if let Some(tiles) = self.tiles.as_mut() {
-            let (w, h) = (base.width(), base.height());
-            for i in tiles::visible(tiles.rects(), page_visible) {
+            let (w, h) = (shown.width(), shown.height());
+            let sx = f64::from(base.width()) / f64::from(w.max(1));
+            let sy = f64::from(base.height()) / f64::from(h.max(1));
+            let in_view = Rect::new(
+                page_visible.x0 / sx,
+                page_visible.y0 / sy,
+                page_visible.x1 / sx,
+                page_visible.y1 / sy,
+            );
+            for i in tiles::visible(tiles.rects(), in_view) {
                 let t = tiles.rects()[i];
-                let Some(image) = tiles.image(i, &base) else {
+                let Some(image) = tiles.image(i, &shown) else {
                     continue;
                 };
                 let r = t.page_rect();
                 let screen = Rect::new(
-                    vp.origin.x + r.x0 * vp.scale,
-                    vp.origin.y + r.y0 * vp.scale,
-                    vp.origin.x + r.x1 * vp.scale,
-                    vp.origin.y + r.y1 * vp.scale,
+                    vp.origin.x + r.x0 * sx * vp.scale,
+                    vp.origin.y + r.y0 * sy * vp.scale,
+                    vp.origin.x + r.x1 * sx * vp.scale,
+                    vp.origin.y + r.y1 * sy * vp.scale,
                 );
                 let (left, top) = (t.x == 0, t.y == 0);
                 let (right, bottom) = (t.x + t.w == w, t.y + t.h == h);

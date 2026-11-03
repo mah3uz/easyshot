@@ -18,6 +18,7 @@ mod interaction_support;
 mod io;
 mod journal;
 mod keyboard;
+mod low_res;
 mod parity;
 mod redaction;
 mod session;

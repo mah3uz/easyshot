@@ -38,6 +38,8 @@ pub struct DocModel {
     text: Arc<BundledText>,
     base: Arc<RgbaImage>,
     base_revision: u64,
+    preview: Option<Arc<RgbaImage>>,
+    shown_revision: u64,
     background: BackgroundSettings,
     display: PathBuf,
     read_only: bool,
@@ -54,6 +56,8 @@ impl DocModel {
             text,
             base: Arc::new(opened.base),
             base_revision: 1,
+            preview: None,
+            shown_revision: 1,
             background,
             display: opened.display,
             read_only: opened.read_only,
@@ -75,6 +79,16 @@ impl DocModel {
     /// Changes only when the base pixels are replaced, as on crop, rotate or flip.
     pub fn base_revision(&self) -> u64 {
         self.base_revision
+    }
+
+    /// What the canvas draws: the downscaled copy when there is one, else the base itself.
+    pub fn shown(&self) -> &Arc<RgbaImage> {
+        self.preview.as_ref().unwrap_or(&self.base)
+    }
+
+    /// Changes whenever `shown` does.
+    pub fn shown_revision(&self) -> u64 {
+        self.shown_revision
     }
 
     pub fn image_size(&self) -> Size {
@@ -125,6 +139,23 @@ impl DocModel {
     pub fn replace_base(&mut self, base: impl Into<Arc<RgbaImage>>, cx: &mut Context<Self>) {
         self.base = base.into();
         self.base_revision += 1;
+        self.preview = None;
+        self.shown_revision += 1;
+        cx.notify();
+    }
+
+    /// Ignored when `revision` is no longer the base's, as when a crop landed meanwhile.
+    pub fn set_preview(
+        &mut self,
+        revision: u64,
+        preview: Option<Arc<RgbaImage>>,
+        cx: &mut Context<Self>,
+    ) {
+        if revision != self.base_revision || (self.preview.is_none() && preview.is_none()) {
+            return;
+        }
+        self.preview = preview;
+        self.shown_revision += 1;
         cx.notify();
     }
 

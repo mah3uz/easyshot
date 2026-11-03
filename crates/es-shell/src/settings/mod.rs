@@ -142,6 +142,7 @@ pub struct SettingsDeps {
 pub enum Toggle {
     ShowBarAtLaunch,
     EditorsFullscreen,
+    LowResPreview,
     AutoSave,
     CopyAfterSave,
     PlaySound,
@@ -166,6 +167,7 @@ impl Toggle {
         match self {
             Toggle::ShowBarAtLaunch => &mut c.general.show_capture_bar_at_launch,
             Toggle::EditorsFullscreen => &mut c.general.editor_opens_fullscreen,
+            Toggle::LowResPreview => &mut c.general.low_res_preview,
             Toggle::AutoSave => &mut c.general.auto_save,
             Toggle::CopyAfterSave => &mut c.general.copy_after_save,
             Toggle::PlaySound => &mut c.general.play_sound,

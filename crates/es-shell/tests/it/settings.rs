@@ -592,3 +592,18 @@ fn the_shortcuts_page_shows_the_include_line_in_light_and_dark() {
         fx.shot(&format!("settings-shortcuts-include-{name}"));
     }
 }
+
+#[test]
+fn the_low_resolution_switch_is_bound_to_general_low_res_preview() {
+    let mut fx = fixture(Caps::empty(), None, |_| {});
+    assert!(!Toggle::LowResPreview.get(&fx.read(|v, cx| v.config(cx))));
+    fx.update(|v, cx| v.set_toggle(Toggle::LowResPreview, true, cx));
+    fx.advance(SAVE_DEBOUNCE + Duration::from_millis(1));
+    assert!(
+        ConfigFile::load(&fx.config)
+            .unwrap()
+            .config()
+            .general
+            .low_res_preview
+    );
+}

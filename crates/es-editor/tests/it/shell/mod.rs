@@ -73,6 +73,14 @@ pub fn launch_with(overrides: BTreeMap<String, String>) -> Fixture {
 }
 
 pub fn launch_seeded(overrides: BTreeMap<String, String>, seed: impl FnOnce(&Paths)) -> Fixture {
+    launch_image(overrides, seed, base(1200, 640))
+}
+
+pub fn launch_image(
+    overrides: BTreeMap<String, String>,
+    seed: impl FnOnce(&Paths),
+    image: image::RgbaImage,
+) -> Fixture {
     let dir = tempfile::tempdir().unwrap();
     let paths = Paths::rooted(&dir.path().join("xdg"));
     paths.ensure_all().unwrap();
@@ -80,10 +88,10 @@ pub fn launch_seeded(overrides: BTreeMap<String, String>, seed: impl FnOnce(&Pat
     let style_paths = paths.clone();
     let shots = dir.path().join("shots");
     let display = dir.path().join("capture.png");
-    base(1200, 640).save(&display).unwrap();
+    image.save(&display).unwrap();
     let opened = Opened {
         display,
-        base: base(1200, 640),
+        base: image,
         document: AnnotationDocument {
             shapes: vec![
                 rect(100.0, 100.0, 300.0, 200.0),

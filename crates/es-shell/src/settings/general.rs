@@ -98,6 +98,12 @@ impl SettingsWindow {
                         None,
                         cx,
                     ),
+                    self.toggle_row(
+                        Toggle::LowResPreview,
+                        fl!("general-low-res-preview"),
+                        Some(fl!("general-low-res-preview-help")),
+                        cx,
+                    ),
                 ],
                 None,
                 cx,
