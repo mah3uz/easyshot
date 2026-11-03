@@ -102,7 +102,7 @@ file-size:
 third-party:
     cargo about generate --offline --locked -m crates/easyshot/Cargo.toml about.hbs -o LICENSES/THIRD-PARTY.md
 
-# Fail on duplicate or missing Fluent ids
+# Fail on duplicate, missing or unreferenced Fluent ids and unused icons
 i18n-check:
     scripts/i18n-check.sh
 

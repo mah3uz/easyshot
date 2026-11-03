@@ -1,0 +1,35 @@
+# Fluent ids and icons kept although no code references them yet. One per line: name or prefix*, then why.
+# An icon is written icon:<Variant>.
+shortcut-video-*            catalogue rows for the video editor
+shortcut-image-share        catalogue row for cloud sharing
+sharing-*                   cloud sharing settings
+settings-nav-sharing        cloud sharing settings page
+transfer-*                  share upload progress and result panel
+deck-share-*                deck share button states
+gallery-section-cloud       Gallery Cloud section
+gallery-sidebar-a11y-cloud  Gallery Cloud section
+gallery-menu-copy-link      Gallery Cloud item actions
+gallery-menu-link-copied    Gallery Cloud item actions
+gallery-menu-open-cloud     Gallery Cloud item actions
+gallery-menu-delete-cloud   Gallery Cloud item actions
+gallery-delete-cloud-*      Gallery Cloud delete confirmation
+gallery-deleting            Gallery Cloud delete progress
+gallery-error-open-link     Gallery Cloud errors
+gallery-error-copy-link     Gallery Cloud errors
+gallery-error-storage-mismatch  Gallery Cloud errors
+gallery-empty-cloud-*       Gallery Cloud empty state
+editor-share-help           editor Share button
+alert-input-*               Keystrokes input access
+alert-recording-inputs-title  Keystrokes input access
+perm-input-monitoring*      Keystrokes input access
+recording-keystrokes-*      Keystrokes
+toast-recording-*           recording toasts, Keystrokes input access
+icon:Cloud                  cloud sharing
+icon:CloudCheck             cloud sharing
+icon:CloudOff               cloud sharing
+icon:Link                   cloud sharing
+icon:Lock                   cloud sharing
+icon:KeyRound               Keystrokes input access
+icon:MousePointer2          Keystrokes
+icon:VideoOff               video editor
+icon:SquarePlay             video editor

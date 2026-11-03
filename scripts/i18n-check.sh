@@ -42,5 +42,7 @@ for dir in crates/*/; do
     done <<< "$ids"
 done
 
+python3 -I scripts/unused-ids.py || fail=1
+
 [ "$fail" = 0 ] || exit 1
 echo "i18n-check: ok"

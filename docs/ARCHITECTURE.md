@@ -356,6 +356,6 @@ any `.rs` file over 600 lines outside `vendor/`.
 
 Strings use `i18n-embed` and `i18n-embed-fl` (Fluent), with `i18n/en-US/<crate>.ftl` per
 layer-3 crate and `fl!("id")` checked at compile time; `just i18n-check` asserts every
-required string id exists. v1 ships English. GPUI's AccessKit support over AT-SPI is used:
+required string id exists and no id or icon goes unreferenced unless `scripts/unused-ids.allow` keeps it. v1 ships English. GPUI's AccessKit support over AT-SPI is used:
 every `es-ui` component sets role, label and value, and the canvas exposes zoom and the
 selection count.

@@ -1,27 +1,7 @@
 ## Generic words shared by components and surfaces, plus the transfer status card.
 
 ## Shared words
-ui-ok = OK
-ui-cancel = Cancel
-ui-save = Save
-ui-delete = Delete
-ui-close = Close
 ui-copy = Copy
-ui-copied = Copied
-ui-open = Open
-ui-edit = Edit
-ui-retry = Retry
-ui-try-again = Try Again
-ui-dismiss = Dismiss
-ui-reset = Reset
-ui-done = Done
-ui-back = Back
-ui-continue = Continue
-ui-skip = Skip
-ui-restart = Restart
-ui-later = Later
-ui-choose = Choose…
-ui-loading = Loading…
 ui-shortcut-help = { $title } ({ $shortcut })
 ui-shortcut-unassigned = Unassigned
 
