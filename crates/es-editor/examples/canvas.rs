@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-#[path = "../tests/canvas_support/mod.rs"]
+#[path = "../tests/it/canvas_support/mod.rs"]
 mod canvas_support;
 
 use canvas_support::{TEXT, every_kind, opened};

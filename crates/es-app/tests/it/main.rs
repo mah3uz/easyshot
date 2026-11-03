@@ -1,0 +1,12 @@
+mod capture_queue;
+mod deck;
+mod dispatcher;
+mod errors;
+mod events;
+mod history;
+mod image_budget;
+mod jobs;
+mod pipeline;
+mod platform_ui;
+mod settings;
+mod windows;

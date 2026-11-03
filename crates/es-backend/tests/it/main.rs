@@ -1,0 +1,9 @@
+mod caps;
+mod desktop;
+mod hyprland;
+mod niri;
+mod normalise;
+mod registry;
+mod sway;
+mod sway_harness;
+mod test_mode;

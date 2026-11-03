@@ -49,6 +49,9 @@ just test-changed
 `just test-changed` runs the packages changed against `main`; `just test` runs everything
 (nextest plus doc tests).
 
+A crate's integration tests live in `tests/it/` as modules of one test binary; add a test file
+there and declare it in `tests/it/main.rs`.
+
 Layer 0, 1 and 2 crates test without a display. Window tests run in their own process under
 nextest with a 60 s slow-timeout and one retry, because a window test can hang as it ends.
 The dependency profile uses `opt-level = 2`; without it window tests are about ten times
