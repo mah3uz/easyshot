@@ -104,9 +104,9 @@ fn rig_with(cx: &mut TestAppContext, clipboard: FakeClipboard, text: &'static st
         let rules = &mut c.after_capture.screenshot;
         rules.show_preview = true;
         rules.copy = false;
-        rules.save = false;
         rules.pin = false;
         rules.open_editor = false;
+        c.general.auto_save = false;
         c.general.copy_after_save = false;
         c.capture.open_editor_after_capture = false;
         c.capture.keep_in_deck_until_saved = true;
@@ -240,7 +240,7 @@ impl Rig {
 #[gpui::test]
 fn a_saved_capture_lands_in_the_save_folder_and_on_the_deck(cx: &mut TestAppContext) {
     let rig = rig(cx);
-    rig.configure(cx, |c| c.after_capture.screenshot.save = true);
+    rig.configure(cx, |c| c.general.auto_save = true);
     rig.run(cx, CaptureKind::Window, CaptureVariant::Normal)
         .unwrap();
     let saved = files(&rig.save_dir);
@@ -282,7 +282,7 @@ fn jpeg_export_format_saves_a_jpeg(cx: &mut TestAppContext) {
 #[gpui::test]
 fn region_copy_puts_a_png_on_the_clipboard_and_saves_nothing(cx: &mut TestAppContext) {
     let rig = rig(cx);
-    rig.configure(cx, |c| c.after_capture.screenshot.save = true);
+    rig.configure(cx, |c| c.general.auto_save = true);
     rig.run(cx, CaptureKind::Region, CaptureVariant::RegionCopy)
         .unwrap();
     let copied = rig.clipboard.copied.borrow();
@@ -339,7 +339,7 @@ fn region_annotate_opens_the_editor(cx: &mut TestAppContext) {
 fn a_failed_save_is_shown_and_reported_but_the_card_stays(cx: &mut TestAppContext) {
     let rig = rig(cx);
     std::fs::write(&rig.save_dir, b"not a folder").unwrap();
-    rig.configure(cx, |c| c.after_capture.screenshot.save = true);
+    rig.configure(cx, |c| c.general.auto_save = true);
     let result = rig.run(cx, CaptureKind::Region, CaptureVariant::Normal);
     assert!(result.is_err());
     assert_eq!(rig.toast_titles(), ["Couldn’t save capture"]);
@@ -507,7 +507,7 @@ fn a_kept_capture_is_one_library_entry_that_reopens_with_its_look(cx: &mut TestA
 #[gpui::test]
 fn a_frame_is_turned_upright_by_its_output_transform(cx: &mut TestAppContext) {
     let rig = rig(cx);
-    rig.configure(cx, |c| c.after_capture.screenshot.save = true);
+    rig.configure(cx, |c| c.general.auto_save = true);
     let selection = Selection::Window {
         id: es_model::platform::WindowId("w".into()),
         frame: rotated_frame(),

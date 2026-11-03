@@ -79,7 +79,7 @@ fn start_daemon(root: &Path) -> Daemon {
     std::fs::write(
         config.join("config.toml"),
         format!(
-            "[general]\nsave_dir = \"{}\"\n\n[after_capture.screenshot]\nsave = true\nshow_preview = true\n",
+            "[general]\nsave_dir = \"{}\"\n\n[after_capture.screenshot]\nshow_preview = true\n",
             root.join("saved").display()
         ),
     )

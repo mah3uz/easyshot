@@ -139,7 +139,6 @@ pub struct AfterCapture {
 pub struct AfterCaptureScreenshot {
     pub show_preview: bool,
     pub copy: bool,
-    pub save: bool,
     pub open_editor: bool,
     pub pin: bool,
 }
@@ -149,7 +148,6 @@ impl Default for AfterCaptureScreenshot {
         Self {
             show_preview: true,
             copy: false,
-            save: true,
             open_editor: false,
             pin: false,
         }
@@ -289,7 +287,7 @@ mod tests {
         assert_eq!(c.general.file_name_template, "easyshot_{date}-{time}");
         assert_eq!(c.general.history_limit, 100);
         assert_eq!(c.overlay.dismiss_delay, 5);
-        assert!(c.after_capture.screenshot.save && c.after_capture.screenshot.show_preview);
+        assert!(c.after_capture.screenshot.show_preview);
         assert!(!c.after_capture.screenshot.copy);
         assert_eq!((c.recording.fps, c.recording.codec.as_str()), (60, "h264"));
         assert_eq!(c.default_look.padding, 0.08);

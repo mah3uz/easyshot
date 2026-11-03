@@ -19,13 +19,14 @@ use es_editor::EditorWindow;
 use es_editor::session::journal::{self, Entry};
 use es_geom::Point;
 use es_model::AnnotationDocument;
+use es_model::capture::{CaptureVariant, Step, after_capture_plan};
 use es_model::platform::{ClipItem, OutputId, OutputInfo};
 use es_overlays::deck::view::{DeckSettings, DeckSurface};
 use es_overlays::record::bar::BarEvent;
 use es_protocol::{Route, SettingsPage};
 use es_shell::gallery::{FileResult, GalleryFiles};
 use es_shell::home::{HomeWindow, Tab};
-use es_shell::onboarding::Onboarding;
+use es_shell::onboarding::{Onboarding, OnboardingEvent};
 use es_shell::settings::Page;
 use es_store::{ConfigFile, Paths};
 use futures::future::BoxFuture;
@@ -418,6 +419,55 @@ fn onboarding_offers_the_bind_helper_with_no_keys_chosen(cx: &mut TestAppContext
     let input = cx.update(|cx| onboarding_input(&rig.wiring, cx));
     assert!(input.binds.is_some());
     assert!(input.global_shortcuts.is_empty());
+}
+
+fn set_autosave_in_onboarding(on: bool, cx: &mut TestAppContext) {
+    cx.update(|cx| {
+        let view = cx
+            .windows()
+            .into_iter()
+            .filter_map(|w| w.downcast::<Root>())
+            .find_map(|w| {
+                w.read(cx)
+                    .ok()
+                    .and_then(|root| root.view().clone().downcast::<Onboarding>().ok())
+            })
+            .unwrap();
+        view.update(cx, |_, cx| cx.emit(OnboardingEvent::SetAutosave(on)));
+    });
+}
+
+fn normal_capture_saves(rig: &Rig, cx: &mut TestAppContext) -> bool {
+    let config = rig.settings.read_with(cx, |s, _| s.config().clone());
+    after_capture_plan(CaptureVariant::Normal, &config).contains(&Step::Save)
+}
+
+#[gpui::test]
+fn onboarding_autosave_is_the_setting_settings_shows_and_what_a_capture_obeys(
+    cx: &mut TestAppContext,
+) {
+    let rig = rig(cx);
+    cx.update(|cx| {
+        rig.wiring
+            .windows
+            .open(WindowKind::Onboarding, WindowKey::Single, cx)
+            .unwrap();
+    });
+    assert!(normal_capture_saves(&rig, cx));
+    set_autosave_in_onboarding(false, cx);
+    cx.run_until_parked();
+    let shown = rig
+        .settings
+        .read_with(cx, |s, _| s.config().general.auto_save);
+    assert!(!shown, "Settings reads general.auto_save");
+    assert!(!normal_capture_saves(&rig, cx));
+    set_autosave_in_onboarding(true, cx);
+    cx.run_until_parked();
+    assert!(
+        rig.settings
+            .read_with(cx, |s, _| s.config().general.auto_save)
+    );
+    assert!(normal_capture_saves(&rig, cx));
 }
 
 #[gpui::test]

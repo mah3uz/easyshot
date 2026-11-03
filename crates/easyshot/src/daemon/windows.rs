@@ -415,7 +415,7 @@ pub(super) fn onboarding_input(w: &Wiring, cx: &App) -> OnboardingInput {
         global_shortcuts: config.global_shortcuts.clone(),
         capture_shortcut: onboarding::capture_shortcut(&config.global_shortcuts),
         save_dir: es_store::paths::save_dir(config),
-        autosave: config.after_capture.screenshot.save,
+        autosave: config.general.auto_save,
     }
 }
 
@@ -457,9 +457,9 @@ fn open_onboarding(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>>
             OnboardingEvent::ChooseFolder => choose_save_folder(&events, cx),
             OnboardingEvent::SetAutosave(on) => {
                 let on = *on;
-                events.settings.update(cx, |s, cx| {
-                    s.update(|c| c.after_capture.screenshot.save = on, cx)
-                });
+                events
+                    .settings
+                    .update(cx, |s, cx| s.update(|c| c.general.auto_save = on, cx));
             }
             OnboardingEvent::SetShortcuts(keys) => {
                 let keys = keys.clone();

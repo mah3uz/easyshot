@@ -45,8 +45,6 @@ pub struct State {
     pub inspector_sections: BTreeMap<String, bool>,
     /// Newest first, at most `MAX_RECENT_WALLPAPERS`.
     pub recent_wallpapers: Vec<PathBuf>,
-    /// Custom deck layout: hover slot to tool. Empty means the layout preset in the config.
-    pub deck_layout: BTreeMap<String, String>,
 }
 
 impl Default for State {
@@ -58,7 +56,6 @@ impl Default for State {
             onboarding_version: 0,
             inspector_sections: BTreeMap::new(),
             recent_wallpapers: Vec::new(),
-            deck_layout: BTreeMap::new(),
         }
     }
 }

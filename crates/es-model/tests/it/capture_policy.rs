@@ -31,10 +31,8 @@ fn auto_save_off_leaves_the_explicit_save_variant_saving() {
 }
 
 #[test]
-fn an_upgrade_that_never_enabled_saving_does_not_save() {
-    let p = plan(CaptureVariant::Normal, |c| {
-        c.after_capture.screenshot.save = false
-    });
+fn auto_save_off_keeps_a_normal_capture_on_the_deck_only() {
+    let p = plan(CaptureVariant::Normal, |c| c.general.auto_save = false);
     assert!(!p.contains(&Step::Save));
     assert!(p.contains(&Step::ShowPreview));
 }
@@ -43,7 +41,7 @@ fn an_upgrade_that_never_enabled_saving_does_not_save() {
 fn region_copy_always_copies_and_never_auto_saves() {
     let p = plan(CaptureVariant::RegionCopy, |c| {
         c.general.copy_after_save = false;
-        c.after_capture.screenshot.save = true;
+        c.general.auto_save = true;
     });
     assert_eq!(p, [Step::Copy, Step::ShowPreview]);
 }
@@ -51,7 +49,7 @@ fn region_copy_always_copies_and_never_auto_saves() {
 #[test]
 fn region_save_always_saves_and_never_copies() {
     let p = plan(CaptureVariant::RegionSave, |c| {
-        c.after_capture.screenshot.save = false;
+        c.general.auto_save = false;
         c.general.copy_after_save = true;
         c.after_capture.screenshot.copy = true;
     });
@@ -61,7 +59,7 @@ fn region_save_always_saves_and_never_copies() {
 #[test]
 fn region_annotate_opens_the_editor_without_saving() {
     let p = plan(CaptureVariant::RegionAnnotate, |c| {
-        c.after_capture.screenshot.save = true;
+        c.general.auto_save = true;
     });
     assert_eq!(p, [Step::Copy, Step::ShowPreview, Step::OpenEditor]);
 }

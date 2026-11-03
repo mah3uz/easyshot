@@ -211,10 +211,6 @@ fn state_v1() {
     assert_eq!(s.last_region.map(|r| (r.w, r.h)), Some((640, 480)));
     assert_eq!(s.recent_wallpapers.len(), 2);
     assert_eq!(s.inspector_sections.get("camera"), Some(&false));
-    assert_eq!(
-        s.deck_layout.get("top_right").map(String::as_str),
-        Some("dismiss")
-    );
 }
 
 #[test]
