@@ -139,6 +139,8 @@ icons! {
     custom {
         Counter = "counter",
         Highlight = "highlight",
+        Highlighter = "highlighter",
+        HighlighterLine = "highlighter-line",
         Pixelate = "pixelate",
         Easyshot = "easyshot",
     }
@@ -196,6 +198,6 @@ mod tests {
             .map(|i| i.name())
             .collect();
         assert_eq!(named, listed);
-        assert_eq!(IconName::ALL.len(), listed.len() + 4, "four custom icons");
+        assert_eq!(IconName::ALL.len(), listed.len() + 6, "six custom icons");
     }
 }

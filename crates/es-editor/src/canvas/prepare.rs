@@ -19,6 +19,7 @@ pub struct Prepared {
     pub watermark: Option<(Bounds<Pixels>, Arc<RenderImage>)>,
     pub tiles: Vec<(Bounds<Pixels>, Corners<Pixels>, Arc<RenderImage>)>,
     pub redactions: Vec<DrawItem>,
+    pub highlighters: Vec<DrawItem>,
     pub viewport: Viewport,
     pub image: Bounds<Pixels>,
     pub spotlight: Vec<Painted>,
@@ -168,6 +169,7 @@ impl EditorCanvas {
         let text = doc.text().clone();
         let build = BuildContext::new(&*text);
         let mut redactions = Vec::new();
+        let mut highlighters = Vec::new();
         let mut holes = Vec::new();
         let mut shapes_out = Vec::new();
         let mut shadows = Vec::new();
@@ -180,6 +182,10 @@ impl EditorCanvas {
             }
             if shape.is_redaction() {
                 redactions.extend(draw_items(document, shape, &build));
+                continue;
+            }
+            if shape.is_highlighter() {
+                highlighters.extend(draw_items(document, shape, &build));
                 continue;
             }
             if shape.is_highlight() {
@@ -247,6 +253,7 @@ impl EditorCanvas {
             watermark,
             tiles: if flat { tiles_out } else { Vec::new() },
             redactions,
+            highlighters,
             viewport: vp,
             image: window_rect(bounds.origin, image_rect),
             spotlight: keep(spotlight),

@@ -6,8 +6,20 @@ use regex::Regex;
 
 use crate::Word;
 
+/// What a hidden region held, so a summary can say what was found.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum Kind {
+    Email,
+    Link,
+    IpAddress,
+    Phone,
+    Card,
+    Key,
+}
+
 struct Rule {
     re: Regex,
+    kind: Kind,
     accepts: fn(&str) -> bool,
 }
 
@@ -15,30 +27,37 @@ const SECRET_LABEL: &str = r"(?i)\b(?:password|passcode|secret|api\s*key|access\
 
 type Accept = fn(&str) -> bool;
 
-const RULES: [(&str, Accept); 9] = [
-    (r"(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", any),
-    (r#"(?i)\bhttps?://[^\s<>"']+"#, any),
-    (r#"(?i)\bwww\.[^\s<>"']+"#, any),
-    (r"(?i)\b\d{1,3}(?:\.\d{1,3}){3}\b", is_ipv4),
-    (r"(?i)\b(?:\+?\d[\d\s().-]{7,}\d)\b", is_phone),
-    (r"(?i)\b(?:\d[ -]*?){13,19}\b", is_card),
+const RULES: [(&str, Kind, Accept); 9] = [
+    (
+        r"(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b",
+        Kind::Email,
+        any,
+    ),
+    (r#"(?i)\bhttps?://[^\s<>"']+"#, Kind::Link, any),
+    (r#"(?i)\bwww\.[^\s<>"']+"#, Kind::Link, any),
+    (r"(?i)\b\d{1,3}(?:\.\d{1,3}){3}\b", Kind::IpAddress, is_ipv4),
+    (r"(?i)\b(?:\+?\d[\d\s().-]{7,}\d)\b", Kind::Phone, is_phone),
+    (r"(?i)\b(?:\d[ -]*?){13,19}\b", Kind::Card, is_card),
     (
         r"(?i)\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b",
+        Kind::Key,
         any,
     ),
     (
         r"(?i)\b(?:sk|pk|rk|ghp|gho|ghu|github_pat|xox[baprs]?|AKIA|ASIA|AIza|ya29)[A-Za-z0-9_-]{8,}\b",
+        Kind::Key,
         any,
     ),
-    (r"(?i)\b[A-Za-z0-9_-]{24,}\b", is_opaque_token),
+    (r"(?i)\b[A-Za-z0-9_-]{24,}\b", Kind::Key, is_opaque_token),
 ];
 
 static COMPILED: LazyLock<Vec<Rule>> = LazyLock::new(|| {
     RULES
         .iter()
-        .filter_map(|(pattern, accepts)| {
+        .filter_map(|(pattern, kind, accepts)| {
             Some(Rule {
                 re: Regex::new(pattern).ok()?,
+                kind: *kind,
                 accepts: *accepts,
             })
         })
@@ -126,40 +145,59 @@ fn secret_value_ranges(text: &str) -> Vec<Range<usize>> {
 }
 
 pub fn sensitive_ranges(text: &str) -> Vec<Range<usize>> {
-    let mut ranges: Vec<Range<usize>> = COMPILED
+    sensitive_matches(text)
+        .into_iter()
+        .map(|(r, _)| r)
+        .collect()
+}
+
+/// A merged range keeps the kind of the hit that starts it.
+pub fn sensitive_matches(text: &str) -> Vec<(Range<usize>, Kind)> {
+    let mut hits: Vec<(Range<usize>, Kind)> = COMPILED
         .iter()
         .flat_map(|rule| {
             rule.re
                 .find_iter(text)
                 .filter(|m| (rule.accepts)(m.as_str()))
-                .map(|m| m.range())
+                .map(|m| (m.range(), rule.kind))
         })
         .collect();
-    ranges.extend(secret_value_ranges(text));
-    merge_ranges(ranges)
+    hits.extend(
+        secret_value_ranges(text)
+            .into_iter()
+            .map(|r| (r, Kind::Key)),
+    );
+    merge_ranges(hits)
 }
 
-fn merge_ranges(mut ranges: Vec<Range<usize>>) -> Vec<Range<usize>> {
-    ranges.sort_by_key(|r| r.start);
-    let mut merged: Vec<Range<usize>> = Vec::new();
-    for r in ranges {
+fn merge_ranges(mut hits: Vec<(Range<usize>, Kind)>) -> Vec<(Range<usize>, Kind)> {
+    hits.sort_by_key(|(r, _)| r.start);
+    let mut merged: Vec<(Range<usize>, Kind)> = Vec::new();
+    for (r, kind) in hits {
         match merged.last_mut() {
-            Some(last) if r.start <= last.end => last.end = last.end.max(r.end),
-            _ => merged.push(r),
+            Some((last, _)) if r.start <= last.end => last.end = last.end.max(r.end),
+            _ => merged.push((r, kind)),
         }
     }
     merged
 }
 
 pub fn find(words: &[Word], image: Size) -> Vec<Rect> {
+    find_kinds(words, image)
+        .into_iter()
+        .map(|(r, _)| r)
+        .collect()
+}
+
+pub fn find_kinds(words: &[Word], image: Size) -> Vec<(Rect, Kind)> {
     let bounds = Rect::new(0.0, 0.0, image.width, image.height);
     let pad_x = (PAD_X_PX / image.width.max(1.0)).clamp(PAD_MIN, PAD_MAX) * image.width;
     let pad_y = (PAD_Y_PX / image.height.max(1.0)).clamp(PAD_MIN, PAD_MAX) * image.height;
 
-    let mut found: Vec<Rect> = Vec::new();
+    let mut found: Vec<(Rect, Kind)> = Vec::new();
     for line in words.chunk_by(|a, b| a.line == b.line) {
         let (text, spans) = line_text(line);
-        for range in sensitive_ranges(&text) {
+        for (range, kind) in sensitive_matches(&text) {
             let Some(rect) = range_rect(line, &spans, &text, &range) else {
                 continue;
             };
@@ -167,7 +205,7 @@ pub fn find(words: &[Word], image: Size) -> Vec<Rect> {
             if padded.width() >= MIN_FRACTION * image.width
                 && padded.height() >= MIN_FRACTION * image.height
             {
-                found.push(padded);
+                found.push((padded, kind));
             }
         }
     }
@@ -212,14 +250,14 @@ fn range_rect(
         .reduce(|a, b| a.union(b))
 }
 
-fn dedupe(rects: Vec<Rect>) -> Vec<Rect> {
-    let mut out: Vec<Rect> = Vec::new();
-    for r in rects {
-        let duplicate = out
-            .iter()
-            .any(|e| e.intersect(r).area().max(0.0) >= e.area().min(r.area()) * DUPLICATE_OVERLAP);
+fn dedupe(found: Vec<(Rect, Kind)>) -> Vec<(Rect, Kind)> {
+    let mut out: Vec<(Rect, Kind)> = Vec::new();
+    for (r, kind) in found {
+        let duplicate = out.iter().any(|(e, _)| {
+            e.intersect(r).area().max(0.0) >= e.area().min(r.area()) * DUPLICATE_OVERLAP
+        });
         if !duplicate {
-            out.push(r);
+            out.push((r, kind));
         }
     }
     out
@@ -406,7 +444,24 @@ mod tests {
         let a = Rect::new(0.0, 0.0, 100.0, 30.0);
         let b = Rect::new(2.0, 0.0, 100.0, 30.0);
         let c = Rect::new(300.0, 0.0, 400.0, 30.0);
-        assert_eq!(dedupe(vec![a, b, c]), vec![a, c]);
+        let kept = dedupe(vec![(a, Kind::Email), (b, Kind::Email), (c, Kind::Card)]);
+        assert_eq!(kept, vec![(a, Kind::Email), (c, Kind::Card)]);
+    }
+
+    #[test]
+    fn each_hit_names_what_it_found() {
+        let hit = |text: &str| {
+            sensitive_matches(text)
+                .into_iter()
+                .map(|(_, k)| k)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(hit("mail me@example.com"), [Kind::Email]);
+        assert_eq!(hit("see https://example.com/a"), [Kind::Link]);
+        assert_eq!(hit("host 10.0.12.7"), [Kind::IpAddress]);
+        assert_eq!(hit("card 4111 1111 1111 1111"), [Kind::Card]);
+        assert_eq!(hit("password: hunter22"), [Kind::Key]);
+        assert_eq!(hit("key ghp_abcdefghijklmnop"), [Kind::Key]);
     }
 
     #[test]

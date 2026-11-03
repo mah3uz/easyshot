@@ -38,6 +38,12 @@ pub enum DrawItem {
     Spotlight {
         holes: Vec<BezPath>,
     },
+    /// A page-space stroke the painters blend by multiplying; `color.a` is its strength.
+    Highlighter {
+        path: BezPath,
+        width: f64,
+        color: Rgba,
+    },
     Text {
         glyphs: BezPath,
         color: Rgba,

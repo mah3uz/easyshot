@@ -14,12 +14,13 @@ pub enum Tool {
     NumberedCircle,
     Text,
     Highlight,
+    Highlighter,
     Pixelate,
     Blur,
 }
 
 impl Tool {
-    pub const ALL: [Tool; 12] = [
+    pub const ALL: [Tool; 13] = [
         Tool::Select,
         Tool::Rectangle,
         Tool::FilledRectangle,
@@ -30,6 +31,7 @@ impl Tool {
         Tool::NumberedCircle,
         Tool::Text,
         Tool::Highlight,
+        Tool::Highlighter,
         Tool::Pixelate,
         Tool::Blur,
     ];
@@ -48,7 +50,12 @@ impl Tool {
     pub fn supports_stroke_width(self) -> bool {
         matches!(
             self,
-            Tool::Rectangle | Tool::Ellipse | Tool::Line | Tool::Arrow | Tool::Freehand
+            Tool::Rectangle
+                | Tool::Ellipse
+                | Tool::Line
+                | Tool::Arrow
+                | Tool::Freehand
+                | Tool::Highlighter
         )
     }
 
@@ -79,7 +86,7 @@ mod tests {
     #[test]
     fn capability_table_matches_the_tool_rules() {
         let color: Vec<_> = Tool::ALL.iter().filter(|t| t.supports_color()).collect();
-        assert_eq!(color.len(), 8);
+        assert_eq!(color.len(), 9);
         assert!(!Tool::Highlight.supports_color());
         assert!(Tool::Text.supports_color() && !Tool::Text.supports_stroke_width());
         assert!(

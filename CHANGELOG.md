@@ -11,7 +11,8 @@
 - In the editor the mouse wheel zooms about the pointer and touchpad scrolling pans; annotations stay on the image.
 - Scrolling capture: select an area, scroll, and get one tall image.
 - The editor's Background, Camera and Progressive Blur sections: colours, gradients, seven built-in wallpapers or your own, padding, shadow, corners, alignment, and a focus pad for the sharp area.
-- Smart Redaction scans the image for private text and covers it; Pixelate and Blur keep a minimum strength tied to the text height, so covered text cannot be read back.
+- The Highlighter tool (key M) paints translucent colour that keeps the text under it readable, freehand or as a straight line (Shift snaps to 15 degrees; M again switches mode).
+- Smart Redaction scans the image for private text and covers it, flashes what it found, and says what it hid ("Hid 3 items: emails, keys") with an Undo button; Pixelate and Blur keep a minimum strength tied to the text height, so covered text cannot be read back.
 - Hold Space and drag an annotation to move it, with any tool; dragging empty canvas pans.
 - New text starts at size 36.
 - Esc steps back one level: it commits the text you are typing, leaves crop, clears the selection, then switches to the Select tool.

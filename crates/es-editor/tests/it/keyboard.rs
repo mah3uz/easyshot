@@ -81,6 +81,23 @@ fn tool_keys_pick_their_tool() {
 }
 
 #[test]
+fn m_picks_the_highlighter_and_pressing_it_again_switches_mode() {
+    let mut f = launch();
+    let straight = |f: &Fixture| {
+        f.session_doc()
+            .read_with(&f.app.cx, |d, _| d.editor().highlighter_straight())
+    };
+    f.key("m");
+    assert_eq!(tool(&f), Tool::Highlighter);
+    assert!(!straight(&f));
+    f.key("m");
+    assert_eq!(tool(&f), Tool::Highlighter);
+    assert!(straight(&f));
+    f.key("m");
+    assert!(!straight(&f));
+}
+
+#[test]
 fn save_and_copy_keys_ask_for_their_job() {
     let mut f = launch();
     f.key("ctrl-s");

@@ -1,4 +1,7 @@
-use es_model::{AnnoShape, Arrowhead, FontFamily, ShapeKind, StylePreset, Swatch, TextAlign, Tool};
+use es_model::{
+    AnnoShape, Arrowhead, FontFamily, HIGHLIGHTER_WIDTH_FACTOR, ShapeKind, StylePreset, Swatch,
+    TextAlign, Tool,
+};
 
 pub const MIN_FONT_SIZE: f64 = 4.0;
 
@@ -120,9 +123,13 @@ impl StylePatch {
             (Self::Swatch(s), ShapeKind::Arrow(p)) => p.swatch = s.clone(),
             (Self::Swatch(s), ShapeKind::Text(p)) => p.swatch = s.clone(),
             (Self::Swatch(s), ShapeKind::Numbered(p)) => p.swatch = s.clone(),
+            (Self::Swatch(s), ShapeKind::Highlighter(p)) => p.swatch = s.clone(),
             (Self::StrokeWidth(_), ShapeKind::Geo(p)) => p.stroke_width = page_stroke_width,
             (Self::StrokeWidth(_), ShapeKind::Draw(p)) => p.stroke_width = page_stroke_width,
             (Self::StrokeWidth(_), ShapeKind::Arrow(p)) => p.stroke_width = page_stroke_width,
+            (Self::StrokeWidth(_), ShapeKind::Highlighter(p)) => {
+                p.stroke_width = page_stroke_width * HIGHLIGHTER_WIDTH_FACTOR
+            }
             (Self::RedactionDensity(d), ShapeKind::Redaction(p)) => p.density = *d,
             (Self::FontFamily(f), ShapeKind::Text(p)) => p.font_family = *f,
             (Self::FontSize(s), ShapeKind::Text(p)) => p.font_size = *s,

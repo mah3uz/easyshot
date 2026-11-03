@@ -3,7 +3,8 @@ mod tool;
 
 pub use props::{
     ArrowProps, Arrowhead, DEFAULT_TEXT_SIZE, DashStyle, DrawProps, FillStyle, FontFamily, GeoKind,
-    GeoProps, HighlightProps, NumberedProps, RedactionKind, RedactionProps, TextAlign, TextProps,
+    GeoProps, HIGHLIGHTER_WIDTH_FACTOR, HighlightProps, HighlighterProps, NumberedProps,
+    RedactionKind, RedactionProps, TextAlign, TextProps,
 };
 pub use tool::Tool;
 
@@ -36,6 +37,7 @@ pub enum ShapeKind {
     Text(TextProps),
     Redaction(RedactionProps),
     Highlight(HighlightProps),
+    Highlighter(HighlighterProps),
     Numbered(NumberedProps),
 }
 
@@ -111,6 +113,7 @@ impl AnnoShape {
                 RedactionKind::Pixelate => Tool::Pixelate,
             },
             ShapeKind::Highlight(_) => Tool::Highlight,
+            ShapeKind::Highlighter(_) => Tool::Highlighter,
             ShapeKind::Numbered(_) => Tool::NumberedCircle,
         }
     }
@@ -122,6 +125,7 @@ impl AnnoShape {
             ShapeKind::Arrow(p) => Some(&p.swatch),
             ShapeKind::Text(p) => Some(&p.swatch),
             ShapeKind::Numbered(p) => Some(&p.swatch),
+            ShapeKind::Highlighter(p) => Some(&p.swatch),
             ShapeKind::Redaction(_) | ShapeKind::Highlight(_) => None,
         }
     }
@@ -131,6 +135,7 @@ impl AnnoShape {
             ShapeKind::Geo(p) => p.stroke_width,
             ShapeKind::Draw(p) => p.stroke_width,
             ShapeKind::Arrow(p) => p.stroke_width,
+            ShapeKind::Highlighter(p) => p.stroke_width,
             _ => 0.0,
         }
     }
@@ -140,7 +145,7 @@ impl AnnoShape {
         match &self.kind {
             ShapeKind::Geo(p) => p.fill != FillStyle::None,
             ShapeKind::Draw(p) => p.is_closed,
-            ShapeKind::Arrow(_) => false,
+            ShapeKind::Arrow(_) | ShapeKind::Highlighter(_) => false,
             ShapeKind::Text(_)
             | ShapeKind::Redaction(_)
             | ShapeKind::Highlight(_)
@@ -162,6 +167,10 @@ impl AnnoShape {
 
     pub fn is_highlight(&self) -> bool {
         matches!(self.kind, ShapeKind::Highlight(_))
+    }
+
+    pub fn is_highlighter(&self) -> bool {
+        matches!(self.kind, ShapeKind::Highlighter(_))
     }
 }
 

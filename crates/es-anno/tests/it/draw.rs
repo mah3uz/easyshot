@@ -44,6 +44,7 @@ fn kind(item: &DrawItem) -> &'static str {
         DrawItem::Stroke { .. } => "stroke",
         DrawItem::Redaction { .. } => "redaction",
         DrawItem::Spotlight { .. } => "spotlight",
+        DrawItem::Highlighter { .. } => "highlighter",
         DrawItem::Text { .. } => "text",
         DrawItem::Group { .. } => "group",
     }

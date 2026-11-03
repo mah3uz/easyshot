@@ -73,6 +73,7 @@ pub static CATALOGUE: &[ShortcutEntry] = &[
     editor!("image-counter", Some("1")),
     editor!("image-text", Some("T")),
     editor!("image-highlight", None),
+    editor!("image-highlighter", Some("M")),
     editor!("image-pixelate", Some("P")),
     editor!("image-blur", Some("B")),
     editor!("image-save", Some("Ctrl+S")),
@@ -160,7 +161,7 @@ mod tests {
             .filter(|e| e.scope == Scope::Global)
             .count();
         assert_eq!(global, 30);
-        assert_eq!(CATALOGUE.len() - global, 51);
+        assert_eq!(CATALOGUE.len() - global, 52);
     }
 
     #[test]

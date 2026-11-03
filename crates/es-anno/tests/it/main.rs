@@ -8,6 +8,7 @@ mod interaction_bounds;
 mod interaction_create;
 mod interaction_cursors;
 mod interaction_handles;
+mod interaction_highlighter;
 mod interaction_select;
 mod interaction_text;
 mod text;

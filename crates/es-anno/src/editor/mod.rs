@@ -18,7 +18,9 @@ use crate::document::{Document, TextMeasure};
 use crate::style::CurrentStyle;
 use crate::{Changes, ShapeId};
 use arrange::Clipboard;
-use es_model::{AnnoShapeId, AnnotationDocument, ShapeKind, StylePreset, Tool};
+use es_model::{
+    AnnoShapeId, AnnotationDocument, HIGHLIGHTER_WIDTH_FACTOR, ShapeKind, StylePreset, Tool,
+};
 use history::{GestureKey, History};
 use std::collections::BTreeSet;
 
@@ -31,6 +33,7 @@ pub struct Editor {
     history: History,
     viewport: Viewport,
     current: CurrentStyle,
+    highlighter_straight: bool,
     editing_text_id: Option<AnnoShapeId>,
     hinted_binding_id: Option<AnnoShapeId>,
     clipboard: Option<Clipboard>,
@@ -61,6 +64,7 @@ impl Editor {
             history: History::default(),
             viewport: Viewport::default(),
             current: CurrentStyle::from(preset),
+            highlighter_straight: false,
             editing_text_id: None,
             hinted_binding_id: None,
             clipboard: None,
@@ -89,6 +93,10 @@ impl Editor {
 
     pub fn preset(&self) -> StylePreset {
         self.current.to_preset(self.tool)
+    }
+
+    pub fn highlighter_straight(&self) -> bool {
+        self.highlighter_straight
     }
 
     pub fn editing_text_id(&self) -> Option<AnnoShapeId> {
@@ -222,7 +230,11 @@ impl Editor {
             self.current.swatch = swatch.clone();
         }
         if tool.supports_stroke_width() && shape.stroke_width() > 0.0 {
-            self.current.stroke_width = self.viewport.slider_stroke_width(shape.stroke_width());
+            let width = match shape.kind {
+                ShapeKind::Highlighter(_) => shape.stroke_width() / HIGHLIGHTER_WIDTH_FACTOR,
+                _ => shape.stroke_width(),
+            };
+            self.current.stroke_width = self.viewport.slider_stroke_width(width);
         }
         match &shape.kind {
             ShapeKind::Redaction(p) => self.current.redaction_density = p.density,

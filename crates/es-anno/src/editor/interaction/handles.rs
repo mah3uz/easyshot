@@ -5,7 +5,7 @@ use crate::document::page_transform;
 use crate::editor::{Editor, SelectionBounds};
 use crate::{Changes, PointerInfo, ShapeId};
 use es_geom::{Mat, PVec, Point, Size};
-use es_model::{AnnoShape, ShapeKind, TextProps, Tool};
+use es_model::{AnnoShape, DrawProps, HighlighterProps, ShapeKind, TextProps, Tool};
 use std::f64::consts::PI;
 
 const HIT_RADIUS: f64 = 9.0;
@@ -135,8 +135,9 @@ fn scaled(shape: &AnnoShape, k: &Scale, measure: impl Fn(&TextProps) -> Size) ->
             p.diameter = (p.diameter * mean).abs().max(MIN_DIAMETER);
             Some((p.diameter, p.diameter))
         }
-        ShapeKind::Draw(p) => {
-            for q in &mut p.points {
+        ShapeKind::Draw(DrawProps { points, .. })
+        | ShapeKind::Highlighter(HighlighterProps { points, .. }) => {
+            for q in points {
                 (q.x, q.y) = (q.x * sx, q.y * sy);
             }
             None

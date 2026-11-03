@@ -6,10 +6,10 @@ use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
 use canvas_support::{TEXT, opened};
 use es_anno::draw::{BuildContext, build_draw_list};
-use es_editor::window::redact::State;
+use es_editor::window::redact::{State, toast_text};
 use es_editor::{EditorSession, EditorWindow, Opened};
 use es_model::{RedactionKind, ShapeKind};
-use es_ocr::{OcrOptions, probe, recognize, redact};
+use es_ocr::{OcrOptions, probe, recognize, redact, redact::Kind};
 use es_render::encode::OutputFormat;
 use es_render::export::export;
 use es_testkit::Headless;
@@ -136,6 +136,37 @@ fn smart_redaction_covers_the_email_card_and_address_in_one_undo_step() {
 }
 
 #[test]
+fn the_toast_names_what_was_hidden_and_its_undo_removes_every_added_redaction() {
+    if !have_tesseract() {
+        return;
+    }
+    let (mut app, editor) = launch(fixture());
+    scan(&mut app, &editor, RedactionKind::Blur);
+    let toast = editor
+        .read_with(&app.cx, |w, _| w.redact_toast().cloned())
+        .expect("a toast after the scan");
+    assert_eq!(toast.added.len(), 3);
+    assert!(toast.text.starts_with("Hid 3 items: "), "{}", toast.text);
+    assert_eq!(shapes(&app, &editor).len(), 3);
+
+    editor.update(&mut app.cx, |w, cx| w.undo_redaction(cx));
+    assert!(shapes(&app, &editor).is_empty(), "all three are gone");
+    assert!(editor.read_with(&app.cx, |w, _| w.redact_toast().is_none()));
+    editor.update(&mut app.cx, |w, cx| w.session().unwrap().undo(cx));
+    assert_eq!(shapes(&app, &editor).len(), 3, "the removal is one step");
+}
+
+#[test]
+fn toast_text_counts_items_and_lists_each_kind_once() {
+    assert_eq!(
+        toast_text(3, &[Kind::Key, Kind::Email, Kind::Card, Kind::Email]),
+        "Hid 3 items: emails, card numbers, keys"
+    );
+    assert_eq!(toast_text(1, &[Kind::Email]), "Hid 1 item: emails");
+    assert_eq!(toast_text(0, &[]), "No sensitive text found.");
+}
+
+#[test]
 fn the_exported_pixels_no_longer_read_as_secrets() {
     if !have_tesseract() {
         return;
@@ -166,6 +197,10 @@ fn a_page_without_secrets_adds_nothing() {
         editor.read_with(&app.cx, |w, _| w.redact_state()),
         State::Added(0)
     );
+    let toast = editor.read_with(&app.cx, |w, _| w.redact_toast().cloned());
+    let toast = toast.expect("a toast even when nothing was found");
+    assert_eq!(toast.text, "No sensitive text found.");
+    assert!(toast.added.is_empty(), "nothing to undo");
 }
 
 #[test]

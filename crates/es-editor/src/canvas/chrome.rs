@@ -126,6 +126,12 @@ impl EditorCanvas {
             out: Vec::new(),
         };
         binding_hint(editor, &vp, &colours, &mut pen);
+        for r in &self.flash {
+            let a = vp.page_to_screen(Point::new(r.x0, r.y0));
+            let b = vp.page_to_screen(Point::new(r.x1, r.y1));
+            let rect = kurbo::Rect::from_points(a, b).to_path(0.05);
+            pen.outlined(&rect, colours.fill, colours.hint, FRAME_WIDTH);
+        }
         if let Some(brush) = editor.brush() {
             let a = vp.page_to_screen(Point::new(brush.x0, brush.y0));
             let b = vp.page_to_screen(Point::new(brush.x1, brush.y1));

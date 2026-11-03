@@ -9,6 +9,7 @@ mod effects;
 mod encode;
 mod export;
 mod export_samples;
+mod highlighter;
 mod image_ops;
 mod paint;
 mod text_shadow;

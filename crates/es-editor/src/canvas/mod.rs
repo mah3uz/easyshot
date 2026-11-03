@@ -3,6 +3,7 @@ pub mod crop_overlay;
 pub mod effects;
 mod element;
 pub mod grid;
+mod highlighter;
 mod input;
 mod live;
 pub mod paths;
@@ -33,6 +34,7 @@ use gpui::{
     Render, RenderImage, ScrollDelta, ScrollEvent, Styled, Subscription, Task, Window, div, px,
 };
 use grid::GridKey;
+use highlighter::Highlighters;
 use live::LiveCache;
 use paths::{Bucket, Painted, Placement};
 use redaction::Redactions;
@@ -95,6 +97,9 @@ pub struct EditorCanvas {
     lease: Lease,
     retired: Vec<Arc<RenderImage>>,
     redaction_painter: Option<RedactionPainter>,
+    highlighter_painter: Option<RedactionPainter>,
+    flash: Vec<es_geom::Rect>,
+    highlighters: Rc<RefCell<Highlighters>>,
     redactions: Rc<RefCell<Redactions>>,
     live: LiveCache,
     text_edit: Option<text_edit::TextEdit>,
@@ -118,6 +123,8 @@ impl EditorCanvas {
         ];
         let redactions = Rc::new(RefCell::new(Redactions::default()));
         let painter = redaction::painter(redactions.clone(), session.doc.clone(), cx.weak_entity());
+        let highlighters = Rc::new(RefCell::new(Highlighters::default()));
+        let highlighter_painter = highlighter::painter(highlighters.clone(), session.doc.clone());
         Self {
             doc: session.doc.clone(),
             viewport: session.viewport.clone(),
@@ -139,6 +146,9 @@ impl EditorCanvas {
             lease: Lease::new(cx.entity_id().as_u64()),
             retired: Vec::new(),
             redaction_painter: Some(painter),
+            highlighter_painter: Some(highlighter_painter),
+            flash: Vec::new(),
+            highlighters,
             redactions,
             live: LiveCache::default(),
             text_edit: None,
@@ -174,6 +184,12 @@ impl EditorCanvas {
     /// Whether an underlay image for the current look is on screen.
     pub fn underlay_ready(&self) -> bool {
         self.underlay_pending.is_none()
+    }
+
+    /// Outlines these page rectangles until the next call.
+    pub fn set_flash(&mut self, rects: Vec<es_geom::Rect>, cx: &mut Context<Self>) {
+        self.flash = rects;
+        cx.notify();
     }
 
     pub fn set_redaction_painter(&mut self, painter: RedactionPainter) {

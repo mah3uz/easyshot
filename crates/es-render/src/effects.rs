@@ -1,5 +1,7 @@
+use crate::paint::multiply_stroke;
 use es_anno::draw::RedactionKind;
-use es_geom::Rect;
+use es_geom::{BezPath, Rect, Rgba};
+use kurbo::Shape as _;
 use libblur::{
     BlurImage, BlurImageMut, ConvolutionMode, EdgeMode, EdgeMode2D, FastBlurChannels,
     GaussianBlurParams, ThreadingPolicy, gaussian_blur,
@@ -26,6 +28,60 @@ impl Patch {
             None,
         );
     }
+}
+
+/// The base under a highlighter stroke with the stroke multiplied in, over the stroke's bounding box.
+pub fn highlighter_patch(base: &Pixmap, path: &BezPath, width: f64, color: Rgba) -> Option<Patch> {
+    let b = path.bounding_box();
+    let pad = width / 2.0 + 2.0;
+    let (bw, bh) = (base.width() as i64, base.height() as i64);
+    let x0 = ((b.x0 - pad).floor() as i64).clamp(0, bw);
+    let y0 = ((b.y0 - pad).floor() as i64).clamp(0, bh);
+    let x1 = ((b.x1 + pad).ceil() as i64).clamp(0, bw);
+    let y1 = ((b.y1 + pad).ceil() as i64).clamp(0, bh);
+    if x1 <= x0 || y1 <= y0 {
+        return None;
+    }
+    let mut crop = crop_pixmap(
+        base,
+        x0 as u32,
+        y0 as u32,
+        (x1 - x0) as u32,
+        (y1 - y0) as u32,
+    )?;
+    let mut tint = tiny_skia::Paint::default();
+    tint.set_color_rgba8(
+        (color.r * 255.0).round() as u8,
+        (color.g * 255.0).round() as u8,
+        (color.b * 255.0).round() as u8,
+        (color.a * 255.0).round() as u8,
+    );
+    tint.blend_mode = tiny_skia::BlendMode::Multiply;
+    let full = tiny_skia::Rect::from_xywh(0.0, 0.0, crop.width() as f32, crop.height() as f32)?;
+    crop.fill_rect(full, &tint, Transform::identity(), None);
+    let mut coverage = Pixmap::new(crop.width(), crop.height())?;
+    multiply_stroke(
+        &mut coverage,
+        path,
+        width,
+        Rgba::new(0.0, 0.0, 0.0, 1.0),
+        Transform::from_translate(-x0 as f32, -y0 as f32),
+        1.0,
+    );
+    crop.data_mut()
+        .par_chunks_exact_mut(4)
+        .zip(coverage.data().par_chunks_exact(4))
+        .for_each(|(px, cov)| {
+            let c = u32::from(cov[3]);
+            for ch in px.iter_mut() {
+                *ch = ((u32::from(*ch) * c + 127) / 255) as u8;
+            }
+        });
+    Some(Patch {
+        pixmap: crop,
+        x: x0 as i32,
+        y: y0 as i32,
+    })
 }
 
 pub fn blur_radius(density: f64) -> f64 {

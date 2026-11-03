@@ -5,9 +5,14 @@ use crate::style::StylePatch;
 use es_model::{AnnoShape, AnnoShapeId, ShapeKind, Tool};
 
 impl Editor {
-    /// Picking the active tool again returns to the select tool.
+    /// Picking the active tool again returns to the select tool; the highlighter switches mode instead.
     pub fn select_tool(&mut self, tool: Tool) -> Changes {
         let mut ch = Changes::default();
+        if tool == Tool::Highlighter && self.tool == Tool::Highlighter {
+            self.highlighter_straight = !self.highlighter_straight;
+            ch.tool_changed = true;
+            return ch;
+        }
         let next = if tool == self.tool {
             Tool::Select
         } else {
@@ -46,6 +51,28 @@ impl Editor {
         let all: Vec<_> = self.doc.shapes().iter().map(|s| s.id).collect();
         self.set_selection(all, &mut ch);
         ch
+    }
+
+    /// Ids no longer in the document are ignored.
+    pub fn delete_shapes(&mut self, ids: &[AnnoShapeId]) -> Changes {
+        let present: Vec<_> = ids
+            .iter()
+            .copied()
+            .filter(|id| self.doc.shape(*id).is_some())
+            .collect();
+        if present.is_empty() {
+            return Changes::default();
+        }
+        self.command(|ed, ch| {
+            ed.edit(ch, |doc| doc.delete(&present));
+            let kept: Vec<_> = ed
+                .selected_ids
+                .iter()
+                .copied()
+                .filter(|id| !present.contains(id))
+                .collect();
+            ed.set_selection(kept, ch);
+        })
     }
 
     pub fn delete_selected(&mut self) -> Changes {

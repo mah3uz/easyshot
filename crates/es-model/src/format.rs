@@ -61,7 +61,7 @@ impl FormatKind {
     /// The version this build writes.
     pub fn version(self) -> u32 {
         match self {
-            FormatKind::State => 2,
+            FormatKind::State | FormatKind::Document => 2,
             _ => 1,
         }
     }
@@ -123,6 +123,12 @@ fn step(kind: FormatKind, from: u32, mut value: serde_json::Value) -> Result<ser
             }
             Ok(value)
         }
+        (FormatKind::Document, 1) => {
+            if let Some(body) = value.as_object_mut() {
+                body.insert("version".into(), 2.into());
+            }
+            Ok(value)
+        }
         _ => Err(Error::Protocol(format!(
             "{}: no migration from version {from}",
             kind.name()
@@ -166,8 +172,8 @@ mod tests {
 
     #[test]
     fn newer_version_is_read_only_not_an_error() {
-        let out = migrate(FormatKind::Document, 2, json!({})).unwrap();
-        assert_eq!(out, Migrated::NewerReadOnly { version: 2 });
+        let out = migrate(FormatKind::Document, 3, json!({})).unwrap();
+        assert_eq!(out, Migrated::NewerReadOnly { version: 3 });
     }
 
     #[test]

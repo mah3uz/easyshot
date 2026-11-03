@@ -29,6 +29,11 @@ pub enum Interaction {
         origin: PVec,
         stroke: Box<LiveStroke>,
     },
+    Highlighting {
+        id: AnnoShapeId,
+        origin: PVec,
+        straight: bool,
+    },
     Translating {
         origin: PVec,
         initial: Vec<(AnnoShapeId, PVec)>,
@@ -124,6 +129,7 @@ impl Editor {
             }
             Tool::NumberedCircle => self.create_numbered(p, &mut ch),
             Tool::Freehand => self.begin_drawing(p, &pointer, &mut ch),
+            Tool::Highlighter => self.begin_highlighter(p, &mut ch),
             Tool::Line | Tool::Arrow => self.begin_arrow(p, &pointer, &mut ch),
             Tool::Rectangle
             | Tool::FilledRectangle
@@ -184,6 +190,19 @@ impl Editor {
                 let p = self.clamp_to_image(p);
                 self.extend_drawing(id, origin, &mut stroke, p, &pointer, &mut ch);
                 self.interaction = Interaction::Drawing { id, origin, stroke };
+            }
+            Interaction::Highlighting {
+                id,
+                origin,
+                straight,
+            } => {
+                let p = self.clamp_to_image(p);
+                self.extend_highlighter(id, origin, straight, p, &pointer, &mut ch);
+                self.interaction = Interaction::Highlighting {
+                    id,
+                    origin,
+                    straight,
+                };
             }
             Interaction::Translating {
                 origin,
@@ -249,6 +268,7 @@ impl Editor {
                 self.finish_arrow(id, origin, p.unwrap_or(last), &mut ch)
             }
             Interaction::Drawing { id, .. } => self.finish_drawing(id, &mut ch),
+            Interaction::Highlighting { id, .. } => self.finish_highlighter(id, &mut ch),
             Interaction::Translating { .. }
             | Interaction::Resizing { .. }
             | Interaction::Rotating { .. }
@@ -288,6 +308,7 @@ impl Editor {
         match &self.interaction {
             Interaction::CreatingBox { .. }
             | Interaction::CreatingArrow { .. }
+            | Interaction::Highlighting { .. }
             | Interaction::Drawing { .. } => CursorKind::AnnotationPlus,
             Interaction::Translating { .. } => CursorKind::ClosedHand,
             Interaction::Brushing { .. } => CursorKind::Arrow,

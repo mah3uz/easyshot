@@ -389,6 +389,7 @@ shortcut-image-freehand = Freehand
 shortcut-image-counter = Counter
 shortcut-image-text = Text
 shortcut-image-highlight = Highlight
+shortcut-image-highlighter = Highlighter
 shortcut-image-pixelate = Pixelate
 shortcut-image-blur = Blur
 shortcut-image-save = Save Image

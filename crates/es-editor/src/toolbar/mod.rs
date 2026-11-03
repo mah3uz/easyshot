@@ -284,7 +284,7 @@ impl ToolRow {
             .tooltip(if unavailable {
                 fl!("editor-redact-unavailable")
             } else {
-                fl!("editor-redact")
+                fl!("editor-redact-help")
             })
             .padding_x(tokens(cx).metrics.tool_button_padding_x)
             .selected(self.redact_open)
@@ -388,7 +388,10 @@ impl Render for ToolRow {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.drawn.borrow_mut().clear();
         let t = tokens(cx).clone();
-        let tool = self.doc.read(cx).editor().tool();
+        let (tool, straight) = {
+            let editor = self.doc.read(cx).editor();
+            (editor.tool(), editor.highlighter_straight())
+        };
         let padding = t.metrics.tool_button_padding_x;
         let row = cx.entity().downgrade();
 
@@ -410,10 +413,20 @@ impl Render for ToolRow {
             .enumerate()
             .map(|(i, &each)| {
                 let row = row.clone();
+                let (icon, tooltip) = if each == Tool::Highlighter {
+                    let icon = if straight {
+                        IconName::HighlighterLine
+                    } else {
+                        IconName::Highlighter
+                    };
+                    (icon, tools::highlighter_tooltip(straight))
+                } else {
+                    (tools::icon(each), tools::tooltip(each))
+                };
                 let button = EditorButton::new(("tool", i))
-                    .icon(tools::icon(each))
+                    .icon(icon)
                     .accessible_label(tools::title(each))
-                    .tooltip(tools::tooltip(each))
+                    .tooltip(tooltip)
                     .padding_x(padding)
                     .selected(each == tool)
                     .toggle(true)

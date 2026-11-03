@@ -101,6 +101,7 @@ pub struct EditorWindow {
     copy: Action,
     error: Option<SharedString>,
     pub(crate) redact: redact::State,
+    redact_toast: Option<redact::Toast>,
     ocr: es_ocr::OcrOptions,
     redact_tasks: redact::Tasks,
     focus_canvas: bool,
@@ -127,6 +128,7 @@ impl EditorWindow {
             copy: Action::default(),
             error: None,
             redact: redact::State::default(),
+            redact_toast: None,
             ocr: es_ocr::OcrOptions::default(),
             redact_tasks: redact::Tasks::default(),
             focus_canvas: false,
@@ -559,6 +561,7 @@ impl Render for EditorWindow {
                     .child(self.workspace(&t)),
             )
             .child(self.footer(cx))
+            .children(self.redact_toast_view(&t, cx))
             .children(dialog)
     }
 }

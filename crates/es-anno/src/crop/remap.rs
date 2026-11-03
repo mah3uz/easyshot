@@ -63,6 +63,13 @@ impl CropMap {
                 p.w *= sx;
                 p.h *= sy;
             }
+            ShapeKind::Highlighter(p) => {
+                for pt in &mut p.points {
+                    pt.x *= sx;
+                    pt.y *= sy;
+                }
+                p.stroke_width *= uniform;
+            }
             ShapeKind::Numbered(p) => p.diameter *= uniform,
         }
     }

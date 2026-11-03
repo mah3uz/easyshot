@@ -105,6 +105,19 @@ impl Element for CanvasElement {
                 paint_image(window, bounds, at, Corners::default(), image);
             }
             let view = self.view.clone();
+            let marker = view.update(cx, |c, _| {
+                if flat {
+                    c.highlighter_painter.take()
+                } else {
+                    None
+                }
+            });
+            if let Some(marker) = marker {
+                marker(&frame.highlighters, &frame.viewport, bounds, window, cx);
+                view.update(cx, |c, _| {
+                    c.highlighter_painter.get_or_insert(marker);
+                });
+            }
             let painter = view.update(cx, |c, _| {
                 if flat {
                     c.redaction_painter.take()

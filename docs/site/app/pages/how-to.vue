@@ -46,6 +46,7 @@ const captures = [
 
 const editorKeys = [
   ['Arrow keys', 'Nudge by 1 px (Shift: 10 px)'],
+  ['M', 'Highlighter; press again to switch freehand and straight (Shift snaps to 15°)'],
   ['Ctrl D', 'Duplicate the selection'],
   ['Ctrl Shift C', 'Copy the image'],
   ['Space + drag', 'Pan the canvas'],
@@ -233,7 +234,7 @@ useHead({
         <!-- 6 -->
         <HowStep :n="6" id="annotate" title="Annotate and share">
           <p>
-            Choose <strong>Annotate</strong> on a deck card, or capture with <code>--annotate</code>. Add arrows, shapes, text and steps, blur what is private with <strong>Smart Redaction</strong>, then set a background,
+            Choose <strong>Annotate</strong> on a deck card, or capture with <code>--annotate</code>. Add arrows, shapes, text and steps, blur what is private with <strong>Smart Redaction</strong> (it says what it hid and offers Undo), highlight text with the <strong>Highlighter</strong>, then set a background,
             padding and shadow in the inspector. Save keeps your edits editable; Export writes PNG or JPEG.
           </p>
           <div class="grid gap-2 sm:grid-cols-2">

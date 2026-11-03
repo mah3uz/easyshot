@@ -125,7 +125,7 @@ pub(super) fn premultiplied(base: &RgbaImage) -> Option<Pixmap> {
     Pixmap::from_vec(data, IntSize::from_wh(base.width(), base.height())?)
 }
 
-fn screen_bounds(bounds: Bounds<Pixels>, vp: &Viewport, page: Rect) -> Bounds<Pixels> {
+pub(super) fn screen_bounds(bounds: Bounds<Pixels>, vp: &Viewport, page: Rect) -> Bounds<Pixels> {
     let s = vp.scale;
     Bounds::new(
         bounds.origin

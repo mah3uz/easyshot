@@ -87,6 +87,7 @@ pub fn command_for(id: &str) -> Option<Command> {
         "image-counter" => Command::Tool(Tool::NumberedCircle),
         "image-text" => Command::Tool(Tool::Text),
         "image-highlight" => Command::Tool(Tool::Highlight),
+        "image-highlighter" => Command::Tool(Tool::Highlighter),
         "image-pixelate" => Command::Tool(Tool::Pixelate),
         "image-blur" => Command::Tool(Tool::Blur),
         "image-background" => Command::ToggleInspector,

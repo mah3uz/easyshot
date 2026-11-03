@@ -1,5 +1,6 @@
 mod canvas;
 mod canvas_bench;
+mod canvas_highlighter;
 mod canvas_support;
 mod chrome;
 mod close_guard;

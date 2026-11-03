@@ -136,6 +136,9 @@ fn paint_items(items: &[DrawItem], target: &mut Pixmap, cx: &Cx, ts: Transform, 
                 paint_items(items, target, cx, inner, opacity * o);
             }
             DrawItem::Spotlight { holes } => spotlight(holes, target, cx),
+            DrawItem::Highlighter { path, width, color } => {
+                multiply_stroke(target, path, *width, *color, ts, opacity);
+            }
             DrawItem::Redaction {
                 rect,
                 rotation,
@@ -160,6 +163,27 @@ fn paint_items(items: &[DrawItem], target: &mut Pixmap, cx: &Cx, ts: Transform, 
             }
         }
     }
+}
+
+/// Multiplies the stroke into `target`, so text under it stays as dark as it was.
+pub(crate) fn multiply_stroke(
+    target: &mut Pixmap,
+    path: &BezPath,
+    width: f64,
+    color: Rgba,
+    ts: Transform,
+    opacity: f64,
+) {
+    let Some(p) = skia_path(path) else { return };
+    let mut paint = paint_for(color, opacity);
+    paint.blend_mode = BlendMode::Multiply;
+    let stroke = Stroke {
+        width: width as f32,
+        line_cap: LineCap::Round,
+        line_join: LineJoin::Round,
+        ..Stroke::default()
+    };
+    target.stroke_path(&p, &paint, &stroke, ts, None);
 }
 
 fn fill_rule(r: FillRule) -> tiny_skia::FillRule {

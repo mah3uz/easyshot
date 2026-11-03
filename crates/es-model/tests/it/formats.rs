@@ -89,6 +89,33 @@ fn document_v1_holds_every_shape_kind_and_its_binding() {
 }
 
 #[test]
+fn document_v2_keeps_a_highlighter_stroke() {
+    let src = fixture("document", "v2.json");
+    let env: Envelope<AnnotationDocument> = serde_json::from_str(&src).unwrap();
+    assert_eq!(env.version, FormatKind::Document.version());
+    let ShapeKind::Highlighter(h) = &env.body.shapes[0].kind else {
+        panic!("a highlighter");
+    };
+    assert_eq!((h.points.len(), h.stroke_width), (2, 24.0));
+    assert_eq!(env.body.shapes[0].tool(), Tool::Highlighter);
+    let again: Envelope<AnnotationDocument> =
+        serde_json::from_str(&serde_json::to_string(&env).unwrap()).unwrap();
+    assert_eq!(again, env);
+}
+
+#[test]
+fn a_v1_document_migrates_to_the_version() {
+    let src = fixture("document", "v1.json");
+    let value: serde_json::Value = serde_json::from_str(&src).unwrap();
+    let Migrated::Current(v) = migrate(FormatKind::Document, 1, value).unwrap() else {
+        panic!("migrates");
+    };
+    assert_eq!(v["version"], FormatKind::Document.version());
+    let env: Envelope<AnnotationDocument> = serde_json::from_value(v).unwrap();
+    assert_eq!(env.body.shapes.len(), 7);
+}
+
+#[test]
 fn a_newer_document_is_read_only_and_never_parsed_as_current() {
     let src = fixture("document", "newer.json");
     let header: Header = serde_json::from_str(&src).unwrap();

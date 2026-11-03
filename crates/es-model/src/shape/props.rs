@@ -220,6 +220,28 @@ impl Default for HighlightProps {
     }
 }
 
+/// The highlighter paints this many times the width the stroke slider names.
+pub const HIGHLIGHTER_WIDTH_FACTOR: f64 = 3.0;
+
+/// Straight mode keeps two points; freehand keeps every sampled point.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct HighlighterProps {
+    pub points: Vec<PVec>,
+    pub swatch: Swatch,
+    pub stroke_width: f64,
+}
+
+impl Default for HighlighterProps {
+    fn default() -> Self {
+        Self {
+            points: Vec::new(),
+            swatch: Swatch::default(),
+            stroke_width: 24.0,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct NumberedProps {

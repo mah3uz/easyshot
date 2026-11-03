@@ -109,8 +109,16 @@ and Close.
 
 ## The editor
 
-The editor has 12 tools. You can select, move, resize and rotate shapes, bind arrows to
+The editor has 13 tools. You can select, move, resize and rotate shapes, bind arrows to
 shapes, edit text, and undo and redo. You can crop, rotate and flip, and zoom and pan.
+
+The Highlighter (key M) paints translucent colour over text without hiding it: the stroke
+is multiplied into the image at about 40% strength, so dark text stays dark. It has two
+modes. Freehand follows the pointer; Straight draws one line from where you press, and Shift
+snaps it to 15 degrees. Press M again to switch mode; the tool button and its tooltip show
+which mode is on. Pick the colour in the colour control and the thickness with the stroke
+width. Strokes stay on the image, and the editor and export show the same result. The
+Highlight tool, which dims everything outside an area, is separate.
 
 New text starts at size 36. Change the size in the toolbar.
 
@@ -143,10 +151,12 @@ Smart Redaction (the eye-off button) reads the image with Tesseract and covers w
 sensitive with Pixelate or Blur shapes: e-mail addresses, web links, IPv4 addresses, phone
 numbers, card numbers that pass the Luhn check, JSON web tokens, API keys and tokens, long
 random-looking strings, and values after labels such as `password:` or `token=`. Choose
-Pixelate or Blur in the popover. The footer shows "Scanning screenshot…" while it works
-(the button is greyed meanwhile), then "Added N redactions" or "No sensitive text found."
-All the shapes are added as one undo step and stay selected, so you can move, resize or
-delete them. Without Tesseract the button is disabled and its tooltip says why.
+Pixelate or Blur in the popover. The button's tooltip reads "Hide emails, keys and other
+private text". The footer shows "Scanning screenshot…" while it works (the button is greyed
+meanwhile). The regions found flash briefly, and a message appears: "Hid N items: emails,
+keys" naming the kinds, with an Undo button that removes everything just added in one step,
+or "No sensitive text found." The message goes after six seconds. All the shapes are added as
+one undo step and stay selected, so you can move, resize or delete them. Without Tesseract the button is disabled and its tooltip says why.
 
 Smart Redaction only covers text Tesseract can read. Small, low-contrast, rotated or
 stylised text, and languages other than English, can be missed. Look over the result

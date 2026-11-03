@@ -6,7 +6,8 @@ use es_geom::PVec;
 use es_geom::freehand::{LiveStroke, StrokeOptions};
 use es_model::{
     AnnoShape, AnnoShapeId, ArrowProps, ArrowTerminal, Arrowhead, DrawProps, FillStyle, GeoKind,
-    GeoProps, HighlightProps, NumberedProps, RedactionKind, RedactionProps, ShapeKind, Tool,
+    GeoProps, HIGHLIGHTER_WIDTH_FACTOR, HighlightProps, HighlighterProps, NumberedProps,
+    RedactionKind, RedactionProps, ShapeKind, Tool,
 };
 use std::f64::consts::PI;
 
@@ -339,6 +340,61 @@ impl Editor {
                 }
             })
         });
+    }
+
+    pub(super) fn begin_highlighter(&mut self, p: PVec, ch: &mut Changes) {
+        let props = HighlighterProps {
+            points: vec![PVec::ZERO],
+            swatch: self.current.swatch.clone(),
+            stroke_width: self.page_stroke() * HIGHLIGHTER_WIDTH_FACTOR,
+        };
+        let id = self.add_shape(AnnoShape::new(p.x, p.y, ShapeKind::Highlighter(props)), ch);
+        self.interaction = Interaction::Highlighting {
+            id,
+            origin: p,
+            straight: self.highlighter_straight,
+        };
+    }
+
+    /// Straight mode keeps one segment from the press point, which Shift snaps to 15 degrees.
+    pub(super) fn extend_highlighter(
+        &mut self,
+        id: AnnoShapeId,
+        origin: PVec,
+        straight: bool,
+        p: PVec,
+        pointer: &PointerInfo,
+        ch: &mut Changes,
+    ) {
+        let mut local = PVec::new(p.x - origin.x, p.y - origin.y);
+        if straight && pointer.shift {
+            local = snap_angle(PVec::ZERO, local);
+            let at = PVec::new(origin.x + local.x, origin.y + local.y);
+            let kept = self.clamp_to_image(at);
+            local = PVec::new(kept.x - origin.x, kept.y - origin.y);
+        }
+        self.edit(ch, |doc| {
+            doc.update(id, |s| {
+                if let ShapeKind::Highlighter(h) = &mut s.kind {
+                    if straight {
+                        h.points.truncate(1);
+                        h.points.push(local);
+                    } else if h.points.last() != Some(&local) {
+                        h.points.push(local);
+                    }
+                }
+            })
+        });
+    }
+
+    /// A press without a drag leaves nothing to keep.
+    pub(super) fn finish_highlighter(&mut self, id: AnnoShapeId, ch: &mut Changes) {
+        let Some(ShapeKind::Highlighter(h)) = self.doc.shape(id).map(|s| &s.kind) else {
+            return;
+        };
+        if h.points.len() < 2 {
+            self.edit(ch, |doc| doc.delete(&[id]));
+        }
     }
 
     pub(super) fn create_numbered(&mut self, p: PVec, ch: &mut Changes) {

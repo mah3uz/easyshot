@@ -143,7 +143,9 @@ fn walk(items: &[DrawItem], ts: Affine, opacity: f64, bucket: Bucket, out: &mut 
                 opacity: o,
                 items,
             } => walk(items, ts * *transform, opacity * o, bucket, out),
-            DrawItem::Redaction { .. } | DrawItem::Spotlight { .. } => {}
+            DrawItem::Redaction { .. }
+            | DrawItem::Spotlight { .. }
+            | DrawItem::Highlighter { .. } => {}
         }
     }
 }

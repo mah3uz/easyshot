@@ -35,7 +35,7 @@ pub(super) struct Shortcuts {
 }
 
 fn group_of(id: &str) -> usize {
-    const TOOLS: [&str; 14] = [
+    const TOOLS: [&str; 15] = [
         "image-background",
         "image-select",
         "image-crop",
@@ -48,6 +48,7 @@ fn group_of(id: &str) -> usize {
         "image-counter",
         "image-text",
         "image-highlight",
+        "image-highlighter",
         "image-pixelate",
         "image-blur",
     ];

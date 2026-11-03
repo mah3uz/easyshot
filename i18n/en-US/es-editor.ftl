@@ -35,6 +35,9 @@ editor-tool-numbered-circle = Numbered circle
 editor-tool-text = Text
 editor-tool-highlight = Highlight
 editor-tool-highlight-help = Draw an area to keep visible; everything outside is dimmed
+editor-tool-highlighter = Highlighter
+editor-tool-highlighter-freehand-help = Highlighter, freehand ({ $shortcut } for a straight line)
+editor-tool-highlighter-straight-help = Highlighter, straight line ({ $shortcut } for freehand)
 editor-tool-pixelate = Pixelate
 editor-tool-blur = Blur
 editor-tool-row-a11y = Tools
@@ -65,11 +68,19 @@ editor-redact-unavailable = Smart Redaction needs tesseract, which is not instal
 editor-redact-failed = Smart Redaction could not scan the screenshot: { $error }
 editor-redact-scanning = Scanning screenshot…
 editor-redact-none-found = No sensitive text found.
-editor-redact-added =
+editor-redact-help = Hide emails, keys and other private text
+editor-redact-hid =
     { $count ->
-        [one] Added { $count } redaction
-       *[other] Added { $count } redactions
+        [one] Hid { $count } item: { $kinds }
+       *[other] Hid { $count } items: { $kinds }
     }
+editor-redact-undo = Undo
+editor-redact-kind-email = emails
+editor-redact-kind-link = links
+editor-redact-kind-ip = IP addresses
+editor-redact-kind-phone = phone numbers
+editor-redact-kind-card = card numbers
+editor-redact-kind-key = keys
 editor-color = Color
 editor-color-picker-a11y = Annotation color
 editor-stroke-help = { $count } px

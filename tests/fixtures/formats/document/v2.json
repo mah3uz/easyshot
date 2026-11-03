@@ -1,0 +1,12 @@
+{
+  "format": "easyshot.document",
+  "version": 2,
+  "base_image_file_name": "easyshot_2026-01-01-093000.base.png",
+  "shapes": [
+    {
+      "id": "00000000-0000-4000-8000-000000000011",
+      "x": 40.0, "y": 60.0, "rotation": 0.0, "opacity": 1.0,
+      "kind": {"type": "highlighter", "points": [{"x": 0.0, "y": 0.0, "z": 0.5}, {"x": 180.0, "y": 4.0, "z": 0.5}], "swatch": {"id": "yellow", "title": "Yellow", "red": 1.0, "green": 0.9, "blue": 0.1, "alpha": 1.0}, "stroke_width": 24.0}
+    }
+  ]
+}

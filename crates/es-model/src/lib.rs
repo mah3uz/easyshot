@@ -29,8 +29,9 @@ pub use format::{Envelope, FormatKind, Header, Migrated, migrate};
 pub use recording::{RecordingCapture, RecordingInput, RecordingProject};
 pub use shape::{
     AnnoShape, AnnoShapeId, ArrowBinding, ArrowProps, ArrowTerminal, Arrowhead, DashStyle,
-    DrawProps, FillStyle, FontFamily, GeoKind, GeoProps, HighlightProps, NormalizedAnchor,
-    NumberedProps, RedactionKind, RedactionProps, ShapeKind, TextAlign, TextProps, Tool,
+    DrawProps, FillStyle, FontFamily, GeoKind, GeoProps, HIGHLIGHTER_WIDTH_FACTOR, HighlightProps,
+    HighlighterProps, NormalizedAnchor, NumberedProps, RedactionKind, RedactionProps, ShapeKind,
+    TextAlign, TextProps, Tool,
 };
 pub use state::{LastRegion, LastTarget, Recovery, State};
 pub use style::StylePreset;

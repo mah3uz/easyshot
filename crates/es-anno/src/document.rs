@@ -6,7 +6,7 @@ use es_geom::path::{GeoShape, geo_path};
 use es_geom::{BBox, BezPath, Mat, PVec, Size};
 use es_model::{
     AnnoShape, AnnoShapeId, AnnotationDocument, ArrowBinding, ArrowTerminal, Arrowhead, DrawProps,
-    FillStyle, GeoKind, ShapeKind, TextProps,
+    FillStyle, GeoKind, HighlighterProps, ShapeKind, TextProps,
 };
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -431,6 +431,7 @@ impl Document {
                 }
             }
             ShapeKind::Draw(p) => draw_geometry(p),
+            ShapeKind::Highlighter(p) => highlighter_geometry(p),
             ShapeKind::Arrow(_) => match self.arrow_info(shape.id) {
                 Some(info) => arrow_geometry(&info),
                 None => Arc::new(Polyline2d::polyline(vec![
@@ -493,6 +494,14 @@ impl Document {
 
 fn filled_rect(w: f64, h: f64) -> Arc<dyn Geometry2d> {
     Arc::new(Polyline2d::rectangle(0.0, 0.0, w, h, true))
+}
+
+fn highlighter_geometry(p: &HighlighterProps) -> Arc<dyn Geometry2d> {
+    match p.points.as_slice() {
+        [] => Arc::new(Circle2d::new(0.0, 0.0, 1.0, true)),
+        [only] => Arc::new(Circle2d::new(only.x, only.y, 1.0, true)),
+        points => Arc::new(Polyline2d::polyline(points.to_vec())),
+    }
 }
 
 /// The streamlined centreline, or a filled dot when the stroke is too small to be a line.

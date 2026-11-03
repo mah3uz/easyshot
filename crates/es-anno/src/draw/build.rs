@@ -50,7 +50,7 @@ pub fn draw_items(doc: &Document, shape: &AnnoShape, cx: &BuildContext) -> Vec<D
     }
 }
 
-/// Redactions, then one spotlight over all highlight holes, then the rest in z-order.
+/// Highlighter strokes, redactions, then one spotlight over all highlight holes, then the rest in z-order.
 pub fn build_draw_list(doc: &Document, cx: &BuildContext) -> DrawList {
     let shapes: Vec<&AnnoShape> = doc
         .shapes()
@@ -58,6 +58,9 @@ pub fn build_draw_list(doc: &Document, cx: &BuildContext) -> DrawList {
         .filter(|s| !cx.skip.contains(&s.id))
         .collect();
     let mut items = Vec::new();
+    for s in shapes.iter().filter(|s| s.is_highlighter()) {
+        items.extend(draw_items(doc, s, cx));
+    }
     for s in shapes.iter().filter(|s| s.is_redaction()) {
         items.extend(draw_items(doc, s, cx));
     }
@@ -76,7 +79,7 @@ pub fn build_draw_list(doc: &Document, cx: &BuildContext) -> DrawList {
     }
     for s in shapes
         .iter()
-        .filter(|s| !s.is_redaction() && !s.is_highlight())
+        .filter(|s| !s.is_redaction() && !s.is_highlight() && !s.is_highlighter())
     {
         items.extend(draw_items(doc, s, cx));
     }

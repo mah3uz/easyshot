@@ -7,7 +7,7 @@ use es_geom::path::{DashStyle as GeoDash, DrawOptions, GeoShape, PathBuilder, ge
 use es_geom::{Affine, BezPath, Cap, FillRule, Join, PVec, Rect, Rgba};
 use es_model::shape::{
     self, ArrowProps, DashStyle, DrawProps, FillStyle, GeoKind, GeoProps, HighlightProps,
-    NumberedProps, RedactionProps, TextProps,
+    HighlighterProps, NumberedProps, RedactionProps, TextProps,
 };
 use es_model::{AnnoShape, ShapeKind};
 use kurbo::{Circle, Shape};
@@ -26,6 +26,7 @@ pub(super) fn build(doc: &Document, shape: &AnnoShape, cx: &BuildContext) -> Bui
         ShapeKind::Numbered(p) => Built::Local(numbered(p, cx)),
         ShapeKind::Redaction(p) => Built::Page(vec![redaction(shape, p)]),
         ShapeKind::Highlight(p) => Built::Page(vec![spotlight_hole(shape, p)]),
+        ShapeKind::Highlighter(p) => Built::Page(highlighter(shape, p)),
     }
 }
 
@@ -213,6 +214,31 @@ fn redaction(shape: &AnnoShape, p: &RedactionProps) -> DrawItem {
         },
         density: p.density,
     }
+}
+
+pub const HIGHLIGHTER_ALPHA: f32 = 0.4;
+
+fn highlighter(shape: &AnnoShape, p: &HighlighterProps) -> Vec<DrawItem> {
+    if p.points.len() < 2 {
+        return Vec::new();
+    }
+    let m = page_transform(shape);
+    let mut path = BezPath::new();
+    for (i, pt) in p.points.iter().enumerate() {
+        let q = m.apply_to_point(PVec::new(pt.x, pt.y));
+        if i == 0 {
+            path.move_to((q.x, q.y));
+        } else {
+            path.line_to((q.x, q.y));
+        }
+    }
+    let mut color = p.swatch.to_rgba();
+    color.a *= HIGHLIGHTER_ALPHA * shape.opacity as f32;
+    vec![DrawItem::Highlighter {
+        path,
+        width: p.stroke_width,
+        color,
+    }]
 }
 
 fn spotlight_hole(shape: &AnnoShape, p: &HighlightProps) -> DrawItem {
