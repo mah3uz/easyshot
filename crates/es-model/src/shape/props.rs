@@ -151,6 +151,8 @@ impl Default for ArrowProps {
     }
 }
 
+pub const DEFAULT_TEXT_SIZE: f64 = 36.0;
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct TextProps {
@@ -172,7 +174,7 @@ impl Default for TextProps {
         Self {
             text: String::new(),
             swatch: Swatch::default(),
-            font_size: 20.0,
+            font_size: DEFAULT_TEXT_SIZE,
             font_family: FontFamily::Pro,
             is_bold: true,
             is_italic: false,

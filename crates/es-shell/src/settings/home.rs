@@ -11,7 +11,7 @@ use es_ui::{
 };
 use gpui::{
     AnyElement, Context, FontWeight, InteractiveElement, IntoElement, ParentElement, SharedString,
-    StatefulInteractiveElement, Styled, div, px,
+    StatefulInteractiveElement, Styled, div, img, px,
 };
 use gpui_component::{Icon, h_flex, v_flex};
 
@@ -322,7 +322,12 @@ impl SettingsWindow {
                 .items_center()
                 .gap(px(6.))
                 .py(px(8.))
-                .child(Icon::new(IconName::Scan).size(px(56.)).text_color(t.accent))
+                .child(
+                    div()
+                        .id("about-logo")
+                        .accessible(Role::Image, fl!("about-logo-a11y"))
+                        .child(img("icons/app/easyshot.svg").size(px(56.))),
+                )
                 .child(
                     div()
                         .text_size(px(20.))

@@ -102,7 +102,7 @@ and Close.
 The editor has 12 tools. You can select, move, resize and rotate shapes, bind arrows to
 shapes, edit text, and undo and redo. You can crop, rotate and flip, and zoom and pan.
 
-New text starts at size 20. Change the size in the toolbar.
+New text starts at size 36. Change the size in the toolbar.
 
 To crop, press the crop button in the tool row. Drag a corner or edge handle to resize the
 selection, or drag inside it to move it; hold Alt to resize about the centre. The aspect
@@ -155,7 +155,7 @@ These are additional editor keys, and all appear in Settings > Shortcuts.
 | Key | What it does |
 |---|---|
 | Arrow keys | Nudge the selection by 1 pixel. Shift: 10 pixels. |
-| Esc | Clear the selection. A second Esc does nothing. |
+| Esc | Steps back one level per press: commits the text you are typing, leaves crop, clears the selection, then switches to the Select tool. |
 | Middle-button drag, or hold Space and drag from empty canvas | Pan. It stops when you let go, even outside the canvas. |
 | Hold Space and drag an annotation | Move it, with any tool; the pointer is a pointing hand over it. |
 | Ctrl/Alt + wheel, or pinch | Zoom about the pointer. |

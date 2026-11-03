@@ -372,3 +372,16 @@ fn every_page_in_dark_and_light() {
         }
     }
 }
+
+#[test]
+fn about_shows_the_full_colour_logo() {
+    let mut fx = fixture(Caps::empty(), None, |_| {});
+    fx.update(|v, cx| v.show(Page::About, cx));
+    let image = fx.app.screenshot("settings-about-logo");
+    let colourful: std::collections::BTreeSet<(u8, u8, u8)> = image
+        .pixels()
+        .filter(|p| p.0[0].max(p.0[1]).max(p.0[2]) - p.0[0].min(p.0[1]).min(p.0[2]) > 60)
+        .map(|p| (p.0[0] >> 5, p.0[1] >> 5, p.0[2] >> 5))
+        .collect();
+    assert!(colourful.len() >= 12, "{} colours", colourful.len());
+}

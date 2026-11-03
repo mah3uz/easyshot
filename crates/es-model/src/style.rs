@@ -1,4 +1,4 @@
-use crate::shape::{FontFamily, TextAlign, Tool};
+use crate::shape::{DEFAULT_TEXT_SIZE, FontFamily, TextAlign, Tool};
 use crate::swatch::Swatch;
 use serde::{Deserialize, Serialize};
 
@@ -27,7 +27,7 @@ impl Default for StylePreset {
             stroke_width: 4.0,
             redaction_density: 0.55,
             text_font_family: FontFamily::Pro,
-            text_font_size: 20.0,
+            text_font_size: DEFAULT_TEXT_SIZE,
             text_bold: true,
             text_italic: false,
             text_underline: false,
@@ -62,7 +62,7 @@ mod tests {
         assert_eq!(s.swatch, Swatch::red());
         assert_eq!(
             (s.text_font_family, s.text_font_size),
-            (FontFamily::Pro, 20.0)
+            (FontFamily::Pro, 36.0)
         );
         assert!(s.text_bold && !s.text_italic && !s.text_underline);
         assert_eq!(s.text_align, TextAlign::Start);

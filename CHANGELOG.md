@@ -12,6 +12,8 @@
 - The editor's Background, Camera and Progressive Blur sections: colours, gradients, seven built-in wallpapers or your own, padding, shadow, corners, alignment, and a focus pad for the sharp area.
 - Smart Redaction scans the image for private text and covers it; Pixelate and Blur keep a minimum strength tied to the text height, so covered text cannot be read back.
 - Hold Space and drag an annotation to move it, with any tool; dragging empty canvas pans.
+- New text starts at size 36.
+- Esc steps back one level: it commits the text you are typing, leaves crop, clears the selection, then switches to the Select tool.
 - Deck cards show the capture inside your default look, and saved captures reopen in the editor with that look still editable. `easyshot deck toggle` hides and shows the deck.
 - The Settings window: Home, General, Capture, Overlay, Recording, Shortcuts and About, saved as you change them. "System" theme and Reduce Motion follow your desktop.
 - Settings > Shortcuts writes a bind snippet for Hyprland, sway or niri and checks which keys are already bound.

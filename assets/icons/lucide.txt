@@ -87,6 +87,7 @@ text-align-start
 timer
 trash
 triangle-alert
+type
 undo-2
 unfold-vertical
 video

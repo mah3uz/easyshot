@@ -536,6 +536,7 @@ sharing-clear-confirm = Clear Keys
 
 ## Settings: About
 about-title = { -app-name }
+about-logo-a11y = { -app-name } logo
 about-version = Version { $version } ({ $build })
 about-tagline = One app for the whole screen. Capture, record, and edit on your computer.
 about-updates = Updates

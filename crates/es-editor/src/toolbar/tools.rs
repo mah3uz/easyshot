@@ -14,7 +14,7 @@ pub fn icon(tool: Tool) -> IconName {
         Tool::Arrow => IconName::ArrowUpRight,
         Tool::Freehand => IconName::PencilLine,
         Tool::NumberedCircle => IconName::Counter,
-        Tool::Text => IconName::ALargeSmall,
+        Tool::Text => IconName::Type,
         Tool::Highlight => IconName::Highlight,
         Tool::Pixelate => IconName::Pixelate,
         Tool::Blur => IconName::Droplet,

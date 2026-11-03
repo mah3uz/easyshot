@@ -127,6 +127,7 @@ icons! {
         Timer = "timer",
         Trash = "trash",
         TriangleAlert = "triangle-alert",
+        Type = "type",
         Undo2 = "undo-2",
         UnfoldVertical = "unfold-vertical",
         Video = "video",

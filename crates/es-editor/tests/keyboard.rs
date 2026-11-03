@@ -233,3 +233,59 @@ fn while_text_is_edited_only_save_passes_through() {
     );
     assert!(handled(&mut f, Command::Save));
 }
+
+#[test]
+fn escape_steps_back_one_level_at_a_time() {
+    use es_model::{AnnoShape, ShapeKind, TextProps};
+    let mut f = launch();
+    let doc = f.session_doc();
+    let crop = f
+        .editor
+        .read_with(&f.app.cx, |w, _| w.session().unwrap().crop.clone());
+    let editing = |f: &Fixture| {
+        f.session_doc()
+            .read_with(&f.app.cx, |d, _| d.editor().editing_text_id().is_some())
+    };
+    let cropping = |f: &Fixture| crop.read_with(&f.app.cx, |c, _| c.is_cropping());
+
+    f.key("t");
+    let text = AnnoShape::new(
+        600.0,
+        400.0,
+        ShapeKind::Text(TextProps {
+            text: "hi".into(),
+            ..TextProps::default()
+        }),
+    );
+    let id = text.id;
+    f.app.cx.update(|cx| {
+        doc.update(cx, |d, cx| {
+            d.apply(cx, |e| e.add_shapes(vec![text]));
+            d.apply(cx, |e| e.begin_text(id));
+        })
+    });
+    f.app.settle();
+    assert!(editing(&f));
+    f.key("escape");
+    assert!(!editing(&f), "level 1: Escape commits the text");
+    assert_eq!(selected(&f), 1, "the text stays selected");
+
+    f.app.cx.update(|cx| crop.update(cx, |c, cx| c.begin(cx)));
+    f.app.settle();
+    assert!(cropping(&f));
+    f.key("escape");
+    assert!(!cropping(&f), "level 2: Escape leaves crop");
+
+    f.key("t");
+    f.app
+        .cx
+        .update(|cx| doc.update(cx, |d, cx| d.apply(cx, |e| e.select([id]))));
+    f.app.settle();
+    assert_eq!(selected(&f), 1);
+    f.key("escape");
+    assert_eq!(selected(&f), 0, "level 3: Escape clears the selection");
+    assert_eq!(tool(&f), Tool::Text);
+
+    f.key("escape");
+    assert_eq!(tool(&f), Tool::Select, "level 4: Escape picks Select");
+}

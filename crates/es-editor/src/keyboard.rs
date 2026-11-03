@@ -318,7 +318,13 @@ impl EditorWindow {
                 doc.update(cx, |d, cx| d.apply(cx, |e| e.delete_selected()));
             }
             Command::Deselect => {
-                doc.update(cx, |d, cx| d.apply(cx, |e| e.select([])));
+                if self.is_cropping(cx) {
+                    self.with_crop(cx, |c, cx| c.cancel(cx));
+                } else if doc.read(cx).editor().selected_ids().is_empty() {
+                    doc.update(cx, |d, cx| d.apply(cx, |e| e.select_tool(Tool::Select)));
+                } else {
+                    doc.update(cx, |d, cx| d.apply(cx, |e| e.select([])));
+                }
             }
             Command::ZoomIn => viewport.update(cx, |v, cx| v.zoom_in(cx)),
             Command::ZoomOut => viewport.update(cx, |v, cx| v.zoom_out(cx)),
