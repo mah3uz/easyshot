@@ -1,5 +1,4 @@
 use crate::capture::strings::fl;
-use es_protocol::Route;
 use es_record::Clock;
 use std::sync::Arc;
 use std::time::Duration;
@@ -70,51 +69,6 @@ pub fn format_elapsed(d: Duration) -> String {
     match s / 3600 {
         0 => format!("{:02}:{:02}", s / 60, s % 60),
         h => format!("{h}:{:02}:{:02}", s / 60 % 60, s % 60),
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TrayItem {
-    pub route: Route,
-    pub label: String,
-    pub enabled: bool,
-}
-
-/// What the tray shows while a recording has no bar on screen: the red dot, the time and the
-/// controls, in that order at the top of its menu.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TrayMenu {
-    pub elapsed: String,
-    pub phase: Phase,
-    pub items: Vec<TrayItem>,
-}
-
-impl TrayMenu {
-    pub fn new(phase: Phase, elapsed: Duration) -> Self {
-        let enabled = !phase.busy();
-        let pause = if phase == Phase::Paused {
-            fl!("rec-bar-resume-help")
-        } else {
-            fl!("rec-bar-pause-help")
-        };
-        let items = [
-            (Route::RecordStop, fl!("rec-bar-stop")),
-            (Route::RecordPause, pause),
-            (Route::RecordRestart, fl!("rec-bar-start-over-help")),
-            (Route::RecordDiscard, fl!("rec-bar-discard-help")),
-        ]
-        .into_iter()
-        .map(|(route, label)| TrayItem {
-            route,
-            label,
-            enabled,
-        })
-        .collect();
-        TrayMenu {
-            elapsed: format_elapsed(elapsed),
-            phase,
-            items,
-        }
     }
 }
 

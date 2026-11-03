@@ -1,11 +1,10 @@
 use anyhow::{Context as _, Result};
 use es_app::dispatcher::RouteDispatcher;
 use es_app::events::{Origin, PlatformEvent};
-use es_app::history::History;
 use es_app::jobs::{JobFinished, JobId, Jobs};
 use es_backend::Backend;
 use es_desktop::dbus::{self, Callbacks, Endpoint, Incoming, Service};
-use gpui::{App, Entity, Task};
+use gpui::{App, Task};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -134,7 +133,7 @@ fn forward<T: 'static>(
 /// Tray menu, portal shortcuts, notification actions and the desktop's appearance all arrive as platform events.
 pub fn platform_sources(
     backend: &Arc<Backend>,
-    history: &Entity<History>,
+    tray_feed: &super::tray::TrayFeed,
     events: &async_channel::Sender<PlatformEvent>,
     cx: &mut App,
 ) -> Vec<Task<()>> {
@@ -161,24 +160,8 @@ pub fn platform_sources(
         ));
     }
     if let Some(tray) = &backend.tray {
-        let input = tray_input(history, cx);
-        es_shell::tray::show(tray.as_ref(), &input);
+        tray_feed.refresh(cx);
         tasks.push(forward(tray.activations(), events, PlatformEvent::Tray, cx));
     }
     tasks
-}
-
-pub(super) fn tray_input(history: &Entity<History>, cx: &App) -> es_shell::tray::TrayInput {
-    let recent = history
-        .read(cx)
-        .entries()
-        .iter()
-        .take(es_shell::tray::RECENT_PER_KIND)
-        .map(es_shell::tray::Recent::from)
-        .collect();
-    es_shell::tray::TrayInput {
-        screenshots: recent,
-        version: env!("EASYSHOT_VERSION").to_owned(),
-        ..Default::default()
-    }
 }

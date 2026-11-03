@@ -1,4 +1,4 @@
-use super::session::{Phase, Stopwatch, TrayMenu, format_elapsed};
+use super::session::{Phase, Stopwatch, format_elapsed};
 use super::{CELL, digits};
 use crate::capture::strings::fl;
 use es_geom::Size;
@@ -78,10 +78,6 @@ impl ControlBar {
 
     pub fn size(&self) -> Size {
         if self.confirm.is_some() { CONFIRM } else { BAR }
-    }
-
-    pub fn tray_menu(&self) -> TrayMenu {
-        TrayMenu::new(self.phase, self.elapsed())
     }
 
     /// The recorder reported its first frame; a start over comes back here too.

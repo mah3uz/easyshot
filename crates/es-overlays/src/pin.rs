@@ -400,6 +400,16 @@ pub struct Pins {
     pinned: Rc<RefCell<Vec<Pinned>>>,
     copy: CopyImage,
     next: Cell<u64>,
+    changed: Changed,
+}
+
+type Changed = Rc<RefCell<Option<Rc<dyn Fn(&mut App)>>>>;
+
+fn announce(changed: &Changed, cx: &mut App) {
+    let callback = changed.borrow().clone();
+    if let Some(callback) = callback {
+        callback(cx);
+    }
 }
 
 impl Pins {
@@ -409,7 +419,13 @@ impl Pins {
             pinned: Rc::default(),
             copy,
             next: Cell::new(1),
+            changed: Rc::default(),
         }
+    }
+
+    /// Called after a pin is added or closed.
+    pub fn set_on_change(&self, callback: Rc<dyn Fn(&mut App)>) {
+        *self.changed.borrow_mut() = Some(callback);
     }
 
     pub fn count(&self) -> usize {
@@ -459,13 +475,17 @@ impl Pins {
         let id = self.next.get();
         self.next.set(id + 1);
         let (pinned, copy) = (Rc::downgrade(&self.pinned), self.copy.clone());
+        let changed = self.changed.clone();
         let events = cx.subscribe(&view, move |_, e: &PinEvent, cx| {
             let Some(pinned) = pinned.upgrade() else {
                 return;
             };
             match *e {
                 PinEvent::CopyImage => copy(&file, cx),
-                PinEvent::Close => close(&pinned, id, cx),
+                PinEvent::Close => {
+                    close(&pinned, id, cx);
+                    announce(&changed, cx);
+                }
                 PinEvent::Moved(origin) => {
                     if let Some(p) = pinned.borrow().iter().find(|p| p.id == id) {
                         p.handle.set_position(surface_origin(origin), cx);
@@ -488,6 +508,7 @@ impl Pins {
             view: view.clone(),
             _events: events,
         });
+        announce(&self.changed, cx);
         Ok(view)
     }
 
@@ -496,6 +517,7 @@ impl Pins {
         for p in all {
             p.handle.close(cx);
         }
+        announce(&self.changed, cx);
     }
 }
 

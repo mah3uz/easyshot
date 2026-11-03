@@ -13,6 +13,7 @@ mod recording;
 mod recovery;
 mod routes;
 mod shutter;
+mod tray;
 mod windows;
 #[cfg(test)]
 mod wiring_tests;
@@ -41,7 +42,7 @@ use es_overlays::deck::view::{DeckSettings, DeckSurface};
 use es_overlays::pin::Pins;
 use es_shell::gallery::DesktopFiles;
 use es_store::{ConfigFile, Paths};
-use gpui::{App, AppContext as _, Entity, Global, QuitMode, Task};
+use gpui::{App, AppContext as _, Global, QuitMode, Task};
 use recovery::reopen_recovered;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -314,6 +315,29 @@ fn start(
         capture::copy_file(clipboard.clone()),
     ));
 
+    let tray_feed = tray::TrayFeed::new(
+        {
+            let backend = backend.clone();
+            Rc::new(move |input| {
+                if let Some(t) = &backend.tray {
+                    es_shell::tray::show(t.as_ref(), input);
+                }
+            })
+        },
+        {
+            let pins = pins.clone();
+            Rc::new(move || pins.count() > 0)
+        },
+        history.clone(),
+        settings.clone(),
+        paths.videos_dir(),
+    );
+    pins.set_on_change({
+        let feed = tray_feed.clone();
+        Rc::new(move |cx| feed.refresh(cx))
+    });
+    let tray_subscriptions = tray_feed.follow(&deck, cx);
+
     let test_mode = test_mode_requested();
     let sound = shutter::player(test_mode);
     let files: Arc<dyn es_shell::gallery::GalleryFiles> =
@@ -413,7 +437,7 @@ fn start(
         },
         ui: Rc::new(recording::LayerUi {
             surfaces: surfaces.clone(),
-            tray: tray_update(backend.clone(), history.clone()),
+            tray: tray_update(tray_feed.clone()),
             notify: notice(backend.clone()),
             paths: paths.clone(),
         }),
@@ -451,11 +475,12 @@ fn start(
         paths: paths.clone(),
         recordings: recordings.clone(),
     };
-    let subscriptions = vec![
+    let mut subscriptions = vec![
         routes::deck_events(&action_deps, clipboard, cx),
         routes::video_cards(&action_deps, cx),
         live_settings::install(&settings, &deck, &deck_surface, &history, cx),
     ];
+    subscriptions.extend(tray_subscriptions);
     dispatcher.set_action_handler(routes::actions(action_deps));
 
     let crash_notice = Rc::new(std::cell::RefCell::new(crash::announce(
@@ -499,7 +524,7 @@ fn start(
         cx,
     )];
     tasks.extend(config_watch::install(&settings, cx));
-    tasks.extend(bus::platform_sources(backend, &history, &events_tx, cx));
+    tasks.extend(bus::platform_sources(backend, &tray_feed, &events_tx, cx));
     let bridge = bus::Bridge::start(backend, events_tx, dispatcher, jobs, finished, cx)?;
 
     if let Err(e) = es_store::temp::purge(paths, std::time::SystemTime::now()) {
@@ -586,14 +611,8 @@ fn recorder_for(backend: Arc<Backend>) -> recording::RecorderFor {
     })
 }
 
-fn tray_update(backend: Arc<Backend>, history: Entity<History>) -> recording::ui::TrayUpdate {
-    Rc::new(move |state, cx| {
-        if let Some(tray) = &backend.tray {
-            let mut input = bus::tray_input(&history, cx);
-            input.recording = state;
-            es_shell::tray::show(tray.as_ref(), &input);
-        }
-    })
+fn tray_update(feed: Rc<tray::TrayFeed>) -> recording::ui::TrayUpdate {
+    Rc::new(move |state, cx| feed.set_recording(state, cx))
 }
 
 fn notice(backend: Arc<Backend>) -> recording::ui::Notify {

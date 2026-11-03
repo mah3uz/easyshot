@@ -255,6 +255,14 @@ fn while_recording_the_controls_and_clock_come_first_with_a_red_dot() {
     );
     assert_eq!(tray.recording_states(), vec![Some(state)]);
     assert_eq!(tray::icon(&live), TrayIcon::Recording);
+    assert_eq!(
+        items[1..5]
+            .iter()
+            .map(|i| i.label.clone().unwrap_or_else(|| i.label_id.to_owned()))
+            .collect::<Vec<_>>(),
+        ["Stop Recording", "Pause", "Restart", "Discard"],
+        "the controls read from the shell catalogue"
+    );
 
     let paused = TrayInput {
         recording: Some(RecordingTrayState {
@@ -287,4 +295,47 @@ fn a_known_update_extends_the_version_line() {
 fn the_clock_rolls_into_hours() {
     assert_eq!(tray::elapsed_text(Duration::from_secs(59)), "00:59");
     assert_eq!(tray::elapsed_text(Duration::from_secs(3_725)), "1:02:05");
+}
+
+#[test]
+fn recent_recordings_lists_only_videos_newest_first() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let write = |name: &str, age: u64| {
+        let file = dir.path().join(name);
+        std::fs::write(&file, b"x").expect("write");
+        let when = std::time::SystemTime::now() - Duration::from_secs(age);
+        std::fs::File::options()
+            .write(true)
+            .open(&file)
+            .and_then(|f| f.set_modified(when))
+            .expect("set mtime");
+    };
+    write("old.mp4", 100);
+    write("new.webm", 10);
+    write("notes.txt", 1);
+    let names: Vec<_> = tray::recent_recordings(dir.path())
+        .into_iter()
+        .map(|r| r.name)
+        .collect();
+    assert_eq!(names, ["new.webm", "old.mp4"]);
+    assert!(tray::recent_recordings(&dir.path().join("missing")).is_empty());
+}
+
+#[test]
+fn saved_global_shortcuts_become_tray_labels_and_unknown_ids_are_skipped() {
+    let saved = [
+        ("capture-region".to_owned(), "Super+Shift+4".to_owned()),
+        ("no-such-entry".to_owned(), "Super+X".to_owned()),
+        ("capture-screen".to_owned(), "not a key".to_owned()),
+    ]
+    .into_iter()
+    .collect();
+    let shortcuts = tray::shortcuts(&saved);
+    assert_eq!(
+        shortcuts,
+        vec![(
+            Route::CaptureRegion,
+            Trigger::parse("Super+Shift+4").unwrap()
+        )]
+    );
 }

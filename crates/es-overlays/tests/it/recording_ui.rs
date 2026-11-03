@@ -315,10 +315,6 @@ fn the_timer_leaves_out_paused_time() {
         i32::from(red[0]) > i32::from(red[2]) + 60,
         "the stop glyph is red: {red:?}"
     );
-    let tray = s.app.cx.update(|cx| view.read(cx).tray_menu());
-    assert_eq!(tray.elapsed, "00:07");
-    assert_eq!(tray.items[0].route, Route::RecordStop);
-    assert!(tray.items.iter().all(|i| i.enabled));
 }
 
 #[test]
@@ -342,8 +338,6 @@ fn nothing_answers_while_starting_or_finishing() {
     s.app.screenshot("control-bar-saving");
     s.click(STOP_X, 19.);
     assert!(events.borrow().is_empty());
-    let tray = s.app.cx.update(|cx| view.read(cx).tray_menu());
-    assert!(tray.items.iter().all(|i| !i.enabled));
 }
 
 // The confirm card's buttons are 88 wide, 8 apart, inside 14 of padding.

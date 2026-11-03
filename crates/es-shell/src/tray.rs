@@ -1,9 +1,10 @@
-use std::path::PathBuf;
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use es_desktop::{RecordingTrayState, Tray, TrayItem, TrayModel};
 use es_model::HistoryEntry;
-use es_protocol::{Route, Trigger};
+use es_protocol::{CATALOGUE, Route, Target, Trigger};
 
 use crate::strings::fl;
 
@@ -25,6 +26,45 @@ impl From<&HistoryEntry> for Recent {
                 .unwrap_or_else(|| entry.file.clone()),
         }
     }
+}
+
+/// The tray rows' shortcut labels: the global shortcuts the user saved, as routes.
+pub fn shortcuts(saved: &BTreeMap<String, String>) -> Vec<(Route, Trigger)> {
+    CATALOGUE
+        .iter()
+        .filter_map(|e| match &e.target {
+            Target::Route(route) => Some((route.clone(), Trigger::parse(saved.get(e.id)?).ok()?)),
+            Target::Action(_) => None,
+        })
+        .collect()
+}
+
+const VIDEO_EXTENSIONS: [&str; 4] = ["mp4", "webm", "mkv", "gif"];
+
+/// The newest videos in `dir`, newest first.
+pub fn recent_recordings(dir: &Path) -> Vec<Recent> {
+    let Ok(read) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut found: Vec<(std::time::SystemTime, Recent)> = read
+        .flatten()
+        .filter_map(|e| {
+            let file = e.path();
+            let ext = file.extension()?.to_str()?.to_ascii_lowercase();
+            if !VIDEO_EXTENSIONS.contains(&ext.as_str()) {
+                return None;
+            }
+            let modified = e.metadata().ok()?.modified().ok()?;
+            let name = file.file_name()?.to_string_lossy().into_owned();
+            Some((modified, Recent { name, file }))
+        })
+        .collect();
+    found.sort_by_key(|f| std::cmp::Reverse(f.0));
+    found
+        .into_iter()
+        .take(RECENT_PER_KIND)
+        .map(|(_, r)| r)
+        .collect()
 }
 
 /// Everything the tray menu shows, gathered by the caller from the config, history and services.

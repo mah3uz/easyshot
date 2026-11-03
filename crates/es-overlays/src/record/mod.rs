@@ -8,7 +8,7 @@ pub use bar::{BarEvent, CaptureBar};
 pub use control::{Confirm, ControlBar, ControlEvent};
 pub use options::{OptionsEvent, RecordingOptions, RecordingRequest, RecordingTarget};
 pub use placement::{Placement, Recorded, control_bar, highlight_strips};
-pub use session::{Phase, Stopwatch, TrayItem, TrayMenu, format_elapsed, tray_notice};
+pub use session::{Phase, Stopwatch, format_elapsed, tray_notice};
 
 use crate::capture::paint::black;
 use gpui::{Context, Div, IntoElement, ParentElement as _, Render, Styled as _, Window, div, px};
