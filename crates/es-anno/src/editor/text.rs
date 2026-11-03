@@ -21,6 +21,8 @@ impl Editor {
             is_italic: c.italic,
             is_underline: c.underline,
             align: c.align,
+            fill: c.text_fill.clone(),
+            border: c.text_border.clone(),
             ..TextProps::default()
         };
         let size = self.doc.measure_text(&props);

@@ -18,7 +18,7 @@ use super::{
     Control, ToolRow,
     menus::{choice_menu, menu_trigger},
     style_bar::swatches,
-    track,
+    text_box, track,
 };
 use crate::strings::fl;
 
@@ -244,4 +244,6 @@ pub(super) fn content(row: &ToolRow, style: &CurrentStyle, cx: &mut Context<Tool
                 )),
         )
         .child(align)
+        .child(text_box::fill(row, style, cx))
+        .child(text_box::border(row, style, cx))
 }

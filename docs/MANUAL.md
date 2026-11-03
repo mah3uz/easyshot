@@ -121,7 +121,8 @@ A tool's options open in a panel under its button and stay open until you pick a
 tool; clicking on the image does not close them. Shapes and pens offer colour and stroke
 width; Arrow adds a head for each end (None, Arrow, Triangle, Square, Dot, Diamond,
 Inverted, Bar) and a line style (Solid, Dashed, Dotted), which Line also has; Text offers
-the font, colour, size, bold, italic, underline and alignment; Blur and Pixelate offer the
+the font, colour, size, bold, italic, underline and alignment, and a background and a
+border for the text box (None or a colour; a border is 2, 3 or 5 px wide); Blur and Pixelate offer the
 strength; the Highlighter offers colour, width and its mode. The Highlight tool has no
 options. With the Select tool, selecting shapes opens the options of the first one, with a
 button to delete the selection. A change applies to new shapes and to the selection, as one

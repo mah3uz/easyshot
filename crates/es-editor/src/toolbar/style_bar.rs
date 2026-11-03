@@ -90,27 +90,49 @@ pub(super) fn swatches(
     row: WeakEntity<ToolRow>,
     drawn: &Drawn,
 ) -> impl IntoElement {
+    swatch_strip(
+        id,
+        fl!("editor-color"),
+        control,
+        Some(current),
+        row,
+        drawn,
+        StylePatch::Swatch,
+    )
+}
+
+pub(super) fn swatch_strip(
+    id: &'static str,
+    label: String,
+    control: Control,
+    current: Option<&Swatch>,
+    row: WeakEntity<ToolRow>,
+    drawn: &Drawn,
+    patch: impl Fn(Swatch) -> StylePatch + 'static,
+) -> impl IntoElement {
     let palette = Swatch::palette();
-    let pick = match palette.iter().position(|s| s.id == current.id) {
-        Some(i) => SwatchPick::Preset(i),
-        None => SwatchPick::Custom(colour(current)),
-    };
+    let pick = current.map(
+        |current| match palette.iter().position(|s| s.id == current.id) {
+            Some(i) => SwatchPick::Preset(i),
+            None => SwatchPick::Custom(colour(current)),
+        },
+    );
     let presets: Vec<(Hsla, SharedString)> = palette
         .iter()
         .map(|s| (colour(s), swatch_title(s).into()))
         .collect();
-    let strip = SwatchStrip::new(id, fl!("editor-color"), presets)
-        .selected(pick)
-        .on_select(move |pick, _, cx| {
-            let swatch = match pick {
-                SwatchPick::Preset(i) => Swatch::palette().into_iter().nth(i),
-                SwatchPick::Custom(colour) => Some(custom(colour)),
-            };
-            let Some(swatch) = swatch else { return };
-            let _ = row.update(cx, |r, cx| {
-                r.apply_style(StylePatch::Swatch(swatch), None, cx)
-            });
-        });
+    let mut strip = SwatchStrip::new(id, label, presets);
+    if let Some(pick) = pick {
+        strip = strip.selected(pick);
+    }
+    let strip = strip.on_select(move |pick, _, cx| {
+        let swatch = match pick {
+            SwatchPick::Preset(i) => Swatch::palette().into_iter().nth(i),
+            SwatchPick::Custom(colour) => Some(custom(colour)),
+        };
+        let Some(swatch) = swatch else { return };
+        let _ = row.update(cx, |r, cx| r.apply_style(patch(swatch), None, cx));
+    });
     track(drawn, control, strip).w_full()
 }
 

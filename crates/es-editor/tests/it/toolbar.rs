@@ -19,7 +19,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 const WIDTH: f32 = 1080.;
-const HEIGHT: f32 = 420.;
+const HEIGHT: f32 = 1000.;
 
 type App = Headless<Root>;
 type Built = (Entity<ToolRow>, EditorSession);

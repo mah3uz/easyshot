@@ -245,6 +245,8 @@ impl Editor {
                 self.current.italic = p.is_italic;
                 self.current.underline = p.is_underline;
                 self.current.align = p.align;
+                self.current.text_fill = p.fill.clone();
+                self.current.text_border = p.border.clone();
             }
             ShapeKind::Arrow(p) => {
                 if tool == Tool::Arrow {

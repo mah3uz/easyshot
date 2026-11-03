@@ -2,6 +2,7 @@ pub mod crop_options;
 pub(crate) mod menus;
 mod options;
 pub(crate) mod style_bar;
+mod text_box;
 mod text_style;
 pub mod tools;
 
@@ -68,6 +69,11 @@ pub enum Control {
     Swatches,
     Stroke,
     FontFamily,
+    TextFill,
+    TextFillNone,
+    TextBorder,
+    TextBorderNone,
+    TextBorderWidth,
     ArrowStart,
     ArrowEnd,
     Dash,

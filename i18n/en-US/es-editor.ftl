@@ -142,6 +142,10 @@ editor-text-align = Alignment
 editor-text-align-start = Align left
 editor-text-align-center = Align center
 editor-text-align-end = Align right
+editor-text-background = Background
+editor-text-border = Border
+editor-text-box-none = None
+editor-text-border-width = Border width
 
 ## Inspector: preset bar
 editor-preset-menu-title = Presets…

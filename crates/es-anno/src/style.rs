@@ -1,6 +1,6 @@
 use es_model::{
     AnnoShape, ArrowProps, Arrowhead, DashStyle, FontFamily, HIGHLIGHTER_WIDTH_FACTOR, ShapeKind,
-    StylePreset, Swatch, TextAlign, Tool,
+    StylePreset, Swatch, TextAlign, TextBorder, Tool,
 };
 
 pub const MIN_FONT_SIZE: f64 = 4.0;
@@ -17,6 +17,8 @@ pub struct CurrentStyle {
     pub italic: bool,
     pub underline: bool,
     pub align: TextAlign,
+    pub text_fill: Option<Swatch>,
+    pub text_border: Option<TextBorder>,
     pub arrowhead_start: Arrowhead,
     pub arrowhead_end: Arrowhead,
     pub dash: DashStyle,
@@ -40,6 +42,8 @@ impl From<&StylePreset> for CurrentStyle {
             italic: p.text_italic,
             underline: p.text_underline,
             align: p.text_align,
+            text_fill: None,
+            text_border: None,
             arrowhead_start: Arrowhead::None,
             arrowhead_end: Arrowhead::Arrow,
             dash: DashStyle::Solid,
@@ -76,6 +80,8 @@ pub enum StylePatch {
     Italic(bool),
     Underline(bool),
     Align(TextAlign),
+    TextFill(Option<Swatch>),
+    TextBorder(Option<TextBorder>),
     ArrowheadStart(Arrowhead),
     ArrowheadEnd(Arrowhead),
     Dash(DashStyle),
@@ -92,6 +98,8 @@ impl StylePatch {
                 | Self::Italic(_)
                 | Self::Underline(_)
                 | Self::Align(_)
+                | Self::TextFill(_)
+                | Self::TextBorder(_)
         )
     }
 
@@ -103,6 +111,7 @@ impl StylePatch {
             Self::RedactionDensity(d) => Some(Self::RedactionDensity(d.clamp(0.0, 1.0))),
             Self::FontSize(s) if !s.is_finite() => None,
             Self::FontSize(s) => Some(Self::FontSize(s.max(MIN_FONT_SIZE))),
+            Self::TextBorder(Some(b)) if !b.width.is_finite() || b.width < 0.0 => None,
             other => Some(other),
         }
     }
@@ -118,6 +127,8 @@ impl StylePatch {
             Self::Italic(b) => c.italic = *b,
             Self::Underline(b) => c.underline = *b,
             Self::Align(a) => c.align = *a,
+            Self::TextFill(f) => c.text_fill = f.clone(),
+            Self::TextBorder(b) => c.text_border = b.clone(),
             Self::ArrowheadStart(h) => c.arrowhead_start = *h,
             Self::ArrowheadEnd(h) => c.arrowhead_end = *h,
             Self::Dash(d) => c.dash = *d,
@@ -145,6 +156,8 @@ impl StylePatch {
             (Self::Italic(b), ShapeKind::Text(p)) => p.is_italic = *b,
             (Self::Underline(b), ShapeKind::Text(p)) => p.is_underline = *b,
             (Self::Align(a), ShapeKind::Text(p)) => p.align = *a,
+            (Self::TextFill(f), ShapeKind::Text(p)) => p.fill = f.clone(),
+            (Self::TextBorder(b), ShapeKind::Text(p)) => p.border = b.clone(),
             // A line is an arrow with no heads; giving it one would turn it into an arrow.
             (Self::ArrowheadStart(h), ShapeKind::Arrow(p)) if has_heads(p) => {
                 p.arrowhead_start = *h
