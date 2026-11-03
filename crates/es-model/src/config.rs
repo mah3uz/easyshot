@@ -58,7 +58,7 @@ pub struct General {
 impl Default for General {
     fn default() -> Self {
         Self {
-            show_capture_bar_at_launch: true,
+            show_capture_bar_at_launch: false,
             theme: "system".into(),
             save_dir: None,
             auto_save: true,
@@ -266,7 +266,11 @@ mod tests {
         let c: Config = toml::from_str("").unwrap();
         assert_eq!(c, Config::default());
         assert_eq!(c.config_version, 1);
-        assert!(c.general.auto_save && c.general.show_capture_bar_at_launch);
+        assert!(c.general.auto_save);
+        assert!(
+            !c.general.show_capture_bar_at_launch,
+            "the daemon starts at login, which must stay in the tray"
+        );
         assert_eq!(c.general.file_name_template, "easyshot_{date}-{time}");
         assert_eq!(c.general.history_limit, 100);
         assert_eq!(c.overlay.dismiss_delay, 5);
@@ -301,6 +305,9 @@ mod tests {
             env!("CARGO_MANIFEST_DIR"),
             "/../../tests/fixtures/formats/config/v1.toml"
         ));
-        assert_eq!(toml::from_str::<Config>(src).unwrap(), Config::default());
+        let mut expected = Config::default();
+        // Files written before the default changed store `true`, and a stored choice is kept.
+        expected.general.show_capture_bar_at_launch = true;
+        assert_eq!(toml::from_str::<Config>(src).unwrap(), expected);
     }
 }

@@ -205,7 +205,8 @@ card in the deck until you save or export it. Capture Region & Save still writes
 Settings > Capture, "Show the selector on" a specific screen puts the selector's keyboard
 focus on that screen; if it is unplugged, the pointer's screen is used.
 
-Show the capture bar at launch opens the bar when the daemon starts. Open editors in full
+Show the capture bar at launch opens the bar when the daemon starts. It is off, so a start at
+login leaves easyshot in the tray with no window open. Open editors in full
 screen opens each editor window fullscreen. Open the editor when I stop (Recording) opens the
 trim viewer as soon as a recording ends, and the card still appears.
 
@@ -291,7 +292,7 @@ text viewer. The report stays on your machine; nothing is uploaded.
 | Window geometry | Window mode shows a list of windows instead of hover highlight. |
 | Virtual input | No Auto Scroll; manual scroll capture still works. |
 | File picker portal | Export saves to your save folder and tells you where. |
-| Tray | The capture bar is shown at launch so you can still reach easyshot. |
+| Tray | The capture bar opens when the daemon starts, so you can still reach easyshot. |
 | Recorder or OCR tools | Those items are disabled with an install hint. |
 
 `easyshot doctor` shows what applies to you.

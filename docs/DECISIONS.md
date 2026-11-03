@@ -114,6 +114,12 @@ stopped it is not overridden. Rejected: leaving the user to enable it (sysman's 
 `enable --now` for one user only, which misses the other users, and XDG autostart
 (insensical's approach), which plain Hyprland, sway and niri ignore.
 
+### The daemon starts in the tray
+`show_capture_bar_at_launch` is off by default, and the daemon opens the capture bar at start
+only when it is on or no tray watcher was on the bus. Why: the daemon starts at login, and a
+bar on every login is noise; the launcher and commands open their own window. Rejected:
+telling a login start from a launcher start, which D-Bus activation through systemd hides.
+
 ## Capture and recording
 
 ### Freeze is always on

@@ -484,7 +484,7 @@ fn start(
     {
         tracing::warn!(error = %e, "onboarding");
     }
-    if cfg.general.show_capture_bar_at_launch
+    if (cfg.general.show_capture_bar_at_launch || backend.tray.is_none())
         && !test_mode
         && let Err(e) = wiring
             .windows
