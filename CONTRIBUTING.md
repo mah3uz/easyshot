@@ -63,9 +63,22 @@ and build without incremental output so sccache can reuse them across worktrees;
 `just sweep [MAX_GB]` removes `target/debug` when it is over the limit (80 GB by default). Each window test's helper ends the window's own threads before the app, then calls
 `run_until_parked`.
 
-The full gate (`just check`: lint, layers, grep-guard, file-size, i18n-check, gpui-guard, tests, the sway, niri and
+The full gate (`just check`: lint, layers, grep-guard, file-size, i18n-check, wiring-check, gpui-guard, tests, the sway, niri and
 Hyprland platform harnesses, a release build and `just release-check`) is run
 once on the combined branch before merging.
+
+## Wiring checks
+
+Code that nothing reaches stays unnoticed, so three checks guard it. The daemon's wiring tests
+(`crates/easyshot/src/daemon/wiring_tests/`) assert what booting registers: editor keys, the
+config watch, the theme, the cursor mode, the tray menu, a handler for every `Route::all()`
+variant, an answer for every notification button, and, in `settings_readers_tests.rs`, a
+reader outside Settings for every config field. Add a setting or a route and the tests tell you
+where the missing row goes. `just wiring-check` fails on a `pub fn` named `init*`, `install*`,
+`register*`, `bind*`, `attach*` or `follow*` that nothing outside tests calls, and on an
+`EventEmitter<T>` whose `T` nothing subscribes to. A deliberate exception is one line in
+`scripts/wiring-check.allow` (`fn:<name>` or `event:<Type>`, then why); a line that is no
+longer needed fails the check too. `just i18n-check` covers Fluent ids and icons the same way.
 
 ## Builds
 

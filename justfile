@@ -102,6 +102,10 @@ file-size:
 third-party:
     cargo about generate --offline --locked -m crates/easyshot/Cargo.toml about.hbs -o LICENSES/THIRD-PARTY.md
 
+# Fail on init/install/register/bind functions nothing calls and events nothing subscribes to
+wiring-check:
+    scripts/wiring-check.py
+
 # Fail on duplicate, missing or unreferenced Fluent ids and unused icons
 i18n-check:
     scripts/i18n-check.sh
@@ -115,7 +119,7 @@ release-check:
     scripts/release-check.sh
 
 # The gate: everything that must pass before a merge
-check: lint layers grep-guard file-size i18n-check gpui-guard test
+check: lint layers grep-guard file-size i18n-check wiring-check gpui-guard test
     tests/harness/sway.sh platform
     tests/harness/niri.sh platform
     tests/harness/hypr.sh platform

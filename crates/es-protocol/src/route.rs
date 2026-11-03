@@ -142,6 +142,16 @@ impl Route {
             .ok_or_else(denied)
     }
 
+    /// One of every route; the variants that carry a value appear once per kind of value.
+    pub fn all() -> Vec<Route> {
+        let mut all: Vec<Route> = PLAIN.iter().map(|(_, r)| r.clone()).collect();
+        all.push(Route::Open(PathBuf::from("image.png")));
+        all.extend(TimedMode::ALL.map(|mode| Route::timed(mode, Some(3))));
+        all.push(Route::Settings(None));
+        all.extend(SettingsPage::ALL.map(|p| Route::Settings(Some(p))));
+        all
+    }
+
     pub fn as_str(&self) -> Cow<'static, str> {
         match self {
             Route::Open(_) => Cow::Borrowed("open"),
@@ -264,6 +274,55 @@ mod tests {
         let mut a = RouteArgs::default();
         a.0.insert(PATH_ARG.into(), ArgValue::Path(p.to_owned()));
         a
+    }
+
+    fn variant_index(route: &Route) -> usize {
+        match route {
+            Route::CaptureRegion => 0,
+            Route::CaptureFullscreen => 1,
+            Route::CaptureWindow => 2,
+            Route::CapturePrevious => 3,
+            Route::CaptureTimed => 4,
+            Route::Timed { .. } => 5,
+            Route::CaptureRegionCopy => 6,
+            Route::CaptureRegionSave => 7,
+            Route::CaptureRegionAnnotate => 8,
+            Route::CaptureRegionPin => 9,
+            Route::CaptureScroll => 10,
+            Route::Ocr => 11,
+            Route::OcrSingleLine => 12,
+            Route::ColorPicker => 13,
+            Route::Record => 14,
+            Route::RecordArea => 15,
+            Route::RecordStop => 16,
+            Route::RecordPause => 17,
+            Route::RecordRestart => 18,
+            Route::RecordDiscard => 19,
+            Route::CaptureBar => 20,
+            Route::Home => 21,
+            Route::Gallery => 22,
+            Route::RestoreLast => 23,
+            Route::PinLast => 24,
+            Route::UnpinAll => 25,
+            Route::Open(_) => 26,
+            Route::EditClipboard => 27,
+            Route::Settings(_) => 28,
+            Route::DeckToggle => 29,
+            Route::DeckSaveAll => 30,
+            Route::DeckCloseAll => 31,
+            Route::Quit => 32,
+        }
+    }
+
+    #[test]
+    fn all_lists_every_variant() {
+        let seen: std::collections::BTreeSet<usize> =
+            Route::all().iter().map(variant_index).collect();
+        assert_eq!(
+            seen,
+            (0..=32).collect(),
+            "a variant is missing from Route::all"
+        );
     }
 
     #[test]

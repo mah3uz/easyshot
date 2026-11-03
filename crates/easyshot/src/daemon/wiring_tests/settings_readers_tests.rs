@@ -1,0 +1,347 @@
+/// Every setting, the file outside the Settings page that acts on it, and the text that file reads it by.
+/// A new setting without a row here fails the first test; a reader that goes away fails the second.
+const READERS: &[(&str, &str, &str)] = &[
+    (
+        "config_version",
+        "crates/es-store/src/config.rs",
+        "config_version",
+    ),
+    (
+        "general.show_capture_bar_at_launch",
+        "crates/easyshot/src/daemon/mod.rs",
+        "show_capture_bar_at_launch",
+    ),
+    (
+        "general.theme",
+        "crates/easyshot/src/daemon/look.rs",
+        "general.theme",
+    ),
+    (
+        "general.save_dir",
+        "crates/es-app/src/deck_save.rs",
+        "general.save_dir",
+    ),
+    (
+        "general.auto_save",
+        "crates/es-model/src/capture.rs",
+        "general.auto_save",
+    ),
+    (
+        "general.file_name_template",
+        "crates/es-app/src/pipeline.rs",
+        "file_name_template",
+    ),
+    (
+        "general.copy_after_save",
+        "crates/es-model/src/capture.rs",
+        "general.copy_after_save",
+    ),
+    (
+        "general.play_sound",
+        "crates/easyshot/src/daemon/shutter.rs",
+        "play_sound",
+    ),
+    (
+        "general.export_format",
+        "crates/es-editor/src/session/io.rs",
+        "general.export_format",
+    ),
+    (
+        "general.export_quality",
+        "crates/es-editor/src/session/io.rs",
+        "general.export_quality",
+    ),
+    (
+        "general.history_limit",
+        "crates/easyshot/src/daemon/live_settings.rs",
+        "history_limit",
+    ),
+    (
+        "general.editor_opens_fullscreen",
+        "crates/easyshot/src/daemon/windows.rs",
+        "editor_opens_fullscreen",
+    ),
+    (
+        "general.low_res_preview",
+        "crates/es-editor/src/window/mod.rs",
+        "low_res_preview",
+    ),
+    (
+        "capture.self_timer",
+        "crates/easyshot/src/daemon/mod.rs",
+        "capture.self_timer",
+    ),
+    (
+        "capture.capture_on_release",
+        "crates/easyshot/src/daemon/mod.rs",
+        "capture_on_release",
+    ),
+    (
+        "capture.preselect_previous",
+        "crates/easyshot/src/daemon/mod.rs",
+        "preselect_previous",
+    ),
+    (
+        "capture.selector_follows_pointer",
+        "crates/easyshot/src/daemon/mod.rs",
+        "selector_follows_pointer",
+    ),
+    (
+        "capture.pinned_output",
+        "crates/easyshot/src/daemon/mod.rs",
+        "pinned_output",
+    ),
+    (
+        "capture.open_editor_after_capture",
+        "crates/es-model/src/capture.rs",
+        "capture.open_editor_after_capture",
+    ),
+    (
+        "capture.keep_in_deck_until_saved",
+        "crates/es-app/src/deck.rs",
+        "capture.keep_in_deck_until_saved",
+    ),
+    (
+        "overlay.layout",
+        "crates/es-overlays/src/deck/view.rs",
+        "overlay.layout",
+    ),
+    (
+        "overlay.position",
+        "crates/es-overlays/src/deck/view.rs",
+        "overlay.position",
+    ),
+    (
+        "overlay.card_size",
+        "crates/es-overlays/src/deck/view.rs",
+        "overlay.card_size",
+    ),
+    (
+        "overlay.always_show_actions",
+        "crates/es-overlays/src/deck/view.rs",
+        "overlay.always_show_actions",
+    ),
+    (
+        "overlay.edge_margin",
+        "crates/es-overlays/src/deck/view.rs",
+        "overlay.edge_margin",
+    ),
+    (
+        "overlay.dismiss_delay",
+        "crates/es-app/src/deck.rs",
+        "overlay.dismiss_delay",
+    ),
+    (
+        "after_capture.screenshot.show_preview",
+        "crates/es-model/src/capture.rs",
+        "rules.show_preview",
+    ),
+    (
+        "after_capture.screenshot.copy",
+        "crates/es-model/src/capture.rs",
+        "rules.copy",
+    ),
+    (
+        "after_capture.screenshot.open_editor",
+        "crates/es-model/src/capture.rs",
+        "rules.open_editor",
+    ),
+    (
+        "after_capture.screenshot.pin",
+        "crates/es-model/src/capture.rs",
+        "rules.pin",
+    ),
+    (
+        "recording.save",
+        "crates/easyshot/src/daemon/recording/mod.rs",
+        "recording.save",
+    ),
+    (
+        "recording.mic",
+        "crates/easyshot/src/daemon/recording/mod.rs",
+        ".mic",
+    ),
+    (
+        "recording.system_audio",
+        "crates/easyshot/src/daemon/recording/mod.rs",
+        ".system_audio",
+    ),
+    (
+        "recording.keystrokes",
+        "crates/easyshot/src/daemon/recording/mod.rs",
+        "recording.keystrokes",
+    ),
+    (
+        "recording.start_delay",
+        "crates/easyshot/src/daemon/recording/mod.rs",
+        ".start_delay",
+    ),
+    (
+        "recording.open_editor_after",
+        "crates/easyshot/src/daemon/recording/mod.rs",
+        "recording.open_editor_after",
+    ),
+    (
+        "recording.whole_screen_bar",
+        "crates/easyshot/src/daemon/recording/mod.rs",
+        ".whole_screen_bar",
+    ),
+    (
+        "recording.fps",
+        "crates/easyshot/src/daemon/recording/mod.rs",
+        "recording.fps",
+    ),
+    (
+        "recording.codec",
+        "crates/easyshot/src/daemon/recording/mod.rs",
+        "recording.codec",
+    ),
+    (
+        "recording.container",
+        "crates/easyshot/src/daemon/recording/mod.rs",
+        "recording.container",
+    ),
+    (
+        "recording.quality",
+        "crates/easyshot/src/daemon/recording/mod.rs",
+        ".quality",
+    ),
+    (
+        "recording.recorder",
+        "crates/easyshot/src/daemon/recording/mod.rs",
+        ".recorder",
+    ),
+    (
+        "recording.export_format",
+        "crates/es-overlays/src/player/options.rs",
+        ".export_format",
+    ),
+    (
+        "recording.export_size",
+        "crates/es-overlays/src/player/options.rs",
+        ".export_size",
+    ),
+    (
+        "recording.export_quality",
+        "crates/es-overlays/src/player/options.rs",
+        ".export_quality",
+    ),
+    (
+        "recording.export_look",
+        "crates/es-overlays/src/player/options.rs",
+        ".export_look",
+    ),
+    (
+        "recording.export_brightness",
+        "crates/es-overlays/src/player/options.rs",
+        ".export_brightness",
+    ),
+    (
+        "default_look.style",
+        "crates/es-app/src/pipeline.rs",
+        ".style",
+    ),
+    (
+        "default_look.padding",
+        "crates/es-model/src/capture.rs",
+        ".padding",
+    ),
+    (
+        "default_look.corner_radius",
+        "crates/es-model/src/capture.rs",
+        ".corner_radius",
+    ),
+    (
+        "default_look.shadow",
+        "crates/es-model/src/capture.rs",
+        ".shadow",
+    ),
+    (
+        "editor.nudge_step",
+        "crates/es-editor/src/keyboard.rs",
+        "editor.nudge_step",
+    ),
+    (
+        "editor.nudge_step_shift",
+        "crates/es-editor/src/keyboard.rs",
+        "editor.nudge_step_shift",
+    ),
+    (
+        "editor.zoom_anchor",
+        "crates/es-editor/src/window/mod.rs",
+        "zoom_anchor",
+    ),
+    (
+        "ocr.languages",
+        "crates/es-app/src/pipeline.rs",
+        "ocr.languages",
+    ),
+    (
+        "shortcuts",
+        "crates/easyshot/src/daemon/look.rs",
+        "config.shortcuts",
+    ),
+    (
+        "global_shortcuts",
+        "crates/easyshot/src/daemon/tray.rs",
+        "global_shortcuts",
+    ),
+];
+
+fn leaves(prefix: &str, value: &serde_json::Value, into: &mut Vec<String>) {
+    match value {
+        serde_json::Value::Object(map) if !map.is_empty() => {
+            for (key, value) in map {
+                let name = if prefix.is_empty() {
+                    key.clone()
+                } else {
+                    format!("{prefix}.{key}")
+                };
+                leaves(&name, value, into);
+            }
+        }
+        _ => into.push(prefix.to_owned()),
+    }
+}
+
+#[test]
+fn every_setting_has_a_reader_listed() {
+    let mut found = Vec::new();
+    let defaults = serde_json::to_value(es_model::Config::default()).unwrap();
+    leaves("", &defaults, &mut found);
+    let listed: Vec<&str> = READERS.iter().map(|r| r.0).collect();
+    let unlisted: Vec<&String> = found
+        .iter()
+        .filter(|k| !listed.contains(&k.as_str()))
+        .collect();
+    assert!(
+        unlisted.is_empty(),
+        "settings with no reader in READERS (add the file that acts on each): {unlisted:?}"
+    );
+    let stale: Vec<&&str> = listed
+        .iter()
+        .filter(|k| !found.iter().any(|f| f == **k))
+        .collect();
+    assert!(
+        stale.is_empty(),
+        "READERS rows for settings that no longer exist: {stale:?}"
+    );
+}
+
+#[test]
+fn every_listed_reader_still_reads_its_setting() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let mut dead = Vec::new();
+    for (setting, file, needle) in READERS {
+        let text = std::fs::read_to_string(root.join(file))
+            .unwrap_or_else(|e| panic!("{setting}: reader {file}: {e}"));
+        if !text.contains(needle) {
+            dead.push(format!("{setting}: {file} no longer reads `{needle}`"));
+        }
+    }
+    assert!(
+        dead.is_empty(),
+        "settings with no effect:\n{}",
+        dead.join("\n")
+    );
+}

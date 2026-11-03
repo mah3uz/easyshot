@@ -553,6 +553,8 @@ fn open_editor_with(
 mod capture_bar_tests;
 mod editor_config_tests;
 mod low_res_tests;
+mod registration_tests;
 mod settings_live_tests;
+mod settings_readers_tests;
 mod style_tests;
 mod tray_tests;

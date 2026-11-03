@@ -1,0 +1,2 @@
+# Registration code kept although nothing outside tests reaches it. One per line: fn:<name> or event:<Type>, then why.
+fn:bind_status   a getter on the Shortcuts page that only the integration tests read

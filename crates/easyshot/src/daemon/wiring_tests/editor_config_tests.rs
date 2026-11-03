@@ -1,6 +1,6 @@
 use super::*;
 
-fn bound_command(
+pub(super) fn bound_command(
     key: &'static str,
     cx: &mut TestAppContext,
 ) -> Option<es_editor::keyboard::Command> {
