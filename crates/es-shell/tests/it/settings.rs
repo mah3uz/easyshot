@@ -631,16 +631,9 @@ fn the_keystrokes_row_shows_off_working_denied_pending_and_not_built() {
     let working = state(&mut fx, InputAccess::Granted);
     assert!(working.contains("working"), "{working}");
     let denied = state(&mut fx, InputAccess::Denied);
-    for want in [
-        "sudo usermod -aG input $USER",
-        "every program you run",
-        "sudo gpasswd -d $USER input",
-    ] {
-        assert!(denied.contains(want), "{want} missing from {denied}");
-    }
+    assert!(denied.contains("sudo usermod -aG input $USER"), "{denied}");
     let pending = state(&mut fx, InputAccess::GroupPending);
     assert!(pending.contains("log out and in") && !pending.contains("usermod"));
-    assert!(pending.contains("sudo gpasswd -d $USER input"));
     let not_built = state(&mut fx, InputAccess::NotBuilt);
     assert!(not_built.contains("this build"), "{not_built}");
 }

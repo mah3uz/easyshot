@@ -410,8 +410,6 @@ fn the_standalone_report_names_services_tool_versions_and_the_config() {
         "(error:",
         "Clicks and keys in recordings: cannot read the keyboard and mouse",
         "Fix: sudo usermod -aG input $USER, then log out and in",
-        "Note: the input group lets every program you run read your keyboard and mouse and send input",
-        "Undo: sudo gpasswd -d $USER input",
         "never typed text",
     ] {
         assert!(text.contains(want), "{want} missing from\n{text}");

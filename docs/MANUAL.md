@@ -321,9 +321,7 @@ off during a recording stops reading at once and saves nothing from that recordi
 until you delete that folder; Discard and Start over delete it at once.
 
 Reading the keyboard and mouse needs your user in the `input` group. Run
-`sudo usermod -aG input $USER`, then log out and in. The group lets every program you run
-read your keyboard and mouse and send input, not only easyshot. To undo it, run
-`sudo gpasswd -d $USER input` and log out and in. Until then a recording with Keystrokes on
+`sudo usermod -aG input $USER`, then log out and in. Until then a recording with Keystrokes on
 still records, without clicks and keys, and says so when it starts. The Keystrokes row in
 Settings, Recording shows whether it is off, working, or without access, and `easyshot
 doctor` gives the same answer. Right after you join the group they say you were added and

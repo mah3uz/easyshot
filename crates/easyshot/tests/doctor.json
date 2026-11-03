@@ -240,8 +240,6 @@
   "input": {
     "status": "denied",
     "records": "clicks and shortcuts, never typed text, into input.json beside each recording, for key badges and click effects in the video editor",
-    "fix": "sudo usermod -aG input $USER, then log out and in",
-    "warning": "the input group lets every program you run read your keyboard and mouse and send input, not only easyshot",
-    "undo": "sudo gpasswd -d $USER input"
+    "fix": "sudo usermod -aG input $USER, then log out and in"
   }
 }

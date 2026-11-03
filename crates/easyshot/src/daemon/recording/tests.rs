@@ -638,11 +638,12 @@ async fn without_device_access_the_recording_runs_with_a_hint_and_an_empty_log(
 
     let shown = sink.shown();
     assert_eq!(shown.len(), 1);
-    assert!(shown[0].message.as_deref().is_some_and(
-        |m| m.contains("sudo usermod -aG input $USER")
-            && m.contains("every program you run")
-            && m.contains("sudo gpasswd -d $USER input")
-    ));
+    assert!(
+        shown[0]
+            .message
+            .as_deref()
+            .is_some_and(|m| m.contains("sudo usermod -aG input $USER"))
+    );
     assert_eq!(cards(&rig, cx).len(), 1, "the recording is kept");
     assert_eq!(rig.input_json()["keystrokes"], serde_json::json!([]));
 }

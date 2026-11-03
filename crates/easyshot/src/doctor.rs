@@ -182,12 +182,6 @@ fn render_probes(v: &Value, out: &mut String) {
         if let Some(fix) = i["fix"].as_str() {
             let _ = writeln!(out, "  Fix: {fix}");
         }
-        if let Some(warning) = i["warning"].as_str() {
-            let _ = writeln!(out, "  Note: {warning}");
-        }
-        if let Some(undo) = i["undo"].as_str() {
-            let _ = writeln!(out, "  Undo: {undo}");
-        }
         let _ = writeln!(out, "  Records {}", i["records"].as_str().unwrap_or("-"));
     }
     let c = &v["config"];

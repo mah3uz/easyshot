@@ -113,8 +113,6 @@ pub fn services(names: &es_backend::DbusNames) -> Value {
 pub const INPUT_FIX: &str = "sudo usermod -aG input $USER, then log out and in";
 pub const INPUT_PENDING_FIX: &str =
     "you were added to the input group; log out and in for this session to have it";
-pub const INPUT_WARNING: &str = "the input group lets every program you run read your keyboard and mouse and send input, not only easyshot";
-pub const INPUT_UNDO: &str = "sudo gpasswd -d $USER input";
 
 /// Whether recordings can log clicks and shortcuts, and the fix when they cannot.
 pub fn input(access: es_model::recording::InputAccess) -> Value {
@@ -130,8 +128,6 @@ pub fn input(access: es_model::recording::InputAccess) -> Value {
     };
     if let Some(fix) = fix {
         v["fix"] = json!(fix);
-        v["warning"] = json!(INPUT_WARNING);
-        v["undo"] = json!(INPUT_UNDO);
     }
     v
 }
