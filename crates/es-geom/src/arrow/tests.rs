@@ -127,7 +127,13 @@ fn zero_length_arrows_are_invalid_but_never_produce_nan() {
             assert!(hp.int.is_finite());
             assert!(info.head_path(side).is_some());
         }
-        assert!(info.body_path().bounding_box().area().is_finite());
+        assert!(
+            info.body_builder()
+                .to_bez_path()
+                .bounding_box()
+                .area()
+                .is_finite()
+        );
         let g = info.geometry();
         assert!(g.hit_test_point(p(30.0, 30.0), 3.0, false));
     }
@@ -486,15 +492,24 @@ fn heads_on_a_curved_arrow_sit_on_the_arc_behind_the_tip() {
 #[test]
 fn dashed_styles_split_the_body_and_solid_leaves_it_whole() {
     let info = resolve(&input(p(0.0, 0.0), p(200.0, 0.0), 0.0));
-    let solid = info.body_dashes(DashStyle::Solid);
+    let solid = info
+        .body_builder()
+        .dashed_segments(info.stroke_width, DashStyle::Solid);
     assert_eq!(solid.len(), 1);
     assert!(solid[0].dashes.is_empty());
-    let dashed = info.body_dashes(DashStyle::Dashed);
+    let dashed = info
+        .body_builder()
+        .dashed_segments(info.stroke_width, DashStyle::Dashed);
     assert_eq!(dashed.len(), 1);
     assert!(!dashed[0].dashes.is_empty());
 
     let curved = resolve(&input(p(0.0, 0.0), p(200.0, 0.0), 40.0));
-    assert!(!curved.body_dashes(DashStyle::Dotted).is_empty());
+    assert!(
+        !curved
+            .body_builder()
+            .dashed_segments(curved.stroke_width, DashStyle::Dotted)
+            .is_empty()
+    );
 }
 
 #[test]
@@ -513,20 +528,4 @@ fn hit_geometry_of_a_curved_arrow_follows_the_arc_not_the_chord() {
     let g = info.geometry();
     assert!(g.hit_test_point(info.middle, 2.0, false));
     assert!(!g.hit_test_point(p(50.0, 0.0), 3.0, false));
-}
-
-#[test]
-fn handles_path_follows_the_handle_arc_when_curved_and_the_chord_when_straight() {
-    let curved = resolve(&input(p(0.0, 0.0), p(100.0, 0.0), 40.0));
-    let bb = curved.handles_path().bounding_box();
-    assert!(
-        near(bb.y1, 40.0, 0.5),
-        "arc passes through the middle handle"
-    );
-    let straight = resolve(&input(p(0.0, 0.0), p(100.0, 0.0), 0.0));
-    assert!(near(
-        straight.handles_path().bounding_box().height(),
-        0.0,
-        1e-9
-    ));
 }

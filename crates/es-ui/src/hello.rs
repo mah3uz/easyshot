@@ -1,21 +1,13 @@
 use gpui::{
-    App, AppContext, Context, CursorHideMode, Entity, IntoElement, ParentElement, Render, Styled,
-    Window, WindowOptions, div, px,
+    App, AppContext, Context, Entity, IntoElement, ParentElement, Render, Styled, Window,
+    WindowOptions, div, px,
 };
 use gpui_component::{
     ActiveTheme, Icon, Root,
     button::{Button, ButtonVariants},
 };
 
-use crate::{fl, fonts, theme};
-
-pub fn init(cx: &mut App) {
-    fonts::register(cx);
-    theme::install(cx);
-    crate::a11y::bind_focus_keys(cx);
-    // Letters pick tools and Space is held while dragging, so a key press must not hide the pointer.
-    cx.set_cursor_hide_mode(CursorHideMode::Never);
-}
+use crate::fl;
 
 pub fn root(window: &mut Window, cx: &mut App) -> Entity<Root> {
     let view = cx.new(|_| HelloView);
@@ -23,7 +15,7 @@ pub fn root(window: &mut Window, cx: &mut App) -> Entity<Root> {
 }
 
 pub fn open(cx: &mut App) {
-    init(cx);
+    crate::init(cx);
     if let Err(error) = cx.open_window(WindowOptions::default(), root) {
         tracing::error!(%error, "cannot open the hello window");
     }

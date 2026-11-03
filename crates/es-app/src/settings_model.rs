@@ -5,7 +5,6 @@ use es_store::{ConfigFile, FileWatcher};
 use gpui::{Context, EventEmitter, Task};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::watch;
 
 pub const SAVE_DEBOUNCE: Duration = Duration::from_millis(300);
 
@@ -57,7 +56,6 @@ pub enum SettingsEvent {
 pub struct SettingsModel {
     config: Arc<Config>,
     file: ConfigFile,
-    tx: watch::Sender<Arc<Config>>,
     save: Option<Task<()>>,
     _watcher: Option<FileWatcher>,
 }
@@ -68,11 +66,9 @@ impl SettingsModel {
     /// A file that does not parse starts the model on defaults and the file is left alone.
     pub fn new(file: ConfigFile) -> Self {
         let config = Arc::new(file.config().clone());
-        let (tx, _) = watch::channel(config.clone());
         Self {
             config,
             file,
-            tx,
             save: None,
             _watcher: None,
         }
@@ -93,11 +89,6 @@ impl SettingsModel {
             Some(other) => Some(Error::Store(other.to_string())),
             None => None,
         }
-    }
-
-    /// For consumers outside GPUI; the value is always the latest applied config.
-    pub fn subscribe_config(&self) -> watch::Receiver<Arc<Config>> {
-        self.tx.subscribe()
     }
 
     /// `on_change` runs on a helper thread; the app should answer it by calling `reload`.
@@ -155,7 +146,6 @@ impl SettingsModel {
 
     fn apply(&mut self, next: Config, mask: SectionMask, cx: &mut Context<Self>) {
         self.config = Arc::new(next);
-        self.tx.send_replace(self.config.clone());
         cx.emit(SettingsEvent::Changed(mask));
         cx.notify();
     }

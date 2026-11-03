@@ -49,7 +49,7 @@ pub struct Surface<V: Render + 'static> {
 impl<V: Render + 'static> Surface<V> {
     pub fn open(w: f32, h: f32, build: impl FnOnce(&mut Context<V>) -> V) -> Self {
         let mut view = None;
-        let mut app = Headless::open(es_ui::assets::Assets, es_ui::hello::init, w, h, |_, cx| {
+        let mut app = Headless::open(es_ui::assets::Assets, es_ui::init, w, h, |_, cx| {
             let v = cx.new(build);
             view = Some(v.clone());
             v

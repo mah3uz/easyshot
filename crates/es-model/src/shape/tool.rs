@@ -63,17 +63,6 @@ impl Tool {
         matches!(self, Tool::Pixelate | Tool::Blur)
     }
 
-    pub fn supports_aspect_lock(self) -> bool {
-        matches!(
-            self,
-            Tool::Rectangle | Tool::FilledRectangle | Tool::Ellipse | Tool::Highlight
-        )
-    }
-
-    pub fn is_filled_shape(self) -> bool {
-        self == Tool::FilledRectangle
-    }
-
     pub fn uses_endpoints(self) -> bool {
         matches!(self, Tool::Line | Tool::Arrow)
     }

@@ -50,9 +50,6 @@ impl Default for StylePreset {
     }
 }
 
-pub const STROKE_SLIDER_MIN: f64 = 1.0;
-pub const STROKE_SLIDER_MAX: f64 = 24.0;
-
 /// Slider units to page pixels: the stroke scales with the image's longest edge.
 pub fn page_stroke_width(slider: f64, image_w: f64, image_h: f64) -> f64 {
     (slider * image_w.max(image_h) / 900.0).max(1.0)

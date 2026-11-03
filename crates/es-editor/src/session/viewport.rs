@@ -3,7 +3,7 @@ use es_anno::Viewport;
 use es_geom::{Point, Rect, Size};
 use es_model::BackgroundSettings;
 use es_render::beautify::{Layout, layout};
-use gpui::{Context, Entity, EventEmitter};
+use gpui::{Context, Entity};
 
 pub const MIN_ZOOM_PERCENT: f64 = 10.0;
 pub const MAX_ZOOM_PERCENT: f64 = 400.0;
@@ -155,11 +155,6 @@ impl ViewMath {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ViewportChanged {
-    pub revision: u64,
-}
-
 /// The only writer of the engine's viewport.
 pub struct ViewportModel {
     doc: Entity<DocModel>,
@@ -168,8 +163,6 @@ pub struct ViewportModel {
     anchor_at_pointer: bool,
     settings: BackgroundSettings,
 }
-
-impl EventEmitter<ViewportChanged> for ViewportModel {}
 
 impl ViewportModel {
     pub fn new(doc: Entity<DocModel>, cx: &mut Context<Self>) -> Self {
@@ -285,9 +278,6 @@ impl ViewportModel {
         if self.math != before {
             self.revision += 1;
             self.push(cx);
-            cx.emit(ViewportChanged {
-                revision: self.revision,
-            });
             cx.notify();
         }
     }

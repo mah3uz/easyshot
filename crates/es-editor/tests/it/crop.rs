@@ -351,7 +351,7 @@ fn launch(mode: ThemeMode) -> (WindowApp, Entity<EditorWindow>) {
     let app = Headless::open(
         es_ui::assets::Assets,
         move |cx| {
-            es_ui::components::gallery::init(cx);
+            es_ui::init(cx);
             es_ui::theme::set_mode(mode, cx);
         },
         1080.0,

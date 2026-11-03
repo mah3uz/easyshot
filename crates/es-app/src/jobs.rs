@@ -119,13 +119,6 @@ impl Jobs {
         self.inner.finish(id, JobStatus::Cancelled, None)
     }
 
-    pub fn cancel_all(&self) {
-        let ids: Vec<JobId> = self.inner.running.borrow().keys().copied().collect();
-        for id in ids {
-            self.cancel(id);
-        }
-    }
-
     /// For commands handled synchronously, so they still report a result.
     pub fn report(&self, id: JobId, result: &Result<()>) {
         let detail = result.as_ref().err().map(ToString::to_string);

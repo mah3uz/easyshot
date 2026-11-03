@@ -14,7 +14,7 @@ fn main() {
     gpui_platform::application()
         .with_assets(es_ui::assets::Assets)
         .run(move |cx: &mut App| {
-            es_ui::components::gallery::init(cx);
+            es_ui::init(cx);
             let options = WindowOptions {
                 window_bounds: Some(WindowBounds::Windowed(Bounds::new(
                     point(px(0.), px(0.)),

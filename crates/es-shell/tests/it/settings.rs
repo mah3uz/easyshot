@@ -8,7 +8,6 @@ use es_store::{ConfigFile, Paths};
 use es_testkit::Headless;
 use es_ui::{
     assets::Assets,
-    components::gallery,
     theme,
     tokens::{Appearance, ThemeMode},
 };
@@ -56,7 +55,7 @@ fn fixture(caps: Caps, binds: Option<Arc<dyn BindHelper>>, prepare: impl FnOnce(
     let seen = access.clone();
     let mut view = None;
     let (w, h) = es_shell::settings::WINDOW_SIZE;
-    let app = Headless::open(Assets, gallery::init, w, h, |window, cx| {
+    let app = Headless::open(Assets, es_ui::init, w, h, |window, cx| {
         let settings = cx.new(|_| SettingsModel::new(file));
         let deps = SettingsDeps {
             settings,

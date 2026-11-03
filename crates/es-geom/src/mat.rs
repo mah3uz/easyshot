@@ -93,10 +93,6 @@ impl Mat {
         points.iter().map(|p| self.apply_to_point(*p)).collect()
     }
 
-    pub fn apply_inverse_to_point(self, p: PVec) -> PVec {
-        self.inverse().apply_to_point(p)
-    }
-
     /// Assumes no skew, which holds for shape transforms (translate + rotate + scale).
     pub fn decomposed(self) -> Decomposed {
         let Mat { a, b, c, d, e, f } = self;
@@ -161,7 +157,7 @@ mod tests {
     fn inverse_undoes_the_transform_and_keeps_pressure() {
         let m = Mat::multiply(Mat::compose(5.0, -3.0, 0.7), Mat::scale(2.0, 3.0));
         let p = PVec::with_z(4.0, 9.0, 0.25);
-        let back = m.apply_inverse_to_point(m.apply_to_point(p));
+        let back = m.inverse().apply_to_point(m.apply_to_point(p));
         assert!(close(back, p));
         assert_eq!(back.z, 0.25);
     }

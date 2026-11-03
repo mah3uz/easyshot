@@ -68,7 +68,7 @@ mod harness {
         gpui_platform::application()
             .with_assets(es_ui::assets::Assets)
             .run(move |cx: &mut App| {
-                es_ui::hello::init(cx);
+                es_ui::init(cx);
                 let surfaces = Rc::new(LayerShellSurfaces::new(backend, Some(test_output.clone())));
                 if let Err(e) = surfaces.warm_up(cx) {
                     eprintln!("warm-up: {e}");

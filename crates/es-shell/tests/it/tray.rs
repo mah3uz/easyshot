@@ -32,7 +32,6 @@ fn input() -> TrayInput {
         recorder_missing: false,
         recording: None,
         version: "0.1.0".into(),
-        update: None,
     }
 }
 
@@ -277,19 +276,6 @@ fn while_recording_the_controls_and_clock_come_first_with_a_red_dot() {
     assert_eq!(items[2].label_id, "tray-record-resume");
     assert_eq!(items[2].route, Some(Route::RecordPause));
     assert_eq!(tray::icon(&paused), TrayIcon::Paused);
-}
-
-#[test]
-fn a_known_update_extends_the_version_line() {
-    let items = tray::menu(&TrayInput {
-        update: Some("0.2.0".into()),
-        ..input()
-    })
-    .items;
-    assert_eq!(
-        items.last().and_then(|i| i.label.as_deref()),
-        Some("Version 0.1.0 · 0.2.0 available in Settings")
-    );
 }
 
 #[test]

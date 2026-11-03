@@ -74,16 +74,6 @@ fn an_update_that_changes_nothing_emits_nothing_and_never_writes(cx: &mut TestAp
 }
 
 #[gpui::test]
-fn config_consumers_outside_gpui_see_the_latest_value(cx: &mut TestAppContext) {
-    let (_dir, path) = config_path();
-    let (model, _log) = model(cx, &path);
-    let rx = model.read_with(cx, |m, _| m.subscribe_config());
-    let before = rx.borrow().general.play_sound;
-    toggle_sound(cx, &model);
-    assert_eq!(rx.borrow().general.play_sound, !before);
-}
-
-#[gpui::test]
 fn save_waits_for_a_quiet_period_and_happens_once(cx: &mut TestAppContext) {
     let (_dir, path) = config_path();
     let (model, _log) = model(cx, &path);

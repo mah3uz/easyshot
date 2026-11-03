@@ -212,7 +212,7 @@ fn main() {
         .with_assets(es_ui::assets::Assets)
         .with_quit_mode(QuitMode::Explicit)
         .run(move |cx: &mut App| {
-            es_ui::hello::init(cx);
+            es_ui::init(cx);
             let surfaces = Rc::new(LayerShellSurfaces::new(
                 backend.clone(),
                 Some(test_output.clone()),

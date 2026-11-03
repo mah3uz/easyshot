@@ -269,41 +269,41 @@ fn text_props(ed: &Editor, id: AnnoShapeId) -> es_model::TextProps {
 }
 
 #[test]
-fn text_fill_and_border_setters_undo_and_redo() {
+fn text_fill_and_border_patches_undo_and_redo() {
     let t = text(10.0, 10.0, "abc");
     let id = t.id;
     let mut ed = editor(vec![t], vec![]);
     select(&mut ed, &[id]);
     round_trips(&mut ed, |ed| {
-        ed.set_text_fill(Some(Swatch::blue()), g(1));
+        ed.apply_style(StylePatch::TextFill(Some(Swatch::blue())), g(1));
     });
     assert!(text_props(&ed, id).fill.is_none());
     round_trips(&mut ed, |ed| {
         let b = es_model::TextBorder::default();
-        ed.set_text_border(Some(b), g(2));
+        ed.apply_style(StylePatch::TextBorder(Some(b)), g(2));
     });
     assert!(text_props(&ed, id).border.is_none());
-    ed.set_text_fill(Some(Swatch::blue()), g(3));
-    ed.set_text_fill(None, g(4));
+    ed.apply_style(StylePatch::TextFill(Some(Swatch::blue())), g(3));
+    ed.apply_style(StylePatch::TextFill(None), g(4));
     assert!(text_props(&ed, id).fill.is_none());
 }
 
 #[test]
-fn text_box_setters_ignore_a_selection_that_is_not_one_text_and_a_bad_width() {
+fn text_box_patches_ignore_a_selection_that_is_not_one_text_and_a_bad_width() {
     let r = rect(0.0, 0.0, 50.0, 50.0);
     let t = text(100.0, 0.0, "abc");
     let (rid, tid) = (r.id, t.id);
     let mut ed = editor(vec![r, t], vec![]);
     select(&mut ed, &[rid]);
     let before = ed.doc().snapshot();
-    ed.set_text_fill(Some(Swatch::blue()), g(1));
+    ed.apply_style(StylePatch::TextFill(Some(Swatch::blue())), g(1));
     assert_eq!(ed.doc().snapshot(), before);
     select(&mut ed, &[tid]);
     let bad = es_model::TextBorder {
         width: f64::NAN,
         ..es_model::TextBorder::default()
     };
-    ed.set_text_border(Some(bad), g(2));
+    ed.apply_style(StylePatch::TextBorder(Some(bad)), g(2));
     assert_eq!(ed.doc().snapshot(), before);
 }
 
@@ -314,7 +314,7 @@ fn text_box_changes_made_while_typing_join_the_typing_undo_entry() {
     ed.create_text(Point::new(300.0, 300.0));
     let id = ed.editing_text_id().expect("editing");
     ed.update_text("hi");
-    ed.set_text_fill(Some(Swatch::blue()), g(9));
+    ed.apply_style(StylePatch::TextFill(Some(Swatch::blue())), g(9));
     assert!(text_props(&ed, id).fill.is_some());
     ed.stop_text();
     ed.undo();

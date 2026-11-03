@@ -48,7 +48,7 @@ struct Selector {
 fn open(preselect: Option<Rect>, capture_on_release: bool) -> Selector {
     let frozen = frame();
     let mut view = None;
-    let mut app = Headless::open(es_ui::assets::Assets, es_ui::hello::init, W, H, |_, cx| {
+    let mut app = Headless::open(es_ui::assets::Assets, es_ui::init, W, H, |_, cx| {
         let v = cx.new(|cx| RegionSelector::new(frozen, preselect, capture_on_release, cx));
         view = Some(v.clone());
         v

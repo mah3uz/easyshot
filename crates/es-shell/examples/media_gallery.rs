@@ -9,7 +9,7 @@ fn main() {
     gpui_platform::application()
         .with_assets(es_ui::assets::Assets)
         .run(|cx| {
-            es_ui::hello::init(cx);
+            es_ui::init(cx);
             let paths = match Paths::from_xdg() {
                 Ok(paths) => paths,
                 Err(error) => return eprintln!("no data directories: {error}"),

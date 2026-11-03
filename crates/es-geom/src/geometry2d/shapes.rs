@@ -283,10 +283,6 @@ impl Circle2d {
     pub fn radius(&self) -> f64 {
         self.radius
     }
-
-    pub fn circle_center(&self) -> PVec {
-        self.center
-    }
 }
 
 impl Geometry2d for Circle2d {
@@ -381,10 +377,6 @@ impl Arc2d {
 
     pub fn radius(&self) -> f64 {
         self.radius
-    }
-
-    pub fn arc_center(&self) -> PVec {
-        self.center
     }
 
     pub fn measure(&self) -> f64 {

@@ -313,16 +313,6 @@ impl EditorWindow {
         self.inspector.clone()?.downcast::<Inspector>().ok()
     }
 
-    pub fn set_tool_row(&mut self, view: AnyView, cx: &mut Context<Self>) {
-        self.tool_row = Some(view);
-        cx.notify();
-    }
-
-    pub fn set_inspector(&mut self, view: AnyView, cx: &mut Context<Self>) {
-        self.inspector = Some(view);
-        cx.notify();
-    }
-
     /// Applies the `[editor]` zoom anchor, the `[ocr]` languages and the low-resolution preview setting to this window.
     pub fn apply_config(&mut self, config: &es_model::Config, cx: &mut Context<Self>) {
         if self.force_low_res != config.general.low_res_preview {
@@ -389,22 +379,6 @@ impl EditorWindow {
         cx.emit(EditorWindowEvent::from(job));
         cx.notify();
         true
-    }
-
-    pub fn finish_save(&mut self, result: std::result::Result<(), String>, cx: &mut Context<Self>) {
-        self.finish(Job::Save, result, cx);
-    }
-
-    pub fn finish_export(
-        &mut self,
-        result: std::result::Result<(), String>,
-        cx: &mut Context<Self>,
-    ) {
-        self.finish(Job::Export, result, cx);
-    }
-
-    pub fn finish_copy(&mut self, result: std::result::Result<(), String>, cx: &mut Context<Self>) {
-        self.finish(Job::Copy, result, cx);
     }
 
     pub fn finish(

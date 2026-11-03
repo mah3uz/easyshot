@@ -56,7 +56,6 @@ impl TrayFeed {
             recorder_missing: self.recorder_missing,
             recording: self.recording.get(),
             version: env!("EASYSHOT_VERSION").to_owned(),
-            update: None,
         }
     }
 

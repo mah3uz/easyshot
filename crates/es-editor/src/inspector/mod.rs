@@ -58,7 +58,6 @@ fn has_switch(section: Section) -> bool {
 }
 
 /// The 300 px beautify column: the preset bar pinned on top, then the folding sections.
-/// Each section's controls arrive through [`Inspector::set_body`].
 pub struct Inspector {
     look: Entity<LookModel>,
     presets: Entity<PresetsBar>,
@@ -124,12 +123,6 @@ impl Inspector {
 
     pub fn presets(&self) -> &Entity<PresetsBar> {
         &self.presets
-    }
-
-    /// Fills a section with its controls; the section keeps its header and accessories.
-    pub fn set_body(&mut self, section: Section, body: AnyView, cx: &mut Context<Self>) {
-        self.bodies[index(section)] = Some(body);
-        cx.notify();
     }
 
     pub fn body(&self, section: Section) -> Option<&AnyView> {

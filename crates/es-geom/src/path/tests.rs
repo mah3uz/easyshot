@@ -1,6 +1,6 @@
 use super::*;
 use crate::vec::PVec;
-use kurbo::{ParamCurve, PathEl, Rect, Shape};
+use kurbo::{ParamCurve, PathEl, Shape};
 
 fn p(x: f64, y: f64) -> PVec {
     PVec::new(x, y)
@@ -196,48 +196,6 @@ fn geo_paths_floor_the_size_at_one() {
         .to_bez_path()
         .bounding_box();
     assert_eq!((bb.width(), bb.height()), (1.0, 1.0));
-}
-
-#[test]
-fn per_corner_radii_path_keeps_the_rect_and_rounds_only_requested_corners() {
-    let radii = PerCornerRadii {
-        top_left: 10.0,
-        top_right: 0.0,
-        bottom_left: 0.0,
-        bottom_right: 20.0,
-    };
-    let rect = Rect::new(5.0, 5.0, 105.0, 65.0);
-    let path = radii.path_in(rect);
-    assert_eq!(cubic_count(&path), 2);
-    let bb = path.to_bez_path().bounding_box();
-    assert!((bb.x0 - 5.0).abs() < 1e-9 && (bb.x1 - 105.0).abs() < 1e-9);
-    assert!((bb.y0 - 5.0).abs() < 1e-9 && (bb.y1 - 65.0).abs() < 1e-9);
-    assert!(!radii.is_uniform() && PerCornerRadii::uniform(4.0).is_uniform());
-}
-
-#[test]
-fn per_corner_radii_clamp_to_half_the_shorter_side() {
-    let path = PerCornerRadii::uniform(500.0).path_in(Rect::new(0.0, 0.0, 100.0, 40.0));
-    let Kind::Line = path.commands()[1].kind else {
-        panic!("expected a line");
-    };
-    assert_eq!(path.commands()[0].point, p(20.0, 0.0));
-    assert_eq!(path.commands()[1].point, p(80.0, 0.0));
-}
-
-#[test]
-fn outset_grows_round_corners_only() {
-    let o = PerCornerRadii {
-        top_left: 8.0,
-        top_right: 0.0,
-        bottom_left: 4.0,
-        bottom_right: 0.0,
-    }
-    .outset_by(3.0);
-    assert_eq!(
-        (o.top_left, o.top_right, o.bottom_left, o.bottom_right),
-        (11.0, 0.0, 7.0, 0.0)
-    );
 }
 
 fn dash(total: f64, sw: f64, style: DashStyle) -> DashProps {

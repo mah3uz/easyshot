@@ -32,7 +32,7 @@ fn launch(doc: Option<Opened>, mode: ThemeMode) -> (App, Entity<EditorWindow>) {
     let app = Headless::open(
         es_ui::assets::Assets,
         move |cx| {
-            es_ui::components::gallery::init(cx);
+            es_ui::init(cx);
             es_ui::theme::set_mode(mode, cx);
         },
         WIDTH,
@@ -210,7 +210,7 @@ fn save_shows_a_spinner_then_saved_for_its_flash_then_returns() {
     assert!(!again, "a second job started while saving");
 
     app.cx
-        .update(|cx| editor.update(cx, |w, cx| w.finish_save(Ok(()), cx)));
+        .update(|cx| editor.update(cx, |w, cx| w.finish(Job::Save, Ok(()), cx)));
     app.settle();
     assert_eq!(progress(&mut app), Progress::Done);
     wait(&mut app, FLASH - Duration::from_millis(1));
@@ -225,7 +225,7 @@ fn a_failed_save_returns_the_button_and_shows_the_error() {
     app.cx
         .update(|cx| editor.update(cx, |w, cx| w.request(Job::Save, cx)));
     app.cx
-        .update(|cx| editor.update(cx, |w, cx| w.finish_save(Err("disk full".into()), cx)));
+        .update(|cx| editor.update(cx, |w, cx| w.finish(Job::Save, Err("disk full".into()), cx)));
     app.settle();
     let (progress, error) =
         editor.read_with(&app.cx, |w, _| (w.progress(Job::Save), w.error().cloned()));
@@ -256,7 +256,7 @@ fn copy_shows_copied_for_its_flash_and_reports_failures() {
     assert_eq!(*seen.borrow(), vec![EditorWindowEvent::Copy]);
     assert_eq!(progress(&mut app), Progress::Busy);
     app.cx
-        .update(|cx| editor.update(cx, |w, cx| w.finish_copy(Ok(()), cx)));
+        .update(|cx| editor.update(cx, |w, cx| w.finish(Job::Copy, Ok(()), cx)));
     app.settle();
     assert_eq!(progress(&mut app), Progress::Done);
     wait(&mut app, FLASH - Duration::from_millis(1));
@@ -266,8 +266,11 @@ fn copy_shows_copied_for_its_flash_and_reports_failures() {
 
     app.cx
         .update(|cx| editor.update(cx, |w, cx| w.request(Job::Copy, cx)));
-    app.cx
-        .update(|cx| editor.update(cx, |w, cx| w.finish_copy(Err("no clipboard".into()), cx)));
+    app.cx.update(|cx| {
+        editor.update(cx, |w, cx| {
+            w.finish(Job::Copy, Err("no clipboard".into()), cx)
+        })
+    });
     app.settle();
     let (progress, error) =
         editor.read_with(&app.cx, |w, _| (w.progress(Job::Copy), w.error().cloned()));
@@ -437,7 +440,7 @@ fn screenshots_dark_light_and_saved() {
     app.cx
         .update(|cx| editor.update(cx, |w, cx| w.request(Job::Save, cx)));
     app.cx
-        .update(|cx| editor.update(cx, |w, cx| w.finish_save(Ok(()), cx)));
+        .update(|cx| editor.update(cx, |w, cx| w.finish(Job::Save, Ok(()), cx)));
     app.cx
         .update(|cx| editor.update(cx, |w, cx| w.request(Job::Copy, cx)));
     app.screenshot("window-dark-saved");

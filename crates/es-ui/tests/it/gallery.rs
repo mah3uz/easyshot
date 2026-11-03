@@ -20,7 +20,7 @@ fn every_section_draws_in_dark_and_light_side_by_side() {
     for section in gallery::sections() {
         let mut app = Headless::open(
             Assets,
-            gallery::init,
+            es_ui::init,
             WIDTH,
             section.window_height(),
             |window, cx| gallery::root(vec![section], window, cx),
@@ -66,7 +66,7 @@ fn every_section_draws_in_dark_and_light_side_by_side() {
 
 #[test]
 fn switching_mode_repaints_components_with_the_new_palette() {
-    let mut app = Headless::open(Assets, gallery::init, 320., 200., |window, cx| {
+    let mut app = Headless::open(Assets, es_ui::init, 320., 200., |window, cx| {
         gallery::root(Vec::new(), window, cx)
     });
     let background = |app: &mut Headless<gpui_component::Root>| {

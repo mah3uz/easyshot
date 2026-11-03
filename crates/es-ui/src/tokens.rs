@@ -280,10 +280,6 @@ impl Tokens {
             type_scale: TYPE,
         }
     }
-
-    pub fn for_mode(mode: ThemeMode) -> Self {
-        Self::new(mode.appearance())
-    }
 }
 
 impl Deref for Tokens {

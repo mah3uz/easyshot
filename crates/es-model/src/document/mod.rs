@@ -17,10 +17,6 @@ impl AnnotationDocument {
         self.shapes.iter().find(|s| s.id == id)
     }
 
-    pub fn shape_mut(&mut self, id: AnnoShapeId) -> Option<&mut AnnoShape> {
-        self.shapes.iter_mut().find(|s| s.id == id)
-    }
-
     /// Adds on top of the z-order.
     pub fn add_shape(&mut self, shape: AnnoShape) {
         self.shapes.push(shape);

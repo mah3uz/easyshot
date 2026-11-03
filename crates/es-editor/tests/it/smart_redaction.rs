@@ -43,7 +43,7 @@ fn launch(base: RgbaImage) -> (App, Entity<EditorWindow>) {
     let out = slot.clone();
     let mut app = Headless::open(
         es_ui::assets::Assets,
-        es_ui::components::gallery::init,
+        es_ui::init,
         1080.0,
         720.0,
         move |window, cx| {

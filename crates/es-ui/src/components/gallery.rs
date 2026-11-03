@@ -7,7 +7,6 @@ use gpui_component::{Icon, Root};
 
 use crate::{
     components::gallery_controls as controls,
-    fonts,
     icons::IconName,
     theme::{self, UI_FONT, tokens},
     tokens::{Appearance, TextStyle, Tokens, Typeset},
@@ -93,19 +92,13 @@ pub fn sections() -> Vec<Section> {
     ]
 }
 
-pub fn init(cx: &mut App) {
-    fonts::register(cx);
-    theme::install(cx);
-    crate::a11y::bind_focus_keys(cx);
-}
-
 pub fn root(sections: Vec<Section>, window: &mut Window, cx: &mut App) -> Entity<Root> {
     let view = cx.new(|_| Gallery { sections });
     cx.new(|cx| Root::new(view, window, cx))
 }
 
 pub fn open(cx: &mut App) {
-    init(cx);
+    crate::init(cx);
     if let Err(error) = cx.open_window(WindowOptions::default(), |window, cx| {
         root(sections(), window, cx)
     }) {

@@ -60,10 +60,6 @@ impl WlGlobals {
             && self.ext_output_capture_source.is_some()
     }
 
-    pub fn output_capture(&self) -> bool {
-        self.ext_output_capture() || (self.shm.is_some() && self.wlr_screencopy.is_some())
-    }
-
     pub fn toplevel_capture(&self) -> bool {
         self.shm.is_some()
             && self.ext_image_copy_capture.is_some()
@@ -139,9 +135,8 @@ mod tests {
     }
 
     #[test]
-    fn screencopy_alone_is_enough_for_output_capture_but_not_for_windows() {
+    fn screencopy_alone_is_neither_ext_output_capture_nor_windows() {
         let g = WlGlobals::from_globals([("wl_shm", 1), ("zwlr_screencopy_manager_v1", 3)]);
-        assert!(g.output_capture());
         assert!(!g.ext_output_capture());
         assert!(!g.toplevel_capture());
     }
@@ -150,12 +145,12 @@ mod tests {
     fn ext_capture_needs_the_source_manager_and_shm() {
         let without_source =
             WlGlobals::from_globals([("wl_shm", 1), ("ext_image_copy_capture_manager_v1", 1)]);
-        assert!(!without_source.output_capture());
+        assert!(!without_source.ext_output_capture());
         let without_shm = WlGlobals::from_globals([
             ("ext_image_copy_capture_manager_v1", 1),
             ("ext_output_image_capture_source_manager_v1", 1),
         ]);
-        assert!(!without_shm.output_capture());
+        assert!(!without_shm.ext_output_capture());
     }
 
     #[test]

@@ -101,14 +101,6 @@ impl BBox {
             && other.max_y() <= self.max_y()
     }
 
-    /// Touching edges count as colliding.
-    pub fn collides(self, other: BBox) -> bool {
-        !(other.max_x() < self.min_x()
-            || other.min_x() > self.max_x()
-            || other.max_y() < self.min_y()
-            || other.min_y() > self.max_y())
-    }
-
     pub fn expand_by(self, n: f64) -> BBox {
         BBox::new(self.x - n, self.y - n, self.w + n * 2.0, self.h + n * 2.0)
     }
@@ -147,13 +139,6 @@ mod tests {
             BBox::new(5.0, -3.0, 1.0, 1.0),
         ]);
         assert_eq!(u, BBox::new(0.0, -3.0, 6.0, 5.0));
-    }
-
-    #[test]
-    fn touching_boxes_collide_but_gapped_do_not() {
-        let a = BBox::new(0.0, 0.0, 2.0, 2.0);
-        assert!(a.collides(BBox::new(2.0, 0.0, 2.0, 2.0)));
-        assert!(!a.collides(BBox::new(2.1, 0.0, 2.0, 2.0)));
     }
 
     #[test]

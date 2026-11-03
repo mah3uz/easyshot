@@ -13,7 +13,7 @@ fn main() {
     gpui_platform::application()
         .with_assets(es_ui::assets::Assets)
         .run(|cx: &mut App| {
-            es_ui::components::gallery::init(cx);
+            es_ui::init(cx);
             let look = BackgroundSettings {
                 style: GradientPreset::by_id("soft-lilac")
                     .map(|g| BackgroundStyle::Gradient(g.style()))

@@ -21,7 +21,7 @@ pub(super) fn install(
     desktop: Option<&dyn es_desktop::Appearance>,
     cx: &mut App,
 ) -> Subscription {
-    es_ui::hello::init(cx);
+    es_ui::init(cx);
     if let Some(desktop) = desktop {
         es_ui::motion::set_reduce_motion(desktop.reduce_motion(), cx);
     }

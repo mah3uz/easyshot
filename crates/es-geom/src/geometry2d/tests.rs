@@ -115,8 +115,7 @@ fn ellipse_with_collapsed_size_is_clamped_to_one_for_vertices_only() {
 #[test]
 fn circle_hit_test_has_inner_and_outer_margin_and_fills_when_small() {
     let c = Circle2d::new(0.0, 0.0, 10.0, false);
-    let center = c.circle_center();
-    assert_eq!(center, p(10.0, 10.0));
+    let center = p(10.0, 10.0);
     assert!(c.hit_test_point(p(20.0, 10.0), 0.0, false));
     assert!(c.hit_test_point(p(23.0, 10.0), 3.0, false));
     assert!(!c.hit_test_point(p(23.1, 10.0), 3.0, false));
@@ -139,7 +138,7 @@ fn circle_distance_is_signed_only_for_filled() {
 #[test]
 fn circle_nearest_point_at_its_center_is_the_rightmost_point() {
     let c = Circle2d::new(0.0, 0.0, 10.0, false);
-    assert_eq!(c.nearest_point(c.circle_center()), p(20.0, 10.0));
+    assert_eq!(c.nearest_point(p(10.0, 10.0)), p(20.0, 10.0));
     assert_eq!(c.bounds(), BBox::new(0.0, 0.0, 20.0, 20.0));
 }
 
@@ -284,14 +283,6 @@ fn transformed_maps_intersections_and_nearest_back_out() {
     let n = t.nearest_point(p(105.0, -3.0));
     assert!((n.x - 105.0).abs() < 1e-9 && n.y.abs() < 1e-9);
     assert_eq!(t.intersect_circle(p(105.0, 5.0), 2.0).len(), 0);
-}
-
-#[test]
-fn transformed_of_transformed_composes() {
-    let t = Transformed::new(Arc::new(square(false)), Mat::scale(2.0, 2.0))
-        .transformed(Mat::translate(5.0, 0.0));
-    assert!(t.hit_test_point(p(5.0, 10.0), 0.1, false));
-    assert!(t.hit_test_point(p(25.0, 10.0), 0.1, false));
 }
 
 #[test]

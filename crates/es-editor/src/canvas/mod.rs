@@ -200,10 +200,6 @@ impl EditorCanvas {
         cx.notify();
     }
 
-    pub fn set_redaction_painter(&mut self, painter: RedactionPainter) {
-        self.redaction_painter = Some(painter);
-    }
-
     pub fn background(&self) -> &BackgroundSettings {
         &self.background
     }

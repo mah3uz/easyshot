@@ -14,7 +14,6 @@ use es_testkit::Headless;
 use es_ui::motion::STEP_CHANGE;
 use es_ui::{
     assets::Assets,
-    components::gallery,
     theme,
     tokens::{Appearance, ThemeMode},
 };
@@ -215,7 +214,7 @@ fn open_sized(
     let app = Headless::open(
         Assets,
         |cx| {
-            gallery::init(cx);
+            es_ui::init(cx);
             theme::set_mode(mode, cx);
             es_ui::motion::set_reduce_motion(true, cx);
         },
@@ -415,7 +414,7 @@ fn copy_puts_the_include_line_on_the_clipboard() {
     paths.ensure_all().expect("dirs");
     let clipboard = FakeClipboard::default();
     let mut host = None;
-    let mut app = Headless::open(Assets, gallery::init, WIDTH, HEIGHT, |window, cx| {
+    let mut app = Headless::open(Assets, es_ui::init, WIDTH, HEIGHT, |window, cx| {
         let input = input(&paths, &clipboard);
         let view = cx.new(|cx| Onboarding::new(paths.clone(), input, window, cx));
         host = Some(view.clone());

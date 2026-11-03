@@ -27,7 +27,6 @@ es-record.workspace = true
 es-backend.workspace = true
 es-ui.workspace = true
 gpui.workspace = true
-tokio.workspace = true
 futures.workspace = true
 async-channel.workspace = true
 serde.workspace = true

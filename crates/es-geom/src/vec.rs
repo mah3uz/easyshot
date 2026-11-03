@@ -92,10 +92,6 @@ impl PVec {
         PVec::with_z(a.x / s, a.y / s, a.z)
     }
 
-    pub fn neg(a: PVec) -> PVec {
-        PVec::with_z(-a.x, -a.y, a.z)
-    }
-
     /// Midpoint; `z` resets to 1.
     pub fn med(a: PVec, b: PVec) -> PVec {
         PVec::new((a.x + b.x) / 2.0, (a.y + b.y) / 2.0)
@@ -114,10 +110,6 @@ impl PVec {
 
     pub fn dist(a: PVec, b: PVec) -> f64 {
         Self::dist2(a, b).sqrt()
-    }
-
-    pub fn manhattan_dist(a: PVec, b: PVec) -> f64 {
-        (a.x - b.x).abs() + (a.y - b.y).abs()
     }
 
     pub fn dist_min(a: PVec, b: PVec, n: f64) -> bool {
@@ -195,26 +187,6 @@ impl PVec {
         PVec::new(a.x + t * dx, a.y + t * dy)
     }
 
-    /// `steps` points between `a` and `b`, eased by `easing`; `z` is interpolated with the eased `t`.
-    pub fn points_between(
-        a: PVec,
-        b: PVec,
-        steps: usize,
-        easing: impl Fn(f64) -> f64,
-    ) -> Vec<PVec> {
-        if steps <= 1 {
-            return vec![a, b];
-        }
-        (0..steps)
-            .map(|i| {
-                let t = easing(i as f64 / (steps - 1) as f64);
-                let mut v = Self::lrp(a, b, t);
-                v.z = a.z + (b.z - a.z) * t;
-                v
-            })
-            .collect()
-    }
-
     /// Tolerance compare (1e-4 per axis, `z` ignored): an exact compare would report a flip on every bound arrow.
     pub fn equals(a: PVec, b: PVec) -> bool {
         (a.x - b.x).abs() < 0.0001 && (a.y - b.y).abs() < 0.0001
@@ -245,16 +217,6 @@ mod tests {
         assert_eq!(PVec::lrp(a, b, 0.5).z, 1.0);
         assert_eq!(PVec::med(a, b).z, 1.0);
         assert_eq!(PVec::add(a, b).z, 0.2);
-    }
-
-    #[test]
-    fn points_between_interpolates_pressure_with_eased_t() {
-        let a = PVec::with_z(0.0, 0.0, 0.0);
-        let b = PVec::with_z(10.0, 0.0, 1.0);
-        let pts = PVec::points_between(a, b, 3, |t| t);
-        assert_eq!(pts.len(), 3);
-        assert_eq!(pts[1], PVec::with_z(5.0, 0.0, 0.5));
-        assert_eq!(PVec::points_between(a, b, 1, |t| t), vec![a, b]);
     }
 
     #[test]

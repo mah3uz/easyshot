@@ -10,10 +10,6 @@ pub fn clamp(n: f64, min: f64, max: f64) -> f64 {
     min.max(n.min(max))
 }
 
-pub fn clamp_min(n: f64, min: f64) -> f64 {
-    min.max(n)
-}
-
 pub fn modulate(value: f64, range_a: (f64, f64), range_b: (f64, f64), should_clamp: bool) -> f64 {
     let (from_low, from_high) = range_a;
     let (v0, v1) = range_b;
@@ -208,14 +204,6 @@ pub mod easing {
     pub fn ease_out_cubic(t: f64) -> f64 {
         let u = t - 1.0;
         u * u * u + 1.0
-    }
-
-    pub fn ease_in_out_cubic(t: f64) -> f64 {
-        if t < 0.5 {
-            4.0 * t * t * t
-        } else {
-            (t - 1.0) * (2.0 * t - 2.0) * (2.0 * t - 2.0) + 1.0
-        }
     }
 
     pub fn ease_out_sine(t: f64) -> f64 {

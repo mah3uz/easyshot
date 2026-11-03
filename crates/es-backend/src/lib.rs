@@ -22,9 +22,7 @@ pub use doctor::doctor_json;
 pub use error::{BackendError, Error, Result};
 #[cfg(feature = "test-hooks")]
 pub use probe::TestConfig;
-pub use probe::{
-    DbusNames, Env, GST_ELEMENTS, PortalIfaces, Probe, Provider, TOOL_PACKAGES, Tools, WlGlobals,
-};
+pub use probe::{DbusNames, Env, PortalIfaces, Probe, Provider, TOOL_PACKAGES, Tools, WlGlobals};
 pub use traits::{
     BindHelper, BindSyntax, Capture, Clipboard, PointerQuery, Trigger, VirtualInput, WindowList,
 };

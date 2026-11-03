@@ -46,7 +46,7 @@ fn rig(mode: ThemeMode, tab: Tab) -> Rig {
     let app = Headless::open(
         es_ui::assets::Assets,
         move |cx| {
-            es_ui::hello::init(cx);
+            es_ui::init(cx);
             es_ui::theme::set_mode(mode, cx);
         },
         w,

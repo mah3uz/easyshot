@@ -22,7 +22,6 @@ tray-unpin-all = Unpin All Windows
 tray-settings = Settings
 tray-quit = Quit
 tray-version = Version { $version }
-tray-version-update = Version { $version } · { $new } available in Settings
 tray-item-a11y = { -app-name }
 tray-drop-hint-a11y = Drop image to edit
 tray-recording = Recording { $elapsed }

@@ -2,7 +2,7 @@
 #![allow(dead_code)]
 
 use es_testkit::Headless;
-use es_ui::{assets::Assets, components::gallery};
+use es_ui::assets::Assets;
 use gpui::{
     AppContext, Context, Entity, Focusable, KeyDownEvent, Keystroke, ModifiersChangedEvent,
     MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, OperatingSystem, PlatformInput,
@@ -20,7 +20,7 @@ pub fn open<V: Render>(
     build: impl FnOnce(&mut Window, &mut Context<V>) -> V,
 ) -> (App, Entity<V>) {
     let mut host = None;
-    let mut app = Headless::open(Assets, gallery::init, WIDTH, height, |window, cx| {
+    let mut app = Headless::open(Assets, es_ui::init, WIDTH, height, |window, cx| {
         let view = cx.new(|cx| build(window, cx));
         host = Some(view.clone());
         cx.new(|cx| Root::new(view, window, cx))

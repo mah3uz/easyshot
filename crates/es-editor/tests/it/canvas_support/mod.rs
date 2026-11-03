@@ -199,7 +199,7 @@ pub fn open(width: f32, height: f32, doc: Opened) -> (App, EditorSession) {
     let out = slot.clone();
     let app = Headless::open(
         es_ui::assets::Assets,
-        es_ui::components::gallery::init,
+        es_ui::init,
         width,
         height,
         move |_, cx| {

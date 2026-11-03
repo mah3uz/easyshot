@@ -22,7 +22,7 @@ fn main() {
     gpui_platform::application()
         .with_assets(es_ui::assets::Assets)
         .run(move |cx| {
-            es_ui::components::gallery::init(cx);
+            es_ui::init(cx);
             let deps = SettingsDeps {
                 settings: cx.new(|_| SettingsModel::new(file)),
                 history: None,

@@ -151,7 +151,7 @@ fn system_follows_the_desktop_and_is_dark_without_a_preference() {
 
 #[test]
 fn tokens_are_the_palette_of_their_mode() {
-    let light = Tokens::for_mode(ThemeMode::System(Some(Appearance::Light)));
+    let light = Tokens::new(Appearance::Light);
     assert_eq!(light.appearance, Appearance::Light);
     let window = light.window.to_rgb();
     assert!(window.r.min(window.g).min(window.b) > 0.999);

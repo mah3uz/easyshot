@@ -1,9 +1,6 @@
-use es_ui::components::backgrounds::{DOT_TILE, dot_cells, dot_tile};
+use es_ui::components::backgrounds::{dot_cells, dot_tile};
 use gpui::{Bounds, Hsla, Pixels, RenderImage};
 use std::sync::Arc;
-
-/// Logical pixels per side of the repeated grid image; a whole number of dot steps.
-pub const GRID_TILE: f32 = DOT_TILE;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct GridKey {

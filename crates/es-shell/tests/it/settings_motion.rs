@@ -7,7 +7,6 @@ use es_store::{ConfigFile, Paths};
 use es_testkit::Headless;
 use es_ui::{
     assets::Assets,
-    components::gallery,
     motion::{PAGE_CHANGE, set_reduce_motion},
 };
 use gpui::{AppContext, Entity};
@@ -26,7 +25,7 @@ fn open(dir: &std::path::Path) -> (Headless<Root>, Entity<SettingsWindow>) {
     let file = ConfigFile::load(&paths.config_file()).unwrap();
     let mut view = None;
     let (w, h) = es_shell::settings::WINDOW_SIZE;
-    let app = Headless::open(Assets, gallery::init, w, h, |window, cx| {
+    let app = Headless::open(Assets, es_ui::init, w, h, |window, cx| {
         let deps = SettingsDeps {
             settings: cx.new(|_| SettingsModel::new(file)),
             history: None,

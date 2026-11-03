@@ -43,10 +43,6 @@ impl ExportFormat {
             Self::Jpeg => "image/jpeg",
         }
     }
-
-    pub fn is_lossy(self) -> bool {
-        self == Self::Jpeg
-    }
 }
 
 /// JPEG quality percent from the 0..=1 setting.

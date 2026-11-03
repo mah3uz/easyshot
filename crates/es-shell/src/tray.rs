@@ -78,7 +78,6 @@ pub struct TrayInput {
     pub recorder_missing: bool,
     pub recording: Option<RecordingTrayState>,
     pub version: String,
-    pub update: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -177,15 +176,11 @@ pub fn menu(input: &TrayInput) -> TrayModel {
         Some(Route::Settings(None)),
     ));
     items.push(item("tray-quit", fl!("tray-quit"), Some(Route::Quit)));
-    let version = input.version.clone();
-    let version = match &input.update {
-        None => item("tray-version", fl!("tray-version", version = version), None),
-        Some(new) => item(
-            "tray-version-update",
-            fl!("tray-version-update", version = version, new = new.clone()),
-            None,
-        ),
-    };
+    let version = item(
+        "tray-version",
+        fl!("tray-version", version = input.version.clone()),
+        None,
+    );
     items.push(TrayItem {
         enabled: false,
         ..version

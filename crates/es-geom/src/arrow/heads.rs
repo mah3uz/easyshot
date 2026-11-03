@@ -2,7 +2,7 @@ use super::types::{ArrowBody, ArrowInfo, Arrowhead, Terminal};
 use crate::geometry2d::{Arc2d, Circle2d, Edge2d, Geometry2d, Group2d, Polyline2d};
 use crate::intersect::circle_circle;
 use crate::math::{HALF_PI, clamp};
-use crate::path::{CommandOpts, DashStyle, DashedSegment, PathBuilder};
+use crate::path::{CommandOpts, PathBuilder};
 use crate::vec::PVec;
 use kurbo::BezPath;
 use std::f64::consts::PI;
@@ -101,30 +101,6 @@ impl ArrowInfo {
             }
         }
         path
-    }
-
-    pub fn body_path(&self) -> BezPath {
-        self.body_builder().to_bez_path()
-    }
-
-    pub fn body_dashes(&self, style: DashStyle) -> Vec<DashedSegment> {
-        self.body_builder()
-            .dashed_segments(self.stroke_width, style)
-    }
-
-    /// The path through the handles, drawn as a guide while the arrow is selected.
-    pub fn handles_path(&self) -> BezPath {
-        let mut path = PathBuilder::new();
-        path.move_to(self.start.handle);
-        match self.handle_arc {
-            Some(arc) if !self.is_straight() => {
-                path.circular_arc(arc.radius, arc.large_arc, arc.sweep, self.end.handle);
-            }
-            _ => {
-                path.line_to(self.end.handle);
-            }
-        }
-        path.to_bez_path()
     }
 
     /// Hit-test geometry: the body plus both heads.

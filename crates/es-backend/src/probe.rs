@@ -1,7 +1,7 @@
 use crate::error::BackendError;
 pub use es_wayland::WlGlobals;
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 #[cfg(feature = "test-hooks")]
@@ -85,23 +85,12 @@ impl Env {
     }
 }
 
-pub const GST_ELEMENTS: &[&str] = &[
-    "pipewiresrc",
-    "vah264enc",
-    "nvh264enc",
-    "x264enc",
-    "openh264enc",
-    "vp9enc",
-    "matroskamux",
-];
-
 #[derive(Debug, Clone, Default)]
 pub struct Tools {
     pub gsr: bool,
     pub wf_recorder: bool,
     pub tesseract: bool,
     pub ffmpeg: bool,
-    pub gst_elements: BTreeSet<String>,
 }
 
 /// `(tool, package)`: what a missing tool is called and what provides it.
@@ -116,20 +105,11 @@ impl Tools {
     pub fn gather(env: &Env) -> Self {
         let path = env.var("PATH").unwrap_or_default();
         let on_path = |name: &str| find_on_path(path, name).is_some();
-        let gst_elements = match find_on_path(path, "gst-inspect-1.0") {
-            Some(inspect) => GST_ELEMENTS
-                .iter()
-                .filter(|e| gst_has(&inspect, e))
-                .map(|e| (*e).to_owned())
-                .collect(),
-            None => BTreeSet::new(),
-        };
         Tools {
             gsr: on_path("gpu-screen-recorder"),
             wf_recorder: on_path("wf-recorder"),
             tesseract: on_path("tesseract"),
             ffmpeg: on_path("ffmpeg"),
-            gst_elements,
         }
     }
 
@@ -139,7 +119,7 @@ impl Tools {
             "wf-recorder" => self.wf_recorder,
             "tesseract" => self.tesseract,
             "ffmpeg" => self.ffmpeg,
-            other => self.gst_elements.contains(other),
+            _ => false,
         }
     }
 }
@@ -152,16 +132,6 @@ fn find_on_path(path: &str, name: &str) -> Option<PathBuf> {
         .find(|p| {
             std::fs::metadata(p).is_ok_and(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
         })
-}
-
-fn gst_has(inspect: &Path, element: &str) -> bool {
-    std::process::Command::new(inspect)
-        .args(["--exists", element])
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .is_ok_and(|s| s.success())
 }
 
 #[cfg(feature = "test-hooks")]

@@ -36,7 +36,7 @@ fn launch(mode: ThemeMode) -> Editor {
     let mut app = Headless::open(
         es_ui::assets::Assets,
         move |cx| {
-            es_ui::components::gallery::init(cx);
+            es_ui::init(cx);
             es_ui::theme::set_mode(mode, cx);
             es_ui::motion::set_reduce_motion(true, cx);
         },

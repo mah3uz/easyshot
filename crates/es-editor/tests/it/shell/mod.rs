@@ -119,7 +119,7 @@ pub fn launch_image(
     let mut app = Headless::open(
         es_ui::assets::Assets,
         move |cx| {
-            es_ui::components::gallery::init(cx);
+            es_ui::init(cx);
             es_ui::theme::set_mode(ThemeMode::Dark, cx);
             es_editor::keyboard::bind(cx, &overrides, &Default::default());
         },

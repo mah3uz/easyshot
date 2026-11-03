@@ -224,13 +224,6 @@ impl Transformed {
             matrix,
         }
     }
-
-    pub fn transformed(&self, transform: Mat) -> Transformed {
-        Transformed::new(
-            Arc::clone(&self.geometry),
-            Mat::multiply(transform, self.matrix),
-        )
-    }
 }
 
 impl Geometry2d for Transformed {

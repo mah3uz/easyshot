@@ -55,7 +55,7 @@ fn open(shapes: Vec<es_model::AnnoShape>, mode: ThemeMode) -> Row {
     let out = slot.clone();
     let mut app = Headless::open(
         es_ui::assets::Assets,
-        es_ui::components::gallery::init,
+        es_ui::init,
         WIDTH,
         HEIGHT,
         move |window, cx| {
@@ -445,7 +445,7 @@ fn the_toolbar_inspector_toggle_closes_and_opens_the_window_column() {
     let out = slot.clone();
     let mut app = Headless::open(
         es_ui::assets::Assets,
-        es_ui::components::gallery::init,
+        es_ui::init,
         WIDTH,
         720.,
         move |window, cx| {

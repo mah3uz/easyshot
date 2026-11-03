@@ -155,7 +155,7 @@ pub fn rig_with(screenshots: usize, videos: usize, mode: ThemeMode, w: f32, h: f
     let app = Headless::open(
         es_ui::assets::Assets,
         move |cx| {
-            es_ui::hello::init(cx);
+            es_ui::init(cx);
             es_ui::theme::set_mode(mode, cx);
         },
         w,

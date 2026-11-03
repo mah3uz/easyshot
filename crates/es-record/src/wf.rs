@@ -17,14 +17,6 @@ pub struct Encoder {
     pub vaapi: bool,
 }
 
-pub fn read_ffmpeg_encoders(ffmpeg: &Path) -> String {
-    std::process::Command::new(ffmpeg)
-        .args(["-hide_banner", "-encoders"])
-        .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
-        .unwrap_or_default()
-}
-
 pub fn pick_encoder(encoders: &str, codec: Codec, vaapi_device: bool) -> Result<Encoder> {
     let has = |n: &str| encoders.split_whitespace().any(|t| t == n);
     let candidates: &[(&'static str, bool)] = match codec {
