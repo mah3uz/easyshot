@@ -1,5 +1,5 @@
 #![allow(clippy::unwrap_used)]
-use es_model::{AnnotationDocument, StylePreset};
+use es_model::{AnnotationDocument, LastTarget, StylePreset};
 use es_store::{Error, Paths, document, presets, state};
 use std::os::unix::fs::PermissionsExt;
 
@@ -30,6 +30,33 @@ fn state_round_trips_through_the_envelope() {
         .mode()
         & 0o777;
     assert_eq!(mode, 0o600);
+}
+
+#[test]
+fn a_v1_state_opens_with_its_region_as_the_last_target_and_saves_as_v2() {
+    let dir = tempfile::tempdir().unwrap();
+    let paths = paths_with_dirs(dir.path());
+    std::fs::write(
+        paths.state_file(),
+        r#"{"format":"easyshot.state","version":1,"counter":5,
+            "last_region":{"output":"DP-2","x":1,"y":2,"w":30,"h":40}}"#,
+    )
+    .unwrap();
+    let f = state::open(&paths).unwrap();
+    assert_eq!(f.newer_version(), None);
+    let Some(LastTarget::Region(region)) = &f.value.last_target else {
+        panic!("no region target: {:?}", f.value.last_target);
+    };
+    assert_eq!(
+        (region.output.as_str(), region.w, region.h),
+        ("DP-2", 30, 40)
+    );
+    f.save().unwrap();
+    let written: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(paths.state_file()).unwrap()).unwrap();
+    assert_eq!(written["version"], 2);
+    assert_eq!(written["counter"], 5);
+    assert_eq!(written["last_target"]["region"]["output"], "DP-2");
 }
 
 #[test]

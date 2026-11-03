@@ -1,5 +1,5 @@
 #![allow(clippy::unwrap_used)]
-use es_app::capture_coordinator::{CaptureCoordinator, Direct, DirectCapture};
+use es_app::capture_coordinator::{CaptureCoordinator, Direct, DirectCapture, Timer};
 use es_app::dispatcher::RouteDispatcher;
 use es_app::errors::Result;
 use es_app::events::Origin;
@@ -7,7 +7,7 @@ use es_app::jobs::{JobFinished, Jobs};
 use es_app::platform_ui::{SelectMode, Selection, SelectionFlow};
 use es_app::windows::{WindowHandle, WindowKind, Windows};
 use es_geom::Rgba;
-use es_protocol::{JobStatus, Route, SettingsPage};
+use es_protocol::{JobStatus, Route, SettingsPage, TimedMode};
 use gpui::{App, Task, TestAppContext};
 use std::cell::RefCell;
 use std::path::PathBuf;
@@ -63,8 +63,12 @@ fn rig(wired: bool) -> Rig {
         coordinator.set_direct_capture(Rc::new(Instant));
         let sink = log.clone();
         coordinator.set_pipeline(Rc::new(move |request, _, _| {
+            let timer = match request.timer {
+                Timer::Off => String::new(),
+                t => format!(" {t:?}"),
+            };
             sink.borrow_mut()
-                .push(format!("{:?} {:?}", request.kind, request.variant));
+                .push(format!("{:?} {:?}{timer}", request.kind, request.variant));
             Task::ready(Ok(()))
         }));
         for kind in [
@@ -103,7 +107,15 @@ fn every_route() -> Vec<(Route, Vec<&'static str>)> {
         (Route::CaptureFullscreen, vec!["Fullscreen Normal"]),
         (Route::CaptureWindow, vec!["Window Normal"]),
         (Route::CapturePrevious, vec!["Previous Normal"]),
-        (Route::CaptureTimed, vec!["Timed Normal"]),
+        (Route::CaptureTimed, vec!["Region Normal Setting"]),
+        (
+            Route::timed(TimedMode::Window, Some(5)),
+            vec!["Window Normal Seconds(5)"],
+        ),
+        (
+            Route::timed(TimedMode::Fullscreen, None),
+            vec!["Fullscreen Normal Setting"],
+        ),
         (Route::CaptureRegionCopy, vec!["Region RegionCopy"]),
         (Route::CaptureRegionSave, vec!["Region RegionSave"]),
         (Route::CaptureRegionAnnotate, vec!["Region RegionAnnotate"]),
@@ -145,7 +157,7 @@ fn every_route() -> Vec<(Route, Vec<&'static str>)> {
 
 #[gpui::test]
 fn every_route_reaches_its_handler_and_its_job_finishes_ok(cx: &mut TestAppContext) {
-    assert_eq!(every_route().len(), 31 + SettingsPage::ALL.len());
+    assert_eq!(every_route().len(), 33 + SettingsPage::ALL.len());
     let rig = rig(true);
     for (route, expected) in every_route() {
         rig.log.borrow_mut().clear();

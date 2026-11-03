@@ -136,6 +136,19 @@ telling a login start from a launcher start, which D-Bus activation through syst
 Captures always freeze the screen; there is no native-selector option and no config key.
 Rejected: a native-selector option. Reason not recorded.
 
+### A timed capture freezes only while you pick
+A timed capture is pick, then countdown, then a fresh frame of the picked target: the area
+on its output, the window by its id, or the display. The frozen frame is used for the pick
+alone, so freeze still holds for every pick, and what the countdown waits for (an open menu,
+a hover) is in the shot. Rejected: countdown first, then a frozen pick, which made a timed
+capture only possible for areas and could not catch a menu that closes when you click.
+
+### `capture previous` repeats the last target
+The state file keeps the last target (area, window id with its app and title, or display)
+next to the area the region selector starts from; format version 2 moves a version 1
+`last_region` into it. A window that has closed gives a toast and no capture. Rejected:
+falling back to the window's last rectangle, which would capture whatever is there now.
+
 ### KMS recording without `no_screen_share`
 The recording bar cannot be hidden from the video by a window-sharing flag on KMS, so easyshot
 does not rely on `no_screen_share` for it (item 9 below).

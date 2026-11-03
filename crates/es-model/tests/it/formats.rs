@@ -1,7 +1,7 @@
-use es_model::format::CURRENT_VERSION;
 use es_model::{
-    AnnotationDocument, Envelope, FormatKind, Header, Migrated, PresetLibrary, RecordingCapture,
-    RecordingInput, RecordingProject, Recovery, ShapeKind, State, StylePreset, Tool, migrate,
+    AnnotationDocument, Envelope, FormatKind, Header, LastRegion, LastTarget, Migrated,
+    PresetLibrary, RecordingCapture, RecordingInput, RecordingProject, Recovery, ShapeKind, State,
+    StylePreset, Tool, migrate,
 };
 use serde::{Serialize, de::DeserializeOwned};
 use std::path::PathBuf;
@@ -92,7 +92,7 @@ fn document_v1_holds_every_shape_kind_and_its_binding() {
 fn a_newer_document_is_read_only_and_never_parsed_as_current() {
     let src = fixture("document", "newer.json");
     let header: Header = serde_json::from_str(&src).unwrap();
-    assert!(header.version > CURRENT_VERSION);
+    assert!(header.version > FormatKind::Document.version());
     assert!(serde_json::from_str::<Envelope<AnnotationDocument>>(&src).is_err());
     let value = serde_json::from_str(&src).unwrap();
     assert_eq!(
@@ -154,6 +154,44 @@ fn state_v1() {
         s.deck_layout.get("top_right").map(String::as_str),
         Some("dismiss")
     );
+}
+
+#[test]
+fn state_v1_migrates_its_region_into_the_target_capture_previous_repeats() {
+    let value: serde_json::Value = serde_json::from_str(&fixture("state", "v1.json")).unwrap();
+    let Migrated::Current(v2) = migrate(FormatKind::State, 1, value).unwrap() else {
+        panic!("v1 is older than this build");
+    };
+    let s = serde_json::from_value::<Envelope<State>>(v2).unwrap().body;
+    let region = LastRegion {
+        output: "DP-2".into(),
+        x: 100,
+        y: 200,
+        w: 640,
+        h: 480,
+    };
+    assert_eq!(s.last_target, Some(LastTarget::Region(region.clone())));
+    assert_eq!(s.last_region, Some(region));
+    assert_eq!(s.counter, 42);
+}
+
+#[test]
+fn state_v2_reads_each_kind_of_target() {
+    let src = fixture("state", "v2.json");
+    let env: Envelope<State> = serde_json::from_str(&src).unwrap();
+    assert_eq!(env.version, FormatKind::State.version());
+    assert_eq!(
+        env.body.last_target,
+        Some(LastTarget::Window {
+            id: "94".into(),
+            app: "foot".into(),
+            title: "~/src".into(),
+        })
+    );
+    let output: LastTarget = serde_json::from_str(r#"{"output":"DP-1"}"#).unwrap();
+    assert_eq!(output, LastTarget::Output("DP-1".into()));
+    let written = serde_json::to_value(&env).unwrap();
+    assert_eq!(written["last_target"]["window"]["id"], "94");
 }
 
 #[test]

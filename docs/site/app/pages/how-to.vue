@@ -28,7 +28,7 @@ const needs = [
 const keys = [
   ['Capture an area', 'capture region'],
   ['Capture the whole screen', 'capture fullscreen'],
-  ['Capture the previous area again', 'capture previous'],
+  ['Capture the previous area, window or display again', 'capture previous'],
   ['Open or close the capture bar', 'capture-bar'],
   ['Record the screen', 'record'],
   ['Capture text (OCR)', 'ocr'],
@@ -39,7 +39,7 @@ const captures = [
   { icon: 'square-dashed', title: 'Area', cmd: 'easyshot capture region', text: 'Drag a selection on the frozen screen and adjust it. Press Space to switch to window mode. Add --copy, --save, --annotate or --pin to choose what happens next.' },
   { icon: 'app-window', title: 'Window', cmd: 'easyshot capture window', text: 'Hover to highlight a window, click to take it.' },
   { icon: 'monitor', title: 'Full screen', cmd: 'easyshot capture fullscreen', text: 'The output under the pointer.' },
-  { icon: 'timer', title: 'Timed', cmd: 'easyshot capture timed', text: 'Waits 3, 5 or 10 seconds first.' },
+  { icon: 'timer', title: 'Timed', cmd: 'easyshot capture window --timed 5', text: 'Pick first, then a countdown runs and a fresh frame is taken. Add --timed to region, window or fullscreen.' },
   { icon: 'unfold-vertical', title: 'Scrolling', cmd: 'easyshot capture scroll', text: 'Select an area, then scroll. easyshot joins it into one tall image. Press the shortcut again, or Stop, to finish.' },
   { icon: 'scan-text', title: 'Text', cmd: 'easyshot ocr', text: 'Reads the text, or a QR code, in an area and copies it.' },
 ]

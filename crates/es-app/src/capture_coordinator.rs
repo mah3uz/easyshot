@@ -14,7 +14,6 @@ pub enum CaptureKind {
     Fullscreen,
     Window,
     Previous,
-    Timed,
     Scroll,
     Text,
     TextLine,
@@ -23,22 +22,42 @@ pub enum CaptureKind {
     RecordingArea,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Timer {
+    #[default]
+    Off,
+    /// The self-timer setting.
+    Setting,
+    Seconds(u32),
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CaptureRequest {
     pub kind: CaptureKind,
     pub variant: CaptureVariant,
+    pub timer: Timer,
 }
 
 impl CaptureRequest {
     pub fn new(kind: CaptureKind, variant: CaptureVariant) -> Self {
-        Self { kind, variant }
+        Self {
+            kind,
+            variant,
+            timer: Timer::Off,
+        }
+    }
+
+    pub fn timed(self, timer: Timer) -> Self {
+        Self { timer, ..self }
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum Direct {
     Fullscreen,
     Previous,
+    /// A fresh frame of what was picked, taken once the timer has run out.
+    Again(Selection),
 }
 
 /// For captures that need no interactive selection.
@@ -47,9 +66,10 @@ pub trait DirectCapture {
 }
 
 pub type Pipeline = Rc<dyn Fn(CaptureRequest, Selection, &mut App) -> Task<Result<()>>>;
-pub type Countdown = Rc<dyn Fn(&mut App) -> Task<Result<()>>>;
+pub type Countdown = Rc<dyn Fn(Timer, &mut App) -> Task<Result<()>>>;
 pub type Hook = Rc<dyn Fn(&mut App)>;
 pub type Gate = Rc<dyn Fn(CaptureRequest, &mut App) -> Result<()>>;
+pub type Captured = Rc<dyn Fn(CaptureKind, &Selection, &mut App)>;
 
 #[derive(Default, Clone)]
 struct Hooks {
@@ -58,6 +78,7 @@ struct Hooks {
     pipeline: Option<Pipeline>,
     countdown: Option<Countdown>,
     before_capture: Option<Hook>,
+    captured: Option<Captured>,
     scroll_stop: Option<Hook>,
     gate: Option<Gate>,
 }
@@ -169,6 +190,11 @@ impl CaptureCoordinator {
         self.inner.hooks.borrow_mut().gate = Some(gate);
     }
 
+    /// Sees what each capture took before the pipeline does, so it can be taken again.
+    pub fn set_captured(&self, hook: Captured) {
+        self.inner.hooks.borrow_mut().captured = Some(hook);
+    }
+
     /// Finishes the running scroll capture.
     pub fn set_scroll_stop(&self, hook: Hook) {
         self.inner.hooks.borrow_mut().scroll_stop = Some(hook);
@@ -218,16 +244,24 @@ impl CaptureCoordinator {
             if let Some(before) = &hooks.before_capture {
                 async_cx.update(|cx| before(cx));
             }
-            if request.kind == CaptureKind::Timed
-                && let Some(countdown) = &hooks.countdown
-            {
-                async_cx.update(|cx| countdown(cx)).await?;
-            }
-            let selection = async_cx
+            let picked = async_cx
                 .update(|cx| select(request.kind, &hooks, cx))?
                 .await?;
-            if matches!(selection, Selection::Cancelled) {
+            if matches!(picked, Selection::Cancelled) {
                 return Err(Error::Cancelled);
+            }
+            let selection = if request.timer == Timer::Off {
+                picked
+            } else {
+                if let Some(countdown) = &hooks.countdown {
+                    async_cx.update(|cx| countdown(request.timer, cx)).await?;
+                }
+                async_cx
+                    .update(|cx| direct(&hooks, Direct::Again(picked), cx))?
+                    .await?
+            };
+            if let Some(captured) = &hooks.captured {
+                async_cx.update(|cx| captured(request.kind, &selection, cx));
             }
             let pipeline = hooks.pipeline.ok_or(Error::Unsupported)?;
             async_cx.update(|cx| pipeline(request, selection, cx)).await
@@ -243,22 +277,21 @@ fn select(kind: CaptureKind, hooks: &Hooks, cx: &mut App) -> Result<Task<Result<
             .map(|flow| flow.run(mode, cx))
             .ok_or(Error::Unsupported)
     };
-    let direct = |source, cx: &mut App| {
-        hooks
-            .direct
-            .as_ref()
-            .map(|direct| direct.run(source, cx))
-            .ok_or(Error::Unsupported)
-    };
     match kind {
-        CaptureKind::Fullscreen | CaptureKind::Recording => direct(Direct::Fullscreen, cx),
-        CaptureKind::Previous => direct(Direct::Previous, cx),
-        CaptureKind::Region | CaptureKind::Timed | CaptureKind::RecordingArea => {
-            interactive(SelectMode::Region, cx)
-        }
+        CaptureKind::Fullscreen | CaptureKind::Recording => direct(hooks, Direct::Fullscreen, cx),
+        CaptureKind::Previous => direct(hooks, Direct::Previous, cx),
+        CaptureKind::Region | CaptureKind::RecordingArea => interactive(SelectMode::Region, cx),
         CaptureKind::Window => interactive(SelectMode::Window, cx),
         CaptureKind::Scroll => interactive(SelectMode::Scroll, cx),
         CaptureKind::Text | CaptureKind::TextLine => interactive(SelectMode::Text, cx),
         CaptureKind::Color => interactive(SelectMode::Color, cx),
     }
+}
+
+fn direct(hooks: &Hooks, source: Direct, cx: &mut App) -> Result<Task<Result<Selection>>> {
+    hooks
+        .direct
+        .as_ref()
+        .map(|direct| direct.run(source, cx))
+        .ok_or(Error::Unsupported)
 }

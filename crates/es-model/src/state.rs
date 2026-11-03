@@ -17,11 +17,27 @@ pub struct LastRegion {
     pub h: u32,
 }
 
+/// What `capture previous` repeats.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LastTarget {
+    Region(LastRegion),
+    /// App and title name the window once it has closed.
+    Window {
+        id: String,
+        app: String,
+        title: String,
+    },
+    Output(String),
+}
+
 /// App-written state, never edited by hand.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct State {
+    /// Where the region selector starts.
     pub last_region: Option<LastRegion>,
+    pub last_target: Option<LastTarget>,
     /// Next value for a `{counter}` in the file name template.
     pub counter: u32,
     pub onboarding_version: u32,
@@ -37,6 +53,7 @@ impl Default for State {
     fn default() -> Self {
         Self {
             last_region: None,
+            last_target: None,
             counter: 1,
             onboarding_version: 0,
             inspector_sections: BTreeMap::new(),

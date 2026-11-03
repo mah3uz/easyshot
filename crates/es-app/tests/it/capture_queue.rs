@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used)]
 use es_app::capture_coordinator::{
-    CaptureCoordinator, CaptureKind, CaptureRequest, Direct, DirectCapture,
+    CaptureCoordinator, CaptureKind, CaptureRequest, Direct, DirectCapture, Timer,
 };
 use es_app::errors::{Error, Result};
 use es_app::jobs::{JobFinished, JobId, Jobs};
@@ -34,11 +34,24 @@ impl SelectionFlow for Flow {
     }
 }
 
+fn kind(selection: &Selection) -> &'static str {
+    match selection {
+        Selection::Region { .. } => "region",
+        Selection::Window { .. } => "window",
+        Selection::Color(_) => "color",
+        Selection::Cancelled => "cancelled",
+    }
+}
+
 struct FakeDirect(Log);
 
 impl DirectCapture for FakeDirect {
     fn run(&self, source: Direct, _cx: &mut App) -> Task<Result<Selection>> {
-        self.0.borrow_mut().push(format!("direct {source:?}"));
+        let line = match source {
+            Direct::Again(picked) => format!("again {}", kind(&picked)),
+            other => format!("direct {other:?}"),
+        };
+        self.0.borrow_mut().push(line);
         Task::ready(Ok(color()))
     }
 }
@@ -78,8 +91,12 @@ fn rig() -> Rig {
 
 impl Rig {
     fn submit(&self, cx: &mut TestAppContext, kind: CaptureKind) -> JobId {
+        self.submit_timed(cx, kind, Timer::Off)
+    }
+
+    fn submit_timed(&self, cx: &mut TestAppContext, kind: CaptureKind, timer: Timer) -> JobId {
         let job = self.jobs.allocate();
-        let request = CaptureRequest::new(kind, CaptureVariant::Normal);
+        let request = CaptureRequest::new(kind, CaptureVariant::Normal).timed(timer);
         cx.update(|cx| self.coordinator.submit(job, request, cx));
         job
     }
@@ -228,23 +245,102 @@ fn a_gated_request_finishes_refused_before_anything_is_selected(cx: &mut TestApp
     assert_eq!(rig.log(), ["select Region"], "other captures pass the gate");
 }
 
-#[gpui::test]
-fn the_picker_hides_before_selection_and_a_timed_capture_counts_down_first(
-    cx: &mut TestAppContext,
-) {
-    let rig = rig();
+fn counting(rig: &Rig) {
     let hide = rig.log.clone();
     rig.coordinator.set_before_capture(Rc::new(move |_| {
         hide.borrow_mut().push("hide picker".into())
     }));
     let count = rig.log.clone();
-    rig.coordinator.set_countdown(Rc::new(move |_| {
-        count.borrow_mut().push("countdown".into());
+    rig.coordinator.set_countdown(Rc::new(move |timer, _| {
+        count.borrow_mut().push(format!("countdown {timer:?}"));
         Task::ready(Ok(()))
     }));
-    rig.submit(cx, CaptureKind::Timed);
+}
+
+// The screen is frozen only while picking, so the countdown must come after the pick and the
+// pipeline must get a fresh frame of the picked target, not the frozen one.
+#[gpui::test]
+fn a_timed_capture_picks_then_counts_down_then_captures_afresh(cx: &mut TestAppContext) {
+    let rig = rig();
+    counting(&rig);
+    rig.submit_timed(cx, CaptureKind::Region, Timer::Setting);
     cx.run_until_parked();
-    assert_eq!(rig.log(), ["hide picker", "countdown", "select Region"]);
+    assert_eq!(rig.log(), ["hide picker", "select Region"]);
+    rig.release(cx, 0);
+    rig.submit_timed(cx, CaptureKind::Window, Timer::Seconds(5));
+    cx.run_until_parked();
+    rig.release(cx, 1);
+    rig.submit_timed(cx, CaptureKind::Fullscreen, Timer::Seconds(10));
+    cx.run_until_parked();
+    assert_eq!(
+        rig.log(),
+        [
+            "hide picker",
+            "select Region",
+            "countdown Setting",
+            "again color",
+            "pipeline Region",
+            "hide picker",
+            "select Window",
+            "countdown Seconds(5)",
+            "again color",
+            "pipeline Window",
+            "hide picker",
+            "direct Fullscreen",
+            "countdown Seconds(10)",
+            "again color",
+            "pipeline Fullscreen",
+        ]
+    );
+}
+
+#[gpui::test]
+fn an_untimed_capture_neither_counts_down_nor_captures_twice(cx: &mut TestAppContext) {
+    let rig = rig();
+    counting(&rig);
+    rig.submit(cx, CaptureKind::Window);
+    cx.run_until_parked();
+    rig.release(cx, 0);
+    assert_eq!(
+        rig.log(),
+        ["hide picker", "select Window", "pipeline Window"]
+    );
+}
+
+#[gpui::test]
+fn a_cancelled_pick_never_starts_the_countdown(cx: &mut TestAppContext) {
+    let rig = rig();
+    counting(&rig);
+    let job = rig.submit_timed(cx, CaptureKind::Region, Timer::Seconds(3));
+    cx.run_until_parked();
+    rig.flow.gates.borrow()[0]
+        .try_send(Selection::Cancelled)
+        .unwrap();
+    cx.run_until_parked();
+    assert_eq!(rig.finished(), [(job, JobStatus::Cancelled)]);
+    assert_eq!(rig.log(), ["hide picker", "select Region"]);
+}
+
+#[gpui::test]
+fn the_captured_hook_sees_the_final_selection_before_the_pipeline(cx: &mut TestAppContext) {
+    let rig = rig();
+    let seen = rig.log.clone();
+    rig.coordinator
+        .set_captured(Rc::new(move |k, selection, _| {
+            seen.borrow_mut()
+                .push(format!("captured {k:?} {}", kind(selection)));
+        }));
+    rig.submit_timed(cx, CaptureKind::Fullscreen, Timer::Seconds(3));
+    cx.run_until_parked();
+    assert_eq!(
+        rig.log(),
+        [
+            "direct Fullscreen",
+            "again color",
+            "captured Fullscreen color",
+            "pipeline Fullscreen"
+        ]
+    );
 }
 
 #[gpui::test]

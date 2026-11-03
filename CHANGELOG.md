@@ -22,3 +22,5 @@
 - Screen recording, one at a time: the tray's Record item becomes Stop Recording while one runs, and system sound is recorded unless you turn it off.
 - Saved recordings and trim exports go to `~/Videos/easyshot/` with dated names, and each save notice says where.
 - Notifications you can click: open the file, show it in its folder, or edit a capture.
+- `capture previous` repeats the last area, display or window; a window that has closed gets a toast, not a capture.
+- `--timed [N]` on `capture region`, `window` and `fullscreen`, and a timer button on the capture bar: pick first, count down, then take a fresh frame.

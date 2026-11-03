@@ -1,5 +1,5 @@
 use crate::capture::strings::fl;
-use es_app::capture_coordinator::Countdown as CountdownHook;
+use es_app::capture_coordinator::{Countdown as CountdownHook, Timer};
 use es_app::errors::{Error, Result};
 use es_app::platform_ui::{LayerShellSurfaces, SurfaceHandle, SurfaceRole};
 use es_ui::a11y::{Accessible as _, Role};
@@ -342,9 +342,17 @@ impl Render for Countdown {
 }
 
 /// The coordinator's countdown: a dial on the pointer's output that takes no input, gone before it resolves.
+/// Seconds a timer counts: its own, or the setting raised to the minimum.
+pub fn timer_seconds(timer: Timer, setting: u32) -> u32 {
+    match timer {
+        Timer::Seconds(n) => n,
+        Timer::Off | Timer::Setting => setting.max(MIN_TIMED_SECONDS),
+    }
+}
+
 pub fn hook(surfaces: Rc<LayerShellSurfaces>, delay: Rc<dyn Fn(&App) -> u32>) -> CountdownHook {
-    Rc::new(move |cx: &mut App| -> Task<Result<()>> {
-        let seconds = delay(cx).max(MIN_TIMED_SECONDS);
+    Rc::new(move |timer, cx: &mut App| -> Task<Result<()>> {
+        let seconds = timer_seconds(timer, delay(cx));
         let source = surfaces.source();
         let Some(output) = source
             .pointer_output()

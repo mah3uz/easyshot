@@ -1,10 +1,10 @@
-use crate::capture_coordinator::{CaptureCoordinator, CaptureKind, CaptureRequest};
+use crate::capture_coordinator::{CaptureCoordinator, CaptureKind, CaptureRequest, Timer};
 use crate::errors::{Error, Result};
 use crate::events::Origin;
 use crate::jobs::{JobId, Jobs};
 use crate::windows::{WindowKey, WindowKind, Windows};
 use es_model::capture::CaptureVariant;
-use es_protocol::{Route, SettingsPage};
+use es_protocol::{Route, SettingsPage, TimedMode};
 use gpui::App;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -40,6 +40,15 @@ fn capture(kind: CaptureKind, variant: CaptureVariant) -> Target {
     Target::Capture(CaptureRequest::new(kind, variant))
 }
 
+fn timed(mode: TimedMode, timer: Timer) -> Target {
+    let kind = match mode {
+        TimedMode::Region => CaptureKind::Region,
+        TimedMode::Window => CaptureKind::Window,
+        TimedMode::Fullscreen => CaptureKind::Fullscreen,
+    };
+    Target::Capture(CaptureRequest::new(kind, CaptureVariant::Normal).timed(timer))
+}
+
 fn target(route: Route) -> Target {
     use CaptureVariant::Normal;
     match route {
@@ -47,7 +56,10 @@ fn target(route: Route) -> Target {
         Route::CaptureFullscreen => capture(CaptureKind::Fullscreen, Normal),
         Route::CaptureWindow => capture(CaptureKind::Window, Normal),
         Route::CapturePrevious => capture(CaptureKind::Previous, Normal),
-        Route::CaptureTimed => capture(CaptureKind::Timed, Normal),
+        Route::CaptureTimed => timed(TimedMode::Region, Timer::Setting),
+        Route::Timed { mode, seconds } => {
+            timed(mode, seconds.map_or(Timer::Setting, Timer::Seconds))
+        }
         Route::CaptureRegionCopy => capture(CaptureKind::Region, CaptureVariant::RegionCopy),
         Route::CaptureRegionSave => capture(CaptureKind::Region, CaptureVariant::RegionSave),
         Route::CaptureRegionAnnotate => {

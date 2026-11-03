@@ -1,10 +1,12 @@
 mod catalogue;
 mod keys;
 mod route;
+mod timed;
 
 pub use catalogue::{CATALOGUE, entry_by_id, entry_for_route};
 pub use keys::{Modifiers, Trigger, key_label, key_recording_name, key_spoken_name};
 pub use route::PATH_ARG;
+pub use timed::{MAX_TIMED_SECONDS, SECONDS_ARG, TimedMode};
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -53,6 +55,11 @@ pub enum Route {
     CaptureWindow,
     CapturePrevious,
     CaptureTimed,
+    /// Built with `Route::timed`; `None` seconds is the self-timer setting.
+    Timed {
+        mode: TimedMode,
+        seconds: Option<u32>,
+    },
     CaptureRegionCopy,
     CaptureRegionSave,
     CaptureRegionAnnotate,

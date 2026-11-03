@@ -1,8 +1,6 @@
 use crate::error::{Error, Result};
 use serde::{Deserialize, Serialize};
 
-pub const CURRENT_VERSION: u32 = 1;
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Envelope<T> {
     pub format: String,
@@ -15,7 +13,7 @@ impl<T> Envelope<T> {
     pub fn new(kind: FormatKind, body: T) -> Self {
         Self {
             format: kind.name().into(),
-            version: CURRENT_VERSION,
+            version: kind.version(),
             body,
         }
     }
@@ -60,6 +58,14 @@ impl FormatKind {
         Self::ALL.into_iter().find(|k| k.name() == name)
     }
 
+    /// The version this build writes.
+    pub fn version(self) -> u32 {
+        match self {
+            FormatKind::State => 2,
+            _ => 1,
+        }
+    }
+
     pub fn name(self) -> &'static str {
         match self {
             FormatKind::Style => "easyshot.style",
@@ -86,13 +92,41 @@ pub enum Migrated {
 }
 
 pub fn migrate(kind: FormatKind, version: u32, value: serde_json::Value) -> Result<Migrated> {
-    match version {
-        0 => Err(Error::Protocol(format!(
+    if version == 0 {
+        return Err(Error::Protocol(format!(
             "{}: invalid version 0",
             kind.name()
+        )));
+    }
+    if version > kind.version() {
+        return Ok(Migrated::NewerReadOnly { version });
+    }
+    let mut value = value;
+    for from in version..kind.version() {
+        value = step(kind, from, value)?;
+    }
+    Ok(Migrated::Current(value))
+}
+
+fn step(kind: FormatKind, from: u32, mut value: serde_json::Value) -> Result<serde_json::Value> {
+    match (kind, from) {
+        (FormatKind::State, 1) => {
+            if let Some(body) = value.as_object_mut() {
+                let region = body.get("last_region").filter(|r| !r.is_null()).cloned();
+                if let Some(region) = region {
+                    body.insert(
+                        "last_target".into(),
+                        serde_json::json!({ "region": region }),
+                    );
+                }
+                body.insert("version".into(), 2.into());
+            }
+            Ok(value)
+        }
+        _ => Err(Error::Protocol(format!(
+            "{}: no migration from version {from}",
+            kind.name()
         ))),
-        CURRENT_VERSION => Ok(Migrated::Current(value)),
-        v => Ok(Migrated::NewerReadOnly { version: v }),
     }
 }
 
@@ -106,6 +140,28 @@ mod tests {
         let v = json!({"format": "easyshot.history", "version": 1, "entries": []});
         let out = migrate(FormatKind::History, 1, v.clone()).unwrap();
         assert_eq!(out, Migrated::Current(v));
+    }
+
+    #[test]
+    fn state_v1_becomes_v2_with_its_region_as_the_last_target() {
+        let region = json!({"output": "DP-2", "x": 1, "y": 2, "w": 3, "h": 4});
+        let v1 =
+            json!({"format": "easyshot.state", "version": 1, "last_region": region, "counter": 7});
+        let Migrated::Current(v2) = migrate(FormatKind::State, 1, v1).unwrap() else {
+            panic!("a v1 state is not newer");
+        };
+        assert_eq!(v2["version"], 2);
+        assert_eq!(v2["last_target"], json!({ "region": region }));
+        assert_eq!((&v2["last_region"], &v2["counter"]), (&region, &json!(7)));
+    }
+
+    #[test]
+    fn state_v1_without_a_region_gets_no_target() {
+        let v1 = json!({"format": "easyshot.state", "version": 1, "last_region": null});
+        let Migrated::Current(v2) = migrate(FormatKind::State, 1, v1).unwrap() else {
+            panic!("a v1 state is not newer");
+        };
+        assert!(v2.get("last_target").is_none());
     }
 
     #[test]
@@ -140,10 +196,9 @@ mod tests {
     #[test]
     fn envelope_new_stamps_the_current_version() {
         let e = Envelope::new(FormatKind::State, 5u8);
-        assert_eq!(
-            (e.format.as_str(), e.version),
-            ("easyshot.state", CURRENT_VERSION)
-        );
+        assert_eq!((e.format.as_str(), e.version), ("easyshot.state", 2));
+        let e = Envelope::new(FormatKind::History, 5u8);
+        assert_eq!(e.version, 1);
     }
 
     #[test]

@@ -1,7 +1,7 @@
 use anyhow::{Result, anyhow, bail};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use clap_complete::engine::ArgValueCompleter;
-use es_protocol::{ArgValue, PATH_ARG, Route, RouteArgs, SettingsPage};
+use es_protocol::{ArgValue, PATH_ARG, Route, RouteArgs, SettingsPage, TimedMode};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -84,6 +84,15 @@ pub struct CaptureArgs {
     /// Pin the region on screen
     #[arg(long)]
     pub pin: bool,
+    /// Count down N seconds after you pick, then capture; without N, the self-timer setting
+    #[arg(
+        long,
+        value_name = "N",
+        num_args = 0..=1,
+        value_parser = clap::value_parser!(u32).range(1..=i64::from(es_protocol::MAX_TIMED_SECONDS)),
+        conflicts_with_all = ["copy", "save", "annotate", "pin"]
+    )]
+    pub timed: Option<Option<u32>>,
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
@@ -202,6 +211,17 @@ impl Cli {
 }
 
 fn capture_route(a: &CaptureArgs) -> Result<Route> {
+    if let Some(seconds) = a.timed {
+        let mode = match a.mode {
+            CaptureMode::Region | CaptureMode::Timed => TimedMode::Region,
+            CaptureMode::Window => TimedMode::Window,
+            CaptureMode::Fullscreen => TimedMode::Fullscreen,
+            CaptureMode::Previous | CaptureMode::Scroll => {
+                bail!("--timed applies to `capture region`, `window` and `fullscreen` only")
+            }
+        };
+        return Ok(Route::timed(mode, seconds));
+    }
     let variant = match (a.copy, a.save, a.annotate, a.pin) {
         (false, false, false, false) => None,
         (true, ..) => Some(Route::CaptureRegionCopy),
@@ -272,6 +292,23 @@ mod tests {
             (&["capture", "window"], Route::CaptureWindow),
             (&["capture", "previous"], Route::CapturePrevious),
             (&["capture", "timed"], Route::CaptureTimed),
+            (&["capture", "region", "--timed"], Route::CaptureTimed),
+            (
+                &["capture", "region", "--timed", "5"],
+                Route::timed(TimedMode::Region, Some(5)),
+            ),
+            (
+                &["capture", "window", "--timed"],
+                Route::timed(TimedMode::Window, None),
+            ),
+            (
+                &["capture", "fullscreen", "--timed", "10"],
+                Route::timed(TimedMode::Fullscreen, Some(10)),
+            ),
+            (
+                &["capture", "timed", "--timed", "3"],
+                Route::timed(TimedMode::Region, Some(3)),
+            ),
             (&["capture", "scroll"], Route::CaptureScroll),
             (&["capture", "region", "--copy"], Route::CaptureRegionCopy),
             (&["capture", "region", "--save"], Route::CaptureRegionSave),
@@ -328,6 +365,19 @@ mod tests {
         assert!(request(&["capture", "region", "--save", "--annotate"]).is_err());
         assert!(request(&["capture", "bogus"]).is_err());
         assert!(request(&["record", "bogus"]).is_err());
+    }
+
+    #[test]
+    fn timed_belongs_to_region_window_and_fullscreen_with_one_to_sixty_seconds() {
+        for bad in [
+            &["capture", "previous", "--timed"][..],
+            &["capture", "scroll", "--timed", "3"],
+            &["capture", "region", "--timed", "0"],
+            &["capture", "window", "--timed", "61"],
+            &["capture", "region", "--timed", "3", "--copy"],
+        ] {
+            assert!(request(bad).is_err(), "{bad:?}");
+        }
     }
 
     #[test]

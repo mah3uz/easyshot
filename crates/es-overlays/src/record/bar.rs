@@ -2,7 +2,7 @@ use super::options::{OptionsEvent, RecordingOptions, RecordingRequest};
 use crate::capture::strings::fl;
 use es_geom::Size;
 use es_model::platform::OutputInfo;
-use es_protocol::Route;
+use es_protocol::{Route, TimedMode};
 use es_record::AudioDevice;
 use es_ui::a11y::{Accessible as _, Role};
 use es_ui::icons::IconName;
@@ -258,6 +258,21 @@ const ITEMS: [(&str, IconName, Route); 6] = [
     ("bar-color", IconName::Pipette, Route::ColorPicker),
 ];
 
+/// With the screenshot timer on, area, screen and window count down after the pick.
+pub fn with_timer(route: &Route, seconds: u32) -> Route {
+    let mode = match route {
+        Route::CaptureRegion => TimedMode::Region,
+        Route::CaptureFullscreen => TimedMode::Fullscreen,
+        Route::CaptureWindow => TimedMode::Window,
+        _ => return route.clone(),
+    };
+    if seconds == 0 {
+        route.clone()
+    } else {
+        Route::timed(mode, Some(seconds))
+    }
+}
+
 fn words(id: &str) -> (String, String) {
     match id {
         "bar-area" => (fl!("bar-caption-area"), fl!("bar-title-area")),
@@ -293,9 +308,11 @@ impl Render for CaptureBar {
         for (id, icon, route) in ITEMS {
             let (caption, title) = words(id);
             bar = bar.child(
-                captioned(id, icon, caption, title.clone(), title, true, cx).on_click(
-                    cx.listener(move |_, _, _, cx| cx.emit(BarEvent::Route(route.clone()))),
-                ),
+                captioned(id, icon, caption, title.clone(), title, true, cx).on_click(cx.listener(
+                    move |bar, _, _, cx| {
+                        cx.emit(BarEvent::Route(with_timer(&route, bar.screenshot_timer)))
+                    },
+                )),
             );
         }
         let close_tip: SharedString = fl!("bar-close-help").into();

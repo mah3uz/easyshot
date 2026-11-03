@@ -32,7 +32,7 @@ pub use shape::{
     DrawProps, FillStyle, FontFamily, GeoKind, GeoProps, HighlightProps, NormalizedAnchor,
     NumberedProps, RedactionKind, RedactionProps, ShapeKind, TextAlign, TextProps, Tool,
 };
-pub use state::{LastRegion, Recovery, State};
+pub use state::{LastRegion, LastTarget, Recovery, State};
 pub use style::StylePreset;
 pub use swatch::Swatch;
 

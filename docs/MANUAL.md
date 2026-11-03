@@ -56,10 +56,17 @@ your `binds { }` block. Every command in the snippet is one `easyshot --help` li
 
 - **Region.** The screen freezes, you drag a selection, and you can adjust it. The previous
   area is preselected. Space switches to window mode.
-- **Previous region.** Captures the last area again.
+- **Previous.** Captures the last target again: the same area, the same display, or the
+  same window if it is still open. If that window has closed, a toast says so and nothing is
+  captured.
 - **Fullscreen.** The output under the pointer.
 - **Window.** Hover highlights a window; click to capture it.
-- **Timed.** Waits 3, 5 or 10 seconds first.
+- **Timed.** Works with region, window and fullscreen. You pick first on the frozen screen,
+  then a countdown runs, then easyshot takes a fresh frame of what you picked, so a menu or
+  hover you open during the countdown is in the shot. From the command line, add `--timed`
+  for the self-timer setting (3 seconds unless you change it) or `--timed N` for N seconds,
+  1 to 60. On the capture bar, the timer button sets Off, 3, 5 or 10 seconds for Area,
+  Fullscreen and Window.
 - **Text (OCR).** Reads text from a region, with or without line breaks, and reads QR
   codes.
 - **Colour picker.** Copies the colour as `#RRGGBB`.
@@ -273,7 +280,8 @@ window. To try it without installing, run `source <(easyshot completions bash)` 
 Commands:
 
 - `capture region|fullscreen|window|previous|timed|scroll`; `capture region` also takes one
-  of `--copy`, `--save`, `--annotate`, `--pin`
+  of `--copy`, `--save`, `--annotate`, `--pin`; `capture region|window|fullscreen` take
+  `--timed [N]`, and `capture timed` is `capture region --timed`
 - `ocr [--single-line]`, `color-picker`
 - `record [area|stop|pause|restart|discard]`
 - `capture-bar`, `gallery`, `restore-last`, `pin-last`, `unpin-all`, `edit-clipboard`,

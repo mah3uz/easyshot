@@ -377,6 +377,7 @@ fn start(
         surfaces.clone(),
         paths.clone(),
     )))));
+    coordinator.set_captured(capture::remember_target(paths.clone(), backend.clone()));
     let timer = settings.clone();
     coordinator.set_countdown(es_overlays::countdown::hook(
         surfaces.clone(),

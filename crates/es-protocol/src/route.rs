@@ -3,7 +3,8 @@ use std::fmt;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-use crate::{ArgValue, Error, Result, Route, RouteArgs, SettingsPage};
+use crate::timed::TimedMode;
+use crate::{ArgValue, Error, Result, Route, RouteArgs, SettingsPage, timed};
 
 pub const PATH_ARG: &str = "path";
 
@@ -95,6 +96,9 @@ impl Route {
         if route == "open" {
             return Route::open_from_args(args);
         }
+        if let Some(mode) = TimedMode::from_route_name(route) {
+            return Route::timed_from_args(route, mode, args);
+        }
         let parsed = if let Some((_, r)) = PLAIN.iter().find(|(name, _)| *name == route) {
             r.clone()
         } else if route == "settings" {
@@ -145,6 +149,7 @@ impl Route {
     pub fn as_str(&self) -> Cow<'static, str> {
         match self {
             Route::Open(_) => Cow::Borrowed("open"),
+            Route::Timed { mode, .. } => Cow::Borrowed(mode.route_name()),
             Route::Settings(None) => Cow::Borrowed("settings"),
             Route::Settings(Some(page)) => Cow::Owned(format!("settings/{}", page.as_str())),
             other => Cow::Borrowed(
@@ -167,6 +172,7 @@ impl Route {
             Route::Settings(Some(page)) => vec!["settings", page.as_str()],
             Route::Settings(None) => vec!["settings"],
             Route::Open(_) => vec!["open"],
+            Route::Timed { mode, .. } => vec!["capture", mode.word(), "--timed"],
             other => PLAIN
                 .iter()
                 .find(|(_, r)| r == other)
@@ -178,9 +184,18 @@ impl Route {
 
     pub fn args(&self) -> RouteArgs {
         let mut args = RouteArgs::default();
-        if let Route::Open(path) = self {
-            args.0
-                .insert(PATH_ARG.to_owned(), ArgValue::Path(path.clone()));
+        match self {
+            Route::Open(path) => {
+                args.0
+                    .insert(PATH_ARG.to_owned(), ArgValue::Path(path.clone()));
+            }
+            Route::Timed {
+                seconds: Some(n), ..
+            } => {
+                args.0
+                    .insert(timed::SECONDS_ARG.to_owned(), ArgValue::Int(i64::from(*n)));
+            }
+            _ => {}
         }
         args
     }

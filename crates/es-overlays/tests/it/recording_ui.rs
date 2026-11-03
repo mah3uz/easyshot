@@ -9,7 +9,7 @@ use es_overlays::record::{
     BarEvent, CaptureBar, Confirm, ControlBar, ControlEvent, OptionsEvent, Phase, Placement,
     Recorded, RecordingOptions, RecordingTarget, control_bar, highlight_strips,
 };
-use es_protocol::Route;
+use es_protocol::{Route, TimedMode};
 use es_record::{AudioDevice, AudioKind, Clock};
 use es_ui::tokens::ThemeMode;
 use std::sync::{Arc, Mutex};
@@ -521,4 +521,51 @@ fn the_highlight_dims_everything_but_the_area() {
         highlight_strips(Rect::new(0., 0., 600., 720.), out).len(),
         1
     );
+}
+
+// Timer menu: 248 high, 8 above the 64-high bar; 4 padding and a 24-high header above the rows.
+fn screenshot_timer_row(h: f32, i: usize) -> f32 {
+    h - 64. - 8. - 248. + 4. + 24. + 12. + i as f32 * 24.
+}
+
+#[test]
+fn the_screenshot_timer_steps_off_3_5_10_and_times_area_screen_and_window() {
+    let h = 480.;
+    let mut s = Surface::open(BAR.width as f32, h, |cx| {
+        CaptureBar::new(vec![output("A", 0., 1280., 720.)], devices(), cx)
+    });
+    let y = h - 32.;
+    let view = s.view.clone();
+    let mut routes = Vec::new();
+    for (row, secs) in [(1, 3), (2, 5), (3, 10), (0, 0)] {
+        s.click(TIMER_X, y);
+        s.click(BAR.width as f32 / 2., screenshot_timer_row(h, row));
+        assert_eq!(s.app.cx.update(|cx| view.read(cx).screenshot_timer()), secs);
+        assert_eq!(s.app.cx.update(|cx| view.read(cx).popup()), None);
+        let (events, _sub) = s.record::<BarEvent>();
+        for i in [0, 1, 2, 3] {
+            s.click(item_x(i), y);
+        }
+        routes.extend(events.borrow().iter().filter_map(|e| match e {
+            BarEvent::Route(r) => Some(r.clone()),
+            _ => None,
+        }));
+    }
+    let timed = |mode, secs| Route::timed(mode, Some(secs));
+    let mut expected = Vec::new();
+    for secs in [3, 5, 10] {
+        expected.extend([
+            timed(TimedMode::Region, secs),
+            timed(TimedMode::Fullscreen, secs),
+            timed(TimedMode::Window, secs),
+            Route::CaptureScroll,
+        ]);
+    }
+    expected.extend([
+        Route::CaptureRegion,
+        Route::CaptureFullscreen,
+        Route::CaptureWindow,
+        Route::CaptureScroll,
+    ]);
+    assert_eq!(routes, expected);
 }

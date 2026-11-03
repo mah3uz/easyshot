@@ -1,6 +1,9 @@
 use crate::window_mode_support;
 
-use es_overlays::countdown::{Clock, Countdown, CountdownStyle, exit_duration};
+use es_app::capture_coordinator::Timer;
+use es_overlays::countdown::{
+    Clock, Countdown, CountdownStyle, MIN_TIMED_SECONDS, exit_duration, timer_seconds,
+};
 use gpui::Task;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
@@ -109,4 +112,12 @@ fn the_ring_sweeps_away_from_the_top_clockwise() {
         !bluish(rgb(&shot, cx - 3., cy - r)),
         "just left of the top has run out"
     );
+}
+
+#[test]
+fn a_timer_with_seconds_counts_them_and_the_setting_counts_at_least_three() {
+    assert_eq!(timer_seconds(Timer::Seconds(10), 0), 10);
+    assert_eq!(timer_seconds(Timer::Seconds(1), 5), 1);
+    assert_eq!(timer_seconds(Timer::Setting, 0), MIN_TIMED_SECONDS);
+    assert_eq!(timer_seconds(Timer::Setting, 5), 5);
 }
