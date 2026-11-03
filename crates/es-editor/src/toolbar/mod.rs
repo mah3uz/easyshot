@@ -1,6 +1,7 @@
 pub mod crop_options;
 pub(crate) mod menus;
 mod options;
+mod reset;
 pub(crate) mod style_bar;
 mod text_box;
 mod text_style;
@@ -25,6 +26,7 @@ use crate::session::{
     EditorSession,
     crop::CropModel,
     doc::{DocEvent, DocModel},
+    style::StyleStore,
 };
 use crate::strings::fl;
 use menus::{Pick, choice_menu, menu_trigger};
@@ -80,6 +82,7 @@ pub enum Control {
     HighlighterMode,
     Strength,
     Delete,
+    ResetStyle,
     CropAspect,
     CropReset,
     CropCancel,
@@ -92,6 +95,7 @@ type Drawn = Rc<RefCell<HashMap<Control, Bounds<Pixels>>>>;
 pub struct ToolRow {
     doc: Entity<DocModel>,
     crop: Entity<CropModel>,
+    style: Entity<StyleStore>,
     cropping: bool,
     inspector_open: bool,
     redact_open: bool,
@@ -114,6 +118,7 @@ impl ToolRow {
         Self {
             doc,
             crop: session.crop.clone(),
+            style: session.style.clone(),
             cropping: false,
             inspector_open: true,
             redact_open: false,
@@ -201,6 +206,7 @@ impl ToolRow {
         let gesture = gesture.unwrap_or_else(|| self.fresh_gesture());
         self.doc
             .update(cx, |d, cx| d.apply(cx, |e| e.apply_style(patch, gesture)));
+        self.style.update(cx, |s, cx| s.changed(cx));
         cx.notify();
     }
 

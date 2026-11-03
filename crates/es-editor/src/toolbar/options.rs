@@ -16,6 +16,7 @@ use gpui::{
 use super::{
     Control, ToolRow, crop_options,
     menus::{choice_menu, menu_trigger},
+    reset,
     style_bar::{Facets, swatches},
     text_style,
     tools::{shortcut_label, title},
@@ -72,7 +73,7 @@ pub(super) fn render(
         let editor = row.doc.read(cx).editor();
         (Facets::of(editor)?, editor.current_style().clone())
     };
-    let body = content(row, facets, &style, window, cx);
+    let body = content(row, facets, &style, window, cx).child(reset::button(row, facets, cx));
     let delete = facets.selection.then(|| delete(row, cx));
     let panel = panel(title(facets.inspected), delete, body, cx);
     Some((

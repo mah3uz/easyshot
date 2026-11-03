@@ -151,6 +151,14 @@ options. With the Select tool, selecting shapes opens the options of the first o
 button to delete the selection. A change applies to new shapes and to the selection, as one
 undo step.
 
+The editor remembers your last style: the colour, stroke width, arrowheads and line style,
+text options, strength, the Highlighter's mode and the armed tool come back the next time an
+editor opens. A change is saved a moment after you make it; editors that are already open do
+not change when another one saves, and the last change you made wins. Reset to defaults, at
+the bottom of a tool's options, puts that tool's options back to their defaults and saves
+them. If the style file was made by a newer easyshot or cannot be read, the editor starts
+from the defaults and leaves the file alone.
+
 Over the image, each tool shows its own pointer: a cross for shapes, lines and arrows, a pen
 for Freehand and the Highlighter, a text cursor for Text, a numbered badge for the counter,
 and a dotted square, whose solid corner is where the drag starts, for Highlight, Pixelate
@@ -408,6 +416,7 @@ whole screen.
 | What | Where |
 |---|---|
 | Settings | `$XDG_CONFIG_HOME/easyshot/config.toml` |
+| Last annotation style | `$XDG_CONFIG_HOME/easyshot/annotation-style.json` |
 | Screenshots and edit sidecars | `$XDG_DATA_HOME/easyshot/library/` |
 | Recordings | `$XDG_DATA_HOME/easyshot/recordings/` |
 | Logs and crash reports | `$XDG_STATE_HOME/easyshot/log/`, `crash/` |

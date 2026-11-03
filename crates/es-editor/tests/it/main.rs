@@ -25,6 +25,7 @@ mod shell;
 mod smart_redaction;
 mod space_drag;
 mod strings;
+mod style_persist;
 mod text_edit;
 mod text_edit_bench;
 mod text_edit_support;

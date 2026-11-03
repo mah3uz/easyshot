@@ -69,9 +69,15 @@ pub fn launch() -> Fixture {
 }
 
 pub fn launch_with(overrides: BTreeMap<String, String>) -> Fixture {
+    launch_seeded(overrides, |_| {})
+}
+
+pub fn launch_seeded(overrides: BTreeMap<String, String>, seed: impl FnOnce(&Paths)) -> Fixture {
     let dir = tempfile::tempdir().unwrap();
     let paths = Paths::rooted(&dir.path().join("xdg"));
     paths.ensure_all().unwrap();
+    seed(&paths);
+    let style_paths = paths.clone();
     let shots = dir.path().join("shots");
     let display = dir.path().join("capture.png");
     base(1200, 640).save(&display).unwrap();
@@ -113,7 +119,8 @@ pub fn launch_with(overrides: BTreeMap<String, String>) -> Fixture {
         720.0,
         move |window, cx| {
             let editor = cx.new(|cx| {
-                let session = EditorSession::new(opened, TEXT.clone(), cx);
+                let session =
+                    EditorSession::with_style_paths(opened, TEXT.clone(), Some(style_paths), cx);
                 session.io.update(cx, |io, _| io.configure(config));
                 EditorWindow::new(session, cx)
             });
@@ -149,6 +156,37 @@ impl Fixture {
     pub fn session_doc(&self) -> Entity<es_editor::DocModel> {
         self.editor
             .read_with(&self.app.cx, |w, _| w.session().unwrap().doc.clone())
+    }
+
+    pub fn row(&self) -> Entity<es_editor::toolbar::ToolRow> {
+        self.editor
+            .read_with(&self.app.cx, |w, _| w.toolbar().unwrap())
+    }
+
+    pub fn click(&mut self, control: es_editor::toolbar::Control) {
+        let at = self
+            .row()
+            .read_with(&self.app.cx, |r, _| r.control_bounds(control))
+            .unwrap_or_else(|| panic!("{control:?} is not drawn"))
+            .center();
+        for down in [true, false] {
+            self.send(if down {
+                PlatformInput::MouseDown(gpui::MouseDownEvent {
+                    button: gpui::MouseButton::Left,
+                    position: at,
+                    modifiers: Default::default(),
+                    click_count: 1,
+                    first_mouse: false,
+                })
+            } else {
+                PlatformInput::MouseUp(gpui::MouseUpEvent {
+                    button: gpui::MouseButton::Left,
+                    position: at,
+                    modifiers: Default::default(),
+                    click_count: 1,
+                })
+            });
+        }
     }
 
     pub fn io(&self) -> Entity<es_editor::session::io::EditorIo> {

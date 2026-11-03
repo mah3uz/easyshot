@@ -77,7 +77,7 @@ impl From<Job> for EditorWindowEvent {
 enum Content {
     Loading,
     Ready {
-        session: EditorSession,
+        session: Box<EditorSession>,
         canvas: Entity<EditorCanvas>,
     },
     Failed,
@@ -197,7 +197,10 @@ impl EditorWindow {
                 ];
                 self.tool_row = Some(tool_row.clone().into());
                 self.probe_ocr(cx);
-                self.content = Content::Ready { session, canvas };
+                self.content = Content::Ready {
+                    session: Box::new(session),
+                    canvas,
+                };
                 self.focus_canvas = true;
             }
             Err(error) => {

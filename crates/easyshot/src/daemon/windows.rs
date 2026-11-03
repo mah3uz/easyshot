@@ -333,7 +333,7 @@ fn open_editor(w: &Rc<Wiring>, key: &WindowKey, cx: &mut App) -> Result<Rc<dyn W
         Some(journal) => EditorSource::Recovery(journal),
         None => EditorSource::File(file.clone()),
     };
-    let opening = EditorSession::open(source, cx);
+    let opening = EditorSession::open_with_style_paths(source, Some(w.paths.clone()), cx);
     let bounds = Bounds::new(point(px(0.), px(0.)), size(px(1080.), px(720.)));
     let options = WindowOptions {
         window_bounds: Some(editor_bounds(

@@ -64,7 +64,7 @@ impl Editor {
             history: History::default(),
             viewport: Viewport::default(),
             current: CurrentStyle::from(preset),
-            highlighter_straight: false,
+            highlighter_straight: preset.highlighter_straight,
             editing_text_id: None,
             hinted_binding_id: None,
             clipboard: None,
@@ -92,7 +92,10 @@ impl Editor {
     }
 
     pub fn preset(&self) -> StylePreset {
-        self.current.to_preset(self.tool)
+        StylePreset {
+            highlighter_straight: self.highlighter_straight,
+            ..self.current.to_preset(self.tool)
+        }
     }
 
     pub fn highlighter_straight(&self) -> bool {

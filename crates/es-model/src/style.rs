@@ -1,4 +1,6 @@
-use crate::shape::{DEFAULT_TEXT_SIZE, FontFamily, TextAlign, Tool};
+use crate::shape::{
+    Arrowhead, DEFAULT_TEXT_SIZE, DashStyle, FontFamily, TextAlign, TextBorder, Tool,
+};
 use crate::swatch::Swatch;
 use serde::{Deserialize, Serialize};
 
@@ -17,6 +19,12 @@ pub struct StylePreset {
     pub text_italic: bool,
     pub text_underline: bool,
     pub text_align: TextAlign,
+    pub text_fill: Option<Swatch>,
+    pub text_border: Option<TextBorder>,
+    pub arrowhead_start: Arrowhead,
+    pub arrowhead_end: Arrowhead,
+    pub dash: DashStyle,
+    pub highlighter_straight: bool,
 }
 
 impl Default for StylePreset {
@@ -32,6 +40,12 @@ impl Default for StylePreset {
             text_italic: false,
             text_underline: false,
             text_align: TextAlign::Start,
+            text_fill: None,
+            text_border: None,
+            arrowhead_start: Arrowhead::None,
+            arrowhead_end: Arrowhead::Arrow,
+            dash: DashStyle::Solid,
+            highlighter_straight: false,
         }
     }
 }

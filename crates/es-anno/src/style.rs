@@ -42,11 +42,11 @@ impl From<&StylePreset> for CurrentStyle {
             italic: p.text_italic,
             underline: p.text_underline,
             align: p.text_align,
-            text_fill: None,
-            text_border: None,
-            arrowhead_start: Arrowhead::None,
-            arrowhead_end: Arrowhead::Arrow,
-            dash: DashStyle::Solid,
+            text_fill: p.text_fill.clone(),
+            text_border: p.text_border.clone(),
+            arrowhead_start: p.arrowhead_start,
+            arrowhead_end: p.arrowhead_end,
+            dash: p.dash,
         }
     }
 }
@@ -64,6 +64,12 @@ impl CurrentStyle {
             text_italic: self.italic,
             text_underline: self.underline,
             text_align: self.align,
+            text_fill: self.text_fill.clone(),
+            text_border: self.text_border.clone(),
+            arrowhead_start: self.arrowhead_start,
+            arrowhead_end: self.arrowhead_end,
+            dash: self.dash,
+            highlighter_straight: false,
         }
     }
 }

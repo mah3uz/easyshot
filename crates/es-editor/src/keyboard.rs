@@ -384,7 +384,11 @@ impl EditorWindow {
         let Some(session) = self.session() else {
             return;
         };
-        let (doc, io) = (session.doc.clone(), session.io.clone());
+        let (doc, io, saved) = (
+            session.doc.clone(),
+            session.io.clone(),
+            session.style.clone(),
+        );
         let (tool, style) = {
             let e = doc.read(cx).editor();
             (e.tool(), e.current_style().clone())
@@ -398,5 +402,6 @@ impl EditorWindow {
         };
         let gesture = io.update(cx, |io, _| io.next_gesture());
         doc.update(cx, |d, cx| d.apply(cx, |e| e.apply_style(patch, gesture)));
+        saved.update(cx, |s, cx| s.changed(cx));
     }
 }

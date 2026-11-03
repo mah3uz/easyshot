@@ -3,6 +3,7 @@ pub mod doc;
 pub mod io;
 pub mod journal;
 pub mod look;
+pub mod style;
 pub mod viewport;
 
 use crate::session::{
@@ -10,12 +11,12 @@ use crate::session::{
     doc::{DocModel, Opened},
     io::EditorIo,
     look::LookModel,
+    style::StyleStore,
     viewport::ViewportModel,
 };
 use crate::{Error, Result};
 use es_anno::BundledText;
 use es_app::services::Services;
-use es_model::StylePreset;
 use gpui::{App, AppContext, Entity, Task};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -36,6 +37,7 @@ pub struct EditorSession {
     pub look: Entity<LookModel>,
     pub crop: Entity<CropModel>,
     pub io: Entity<EditorIo>,
+    pub style: Entity<StyleStore>,
 }
 
 /// Reads the sidecar and decodes the base image; a plain capture opens with an empty document.
@@ -60,6 +62,15 @@ pub fn load(display: &Path) -> Result<Opened> {
 
 impl EditorSession {
     pub fn open(source: EditorSource, cx: &mut App) -> Task<Result<Self>> {
+        let style_paths = cx.try_global::<Services>().map(|s| s.stores.paths.clone());
+        Self::open_with_style_paths(source, style_paths, cx)
+    }
+
+    pub fn open_with_style_paths(
+        source: EditorSource,
+        style_paths: Option<es_store::Paths>,
+        cx: &mut App,
+    ) -> Task<Result<Self>> {
         let display = match source {
             EditorSource::File(path) => path,
             EditorSource::History(id) => {
@@ -71,7 +82,7 @@ impl EditorSession {
                     None => return Task::ready(Err(Error::NotFound(id.to_string()))),
                 }
             }
-            EditorSource::Recovery(journal) => return Self::recover(journal, cx),
+            EditorSource::Recovery(journal) => return Self::recover(journal, style_paths, cx),
             EditorSource::Staged(_) => return Task::ready(Err(Error::Unsupported)),
         };
         let loading = cx
@@ -79,11 +90,15 @@ impl EditorSession {
             .spawn(async move { Ok::<_, Error>((load(&display)?, BundledText::bundled())) });
         cx.spawn(async move |cx| {
             let (opened, text) = loading.await?;
-            Ok(cx.update(|cx| Self::new(opened, Arc::new(text), cx)))
+            Ok(cx.update(|cx| Self::with_style_paths(opened, Arc::new(text), style_paths, cx)))
         })
     }
 
-    fn recover(journal: PathBuf, cx: &mut App) -> Task<Result<Self>> {
+    fn recover(
+        journal: PathBuf,
+        style_paths: Option<es_store::Paths>,
+        cx: &mut App,
+    ) -> Task<Result<Self>> {
         let loading = cx.background_executor().spawn(async move {
             let entry = journal::load(&journal)
                 .map_err(|e| Error::Protocol(e.to_string()))?
@@ -126,7 +141,7 @@ impl EditorSession {
         cx.spawn(async move |cx| {
             let (opened, baseline, session, staged, text) = loading.await?;
             Ok(cx.update(|cx| {
-                let this = Self::new(opened, Arc::new(text), cx);
+                let this = Self::with_style_paths(opened, Arc::new(text), style_paths, cx);
                 this.io.update(cx, |io, cx| {
                     io.adopt_recovery(session, baseline, staged, cx)
                 });
@@ -135,16 +150,28 @@ impl EditorSession {
         })
     }
 
-    pub fn new(mut opened: Opened, text: Arc<BundledText>, cx: &mut App) -> Self {
+    pub fn new(opened: Opened, text: Arc<BundledText>, cx: &mut App) -> Self {
+        let style_paths = cx.try_global::<Services>().map(|s| s.stores.paths.clone());
+        Self::with_style_paths(opened, text, style_paths, cx)
+    }
+
+    /// Where the annotation style is read from and saved to, when it is not the services' paths.
+    pub fn with_style_paths(
+        mut opened: Opened,
+        text: Arc<BundledText>,
+        style_paths: Option<es_store::Paths>,
+        cx: &mut App,
+    ) -> Self {
         let services = cx.try_global::<Services>();
         let paths = services.map(|s| s.stores.paths.clone());
         let config = services.map(|s| s.settings.read(cx).config().clone());
         look::distrust_wallpaper(&mut opened.document, paths.as_ref());
         look::opening_look(&mut opened.document, paths.as_ref(), config.as_deref());
-        let doc = cx.new(|_| DocModel::new(opened, text, &StylePreset::default()));
+        let doc = cx.new(|_| DocModel::new(opened, text, &style::saved(style_paths.as_ref())));
         let viewport = cx.new(|cx| ViewportModel::new(doc.clone(), cx));
         let io = cx.new(|cx| EditorIo::new(doc.clone(), cx));
         Self {
+            style: cx.new(|cx| StyleStore::new(doc.clone(), style_paths, cx)),
             look: cx.new(|cx| LookModel::new(doc.clone(), paths, cx)),
             crop: cx.new(|_| CropModel::new(doc.clone(), viewport.clone())),
             doc,
