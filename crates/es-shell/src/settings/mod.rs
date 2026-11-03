@@ -150,6 +150,7 @@ pub enum Toggle {
     Keystrokes,
     RecordingOpenEditor,
     RecordingSave,
+    WholeScreenBar,
 }
 
 impl Toggle {
@@ -173,6 +174,7 @@ impl Toggle {
             Toggle::Keystrokes => &mut c.recording.keystrokes,
             Toggle::RecordingOpenEditor => &mut c.recording.open_editor_after,
             Toggle::RecordingSave => &mut c.recording.save,
+            Toggle::WholeScreenBar => &mut c.recording.whole_screen_bar,
         }
     }
 

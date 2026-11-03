@@ -118,7 +118,7 @@ impl TrayMenu {
     }
 }
 
-/// Shown for a few seconds when a full-display recording starts with nowhere to put the bar.
+/// Shown for a few seconds when a recording starts with no control bar, so the tray is the control.
 pub fn tray_notice(shortcut: &str) -> String {
     fl!("rec-tray-notice", shortcut = shortcut)
 }

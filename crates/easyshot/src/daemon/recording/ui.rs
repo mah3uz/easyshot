@@ -83,7 +83,13 @@ impl RecordingUi for LayerUi {
         let _ = (video, template, cx, &self.paths);
     }
 
-    fn show(&self, recorded: &Recorded, bar: &Entity<ControlBar>, cx: &mut App) -> Box<dyn Shown> {
+    fn show(
+        &self,
+        recorded: &Recorded,
+        whole_screen_bar: bool,
+        bar: &Entity<ControlBar>,
+        cx: &mut App,
+    ) -> Box<dyn Shown> {
         let outputs = self.surfaces.source().outputs();
         let mut shown = LayerShown {
             dim: Vec::new(),
@@ -109,7 +115,7 @@ impl RecordingUi for LayerUi {
             }
         }
         let size = bar.read(cx).size();
-        match control_bar(recorded, &outputs, size) {
+        match control_bar(recorded, &outputs, size, whole_screen_bar) {
             Placement::On { output, origin } => {
                 let rect = Rect::from_origin_size(origin, (size.width, size.height));
                 match open(&self.surfaces, SurfaceRole::Bar, &output, rect, cx) {

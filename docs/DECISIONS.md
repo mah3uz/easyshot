@@ -242,3 +242,12 @@ What was rejected beyond that, and why: not recorded.
     arrows, a pen for freehand and the highlighter, an I-beam for text, a badge for the
     counter, a dotted square for Highlight, Pixelate and Blur. Rejected: one plus for every
     drawing tool, which did not say what a press would make.
+26. **The whole-screen control bar goes elsewhere or is recorded; no hide rules** (maintainer's
+    decision, 2026-11-03): with a second monitor that is not recorded the bar goes there; with
+    one monitor it sits in the bottom-right corner of the recorded screen and appears in the
+    video, to be cropped afterwards; one switch in Settings › Recording turns it off. Rejected:
+    compositor hide rules. Hyprland's `no_screen_share` layer rule paints a black rectangle
+    over the bar in the video rather than removing it, niri's `block-out-from` needs
+    `screen-capture` to cover wf-recorder, sway has no rule, and gpu-screen-recorder reads the
+    scanout buffer, which bypasses every compositor rule. Rejected: shipping rules for some
+    compositors only, which would make the same recording differ by compositor.

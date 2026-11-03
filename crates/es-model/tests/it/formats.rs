@@ -301,3 +301,11 @@ fn a_recording_takes_system_sound_and_no_microphone_unless_told_otherwise() {
     assert!(r.system_audio, "a silent recording surprises the user");
     assert!(r.mic.is_empty(), "the microphone is opt-in");
 }
+
+#[test]
+fn a_config_without_the_whole_screen_bar_key_shows_it() {
+    let r: es_model::config::Recording = toml::from_str("fps = 30").unwrap();
+    assert!(r.whole_screen_bar);
+    let off: es_model::config::Recording = toml::from_str("whole_screen_bar = false").unwrap();
+    assert!(!off.whole_screen_bar);
+}

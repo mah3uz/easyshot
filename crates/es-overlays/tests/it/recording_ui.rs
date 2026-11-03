@@ -441,7 +441,7 @@ fn the_control_bar_stays_out_of_an_area_near_each_edge() {
         ("middle", Rect::new(300., 100., 900., 600.)),
     ];
     for (name, area) in cases {
-        let placed = control_bar(&Recorded::Area(area), &one, BARSIZE);
+        let placed = control_bar(&Recorded::Area(area), &one, BARSIZE, true);
         let (out, bar) = on(&placed);
         assert_eq!(out, "A", "{name}");
         assert!(clear_of(bar, area), "{name}: {bar:?} covers {area:?}");
@@ -451,13 +451,13 @@ fn the_control_bar_stays_out_of_an_area_near_each_edge() {
         );
     }
     let low = Rect::new(100., 400., 1000., 720.);
-    let (_, bar) = on(&control_bar(&Recorded::Area(low), &one, BARSIZE));
+    let (_, bar) = on(&control_bar(&Recorded::Area(low), &one, BARSIZE, true));
     assert_eq!(bar.y1, 392., "no room below, so just above");
     let mid = Rect::new(300., 100., 900., 650.);
-    let (_, bar) = on(&control_bar(&Recorded::Area(mid), &one, BARSIZE));
+    let (_, bar) = on(&control_bar(&Recorded::Area(mid), &one, BARSIZE, true));
     assert_eq!(bar.y0, 658., "home would cover it, so just below");
     let small = Rect::new(100., 0., 1000., 200.);
-    let (_, bar) = on(&control_bar(&Recorded::Area(small), &one, BARSIZE));
+    let (_, bar) = on(&control_bar(&Recorded::Area(small), &one, BARSIZE, true));
     assert_eq!(
         bar.origin(),
         Point::new(508., 634.),
@@ -470,29 +470,27 @@ fn an_area_with_no_room_around_it_sends_the_bar_elsewhere() {
     let tall = Rect::new(0., 30., 700., 700.);
     let one = vec![output("A", 0., 1280., 720.)];
     assert_eq!(
-        control_bar(&Recorded::Area(tall), &one, BARSIZE),
+        control_bar(&Recorded::Area(tall), &one, BARSIZE, true),
         Placement::Tray
     );
     let two = vec![
         output("A", 0., 1280., 720.),
         output("B", 1280., 1920., 1080.),
     ];
-    let (out, bar) = on(&control_bar(&Recorded::Area(tall), &two, BARSIZE));
+    let (out, bar) = on(&control_bar(&Recorded::Area(tall), &two, BARSIZE, true));
     assert_eq!(out, "B");
     assert!(bar.x0 >= 1280.);
 }
 
 #[test]
-fn a_full_display_recording_uses_another_output_or_the_tray() {
-    let one = vec![output("A", 0., 1280., 720.)];
-    let whole = Recorded::Display(OutputId("A".into()));
-    assert_eq!(control_bar(&whole, &one, BARSIZE), Placement::Tray);
+fn a_whole_screen_bar_goes_to_the_other_monitor() {
     let two = vec![
         output("A", 0., 1280., 720.),
         output("B", 1280., 1920., 1080.),
     ];
-    let (out, bar) = on(&control_bar(&whole, &two, BARSIZE));
-    assert_eq!(out, "B");
+    let whole = Recorded::Display(OutputId("A".into()));
+    let (out, bar) = on(&control_bar(&whole, &two, BARSIZE, true));
+    assert_eq!(out, "B", "nothing of the bar is in the video");
     assert_eq!(
         bar.origin(),
         Point::new(1280. + 960. - 132., 1080. - 48. - 38.)
@@ -501,8 +499,44 @@ fn a_full_display_recording_uses_another_output_or_the_tray() {
         &Recorded::Display(OutputId("B".into())),
         &two,
         BARSIZE,
+        true,
     ));
     assert_eq!(out, "A");
+}
+
+#[test]
+fn a_whole_screen_bar_on_the_only_monitor_sits_in_a_corner_of_it() {
+    let one = vec![output("A", 0., 1280., 720.)];
+    let whole = Recorded::Display(OutputId("A".into()));
+    let (out, bar) = on(&control_bar(&whole, &one, BARSIZE, true));
+    assert_eq!(out, "A");
+    assert!(
+        bar.x0 >= 0. && bar.x1 <= 1280. && bar.y0 >= 0. && bar.y1 <= 720.,
+        "{bar:?} leaves the output"
+    );
+    assert!(bar.x0 > 640. && bar.y0 > 360., "bottom-right: {bar:?}");
+}
+
+#[test]
+fn a_whole_screen_bar_that_is_switched_off_leaves_the_tray() {
+    let one = vec![output("A", 0., 1280., 720.)];
+    let two = vec![
+        output("A", 0., 1280., 720.),
+        output("B", 1280., 1920., 1080.),
+    ];
+    let whole = Recorded::Display(OutputId("A".into()));
+    assert_eq!(control_bar(&whole, &one, BARSIZE, false), Placement::Tray);
+    assert_eq!(control_bar(&whole, &two, BARSIZE, false), Placement::Tray);
+}
+
+#[test]
+fn the_switch_does_not_move_a_region_bar() {
+    let one = vec![output("A", 0., 1280., 720.)];
+    let area = Recorded::Area(Rect::new(100., 0., 1000., 200.));
+    assert_eq!(
+        control_bar(&area, &one, BARSIZE, false),
+        control_bar(&area, &one, BARSIZE, true)
+    );
 }
 
 #[test]

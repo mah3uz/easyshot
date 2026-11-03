@@ -268,6 +268,9 @@ recording-countdown-seconds =
     }
 recording-teleprompter = Teleprompter
 recording-teleprompter-help = Floats your script over the recording area without appearing in the capture.
+recording-while = While Recording
+recording-whole-screen-bar = Show the control bar when recording a whole screen
+recording-whole-screen-bar-help = With a second monitor the bar goes there and stays out of the video. With one monitor it sits in the bottom-right corner and is recorded. Off, use the tray.
 recording-after = After Recording
 recording-open-editor = Open the editor when I stop
 recording-open-editor-help = Otherwise a preview card appears with an Edit button.

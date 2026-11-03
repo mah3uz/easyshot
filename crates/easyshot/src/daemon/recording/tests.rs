@@ -55,7 +55,7 @@ impl Shown for FakeShown {
 }
 
 impl RecordingUi for FakeUi {
-    fn show(&self, _: &Recorded, _: &Entity<ControlBar>, _: &mut App) -> Box<dyn Shown> {
+    fn show(&self, _: &Recorded, _: bool, _: &Entity<ControlBar>, _: &mut App) -> Box<dyn Shown> {
         self.0.borrow_mut().shown += 1;
         Box::new(FakeShown(self.0.clone()))
     }

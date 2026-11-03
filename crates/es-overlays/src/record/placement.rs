@@ -5,6 +5,7 @@ use es_model::platform::{OutputId, OutputInfo};
 pub const HOME_LIFT: f64 = 48.0;
 const GAP: f64 = 8.0;
 const EDGE: f64 = 4.0;
+const CORNER_INSET: f64 = 16.0;
 
 /// What a recording records, in global logical points.
 #[derive(Debug, Clone, PartialEq)]
@@ -45,15 +46,44 @@ fn bar_at(origin: Point, bar: Size) -> Rect {
     )
 }
 
+/// Bottom-right of the output, lifted as far as the capture bar so a bottom panel stays clear.
+fn corner(output: Rect, bar: Size) -> Point {
+    Point::new(
+        output.x1 - CORNER_INSET - bar.width,
+        output.y1 - HOME_LIFT - bar.height,
+    )
+}
+
 /// Keeps the control bar out of the video: home if that misses the area, else just below it, else
 /// just above it, else home on another output; the bar stays horizontally centred on its output.
-pub fn control_bar(recorded: &Recorded, outputs: &[OutputInfo], bar: Size) -> Placement {
+/// A whole-screen recording puts the bar on another output, or with none free in the bottom-right
+/// corner of the recorded one (where the video shows it); with `whole_screen_bar` off it has none.
+pub fn control_bar(
+    recorded: &Recorded,
+    outputs: &[OutputInfo],
+    bar: Size,
+    whole_screen_bar: bool,
+) -> Placement {
     let area = match recorded {
         Recorded::Area(area) => *area,
-        Recorded::Display(id) => match outputs.iter().find(|o| o.id == *id) {
-            Some(o) => o.logical,
-            None => return Placement::Tray,
-        },
+        Recorded::Display(id) => {
+            let Some(recorded_out) = outputs.iter().find(|o| o.id == *id) else {
+                return Placement::Tray;
+            };
+            if !whole_screen_bar {
+                return Placement::Tray;
+            }
+            return match outputs.iter().find(|o| o.id != *id) {
+                Some(other) => Placement::On {
+                    output: other.id.clone(),
+                    origin: home(other.logical, bar),
+                },
+                None => Placement::On {
+                    output: id.clone(),
+                    origin: corner(recorded_out.logical, bar),
+                },
+            };
+        }
     };
     let clear = |origin: Point| !overlaps(bar_at(origin, bar), area);
     let main = outputs.iter().max_by(|a, b| {

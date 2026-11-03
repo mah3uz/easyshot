@@ -398,6 +398,18 @@ impl SettingsWindow {
             )
             .into_any_element(),
             group(
+                text(fl!("recording-while")),
+                vec![self.toggle_row(
+                    Toggle::WholeScreenBar,
+                    fl!("recording-whole-screen-bar"),
+                    Some(fl!("recording-whole-screen-bar-help")),
+                    cx,
+                )],
+                None,
+                cx,
+            )
+            .into_any_element(),
+            group(
                 text(fl!("recording-after")),
                 vec![
                     self.toggle_row(

@@ -256,8 +256,14 @@ recording appears as a deck card, then opens in a trim viewer with export. Savin
 and exporting from the trim viewer both write an `.mp4` to `easyshot` inside your Videos
 folder (usually `~/Videos/easyshot/`), with a dated name that never replaces an earlier file.
 
-During a full-display recording the control bar can appear in the video. Your compositor
-has no equivalent of the macOS setting that hides it.
+When you record a whole screen, Settings, Recording, "Show the control bar when recording a
+whole screen" (on by default) decides where the control bar goes. With a second monitor that
+is not being recorded, the bar goes there and nothing of it is in the video. With one
+monitor, or every monitor recorded, the bar sits in the bottom-right corner of the recorded
+screen, lifted clear of a bottom panel, and it is in the video: crop it out afterwards. With
+the switch off there is no bar, and a notice says to stop from the tray or the shortcut. The
+tray's Stop Recording works in every case. Your compositor has no rule that hides the bar
+from a recording.
 
 ## Settings
 

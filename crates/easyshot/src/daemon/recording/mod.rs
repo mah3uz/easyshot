@@ -40,7 +40,13 @@ pub trait Shown {
 }
 
 pub trait RecordingUi {
-    fn show(&self, recorded: &Recorded, bar: &Entity<ControlBar>, cx: &mut App) -> Box<dyn Shown>;
+    fn show(
+        &self,
+        recorded: &Recorded,
+        whole_screen_bar: bool,
+        bar: &Entity<ControlBar>,
+        cx: &mut App,
+    ) -> Box<dyn Shown>;
     fn tray(&self, state: Option<RecordingTrayState>, cx: &mut App);
     fn open_trim(&self, video: std::path::PathBuf, template: String, cx: &mut App);
 }
@@ -321,7 +327,7 @@ impl Recordings {
         };
         let events = handle.events();
         let bar = cx.new(|cx| ControlBar::new(deps.clock.clone(), cx));
-        let shown = deps.ui.show(&recorded, &bar, cx);
+        let shown = deps.ui.show(&recorded, cfg.whole_screen_bar, &bar, cx);
         let me = self.clone();
         let bar_events = cx.subscribe(&bar, move |bar, event: &ControlEvent, cx| match event {
             ControlEvent::Route(route) => {

@@ -185,7 +185,7 @@ fn main() {
     let area = area + Point::new(info.logical.x0, info.logical.y0).to_vec2();
     let Placement::On {
         origin: control, ..
-    } = control_bar(&Recorded::Area(area), &outputs, CONTROL)
+    } = control_bar(&Recorded::Area(area), &outputs, CONTROL, true)
     else {
         fail("no room for the control bar");
     };
