@@ -1,5 +1,9 @@
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
+# The features the package is built with, and the crates that gate code behind them
+shipped_features := "easyshot/sound,easyshot/player,easyshot/portal-recorder"
+shipped_crates := "-p easyshot -p es-overlays -p es-record -p es-desktop"
+
 # List recipes
 default:
     @just --list
@@ -12,7 +16,7 @@ build:
 package profile="release":
     #!/usr/bin/env bash
     set -euo pipefail
-    cargo build --profile {{ profile }} --locked -p easyshot --features sound,player,portal-recorder
+    cargo build --profile {{ profile }} --locked -p easyshot --features {{ shipped_features }}
     src=packaging/aur/easyshot-bin
     name=easyshot-$(sed -n 's/^pkgver=//p' $src/PKGBUILD)-x86_64-unknown-linux-gnu
     rm -rf dist/build && mkdir -p dist/build
@@ -56,6 +60,7 @@ dev *ARGS:
 # Run every test in the workspace
 test:
     cargo nextest run --workspace
+    cargo nextest run {{ shipped_crates }} --features {{ shipped_features }}
     cargo test --workspace --doc
 
 # Run the tests of the packages changed against main
@@ -79,6 +84,7 @@ sweep MAX_GB="80":
 lint:
     cargo fmt --check
     cargo clippy --workspace --all-targets -- -D warnings
+    cargo clippy {{ shipped_crates }} --all-targets --features {{ shipped_features }} -- -D warnings
 
 # Fail if a crate depends upward across the layers, or on a forbidden crate
 layers:
@@ -109,7 +115,7 @@ check: lint layers grep-guard i18n-check gpui-guard test
     tests/harness/sway.sh platform
     tests/harness/niri.sh platform
     tests/harness/hypr.sh platform
-    cargo build -p easyshot --release
+    cargo build -p easyshot --release --features {{ shipped_features }}
     just release-check
 
 # Regenerate every icon from the logo masters in branding/

@@ -47,7 +47,9 @@ just test-changed
 ```
 
 `just test-changed` runs the packages changed against `main`; `just test` runs everything
-(nextest plus doc tests).
+(nextest plus doc tests). `just lint`, `just test` and `just check` build and test both the
+default features and the shipped set (`sound`, `player`, `portal-recorder`, kept in the
+justfile), so code behind a feature is gated like the rest.
 
 A crate's integration tests live in `tests/it/` as modules of one test binary; add a test file
 there and declare it in `tests/it/main.rs`.
