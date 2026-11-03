@@ -5,7 +5,8 @@ use es_ui::{
     tokens::{Tokens, Typeset},
 };
 use gpui::{
-    AnyElement, InteractiveElement, IntoElement, ParentElement, SharedString, Styled, div, px,
+    AnyElement, InteractiveElement, IntoElement, ParentElement, SharedString, Styled, div,
+    prelude::FluentBuilder, px,
 };
 use gpui_component::{Icon, Sizable, spinner::Spinner};
 
@@ -81,5 +82,40 @@ pub(super) fn error_strip(error: SharedString, t: &Tokens) -> AnyElement {
         .typeset(t.type_scale.label)
         .accessible(Role::Alert, error.clone())
         .child(error)
+        .into_any_element()
+}
+
+/// The same footprint as an editor button, for the busy and done looks that replace one.
+fn button_shell(id: &'static str, t: &Tokens) -> gpui::Stateful<gpui::Div> {
+    let m = t.metrics;
+    div()
+        .id(id)
+        .flex()
+        .flex_none()
+        .items_center()
+        .justify_center()
+        .gap(px(5.))
+        .h(m.button_height)
+        .min_w(m.button_height)
+        .px(m.button_padding_x)
+        .rounded(m.button_radius)
+        .typeset(t.type_scale.tool_button)
+}
+
+pub(crate) fn busy(id: &'static str, label: String, prominent: bool, t: &Tokens) -> AnyElement {
+    let colour = if prominent { t.on_accent } else { t.text };
+    button_shell(id, t)
+        .when(prominent, |d| d.bg(t.accent.opacity(0.8)))
+        .accessible(Role::ProgressIndicator, label)
+        .child(Spinner::new().small().color(colour))
+        .into_any_element()
+}
+
+pub(crate) fn done(id: &'static str, label: String, t: &Tokens) -> AnyElement {
+    button_shell(id, t)
+        .text_color(t.success)
+        .accessible(Role::Status, label.clone())
+        .child(Icon::new(IconName::CircleCheck).size(px(16.)).flex_none())
+        .child(label)
         .into_any_element()
 }

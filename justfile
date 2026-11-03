@@ -94,6 +94,10 @@ layers:
 grep-guard:
     scripts/grep-guard.sh
 
+# Fail if any Rust file outside vendor/ is over 600 lines
+file-size:
+    scripts/file-size.sh
+
 # Regenerate LICENSES/THIRD-PARTY.md from the release dependency graph
 third-party:
     cargo about generate --offline --locked -m crates/easyshot/Cargo.toml about.hbs -o LICENSES/THIRD-PARTY.md
@@ -111,7 +115,7 @@ release-check:
     scripts/release-check.sh
 
 # The gate: everything that must pass before a merge
-check: lint layers grep-guard i18n-check gpui-guard test
+check: lint layers grep-guard file-size i18n-check gpui-guard test
     tests/harness/sway.sh platform
     tests/harness/niri.sh platform
     tests/harness/hypr.sh platform

@@ -349,7 +349,7 @@ niri.
 | wlr-screencopy-only capture, niri module | nested niri (not yet run) |
 | IME, drag-out, real clipboard paste, GSR recordings with KMS, binds, Orca | manual with the maintainer |
 
-Lints are in `[workspace.lints]`. `dead_code` warnings are fatal in the gate. CI warns on
+Lints are in `[workspace.lints]`. `dead_code` warnings are fatal in the gate. `just file-size` fails on
 any `.rs` file over 600 lines outside `vendor/`.
 
 ## 12. Strings and accessibility
