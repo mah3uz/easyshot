@@ -61,6 +61,7 @@ dev *ARGS:
 test:
     cargo nextest run --workspace
     cargo nextest run {{ shipped_crates }} --features {{ shipped_features }}
+    cargo nextest run -p easyshot -p es-backend --features easyshot/test-hooks,es-backend/test-hooks -E 'not test(/(^|::)platform_/)'
     cargo test --workspace --doc
 
 # Run the tests of the packages changed against main
