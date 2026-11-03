@@ -310,3 +310,8 @@ Flatpak are not part of version 1.
 
 Start with `easyshot doctor`, and set `EASYSHOT_LOG` to change
 what is logged.
+
+If the pointer disappears when you press Space in the editor and comes back when you move
+the mouse, your compositor is hiding it because you pressed a key. On Hyprland that is
+`cursor:hide_on_key_press`; on sway it is `seat * hide_cursor when-typing enable`. Turn it
+off to see the hand while you pan.
