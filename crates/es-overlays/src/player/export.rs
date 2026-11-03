@@ -1,3 +1,4 @@
+use super::options::{ExportOptions, Format, Quality};
 use super::trim::Trim;
 use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
@@ -19,6 +20,7 @@ pub struct ExportJob {
     pub trim: Trim,
     pub mode: ExportMode,
     pub remove_audio: bool,
+    pub options: ExportOptions,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -82,7 +84,111 @@ fn secs(t: f64) -> String {
     format!("{t:.3}")
 }
 
+fn num(v: f64) -> String {
+    format!("{v:.3}")
+}
+
+fn picture_filters(o: &ExportOptions) -> Vec<String> {
+    let mut filters = Vec::new();
+    if let Some(h) = o.size.height() {
+        filters.push(format!("scale=-2:'min({h},ih)'"));
+    }
+    let (contrast, saturation) = o.look.tone();
+    let mut eq = Vec::new();
+    if o.brightness != 0. {
+        eq.push(format!("brightness={}", num(o.brightness)));
+    }
+    if contrast != 1. {
+        eq.push(format!("contrast={}", num(contrast)));
+    }
+    if saturation != 1. {
+        eq.push(format!("saturation={}", num(saturation)));
+    }
+    if !eq.is_empty() {
+        filters.push(format!("eq={}", eq.join(":")));
+    }
+    filters
+}
+
+fn gif_filter(o: &ExportOptions) -> String {
+    let (fps, colours) = match o.quality {
+        Quality::High => (15, 256),
+        Quality::Balanced => (12, 192),
+        Quality::Small => (10, 128),
+    };
+    let mut chain = picture_filters(o);
+    chain.push(format!("fps={fps}"));
+    chain.push("split[a][b]".into());
+    format!(
+        "{};[a]palettegen=max_colors={colours}:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle",
+        chain.join(",")
+    )
+}
+
+fn codec_args(o: &ExportOptions) -> Vec<String> {
+    let (crf, audio) = match (o.format, o.quality) {
+        (Format::Mp4, Quality::High) => ("18", "192k"),
+        (Format::Mp4, Quality::Balanced) => ("23", "160k"),
+        (Format::Mp4, Quality::Small) => ("28", "128k"),
+        (_, Quality::High) => ("28", "160k"),
+        (_, Quality::Balanced) => ("33", "112k"),
+        (_, Quality::Small) => ("40", "80k"),
+    };
+    let args: Vec<&str> = match o.format {
+        Format::Mp4 => vec![
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            crf,
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-b:a",
+            audio,
+            "-movflags",
+            "+faststart",
+            "-f",
+            "mp4",
+        ],
+        Format::WebM => vec![
+            "-c:v",
+            "libvpx-vp9",
+            "-crf",
+            crf,
+            "-b:v",
+            "0",
+            "-row-mt",
+            "1",
+            "-deadline",
+            "good",
+            "-cpu-used",
+            "4",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "libopus",
+            "-b:a",
+            audio,
+            "-f",
+            "webm",
+        ],
+        Format::Gif => vec!["-loop", "0", "-f", "gif"],
+    };
+    args.into_iter().map(String::from).collect()
+}
+
+/// A stream copy only keeps the picture as it is, so any size, tone or format change re-encodes.
+fn copies_streams(job: &ExportJob) -> bool {
+    job.mode == ExportMode::Fast
+        && job.options.format == Format::Mp4
+        && !job.options.alters_picture()
+}
+
 pub fn export_args(job: &ExportJob, target: &Path) -> Vec<String> {
+    let o = &job.options;
     let mut args: Vec<String> = ["-y", "-v", "error", "-nostats", "-progress", "pipe:1"]
         .map(String::from)
         .to_vec();
@@ -96,20 +202,24 @@ pub fn export_args(job: &ExportJob, target: &Path) -> Vec<String> {
         "-map".into(),
         "0:v:0".into(),
     ]);
-    if job.remove_audio {
+    if o.format == Format::Gif || job.remove_audio {
         args.push("-an".into());
     } else {
         args.extend(["-map", "0:a?"].map(String::from));
     }
-    let codecs: &[&str] = match job.mode {
-        ExportMode::Precise => &[
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p", "-c:a",
-            "aac", "-b:a", "192k",
-        ],
-        ExportMode::Fast => &["-c", "copy"],
-    };
-    args.extend(codecs.iter().map(|s| (*s).to_owned()));
-    args.extend(["-movflags", "+faststart", "-f", "mp4"].map(String::from));
+    if copies_streams(job) {
+        args.extend(["-c", "copy", "-movflags", "+faststart", "-f", "mp4"].map(String::from));
+    } else {
+        if o.format == Format::Gif {
+            args.extend(["-vf".into(), gif_filter(o)]);
+        } else {
+            let filters = picture_filters(o);
+            if !filters.is_empty() {
+                args.extend(["-vf".into(), filters.join(",")]);
+            }
+        }
+        args.extend(codec_args(o));
+    }
     args.push(target.to_string_lossy().into_owned());
     args
 }
@@ -165,6 +275,7 @@ pub fn export(
 
 #[cfg(test)]
 mod tests {
+    use super::super::options::{Look, Size};
     use super::*;
 
     fn job(mode: ExportMode, remove_audio: bool) -> ExportJob {
@@ -177,7 +288,19 @@ mod tests {
             trim,
             mode,
             remove_audio,
+            options: ExportOptions::default(),
         }
+    }
+
+    fn with(options: ExportOptions) -> ExportJob {
+        ExportJob {
+            options,
+            ..job(ExportMode::Precise, false)
+        }
+    }
+
+    fn args_for(options: ExportOptions) -> Vec<String> {
+        export_args(&with(options), Path::new("/t"))
     }
 
     fn after<'a>(args: &'a [String], flag: &str) -> Option<&'a str> {
@@ -209,6 +332,135 @@ mod tests {
         let silent = export_args(&job(ExportMode::Fast, true), Path::new("/t"));
         assert!(silent.iter().any(|a| a == "-an"));
         assert!(!silent.iter().any(|a| a == "0:a?"));
+    }
+
+    #[test]
+    fn each_format_gets_its_codecs_and_container() {
+        let mp4 = args_for(ExportOptions::default());
+        assert_eq!(after(&mp4, "-c:v"), Some("libx264"));
+        assert_eq!(after(&mp4, "-c:a"), Some("aac"));
+        assert_eq!(after(&mp4, "-f"), Some("mp4"));
+        let webm = args_for(ExportOptions {
+            format: Format::WebM,
+            ..Default::default()
+        });
+        assert_eq!(after(&webm, "-c:v"), Some("libvpx-vp9"));
+        assert_eq!(after(&webm, "-c:a"), Some("libopus"));
+        assert_eq!(after(&webm, "-f"), Some("webm"));
+        let gif = args_for(ExportOptions {
+            format: Format::Gif,
+            ..Default::default()
+        });
+        assert_eq!(after(&gif, "-f"), Some("gif"));
+        assert!(!gif.iter().any(|a| a == "-c:v" || a == "-c:a"));
+    }
+
+    #[test]
+    fn a_gif_has_no_audio_even_when_audio_is_kept() {
+        let gif = args_for(ExportOptions {
+            format: Format::Gif,
+            ..Default::default()
+        });
+        assert!(gif.iter().any(|a| a == "-an"));
+        assert!(!gif.iter().any(|a| a == "0:a?"));
+        let vf = after(&gif, "-vf").unwrap();
+        assert!(vf.contains("palettegen") && vf.contains("paletteuse"));
+    }
+
+    #[test]
+    fn quality_lowers_the_bitrate_in_every_video_format() {
+        for format in [Format::Mp4, Format::WebM] {
+            let crf = |quality| {
+                let args = args_for(ExportOptions {
+                    format,
+                    quality,
+                    ..Default::default()
+                });
+                after(&args, "-crf").unwrap().parse::<u32>().unwrap()
+            };
+            let (high, balanced, small) = (
+                crf(Quality::High),
+                crf(Quality::Balanced),
+                crf(Quality::Small),
+            );
+            assert!(high < balanced && balanced < small, "{format:?}");
+        }
+        let fps = |quality| {
+            let args = args_for(ExportOptions {
+                format: Format::Gif,
+                quality,
+                ..Default::default()
+            });
+            after(&args, "-vf").unwrap().to_owned()
+        };
+        assert_ne!(fps(Quality::High), fps(Quality::Small));
+    }
+
+    #[test]
+    fn a_size_only_ever_scales_down_and_keeps_the_aspect() {
+        assert!(after(&args_for(ExportOptions::default()), "-vf").is_none());
+        for (size, h) in [(Size::P1080, 1080), (Size::P720, 720), (Size::P480, 480)] {
+            let args = args_for(ExportOptions {
+                size,
+                ..Default::default()
+            });
+            assert_eq!(
+                after(&args, "-vf"),
+                Some(format!("scale=-2:'min({h},ih)'").as_str())
+            );
+        }
+    }
+
+    #[test]
+    fn brightness_and_looks_become_one_eq_filter() {
+        let vf = |look, brightness| {
+            let args = args_for(ExportOptions {
+                look,
+                brightness,
+                ..Default::default()
+            });
+            after(&args, "-vf").map(str::to_owned)
+        };
+        assert_eq!(vf(Look::Natural, 0.), None);
+        assert_eq!(
+            vf(Look::Natural, 0.1).as_deref(),
+            Some("eq=brightness=0.100")
+        );
+        assert_eq!(
+            vf(Look::Mono, 0.).as_deref(),
+            Some("eq=contrast=1.050:saturation=0.000")
+        );
+        let vivid = vf(Look::Vivid, -0.1).unwrap();
+        assert!(vivid.contains("brightness=-0.100") && vivid.contains("saturation=1.400"));
+    }
+
+    #[test]
+    fn a_stream_copy_is_only_for_an_untouched_mp4() {
+        let fast = |options| {
+            let job = ExportJob {
+                mode: ExportMode::Fast,
+                options,
+                ..job(ExportMode::Fast, false)
+            };
+            export_args(&job, Path::new("/t"))
+        };
+        assert_eq!(after(&fast(ExportOptions::default()), "-c"), Some("copy"));
+        for options in [
+            ExportOptions {
+                format: Format::WebM,
+                ..Default::default()
+            },
+            ExportOptions {
+                size: Size::P720,
+                ..Default::default()
+            },
+            ExportOptions {
+                brightness: 0.1,
+                ..Default::default()
+            },
+        ] {
+            assert_eq!(after(&fast(options), "-c"), None, "{options:?}");
+        }
     }
 
     #[test]

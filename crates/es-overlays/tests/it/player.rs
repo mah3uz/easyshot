@@ -3,8 +3,9 @@
 use crate::window_mode_support;
 
 use es_overlays::player::{
-    AudioOut, ExportJob, ExportMode, ExportState, HANDLE_WIDTH, MIN_TRIM_SECS, PlayerConfig,
-    PlayerWindow, SystemFfmpeg, Trim, export::export,
+    AudioOut, ExportJob, ExportMode, ExportOptions, ExportState, Format, HANDLE_WIDTH, Look,
+    MIN_TRIM_SECS, PlayerConfig, PlayerEvent, PlayerWindow, Quality, Size, SystemFfmpeg, Trim,
+    export::export,
 };
 use es_record::{CommandRunner, SystemRunner};
 use es_store::Paths;
@@ -21,7 +22,11 @@ const FRAME: f64 = 1. / FPS;
 
 /// Five seconds of moving colour bars with a tone. A keyframe every half second and no B-frames, as a screen recorder writes, so a stream copy can cut exactly at 1.0 s.
 fn test_video(dir: &Path) -> PathBuf {
-    let out = dir.join("clip.mkv");
+    sized_video(dir, "clip.mkv", "640x360")
+}
+
+fn sized_video(dir: &Path, name: &str, size: &str) -> PathBuf {
+    let out = dir.join(name);
     let args: Vec<String> = [
         "-y",
         "-v",
@@ -29,7 +34,7 @@ fn test_video(dir: &Path) -> PathBuf {
         "-f",
         "lavfi",
         "-i",
-        "testsrc=size=640x360:rate=30:duration=5",
+        &format!("testsrc=size={size}:rate=30:duration=5"),
         "-f",
         "lavfi",
         "-i",
@@ -77,9 +82,10 @@ fn open(dir: &Path, video: &Path, commands: Arc<dyn CommandRunner>) -> Rig {
     let config = PlayerConfig {
         video: video.to_path_buf(),
         output: {
-            let out = dir.join("trimmed.mp4");
-            std::rc::Rc::new(move || out.clone())
+            let dir = dir.to_path_buf();
+            std::rc::Rc::new(move |ext| dir.join(format!("trimmed.{ext}")))
         },
+        options: ExportOptions::default(),
         audio: AudioOut::Silent,
         paths: Paths::rooted(&dir.join("root")),
         commands,
@@ -254,6 +260,7 @@ fn trimmed(input: &Path, output: PathBuf, mode: ExportMode, remove_audio: bool) 
         trim,
         mode,
         remove_audio,
+        options: ExportOptions::default(),
     }
 }
 
@@ -346,5 +353,183 @@ fn pictures_of_the_paused_viewer() {
             (t.start() - 0.8).abs() < 0.05 && (t.end() - 4.2).abs() < 0.05,
             "{t:?}"
         );
+    }
+}
+
+fn exported(video: &Path, name: &str, options: ExportOptions) -> PathBuf {
+    let dir = video.parent().unwrap();
+    let job = ExportJob {
+        options,
+        ..trimmed(video, dir.join(name), ExportMode::Precise, false)
+    };
+    export(&SystemFfmpeg, &job, &mut |_| {}).unwrap()
+}
+
+fn probed(file: &Path) -> es_record::recovery::VideoProbe {
+    es_record::recovery::probe_video(&SystemRunner, file).unwrap()
+}
+
+#[test]
+fn webm_and_gif_exports_have_their_codec_and_a_gif_has_no_audio() {
+    let dir = tempfile::tempdir().unwrap();
+    let video = test_video(dir.path());
+    let webm = exported(
+        &video,
+        "clip.webm",
+        ExportOptions {
+            format: Format::WebM,
+            quality: Quality::Small,
+            ..Default::default()
+        },
+    );
+    let p = probed(&webm);
+    assert_eq!(p.codec, "vp9");
+    assert_eq!((p.width, p.height), (640, 360));
+    assert_eq!(audio_streams(&webm), "1");
+    assert!((p.duration_secs - 2.5).abs() <= 2. * FRAME);
+
+    let gif = exported(
+        &video,
+        "clip.gif",
+        ExportOptions {
+            format: Format::Gif,
+            ..Default::default()
+        },
+    );
+    let p = probed(&gif);
+    assert_eq!(p.codec, "gif");
+    assert_eq!(audio_streams(&gif), "", "a gif carries no audio");
+}
+
+#[test]
+fn a_smaller_size_scales_down_and_a_larger_one_leaves_the_video_alone() {
+    let dir = tempfile::tempdir().unwrap();
+    let video = sized_video(dir.path(), "big.mkv", "1280x720");
+    let small = exported(
+        &video,
+        "small.mp4",
+        ExportOptions {
+            size: Size::P480,
+            ..Default::default()
+        },
+    );
+    let p = probed(&small);
+    assert_eq!((p.width, p.height), (854, 480));
+    let same = exported(
+        &video,
+        "same.mp4",
+        ExportOptions {
+            size: Size::P1080,
+            ..Default::default()
+        },
+    );
+    let p = probed(&same);
+    assert_eq!((p.width, p.height), (1280, 720));
+    let lower = sized_video(dir.path(), "low.mkv", "640x360");
+    let kept = exported(
+        &lower,
+        "kept.mp4",
+        ExportOptions {
+            size: Size::P720,
+            ..Default::default()
+        },
+    );
+    let p = probed(&kept);
+    assert_eq!((p.width, p.height), (640, 360), "never scaled up");
+}
+
+#[test]
+fn the_look_changes_the_exported_picture() {
+    let dir = tempfile::tempdir().unwrap();
+    let video = test_video(dir.path());
+    let mono = exported(
+        &video,
+        "mono.mp4",
+        ExportOptions {
+            look: Look::Mono,
+            ..Default::default()
+        },
+    );
+    let args = [
+        "-v",
+        "error",
+        "-ss",
+        "1",
+        "-i",
+        mono.to_str().unwrap(),
+        "-frames:v",
+        "1",
+        "-vf",
+        "scale=1:1,format=rgb24",
+        "-f",
+        "rawvideo",
+        "-",
+    ]
+    .map(String::from);
+    let out = SystemRunner.run("ffmpeg", &args).unwrap();
+    let px = out.stdout;
+    assert_eq!(px.len(), 3);
+    assert!(
+        px[0].abs_diff(px[1]) <= 3 && px[1].abs_diff(px[2]) <= 3,
+        "grey: {px:?}"
+    );
+}
+
+#[test]
+fn the_panel_previews_the_look_and_remembers_the_choices_at_export() {
+    let (_d, mut r) = rig();
+    let natural = r.read(|p| p.previewed_tone()).unwrap();
+    assert_eq!(natural, (0., 1., 1.));
+    let events = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+    let view = r.s.view.clone();
+    let seen = events.clone();
+    let _sub = r.s.app.cx.update(|cx| {
+        cx.subscribe(&view, move |_, e: &PlayerEvent, _| {
+            seen.borrow_mut().push(e.clone())
+        })
+    });
+    let chosen = ExportOptions {
+        format: Format::WebM,
+        look: Look::Mono,
+        brightness: 0.2,
+        ..Default::default()
+    };
+    r.s.app
+        .cx
+        .update(|cx| view.update(cx, |p, cx| p.set_options(chosen, cx)));
+    assert_eq!(r.read(|p| p.previewed_tone()).unwrap(), (0.2, 1.05, 0.));
+    r.s.app
+        .cx
+        .update(|cx| view.update(cx, |p, cx| p.export(cx)));
+    assert!(events.borrow().contains(&PlayerEvent::Chosen(chosen)));
+    r.wait("the export", |p| {
+        !matches!(p.export_state(), ExportState::Running(_))
+    });
+    assert_eq!(
+        r.read(|p| p.export_state().clone()),
+        ExportState::Done(r.dir.join("trimmed.webm"))
+    );
+}
+
+#[test]
+fn pictures_of_the_export_panel() {
+    for (mode, name) in [(ThemeMode::Light, "light"), (ThemeMode::Dark, "dark")] {
+        let (_d, mut r) = rig();
+        r.s.app.cx.update(|cx| es_ui::theme::set_mode(mode, cx));
+        let view = r.s.view.clone();
+        let chosen = ExportOptions {
+            format: Format::WebM,
+            size: Size::P720,
+            quality: Quality::High,
+            look: Look::Vivid,
+            brightness: 0.1,
+        };
+        r.s.app
+            .cx
+            .update(|cx| view.update(cx, |p, cx| p.set_options(chosen, cx)));
+        r.wait("the strip", PlayerWindow::has_strip);
+        std::thread::sleep(Duration::from_millis(200));
+        r.s.app.settle();
+        r.s.app.screenshot(&format!("player-export-panel-{name}"));
     }
 }

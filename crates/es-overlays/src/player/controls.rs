@@ -1,14 +1,17 @@
 use super::export::ExportMode;
+use super::options::{ExportOptions, Format, Look, Quality, Size};
 use super::trim::clock;
 use super::view::{ExportState, PlayerWindow, TITLE_BAR_HEIGHT};
 use crate::capture::strings::fl;
 use es_ui::a11y::{Accessible, Role};
-use es_ui::components::{ButtonKind, EditorButton, IconButton, Segment, Segmented};
+use es_ui::components::{
+    ButtonKind, EditorButton, IconButton, InspectorSlider, Segment, Segmented,
+};
 use es_ui::icons::IconName;
 use es_ui::theme::tokens;
 use es_ui::tokens::Typeset;
 use gpui::{
-    Context, InteractiveElement, IntoElement, MouseButton, ParentElement, Styled, div,
+    Context, Entity, InteractiveElement, IntoElement, MouseButton, ParentElement, Styled, div,
     prelude::FluentBuilder as _, px,
 };
 use gpui_component::TitleBar;
@@ -72,7 +75,10 @@ impl PlayerWindow {
                 Segment::text(fl!("player-mode-fast")),
             ],
         )
-        .selected(usize::from(self.mode == ExportMode::Fast))
+        .disabled(!self.can_copy())
+        .selected(usize::from(
+            self.mode == ExportMode::Fast && self.can_copy(),
+        ))
         .on_select({
             let view = cx.entity().downgrade();
             move |i, _, cx| {
@@ -116,12 +122,108 @@ impl PlayerWindow {
                             .icon(IconName::VolumeOff)
                             .label(fl!("player-remove-audio"))
                             .toggle(true)
-                            .selected(self.remove_audio)
+                            .disabled(self.options.format == Format::Gif)
+                            .selected(self.remove_audio || self.options.format == Format::Gif)
                             .on_click(
                                 cx.listener(|p, _, _, cx| p.set_remove_audio(!p.remove_audio, cx)),
                             ),
                     ),
             )
+    }
+
+    fn can_copy(&self) -> bool {
+        self.options.format == Format::Mp4 && !self.options.alters_picture()
+    }
+
+    pub(super) fn options_panel(
+        &self,
+        brightness: &Entity<InspectorSlider>,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
+        let view = cx.entity().downgrade();
+        let pick = move |change: fn(ExportOptions, usize) -> ExportOptions| {
+            let view = view.clone();
+            move |i: usize, _: &mut gpui::Window, cx: &mut gpui::App| {
+                let _ = view.update(cx, |p, cx| p.set_options(change(p.options, i), cx));
+            }
+        };
+        let o = self.options;
+        let format = Segmented::new(
+            "export-format",
+            fl!("player-format-a11y"),
+            [
+                Segment::text(fl!("player-format-mp4")),
+                Segment::text(fl!("player-format-webm")),
+                Segment::text(fl!("player-format-gif")),
+            ],
+        )
+        .selected(Format::ALL.iter().position(|f| *f == o.format).unwrap_or(0))
+        .on_select(pick(|o, i| ExportOptions {
+            format: Format::ALL[i],
+            ..o
+        }));
+        let size = Segmented::new(
+            "export-size",
+            fl!("player-size-a11y"),
+            [
+                Segment::text(fl!("player-size-original")),
+                Segment::text(fl!("player-size-1080")),
+                Segment::text(fl!("player-size-720")),
+                Segment::text(fl!("player-size-480")),
+            ],
+        )
+        .selected(Size::ALL.iter().position(|s| *s == o.size).unwrap_or(0))
+        .on_select(pick(|o, i| ExportOptions {
+            size: Size::ALL[i],
+            ..o
+        }));
+        let quality = Segmented::new(
+            "export-quality",
+            fl!("player-quality-a11y"),
+            [
+                Segment::text(fl!("player-quality-high")),
+                Segment::text(fl!("player-quality-balanced")),
+                Segment::text(fl!("player-quality-small")),
+            ],
+        )
+        .selected(
+            Quality::ALL
+                .iter()
+                .position(|q| *q == o.quality)
+                .unwrap_or(0),
+        )
+        .on_select(pick(|o, i| ExportOptions {
+            quality: Quality::ALL[i],
+            ..o
+        }));
+        let look = Segmented::new(
+            "export-look",
+            fl!("player-look-a11y"),
+            [
+                Segment::text(fl!("player-look-natural")),
+                Segment::text(fl!("player-look-vivid")),
+                Segment::text(fl!("player-look-muted")),
+                Segment::text(fl!("player-look-mono")),
+            ],
+        )
+        .selected(Look::ALL.iter().position(|l| *l == o.look).unwrap_or(0))
+        .on_select(pick(|o, i| ExportOptions {
+            look: Look::ALL[i],
+            ..o
+        }));
+        div()
+            .id("export-options")
+            .accessible(Role::Group, fl!("player-options-a11y"))
+            .flex()
+            .flex_wrap()
+            .items_end()
+            .gap_x(px(16.))
+            .gap_y(px(8.))
+            .child(option(fl!("player-format"), 150., format, cx))
+            .child(option(fl!("player-size"), 250., size, cx))
+            .child(option(fl!("player-quality"), 200., quality, cx))
+            .child(option(fl!("player-look"), 260., look, cx))
+            .child(div().w(px(300.)).child(brightness.clone()))
     }
 
     pub(super) fn status(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -219,4 +321,25 @@ fn hold(id: &'static str) -> gpui::Stateful<gpui::Div> {
         .flex_none()
         .items_center()
         .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+}
+
+fn option(
+    caption: String,
+    width: f32,
+    control: Segmented,
+    cx: &Context<PlayerWindow>,
+) -> impl IntoElement {
+    let t = tokens(cx).clone();
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(4.))
+        .w(px(width))
+        .child(
+            div()
+                .typeset(t.type_scale.footer)
+                .text_color(t.text_secondary)
+                .child(caption),
+        )
+        .child(control)
 }

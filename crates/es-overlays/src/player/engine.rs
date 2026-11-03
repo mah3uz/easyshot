@@ -44,6 +44,7 @@ type Latest = Arc<Mutex<Option<Frame>>>;
 pub struct Engine {
     playbin: gst::Element,
     filter: gst::Element,
+    balance: gst::Element,
     latest: Latest,
     signals: async_channel::Receiver<Signal>,
 }
@@ -108,7 +109,8 @@ impl Engine {
             .property("uri", uri.as_str())
             .build()
             .map_err(|_| "GStreamer element playbin is missing".to_owned())?;
-        let (convert, scale, filter) = (
+        let (balance, convert, scale, filter) = (
+            make("videobalance")?,
             make("videoconvert")?,
             make("videoscale")?,
             make("capsfilter")?,
@@ -120,12 +122,12 @@ impl Engine {
             .drop(true)
             .build();
         let bin = gst::Bin::new();
-        let parts = [&convert, &scale, &filter, sink.upcast_ref()];
+        let parts = [&balance, &convert, &scale, &filter, sink.upcast_ref()];
         bin.add_many(parts).map_err(|e| e.to_string())?;
         gst::Element::link_many(parts).map_err(|e| e.to_string())?;
-        let pad = convert
+        let pad = balance
             .static_pad("sink")
-            .ok_or_else(|| "videoconvert has no sink pad".to_owned())?;
+            .ok_or_else(|| "videobalance has no sink pad".to_owned())?;
         let ghost = gst::GhostPad::with_target(&pad).map_err(|e| e.to_string())?;
         bin.add_pad(&ghost).map_err(|e| e.to_string())?;
         playbin.set_property("video-sink", &bin);
@@ -169,6 +171,7 @@ impl Engine {
         Ok(Engine {
             playbin,
             filter,
+            balance,
             latest,
             signals,
         })
@@ -203,6 +206,20 @@ impl Engine {
 
     pub fn duration(&self) -> Option<f64> {
         self.playbin.query_duration::<gst::ClockTime>().map(secs)
+    }
+
+    pub fn set_tone(&self, brightness: f64, contrast: f64, saturation: f64) {
+        self.balance.set_property("brightness", brightness);
+        self.balance.set_property("contrast", contrast);
+        self.balance.set_property("saturation", saturation);
+    }
+
+    pub fn tone(&self) -> (f64, f64, f64) {
+        (
+            self.balance.property("brightness"),
+            self.balance.property("contrast"),
+            self.balance.property("saturation"),
+        )
     }
 
     pub fn fit(&self, w: u32, h: u32) {

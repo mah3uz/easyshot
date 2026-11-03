@@ -1,5 +1,6 @@
 use super::engine::{AudioOut, Engine, Frame, Signal};
 use super::export::{ExportJob, ExportMode, FfmpegRunner, export};
+use super::options::{BRIGHTNESS_LIMIT, ExportOptions};
 use super::scrubber::follow_drags;
 use super::strip::{StripSpec, strip};
 use super::trim::Trim;
@@ -7,11 +8,12 @@ use crate::capture::strings::fl;
 use es_record::CommandRunner;
 use es_store::Paths;
 use es_ui::a11y::{Accessible, Role};
+use es_ui::components::{InspectorSlider, SliderEvent, ValueFormat};
 use es_ui::theme::tokens;
 use gpui::{
-    App, AppContext as _, Bounds, Context, Corners, EventEmitter, FocusHandle, Focusable,
+    App, AppContext as _, Bounds, Context, Corners, Entity, EventEmitter, FocusHandle, Focusable,
     InteractiveElement, IntoElement, KeyDownEvent, ObjectFit, ParentElement, Pixels, Render,
-    RenderImage, Styled, Task, Window, canvas, div, px,
+    RenderImage, Styled, Subscription, Task, Window, canvas, div, px,
 };
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -23,8 +25,9 @@ pub(super) const STRIP_HEIGHT: Pixels = px(44.);
 
 pub struct PlayerConfig {
     pub video: PathBuf,
-    /// Asked once per export, so each export can get a name of its own.
-    pub output: std::rc::Rc<dyn Fn() -> PathBuf>,
+    /// Asked once per export with the file extension, so each export can get a name of its own.
+    pub output: std::rc::Rc<dyn Fn(&str) -> PathBuf>,
+    pub options: ExportOptions,
     pub audio: AudioOut,
     pub paths: Paths,
     pub commands: Arc<dyn CommandRunner>,
@@ -34,6 +37,8 @@ pub struct PlayerConfig {
 #[derive(Clone, Debug, PartialEq)]
 pub enum PlayerEvent {
     Exported(PathBuf),
+    /// The choices an export started with, for the next time.
+    Chosen(ExportOptions),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -69,6 +74,8 @@ pub struct PlayerWindow {
     pub(super) grab: Option<Grab>,
     pub(super) mode: ExportMode,
     pub(super) remove_audio: bool,
+    pub(super) options: ExportOptions,
+    brightness: Option<(Entity<InspectorSlider>, Subscription)>,
     pub(super) export: ExportState,
     frames: u64,
     dropped: u64,
@@ -114,7 +121,8 @@ impl PlayerWindow {
                 }
             })
         });
-        PlayerWindow {
+        let options = config.options;
+        let this = PlayerWindow {
             config,
             engine,
             failure,
@@ -132,11 +140,15 @@ impl PlayerWindow {
             grab: None,
             mode: ExportMode::default(),
             remove_audio: false,
+            options,
+            brightness: None,
             export: ExportState::Idle,
             frames: 0,
             dropped: 0,
             _signals: signals,
-        }
+        };
+        this.apply_tone();
+        this
     }
 
     pub fn frames_shown(&self) -> u64 {
@@ -312,6 +324,62 @@ impl PlayerWindow {
         cx.notify();
     }
 
+    pub fn options(&self) -> ExportOptions {
+        self.options
+    }
+
+    /// The preview's brightness, contrast and saturation, as the player is showing them.
+    pub fn previewed_tone(&self) -> Option<(f64, f64, f64)> {
+        self.engine.as_ref().map(Engine::tone)
+    }
+
+    fn apply_tone(&self) {
+        let Some(engine) = &self.engine else { return };
+        let (contrast, saturation) = self.options.look.tone();
+        engine.set_tone(self.options.brightness, contrast, saturation);
+        if !self.playing {
+            engine.seek(self.position);
+        }
+    }
+
+    pub fn set_options(&mut self, options: ExportOptions, cx: &mut Context<Self>) {
+        self.options = options;
+        self.apply_tone();
+        cx.notify();
+    }
+
+    fn ensure_brightness(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Entity<InspectorSlider> {
+        if let Some((slider, _)) = &self.brightness {
+            return slider.clone();
+        }
+        let start = self.options.brightness;
+        let slider = cx.new(|cx| {
+            InspectorSlider::new(
+                fl!("player-brightness"),
+                start,
+                -BRIGHTNESS_LIMIT..=BRIGHTNESS_LIMIT,
+                ValueFormat::percent().signed(),
+                window,
+                cx,
+            )
+        });
+        let sub = cx.subscribe(&slider, |p, _, event: &SliderEvent, cx| {
+            if let SliderEvent::Changed(v) = event {
+                let options = ExportOptions {
+                    brightness: *v,
+                    ..p.options
+                };
+                p.set_options(options, cx);
+            }
+        });
+        self.brightness = Some((slider.clone(), sub));
+        slider
+    }
+
     pub fn export(&mut self, cx: &mut Context<Self>) {
         if matches!(self.export, ExportState::Running(_)) || self.trim.duration() <= 0. {
             return;
@@ -319,11 +387,13 @@ impl PlayerWindow {
         self.pause();
         let job = ExportJob {
             input: self.config.video.clone(),
-            output: (self.config.output)(),
+            output: (self.config.output)(self.options.format.id()),
             trim: self.trim,
             mode: self.mode,
             remove_audio: self.remove_audio,
+            options: self.options,
         };
+        cx.emit(PlayerEvent::Chosen(self.options));
         let runner = self.config.ffmpeg.clone();
         let (tx, rx) = async_channel::unbounded();
         let run = cx.background_spawn(async move {
@@ -380,6 +450,7 @@ impl Render for PlayerWindow {
             window.focus(&self.focus, cx);
         }
         self.refit(window);
+        let brightness = self.ensure_brightness(window, cx);
         if !self.strip_asked {
             self.ask_strip(cx);
         }
@@ -438,6 +509,7 @@ impl Render for PlayerWindow {
                     .border_color(t.separator)
                     .child(self.transport(cx))
                     .child(self.scrubber(cx))
+                    .child(self.options_panel(&brightness, cx))
                     .child(self.status(cx)),
             );
         follow_drags(root, cx)

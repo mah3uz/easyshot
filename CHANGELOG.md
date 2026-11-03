@@ -26,6 +26,7 @@
 - The capture bar takes the keyboard when it opens, so Esc closes it, and opening it again from its key, the tray or `easyshot capture-bar` closes it.
 - Screen recording, one at a time: the tray's Record item becomes Stop Recording while one runs, and system sound is recorded unless you turn it off.
 - Saved recordings and trim exports go to `~/Videos/easyshot/` with dated names, and each save notice says where.
+- The trim viewer exports MP4, WebM or GIF, at the original size or scaled down to 1080p, 720p or 480p, in High, Balanced or Small quality, with a brightness slider and four colour looks (Natural, Vivid, Muted, Mono) that you can preview in the player. Your last choices are remembered.
 - Notifications you can click: open the file, show it in its folder, or edit a capture.
 - `capture previous` repeats the last area, display or window; a window that has closed gets a toast, not a capture.
 - `--timed [N]` on `capture region`, `window` and `fullscreen`, and a timer button on the capture bar: pick first, count down, then take a fresh frame.

@@ -185,16 +185,25 @@ pub fn open_player(
     cx: &mut App,
 ) -> Result<()> {
     use es_app::toast::show_toast;
-    use es_overlays::player::{AudioOut, PlayerConfig, PlayerEvent, PlayerWindow, SystemFfmpeg};
+    use es_overlays::player::{
+        AudioOut, ExportOptions, PlayerConfig, PlayerEvent, PlayerWindow, SystemFfmpeg,
+    };
     use std::sync::Arc;
     let videos = paths.clone();
-    let output = Rc::new(move || {
-        super::finish::video_target(&videos, &template, time::OffsetDateTime::now_utc())
-            .unwrap_or_else(|_| videos.videos_dir().join("export.mp4"))
+    let output = Rc::new(move |ext: &str| {
+        super::finish::video_target(&videos, &template, ext, time::OffsetDateTime::now_utc())
+            .unwrap_or_else(|_| videos.videos_dir().join(format!("export.{ext}")))
+    });
+    let settings = cx
+        .try_global::<es_app::services::Services>()
+        .map(|s| s.settings.clone());
+    let options = settings.as_ref().map_or_else(ExportOptions::default, |s| {
+        ExportOptions::from_config(&s.read(cx).config().recording)
     });
     let config = PlayerConfig {
         video,
         output,
+        options,
         audio: AudioOut::Speakers,
         paths,
         commands: Arc::new(es_record::project::SystemRunner),
@@ -206,9 +215,18 @@ pub fn open_player(
     };
     cx.open_window(options, |_, cx| {
         let player = cx.new(|cx| PlayerWindow::new(config, cx));
-        cx.subscribe(&player, |_, event: &PlayerEvent, cx| {
-            let PlayerEvent::Exported(file) = event;
-            show_toast(super::saved_toast("toast-video-exported", file), cx);
+        cx.subscribe(&player, move |_, event: &PlayerEvent, cx| match event {
+            PlayerEvent::Exported(file) => {
+                show_toast(super::saved_toast("toast-video-exported", file), cx);
+            }
+            PlayerEvent::Chosen(options) => {
+                if let Some(settings) = &settings {
+                    let options = *options;
+                    settings.update(cx, |s, cx| {
+                        s.update(|c| options.store(&mut c.recording), cx)
+                    });
+                }
+            }
         })
         .detach();
         player

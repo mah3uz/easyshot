@@ -365,9 +365,9 @@ fn exports_get_dated_names_in_the_videos_folder_that_never_overwrite() {
     let paths = Paths::rooted(dir.path());
     let template = es_model::Config::default().general.file_name_template;
     let now = OffsetDateTime::from_unix_timestamp(1_800_000_000).unwrap();
-    let first = finish::video_target(&paths, &template, now).unwrap();
+    let first = finish::video_target(&paths, &template, "mp4", now).unwrap();
     std::fs::write(&first, b"video").unwrap();
-    let second = finish::video_target(&paths, &template, now).unwrap();
+    let second = finish::video_target(&paths, &template, "mp4", now).unwrap();
     assert!(first.starts_with(paths.videos_dir()) && second.starts_with(paths.videos_dir()));
     assert!(
         !first.starts_with(paths.recordings_dir()),

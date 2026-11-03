@@ -169,6 +169,11 @@ pub struct Recording {
     pub quality: String,
     /// "auto" or a provider name: gsr-native, gsr-portal, wf-recorder, portal-pipewire.
     pub recorder: String,
+    pub export_format: String,
+    pub export_size: String,
+    pub export_quality: String,
+    pub export_look: String,
+    pub export_brightness: f64,
 }
 
 impl Default for Recording {
@@ -186,6 +191,11 @@ impl Default for Recording {
             container: "mkv".into(),
             quality: "very_high".into(),
             recorder: "auto".into(),
+            export_format: "mp4".into(),
+            export_size: "original".into(),
+            export_quality: "balanced".into(),
+            export_look: "natural".into(),
+            export_brightness: 0.,
         }
     }
 }

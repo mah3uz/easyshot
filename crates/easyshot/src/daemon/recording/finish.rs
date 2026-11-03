@@ -144,12 +144,13 @@ pub fn remux_args(video: &Path, target: &Path) -> Vec<String> {
 pub fn video_target(
     paths: &es_store::Paths,
     template: &str,
+    ext: &str,
     now: OffsetDateTime,
 ) -> Result<PathBuf, String> {
     let dir = paths.videos_dir();
     std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let mut scratch = es_model::State::default();
-    let name = naming::next_file_name(template, "mp4", Kind::Recording, now, &mut scratch);
+    let name = naming::next_file_name(template, ext, Kind::Recording, now, &mut scratch);
     Ok(naming::unique_path(&name, &dir, "-", naming::exists))
 }
 
@@ -161,7 +162,7 @@ pub fn save_mp4(
     now: OffsetDateTime,
     runner: &dyn CommandRunner,
 ) -> Result<PathBuf, String> {
-    let target = video_target(paths, &config.general.file_name_template, now)?;
+    let target = video_target(paths, &config.general.file_name_template, "mp4", now)?;
     let out = runner
         .run("ffmpeg", &remux_args(video, &target))
         .map_err(|e| format!("ffmpeg: {e}"))?;

@@ -254,8 +254,19 @@ bar shows "A recording is already running" and opens no picker.
 Each recording is a project folder in `$XDG_DATA_HOME/easyshot/recordings/` with an
 `input.json` holding cursor travel, clicks and keystrokes when permitted. A finished
 recording appears as a deck card, then opens in a trim viewer with export. Saving the card
-and exporting from the trim viewer both write an `.mp4` to `easyshot` inside your Videos
-folder (usually `~/Videos/easyshot/`), with a dated name that never replaces an earlier file.
+and exporting from the trim viewer both write to `easyshot` inside your Videos folder
+(usually `~/Videos/easyshot/`), with a dated name that never replaces an earlier file.
+
+The trim viewer's export has a few plain choices under the timeline. Format is MP4, WebM or
+GIF; a GIF has no sound. Size is Original, 1080p, 720p or 480p, which only ever shrinks a
+video and keeps its shape, so a video already smaller than the choice stays as it is. Quality
+is High, Balanced or Small: Small makes the smallest file. Colour is Natural (as recorded),
+Vivid, Muted or Mono (black and white), and the Brightness slider lightens or darkens by up
+to 30%. The player shows the colour and brightness while you choose them; format, size and
+quality apply only to the exported file. Fast (copy without re-encoding) is available only
+for an MP4 at its original size and colour; any other choice re-encodes. Your last choices
+are remembered in `config.toml` under `[recording]` as `export_format`, `export_size`,
+`export_quality`, `export_look` and `export_brightness`.
 
 When you record a whole screen, Settings, Recording, "Show the control bar when recording a
 whole screen" (on by default) decides where the control bar goes. With a second monitor that
