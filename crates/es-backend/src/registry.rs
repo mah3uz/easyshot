@@ -1,8 +1,6 @@
 use crate::backend::{ProviderReport, ReportEntry};
 use crate::probe::{Probe, Provider};
-use crate::traits::{
-    BindHelper, Capture, Clipboard, PointerQuery, VirtualInput, WindowList, WindowRules,
-};
+use crate::traits::{BindHelper, Capture, Clipboard, PointerQuery, VirtualInput, WindowList};
 use crate::{desktop, wayland};
 use es_desktop::{Appearance, FilePicker, Notifier, Shortcuts, Tray};
 use es_model::platform::CursorSource;
@@ -15,11 +13,7 @@ use crate::niri;
 #[cfg(feature = "wlroots")]
 use crate::wlroots;
 
-pub static CAPTURE: &[Provider<dyn Capture>] = &[
-    wayland::EXT_IMAGE_COPY,
-    wayland::WLR_SCREENCOPY,
-    desktop::PORTAL_SCREENSHOT,
-];
+pub static CAPTURE: &[Provider<dyn Capture>] = &[wayland::EXT_IMAGE_COPY, wayland::WLR_SCREENCOPY];
 
 pub static WINDOWS: &[Provider<dyn WindowList>] = &[
     #[cfg(feature = "hyprland")]
@@ -38,13 +32,6 @@ pub static POINTER: &[Provider<dyn PointerQuery>] = &[
     wlroots::POINTER,
     #[cfg(feature = "niri")]
     niri::POINTER,
-];
-
-pub static RULES: &[Provider<dyn WindowRules>] = &[
-    #[cfg(feature = "hyprland")]
-    hyprland::RULES,
-    #[cfg(feature = "wlroots")]
-    wlroots::RULES,
 ];
 
 pub static BINDS: &[Provider<dyn BindHelper>] = &[
@@ -77,17 +64,12 @@ pub static FILES: &[Provider<dyn FilePicker>] = &[desktop::PORTAL_FILE_CHOOSER];
 
 pub static APPEARANCE: &[Provider<dyn Appearance>] = &[desktop::PORTAL_SETTINGS];
 
-pub static RECORDERS: &[Provider<dyn Recorder>] = &[
-    desktop::GSR_NATIVE,
-    desktop::WF_RECORDER,
-    desktop::PORTAL_RECORDER,
-];
+pub static RECORDERS: &[Provider<dyn Recorder>] = &[desktop::GSR_NATIVE, desktop::WF_RECORDER];
 
 pub struct Registry {
     pub capture: &'static [Provider<dyn Capture>],
     pub windows: &'static [Provider<dyn WindowList>],
     pub pointer: &'static [Provider<dyn PointerQuery>],
-    pub rules: &'static [Provider<dyn WindowRules>],
     pub binds: &'static [Provider<dyn BindHelper>],
     pub clipboard: &'static [Provider<dyn Clipboard>],
     pub virtual_input: &'static [Provider<dyn VirtualInput>],
@@ -105,7 +87,6 @@ impl Registry {
         capture: &[],
         windows: &[],
         pointer: &[],
-        rules: &[],
         binds: &[],
         clipboard: &[],
         virtual_input: &[],
@@ -125,7 +106,6 @@ impl Default for Registry {
             capture: CAPTURE,
             windows: WINDOWS,
             pointer: POINTER,
-            rules: RULES,
             binds: BINDS,
             clipboard: CLIPBOARD,
             virtual_input: VIRTUAL_INPUT,

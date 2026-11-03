@@ -7,15 +7,12 @@ pub use ipc::{EVENT_SOCKET, Ipc, REQUEST_SOCKET, REQUEST_TIMEOUT};
 pub use json::{
     Client, CursorPos, Monitor, focused_monitor, join_toplevels, output_at, visible_windows,
 };
-pub use rules::{
-    HyprBinds, HyprRules, LAYER_NAMESPACES, hyprlang_snippet, install_script, lua_snippet,
-    parse_binds, remove_script,
-};
+pub use rules::{HyprBinds, hyprlang_snippet, lua_snippet, parse_binds};
 pub use windows::{HyprEvent, HyprWindows, Toplevels, parse_event};
 
 use crate::error::BackendError;
 use crate::probe::{Env, Probe, Provider};
-use crate::traits::{BindHelper, BindSyntax, PointerQuery, WindowList, WindowRules};
+use crate::traits::{BindHelper, BindSyntax, PointerQuery, WindowList};
 use es_geom::Point;
 use es_model::platform::{CursorSource, OutputId};
 use std::path::{Path, PathBuf};
@@ -118,12 +115,6 @@ pub const POINTER: Provider<dyn PointerQuery> = Provider {
     name: "hyprland",
     probe: detected,
     build: |p| Ok(Box::new(HyprPointer { ipc: ipc(p)? })),
-};
-
-pub const RULES: Provider<dyn WindowRules> = Provider {
-    name: "hyprland",
-    probe: detected,
-    build: |p| Ok(Box::new(HyprRules { ipc: ipc(p)? })),
 };
 
 pub const BINDS: Provider<dyn BindHelper> = Provider {

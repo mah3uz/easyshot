@@ -1,9 +1,7 @@
 use crate::error::{Error, Result};
 use crate::probe::{Probe, TOOL_PACKAGES};
 use crate::registry::{Registry, select, select_all};
-use crate::traits::{
-    BindHelper, Capture, Clipboard, PointerQuery, VirtualInput, WindowList, WindowRules,
-};
+use crate::traits::{BindHelper, Capture, Clipboard, PointerQuery, VirtualInput, WindowList};
 use crate::{desktop, wayland};
 use bitflags::bitflags;
 use es_desktop::{Appearance, FilePicker, Notifier, Shortcuts, Tray};
@@ -31,7 +29,6 @@ bitflags! {
         const VIRTUAL_INPUT = 2048;
         const RECORDER = 4096;
         const OCR = 8192;
-        const WINDOW_RULES = 16384;
         const BIND_CHECK = 32768;
         const FILE_PICKER = 65536;
         const APPEARANCE = 131072;
@@ -83,7 +80,6 @@ pub struct Backend {
     pub capture: Box<dyn Capture>,
     pub windows: Box<dyn WindowList>,
     pub pointer: Option<Box<dyn PointerQuery>>,
-    pub rules: Option<Box<dyn WindowRules>>,
     pub binds: Option<Box<dyn BindHelper>>,
     pub clipboard: Box<dyn Clipboard>,
     pub shortcuts: Box<dyn Shortcuts>,
@@ -153,7 +149,6 @@ impl Backend {
             capture,
             windows: Box::new(windows),
             pointer: select("pointer", reg.pointer, probe, &mut report),
-            rules: select("rules", reg.rules, probe, &mut report),
             binds: select("binds", reg.binds, probe, &mut report),
             clipboard: select("clipboard", reg.clipboard, probe, &mut report)
                 .unwrap_or_else(|| Box::new(NoClipboard)),
@@ -213,7 +208,6 @@ fn derive_caps(b: &Backend, probe: &Probe) -> Caps {
     caps.set(Caps::VIRTUAL_INPUT, b.virtual_input.is_some());
     caps.set(Caps::RECORDER, !b.recorders.is_empty());
     caps.set(Caps::OCR, probe.tools.tesseract);
-    caps.set(Caps::WINDOW_RULES, b.rules.is_some());
     caps.set(Caps::BIND_CHECK, b.binds.is_some());
     caps.set(Caps::FILE_PICKER, b.files.is_some());
     caps.set(Caps::APPEARANCE, b.appearance.is_some());

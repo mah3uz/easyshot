@@ -2,7 +2,7 @@ use crate::backend::Backend;
 use crate::desktop::UserBinds;
 use crate::error::{Error, Result};
 use crate::probe::TestConfig;
-use crate::traits::{Capture, Clipboard, PointerQuery, RuleSet, WindowList, WindowRules};
+use crate::traits::{Capture, Clipboard, PointerQuery, WindowList};
 use es_desktop::{Notification, NotificationId, Notifier, RecordingTrayState, Tray, TrayModel};
 use es_geom::Point;
 use es_model::platform::{
@@ -48,9 +48,6 @@ pub fn isolate(b: Backend, cfg: &TestConfig) -> Backend {
             hooks: hooks.clone(),
             output: cfg.output.clone(),
         })),
-        rules: b
-            .rules
-            .map(|_| Box::new(LoggedRules) as Box<dyn WindowRules>),
         clipboard: Box::new(ClipboardSink::new(cfg.dir.join("clipboard"))),
         shortcuts: Box::new(UserBinds::new()),
         tray: b.tray.map(|_| Box::new(NoopTray::new()) as Box<dyn Tray>),
@@ -260,18 +257,6 @@ impl Clipboard for ClipboardSink {
     }
     fn needs_focused_window(&self) -> bool {
         false
-    }
-}
-
-pub struct LoggedRules;
-
-impl WindowRules for LoggedRules {
-    fn install(&self, rules: &RuleSet) -> Result<()> {
-        tracing::info!(?rules, "test mode: window rules not installed");
-        Ok(())
-    }
-    fn remove(&self) -> Result<()> {
-        Ok(())
     }
 }
 

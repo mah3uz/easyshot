@@ -2,8 +2,8 @@
 
 use es_backend::registry::Registry;
 use es_backend::{
-    Backend, Caps, Capture, Clipboard, Error, Probe, Provider, Result, RuleSet, TestConfig,
-    VirtualInput, WindowList, WindowRules,
+    Backend, Caps, Capture, Clipboard, Error, Probe, Provider, Result, TestConfig, VirtualInput,
+    WindowList,
 };
 use es_geom::{Point, Rect};
 use es_model::platform::{
@@ -110,17 +110,6 @@ impl Clipboard for RealClipboard {
     }
 }
 
-struct RealRules;
-
-impl WindowRules for RealRules {
-    fn install(&self, _rules: &RuleSet) -> Result<()> {
-        panic!("test mode must never install rules");
-    }
-    fn remove(&self) -> Result<()> {
-        panic!("test mode must never remove rules");
-    }
-}
-
 struct RealInput;
 
 impl VirtualInput for RealInput {
@@ -143,11 +132,6 @@ static CLIPBOARD: &[Provider<dyn Clipboard>] = &[Provider {
     name: "real-clipboard",
     probe: |_| Some(1),
     build: |_| Ok(Box::new(RealClipboard)),
-}];
-static RULES: &[Provider<dyn WindowRules>] = &[Provider {
-    name: "real-rules",
-    probe: |_| Some(1),
-    build: |_| Ok(Box::new(RealRules)),
 }];
 static INPUT: &[Provider<dyn VirtualInput>] = &[Provider {
     name: "real-input",
@@ -178,7 +162,6 @@ fn isolated_with(dir: PathBuf, virtual_input: bool) -> Backend {
         capture: CAPTURE,
         windows: WINDOWS,
         clipboard: CLIPBOARD,
-        rules: RULES,
         virtual_input: INPUT,
         ..Registry::EMPTY
     };
@@ -314,11 +297,8 @@ fn clipboard_writes_files_instead_of_the_real_clipboard() {
 }
 
 #[test]
-fn rules_only_log_and_virtual_input_is_off() {
-    let b = isolated(scratch("rules"));
-    let rules = b.rules.as_ref().expect("rules stay present");
-    rules.install(&RuleSet::default()).expect("logged");
-    rules.remove().expect("noop");
+fn virtual_input_is_off_in_test_mode() {
+    let b = isolated(scratch("input-off"));
     assert!(b.virtual_input.is_none());
     assert!(!b.caps.contains(Caps::VIRTUAL_INPUT));
 }

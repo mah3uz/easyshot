@@ -16,10 +16,6 @@
         {
           "provider": "wlr-screencopy",
           "reason": "not detected"
-        },
-        {
-          "provider": "portal-screenshot",
-          "reason": "not detected"
         }
       ]
     },
@@ -61,21 +57,6 @@
         },
         {
           "provider": "niri",
-          "reason": "not detected"
-        }
-      ]
-    },
-    {
-      "capability": "rules",
-      "chosen": null,
-      "forced": null,
-      "rejected": [
-        {
-          "provider": "hyprland",
-          "reason": "not detected"
-        },
-        {
-          "provider": "wlroots",
           "reason": "not detected"
         }
       ]
@@ -202,10 +183,6 @@
         },
         {
           "provider": "wf-recorder",
-          "reason": "not detected"
-        },
-        {
-          "provider": "portal-recorder",
           "reason": "not detected"
         }
       ]

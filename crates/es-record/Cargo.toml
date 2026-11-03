@@ -13,8 +13,6 @@ workspace = true
 es-model.workspace = true
 es-protocol.workspace = true
 es-geom.workspace = true
-tokio.workspace = true
-ashpd.workspace = true
 serde.workspace = true
 futures.workspace = true
 async-channel.workspace = true
@@ -24,8 +22,6 @@ uuid.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 rustix = { workspace = true, features = ["process", "time", "fs"] }
-gstreamer = { workspace = true, optional = true }
-gstreamer-app = { workspace = true, optional = true }
 evdev = { workspace = true, optional = true }
 tempfile.workspace = true
 
@@ -33,5 +29,4 @@ tempfile.workspace = true
 tempfile.workspace = true
 
 [features]
-portal-recorder = ["dep:gstreamer", "dep:gstreamer-app"]
 evdev-input = ["dep:evdev"]

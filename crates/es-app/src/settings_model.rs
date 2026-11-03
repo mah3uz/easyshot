@@ -18,7 +18,6 @@ bitflags! {
         const AFTER_CAPTURE = 1 << 3;
         const RECORDING = 1 << 4;
         const DEFAULT_LOOK = 1 << 5;
-        const COMPOSITOR = 1 << 6;
         const EDITOR = 1 << 7;
         const OCR = 1 << 8;
         const SHORTCUTS = 1 << 9;
@@ -34,7 +33,6 @@ impl SectionMask {
         mask.set(Self::AFTER_CAPTURE, a.after_capture != b.after_capture);
         mask.set(Self::RECORDING, a.recording != b.recording);
         mask.set(Self::DEFAULT_LOOK, a.default_look != b.default_look);
-        mask.set(Self::COMPOSITOR, a.compositor != b.compositor);
         mask.set(Self::EDITOR, a.editor != b.editor);
         mask.set(Self::OCR, a.ocr != b.ocr);
         mask.set(

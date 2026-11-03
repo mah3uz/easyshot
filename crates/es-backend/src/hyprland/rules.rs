@@ -2,65 +2,9 @@ use super::ipc::Ipc;
 use super::json::Bind;
 use crate::error::Result;
 use crate::include_scan;
-use crate::traits::{BindHelper, BindSyntax, RuleSet, Trigger, WindowRules};
+use crate::traits::{BindHelper, BindSyntax, Trigger};
 use es_protocol::Route;
 use std::path::{Path, PathBuf};
-
-pub const LAYER_NAMESPACES: [&str; 8] = [
-    "easyshot-overlay",
-    "easyshot-countdown",
-    "easyshot-toast",
-    "easyshot-deck",
-    "easyshot-bar",
-    "easyshot-rec-highlight",
-    "easyshot-scroll",
-    "easyshot-pin",
-];
-
-const EDITOR_CLASS: &str = r"^dev\\.easyshot\\.editor$";
-
-/// Lua state outlives the daemon, so the rules are created once per compositor session and re-enabled after.
-pub fn install_script(float_editor: bool) -> String {
-    let layers: Vec<String> = LAYER_NAMESPACES
-        .iter()
-        .map(|ns| {
-            format!(r#"hl.layer_rule({{ name = "{ns}", match = {{ namespace = "^{ns}$" }}, no_anim = true }})"#)
-        })
-        .collect();
-    let mut script = format!(
-        "if not EASYSHOT_RULES then EASYSHOT_RULES = {{ {} }} end \
-         for _, r in ipairs(EASYSHOT_RULES) do r:set_enabled(true) end",
-        layers.join(", ")
-    );
-    if float_editor {
-        script.push_str(&format!(
-            r#" if not EASYSHOT_EDITOR_RULE then EASYSHOT_EDITOR_RULE = hl.window_rule({{ name = "easyshot-editor", match = {{ class = "{EDITOR_CLASS}" }}, float = true, center = true, size = {{ 1180, 780 }} }}) end EASYSHOT_EDITOR_RULE:set_enabled(true)"#
-        ));
-    } else {
-        script
-            .push_str(" if EASYSHOT_EDITOR_RULE then EASYSHOT_EDITOR_RULE:set_enabled(false) end");
-    }
-    script
-}
-
-pub fn remove_script() -> String {
-    "if EASYSHOT_RULES then for _, r in ipairs(EASYSHOT_RULES) do r:set_enabled(false) end end \
-     if EASYSHOT_EDITOR_RULE then EASYSHOT_EDITOR_RULE:set_enabled(false) end"
-        .to_owned()
-}
-
-pub struct HyprRules {
-    pub ipc: Ipc,
-}
-
-impl WindowRules for HyprRules {
-    fn install(&self, rules: &RuleSet) -> Result<()> {
-        self.ipc.eval(&install_script(rules.float_editor))
-    }
-    fn remove(&self) -> Result<()> {
-        self.ipc.eval(&remove_script())
-    }
-}
 
 fn command(route: &Route) -> String {
     format!("easyshot {}", route.command_args().join(" "))

@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used)]
 #![cfg(feature = "wlroots")]
 
-use es_backend::{BackendError, BindSyntax, Env, Error, Probe, RuleSet, Trigger, wlroots};
+use es_backend::{BackendError, BindSyntax, Env, Error, Probe, Trigger, wlroots};
 use es_geom::Rect;
 use es_model::platform::{OutputId, WindowEvent, WindowId, WindowInfo};
 use es_protocol::{Route, SettingsPage};
@@ -278,28 +278,6 @@ fn sway_requests_time_out_after_fifty_milliseconds() {
 }
 
 #[test]
-fn sway_rule_floats_and_centres_the_editor() {
-    let fake = FakeSway::start(TREE);
-    let Ok(rules) = (wlroots::RULES.build)(&fake.probe()) else {
-        panic!("build failed");
-    };
-    rules.install(&RuleSet::default()).unwrap();
-    assert_eq!(
-        fake.shared.lock().unwrap().commands,
-        [format!(
-            r#"for_window [app_id="{}"] "floating enable, resize set 1180 780, move position center""#,
-            es_protocol::EDITOR_APP_ID
-        )]
-    );
-    fake.shared.lock().unwrap().command_reply =
-        r#"[{"success":false,"parse_error":true,"error":"Unknown command"}]"#.to_owned();
-    match rules.install(&RuleSet::default()) {
-        Err(Error::Protocol(m)) => assert_eq!(m, "Unknown command"),
-        other => panic!("a rejected rule must fail, got {other:?}"),
-    }
-}
-
-#[test]
 fn sway_snippet_and_existing_binds() {
     let fake = FakeSway::start(TREE);
     let Ok(binds) = (wlroots::BINDS.build)(&fake.probe()) else {
@@ -364,20 +342,6 @@ fn sway_is_detected_from_its_socket() {
     let plain = (wlroots::WINDOWS.probe)(&probe(&[sock]));
     let named = (wlroots::WINDOWS.probe)(&probe(&[sock, ("XDG_CURRENT_DESKTOP", "X:sway")]));
     assert!(plain.is_some() && named > plain);
-}
-
-#[test]
-fn turning_float_editor_off_sends_no_rule_to_sway() {
-    let fake = FakeSway::start(TREE);
-    let Ok(rules) = (wlroots::RULES.build)(&fake.probe()) else {
-        panic!("build failed");
-    };
-    rules
-        .install(&RuleSet {
-            float_editor: false,
-        })
-        .unwrap();
-    assert!(fake.shared.lock().unwrap().commands.is_empty());
 }
 
 #[test]

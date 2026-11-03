@@ -1,13 +1,9 @@
 #![cfg(feature = "hyprland")]
 
 use es_backend::hyprland::{
-    self, Client, HyprBinds, HyprEvent, HyprPointer, HyprRules, HyprWindows, Ipc, LAYER_NAMESPACES,
-    Monitor, Toplevels,
+    self, Client, HyprBinds, HyprEvent, HyprPointer, HyprWindows, Ipc, Monitor, Toplevels,
 };
-use es_backend::{
-    BindHelper, BindSyntax, Env, Error, PointerQuery, Probe, RuleSet, Trigger, WindowList,
-    WindowRules,
-};
+use es_backend::{BindHelper, BindSyntax, Env, Error, PointerQuery, Probe, Trigger, WindowList};
 use es_geom::{Point, Rect};
 use es_model::platform::{OutputId, WindowEvent, WindowId, WindowInfo};
 use es_protocol::Route;
@@ -162,65 +158,6 @@ fn a_compositor_that_never_answers_costs_one_timeout() {
     assert!(took < Duration::from_millis(500), "{took:?}");
     let pointer = HyprPointer { ipc: fake.ipc() };
     assert_eq!(pointer.pointer_global(), None);
-}
-
-#[test]
-fn rules_are_guarded_named_and_never_hide_from_capture() {
-    let on = hyprland::install_script(true);
-    assert!(on.starts_with("if not EASYSHOT_RULES then "), "{on}");
-    let ours = [
-        "easyshot-overlay",
-        "easyshot-countdown",
-        "easyshot-toast",
-        "easyshot-deck",
-        "easyshot-bar",
-        "easyshot-rec-highlight",
-        "easyshot-scroll",
-        "easyshot-pin",
-    ];
-    assert_eq!(LAYER_NAMESPACES, ours);
-    for ns in ours {
-        assert!(
-            on.contains(&format!(r#"namespace = "^{ns}$""#)),
-            "{ns} missing: {on}"
-        );
-    }
-    assert_eq!(on.matches("hl.layer_rule(").count(), 8);
-    assert_eq!(on.matches("no_anim = true").count(), 8);
-    assert!(
-        on.contains(r#"class = "^dev\\.easyshot\\.editor$""#),
-        "{on}"
-    );
-    assert!(
-        on.contains("float = true, center = true, size = { 1180, 780 }"),
-        "{on}"
-    );
-    let off = hyprland::install_script(false);
-    assert!(
-        !off.contains("window_rule") && !off.contains("dev\\.easyshot"),
-        "{off}"
-    );
-    let remove = hyprland::remove_script();
-    assert!(
-        remove.contains("set_enabled(false)") && !remove.contains("hl."),
-        "{remove}"
-    );
-    for script in [&on, &off, &remove] {
-        assert!(!script.contains("no_screen_share"), "{script}");
-        assert!(!script.contains('\n'), "{script}");
-    }
-}
-
-#[test]
-fn rules_go_over_the_socket_as_one_eval() {
-    let fake = FakeHypr::start(Answer::Recorded);
-    let rules = HyprRules { ipc: fake.ipc() };
-    rules.install(&RuleSet::default()).expect("install");
-    rules.remove().expect("remove");
-    let sent = fake.requests();
-    assert_eq!(sent.len(), 2, "{sent:?}");
-    assert_eq!(sent[0], format!("eval {}", hyprland::install_script(true)));
-    assert_eq!(sent[1], format!("eval {}", hyprland::remove_script()));
 }
 
 #[test]
@@ -384,18 +321,4 @@ fn detection_needs_the_signature_and_a_hyprland_desktop() {
         .err()
         .expect("no socket here");
     assert!(err.to_string().contains("no Hyprland socket"), "{err}");
-}
-
-#[test]
-fn turning_float_editor_off_leaves_the_editor_rule_out_of_the_eval() {
-    let fake = FakeHypr::start(Answer::Recorded);
-    let rules = HyprRules { ipc: fake.ipc() };
-    rules
-        .install(&RuleSet {
-            float_editor: false,
-        })
-        .expect("install");
-    let sent = fake.requests();
-    assert_eq!(sent[0], format!("eval {}", hyprland::install_script(false)));
-    assert!(!sent[0].contains("easyshot-editor"), "{}", sent[0]);
 }

@@ -3,7 +3,6 @@ mod common;
 mod gsr;
 mod input;
 mod lifeline;
-mod portal;
 mod project;
 mod recovery;
 mod wf;

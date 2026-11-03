@@ -5,9 +5,7 @@ mod tree;
 use crate::error::{BackendError, Error, Result};
 use crate::include_scan;
 use crate::probe::{Probe, Provider};
-use crate::traits::{
-    BindHelper, BindSyntax, PointerQuery, RuleSet, Trigger, WindowList, WindowRules,
-};
+use crate::traits::{BindHelper, BindSyntax, PointerQuery, Trigger, WindowList};
 use es_geom::Point;
 use es_model::platform::{OutputId, WindowEvent, WindowInfo};
 use es_protocol::Route;
@@ -182,40 +180,11 @@ pub const POINTER: Provider<dyn PointerQuery> = Provider {
     },
 };
 
-struct SwayRules(Ipc);
-
 #[derive(serde::Deserialize)]
 struct Outcome {
     success: bool,
     error: Option<String>,
 }
-
-impl WindowRules for SwayRules {
-    fn install(&self, rules: &RuleSet) -> Result<()> {
-        if !rules.float_editor {
-            return Ok(());
-        }
-        let outcomes: Vec<Outcome> = self.0.json(RUN_COMMAND, binds::EDITOR_RULE.as_bytes())?;
-        match outcomes.into_iter().find(|o| !o.success) {
-            Some(o) => {
-                Err(Error::Protocol(o.error.unwrap_or_else(|| {
-                    "sway rejected the editor rule".to_owned()
-                })))
-            }
-            None => Ok(()),
-        }
-    }
-    fn remove(&self) -> Result<()> {
-        tracing::debug!("sway keeps for_window rules until its config is reloaded");
-        Ok(())
-    }
-}
-
-pub const RULES: Provider<dyn WindowRules> = Provider {
-    name: "wlroots",
-    probe: detect,
-    build: |p| Ok(Box::new(SwayRules(ipc(p)?))),
-};
 
 struct SwayBinds {
     ipc: Ipc,

@@ -8,17 +8,6 @@ use es_protocol::Route;
 use std::path::Path;
 use std::sync::Arc;
 
-#[derive(Debug, Clone)]
-pub struct RuleSet {
-    pub float_editor: bool,
-}
-
-impl Default for RuleSet {
-    fn default() -> Self {
-        Self { float_editor: true }
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BindSyntax {
     HyprLua,
@@ -49,11 +38,6 @@ pub trait PointerQuery: Send + Sync {
     fn pointer_global(&self) -> Option<Point>;
     fn output_under_pointer(&self) -> Option<OutputId>;
     fn focused_output(&self) -> Option<OutputId>;
-}
-
-pub trait WindowRules: Send + Sync {
-    fn install(&self, rules: &RuleSet) -> Result<()>;
-    fn remove(&self) -> Result<()>;
 }
 
 pub trait BindHelper: Send + Sync {

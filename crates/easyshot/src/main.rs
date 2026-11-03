@@ -19,7 +19,6 @@ const FEATURES: &[(&str, bool)] = &[
     ("wlroots", cfg!(feature = "wlroots")),
     ("niri", cfg!(feature = "niri")),
     ("player", cfg!(feature = "player")),
-    ("portal-recorder", cfg!(feature = "portal-recorder")),
     ("sound", cfg!(feature = "sound")),
     ("evdev-input", cfg!(feature = "evdev-input")),
 ];

@@ -26,6 +26,5 @@ pub use probe::{
     DbusNames, Env, GST_ELEMENTS, PortalIfaces, Probe, Provider, TOOL_PACKAGES, Tools, WlGlobals,
 };
 pub use traits::{
-    BindHelper, BindSyntax, Capture, Clipboard, PointerQuery, RuleSet, Trigger, VirtualInput,
-    WindowList, WindowRules,
+    BindHelper, BindSyntax, Capture, Clipboard, PointerQuery, Trigger, VirtualInput, WindowList,
 };

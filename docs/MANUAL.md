@@ -15,8 +15,7 @@ and keeps a history.
 - Tesseract for text capture (OCR). Without it, the OCR items are disabled with an install
   hint.
 - gpu-screen-recorder or wf-recorder for recording; easyshot uses gpu-screen-recorder when
-  both are installed. Without one, the record items are disabled with an install hint. The
-  portal screen-cast recorder is not available.
+  both are installed. Without one, the record items are disabled with an install hint.
 
 `easyshot doctor` reports what your compositor and tools provide.
 

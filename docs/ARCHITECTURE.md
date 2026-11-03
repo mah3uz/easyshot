@@ -140,7 +140,7 @@ Enforcement:
 - `just gpui-guard` fails if a second gpui or zbus copy appears (`cargo tree -d`).
 
 Cargo features cover only what changes system dependencies or must never ship: `hyprland`,
-`wlroots`, `niri` (default on); `player`, `sound`, `evdev-input`, `portal-recorder`; `test-hooks` (never in release builds);
+`wlroots`, `niri` (default on); `player`, `sound`, `evdev-input`; `test-hooks` (never in release builds);
 `dev-inspector`. Everything else is runtime detection.
 
 ## 5. Threads and async
@@ -163,7 +163,7 @@ Cargo features cover only what changes system dependencies or must never ship: `
 Capability traits are defined in the lowest crate that implements them: `Shortcuts`,
 `Tray`, `Notifier`, `FilePicker`, `Appearance` in es-desktop; `Recorder` in es-record;
 `CursorSource` in `es-model::platform`; the rest (`Capture`, `WindowList`, `PointerQuery`,
-`WindowRules`, `BindHelper`, `Clipboard`, `VirtualInput`) in es-backend. Each is
+`BindHelper`, `Clipboard`, `VirtualInput`) in es-backend. Each is
 independent and optional.
 
 Each capability has an ordered list of providers. `Backend::detect(probe)` picks the
@@ -172,14 +172,13 @@ records the chosen and rejected providers (with the reason) for logs and `easysh
 `EASYSHOT_PROVIDER_<CAP>=<name>` forces a choice. `Caps` is derived from the chosen
 providers and the probed tools, never set by hand.
 
-The recorder providers are gpu-screen-recorder, then wf-recorder. The portal ScreenCast
-recorder is listed but not available: its provider builds no client, so it is never chosen.
+The recorder providers are gpu-screen-recorder, then wf-recorder.
 
 The `wayland::*` providers are chosen by protocol globals, not compositor name. Any
 compositor with layer-shell and a capture protocol works without new code. Compositor
 modules add only what protocols cannot give: `hyprland/` (window rects and z-order, cursor
-position, runtime rules, bind check), `wlroots/` for sway (tree rects, focused output,
-rules, bind snippet) and `niri/` (derived window rects with no z-order, focused output,
+position, bind check), `wlroots/` for sway (tree rects, focused output,
+bind snippet) and `niri/` (derived window rects with no z-order, focused output,
 bind snippet; capture uses wlr-screencopy).
 
 Degradation, each reported by doctor:
@@ -195,7 +194,6 @@ Degradation, each reported by doctor:
 | tray watcher | capture bar shown at launch whatever the setting |
 | recorder / OCR tools | items disabled with an install hint |
 | cursor source | `input.json` has no cursor travel |
-| runtime rules | the rule snippet is shown in Settings > About > Compositor |
 
 ## 7. Storage
 
@@ -344,7 +342,7 @@ niri.
 |---|---|
 | Geometry, engine, store, OCR, render, export | unit |
 | Editor, settings, gallery, player UI; canvas performance | headless windows |
-| Overlay, deck, pin, toast, bars; fractional scale; window capture; rules | Hyprland headless output (not yet run) |
+| Overlay, deck, pin, toast, bars; fractional scale; window capture | Hyprland headless output (not yet run) |
 | Generic providers, sway module, input-region pass-through, Auto Scroll | headless sway |
 | wlr-screencopy-only capture, niri module | nested niri (not yet run) |
 | IME, drag-out, real clipboard paste, GSR recordings with KMS, binds, Orca | manual with the maintainer |

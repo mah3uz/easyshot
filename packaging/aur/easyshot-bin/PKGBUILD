@@ -13,7 +13,7 @@ license=('MIT')
 depends=(
   'glibc' 'gcc-libs' 'wayland' 'libxkbcommon' 'libxkbcommon-x11' 'libxcb'
   'vulkan-icd-loader' 'fontconfig' 'freetype2' 'dbus' 'alsa-lib' 'hicolor-icon-theme'
-  'gstreamer' 'gst-plugins-base-libs' 'gst-plugin-pipewire'
+  'gstreamer' 'gst-plugins-base-libs'
 )
 optdepends=(
   'gpu-screen-recorder: fastest screen recording'

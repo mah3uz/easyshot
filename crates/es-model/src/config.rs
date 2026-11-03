@@ -12,7 +12,6 @@ pub struct Config {
     pub after_capture: AfterCapture,
     pub recording: Recording,
     pub default_look: DefaultLook,
-    pub compositor: Compositor,
     pub editor: Editor,
     pub ocr: Ocr,
     /// Editor-scope overrides: catalogue id to trigger.
@@ -31,7 +30,6 @@ impl Default for Config {
             after_capture: AfterCapture::default(),
             recording: Recording::default(),
             default_look: DefaultLook::default(),
-            compositor: Compositor::default(),
             editor: Editor::default(),
             ocr: Ocr::default(),
             shortcuts: BTreeMap::new(),
@@ -218,22 +216,6 @@ impl Default for DefaultLook {
             padding: 0.08,
             corner_radius: 0.018,
             shadow: 0.36,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct Compositor {
-    pub install_rules: bool,
-    pub float_editor: bool,
-}
-
-impl Default for Compositor {
-    fn default() -> Self {
-        Self {
-            install_rules: true,
-            float_editor: true,
         }
     }
 }

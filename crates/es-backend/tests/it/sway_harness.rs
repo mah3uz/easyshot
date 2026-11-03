@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used)]
 #![cfg(feature = "wlroots")]
 
-use es_backend::{Env, Probe, RuleSet, WindowList, wlroots};
+use es_backend::{Env, Probe, WindowList, wlroots};
 use es_model::platform::{CaptureOpts, WindowInfo};
 use std::process::Command;
 use std::time::{Duration, Instant};
@@ -102,28 +102,4 @@ fn platform_sway_tree_rect_matches_the_window_capture() {
         (rect.width() * SCALE, rect.height() * SCALE),
         (1920.0, 1080.0)
     );
-}
-
-#[test]
-#[ignore = "needs headless sway: tests/harness/sway.sh run"]
-fn platform_sway_rule_floats_the_editor() {
-    let probe = harness();
-    let Ok(rules) = (wlroots::RULES.build)(&probe) else {
-        panic!("build failed");
-    };
-    let Ok(windows) = (wlroots::WINDOWS.build)(&probe) else {
-        panic!("build failed");
-    };
-    rules.install(&RuleSet::default()).unwrap();
-    swaymsg(&format!(
-        "exec alacritty --class {}",
-        es_protocol::EDITOR_APP_ID
-    ));
-    let info = wait_for(&*windows, es_protocol::EDITOR_APP_ID, |w| {
-        w.floating && w.logical.is_some_and(|r| r.width() == 1180.0)
-    });
-    swaymsg(&format!("[app_id={}] kill", es_protocol::EDITOR_APP_ID));
-    eprintln!("editor rect {:?}", info.logical);
-    assert!(info.floating, "the rule makes the editor float");
-    assert_eq!(info.logical.map(|r| r.width()), Some(1180.0));
 }

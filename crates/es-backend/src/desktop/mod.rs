@@ -1,6 +1,5 @@
 use crate::error::BackendError;
 use crate::probe::{Probe, Provider};
-use crate::traits::Capture;
 use es_desktop::dbus::Endpoint;
 use es_desktop::{
     Appearance, DesktopNotifier, FilePicker, KsniTray, Labels, Notification, NotificationId,
@@ -37,18 +36,6 @@ fn labels(p: &Probe) -> Labels {
         .clone()
         .unwrap_or_else(|| Arc::new(|id: &str| id.to_owned()))
 }
-
-fn no_client<T: ?Sized>(what: &str) -> Result<Box<T>, BackendError> {
-    Err(BackendError::Unavailable(format!(
-        "this build has no {what} client"
-    )))
-}
-
-pub const PORTAL_SCREENSHOT: Provider<dyn Capture> = Provider {
-    name: "portal-screenshot",
-    probe: |p| p.portals.screenshot.then_some(1),
-    build: |_| no_client("portal Screenshot"),
-};
 
 pub const PORTAL_GLOBAL_SHORTCUTS: Provider<dyn Shortcuts> = Provider {
     name: "portal-global-shortcuts",
@@ -203,12 +190,6 @@ pub const WF_RECORDER: Provider<dyn Recorder> = Provider {
         };
         usable(recorder)
     },
-};
-
-pub const PORTAL_RECORDER: Provider<dyn Recorder> = Provider {
-    name: "portal-recorder",
-    probe: |p| (p.portals.screencast && p.tools.has("pipewiresrc")).then_some(1),
-    build: |_| no_client("portal ScreenCast recorder"),
 };
 
 pub struct NoNotifier {
