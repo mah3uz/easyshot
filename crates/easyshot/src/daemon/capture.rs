@@ -149,7 +149,7 @@ fn cut(
     global: Option<Rect>,
     local: Option<Rect>,
 ) -> Result<Frame> {
-    let frame = grab(capture, &output)?;
+    let frame = grab(capture, output)?;
     let local = match (local, global) {
         (Some(local), _) => local,
         (None, Some(g)) => g - frame.logical.origin().to_vec2(),
