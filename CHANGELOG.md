@@ -4,7 +4,7 @@
 
 ### New
 
-- The `easyshot` command line: capture, record, OCR, settings and more, `easyshot doctor` with `--json` and `--bundle`, and shell completions for bash, zsh and fish.
+- The `easyshot` command line: capture, record, OCR, settings and more, `easyshot doctor` with `--json` and `--bundle`, and shell completions for bash, zsh and fish that follow what you have typed: modes, flags, settings pages, `easyshot://` links and image files.
 - Desktop entry, systemd user service and D-Bus activation. The Arch package enables the service for every user, though never for a display manager's login screen, and starts it for logged-in users on install; an update restarts it where it is running.
 - Starting at login leaves easyshot in the tray; with no tray, the capture bar opens so you can still reach it.
 - Crop, rotate and flip the image in the editor; annotations follow, and each step can be undone.

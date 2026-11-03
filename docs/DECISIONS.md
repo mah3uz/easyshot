@@ -164,3 +164,11 @@ What was rejected beyond that, and why: not recorded.
     past the opposite edge flips the shape so it keeps following the pointer, and a curved
     arrow mirrored on one axis reverses its bend. Rejected: keeping the scaled origin, which
     leaves a flipped shape on the wrong side of the pointer.
+21. **Shell completion asks the binary.** `easyshot completions <shell>` prints a small
+    registration script, and each Tab runs `easyshot` with `COMPLETE=<shell>` (clap_complete's
+    `unstable-dynamic` engine, pinned by `Cargo.lock`). Values come from the same
+    definitions the parser uses (`SettingsPage::ALL`, the `ValueEnum`s, the `easyshot://`
+    allowlist), so the candidates cannot drift from the commands. The engine runs before
+    anything else in `main`, with no GPUI and no daemon. Rejected: static scripts generated
+    at package time, which cannot filter `open` to image files or list its URLs, and go
+    stale against the installed binary.

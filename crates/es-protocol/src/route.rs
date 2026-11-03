@@ -113,6 +113,12 @@ impl Route {
         Ok(parsed)
     }
 
+    pub fn url_routes() -> impl Iterator<Item = String> {
+        URL_ROUTES
+            .iter()
+            .map(|(name, _)| format!("{URL_SCHEME}://{name}"))
+    }
+
     /// Accepts exactly eight routes, with no arguments.
     pub fn from_url(url: &str) -> Result<Route> {
         let denied = || Error::UrlNotAllowed(url.to_owned());
@@ -378,6 +384,15 @@ mod tests {
         let r = Route::parse("open", &path_args(&png)).unwrap();
         assert_eq!(r.as_str(), "open");
         assert_eq!(Route::parse(&r.as_str(), &r.args()).unwrap(), r);
+    }
+
+    #[test]
+    fn url_routes_lists_every_allowed_url() {
+        let urls: Vec<_> = Route::url_routes().collect();
+        assert_eq!(urls.len(), URL_ROUTES.len());
+        for url in urls {
+            assert!(Route::from_url(&url).is_ok(), "{url}");
+        }
     }
 
     #[test]

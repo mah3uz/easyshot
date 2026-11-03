@@ -1,4 +1,5 @@
 mod cli;
+mod complete;
 #[cfg(feature = "gui")]
 mod daemon;
 mod doctor;
@@ -48,7 +49,22 @@ fn long_version() -> &'static str {
     )
 }
 
+fn print_registration(shell: clap_complete::Shell) -> std::io::Result<()> {
+    let shells = clap_complete::env::Shells::builtins();
+    let completer = shells
+        .completer(&shell.to_string())
+        .ok_or_else(|| std::io::Error::other("no completer for this shell"))?;
+    completer.write_registration(
+        "COMPLETE",
+        "easyshot",
+        "easyshot",
+        "easyshot",
+        &mut std::io::stdout(),
+    )
+}
+
 fn main() -> ExitCode {
+    clap_complete::CompleteEnv::with_factory(Cli::command).complete();
     let matches = Cli::command()
         .version(env!("EASYSHOT_VERSION"))
         .long_version(long_version())
@@ -68,13 +84,13 @@ fn main() -> ExitCode {
         return daemon_main();
     }
     if let Request::Completions(shell) = request {
-        clap_complete::generate(
-            shell,
-            &mut Cli::command(),
-            "easyshot",
-            &mut std::io::stdout(),
-        );
-        return ExitCode::SUCCESS;
+        return match print_registration(shell) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("easyshot: {e}");
+                ExitCode::from(run::EXIT_ERROR as u8)
+            }
+        };
     }
     let (cancel_tx, cancel_rx) = async_channel::bounded::<()>(1);
     let _ = ctrlc::set_handler(move || {

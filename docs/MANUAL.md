@@ -239,8 +239,16 @@ Exit codes: 0 done, 1 error, 2 cancelled, 3 the daemon is not running or went aw
 `easyshot --version` prints the version and, for a build from a git checkout, the commit it
 was built from: `v0.1.0+1a2b3c4d`, with `-dirty` when the checkout had uncommitted changes.
 
-`easyshot completions bash|zsh|fish` prints a completion script for that shell. The Arch
-package installs all three.
+`easyshot completions bash|zsh|fish` prints a short registration script for that shell; the
+Arch package installs all three. After that, pressing Tab asks `easyshot` itself, so what
+it offers follows what you have typed: the subcommands; `capture` then the modes, and for
+`capture region` its `--copy`, `--save`, `--annotate` and `--pin`; the actions of `record`
+and `deck`; the pages of `settings`; `--json` and `--bundle` for `doctor`; the shells for
+`completions`; and for `open` the `easyshot://` links and the PNG and JPEG files and
+folders under the path you have typed. Completion reads no daemon state and starts no
+window. To try it without installing, run `source <(easyshot completions bash)` in bash,
+`easyshot completions zsh > ~/.zfunc/_easyshot` in zsh (with `~/.zfunc` in `fpath`), or
+`easyshot completions fish | source` in fish.
 
 Commands:
 
