@@ -140,15 +140,20 @@ under it, the image in the middle, the inspector on the right and the footer (zo
 at the bottom. The button at the right end of the tool row hides and shows the inspector.
 Tab moves through the title bar, the tool row, the inspector, then the footer.
 
-A tool's options open in a panel under its button and stay open until you pick another
-tool; clicking on the image does not close them. Shapes and pens offer colour and stroke
+When you pick a tool, its options take the place of the inspector, in labelled sections, and
+the inspector opens if it was hidden. They stay while you draw; clicking on the image does
+not change them. The back arrow at the top returns to the usual inspector (presets,
+background, camera, blur, border, watermark) until you pick a tool again; clicking the tool
+you already have brings its options back, and the tool stays picked. A newly opened editor
+shows the usual inspector. Shapes and pens offer colour and stroke
 width; Arrow adds a head for each end (None, Arrow, Triangle, Square, Dot, Diamond,
 Inverted, Bar) and a line style (Solid, Dashed, Dotted), which Line also has; Text offers
 the font, colour, size, bold, italic, underline and alignment, and a background and a
 border for the text box (None or a colour; a border is 2, 3 or 5 px wide); Blur and Pixelate offer the
 strength; the Highlighter offers colour, width and its mode. The Highlight tool has no
-options. With the Select tool, selecting shapes opens the options of the first one, with a
-button to delete the selection. A change applies to new shapes and to the selection, as one
+options, and neither does Select with nothing selected, so both show the usual inspector.
+With the Select tool, selecting shapes shows the options of the first one, with a button to
+delete the selection. A change applies to new shapes and to the selection, as one
 undo step.
 
 The editor remembers your last style: the colour, stroke width, arrowheads and line style,
@@ -183,7 +188,7 @@ slightly past the edge.
 
 To crop, press the crop button in the tool row. Drag a corner or edge handle to resize the
 selection, or drag inside it to move it; hold Alt to resize about the centre. The crop
-options open under the crop button: the aspect menu offers Freeform, Original, 1:1, 16:9, 9:16, 4:3 and 3:2; while an
+options take the place of the inspector, which opens if it was hidden: the aspect menu offers Freeform, Original, 1:1, 16:9, 9:16, 4:3 and 3:2; while an
 aspect is locked only the corners resize. The footer shows the size the image will have.
 Enter or Crop applies; Escape, Cancel or the crop button again leaves without a change, and
 Reset returns to the whole image. Save and Export wait until the crop is applied or left. Rotate and flip are in the menu beside the crop button.

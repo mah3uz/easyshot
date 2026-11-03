@@ -11,6 +11,7 @@ use std::time::Duration;
 use es_ui::{
     a11y::{Accessible, Role},
     components::ZoomCommand,
+    motion::{PAGE_CHANGE, PAGE_RISE, since_change},
     theme::{UI_FONT, tokens},
     tokens::Tokens,
 };
@@ -20,7 +21,10 @@ use gpui::{
     div, prelude::FluentBuilder, px,
 };
 
-use crate::inspector::Inspector;
+use crate::inspector::{
+    Inspector,
+    options::{ToolOptions, ToolOptionsEvent},
+};
 use crate::session::crop::CropEvent;
 use crate::toolbar::{ToolRow, ToolRowEvent};
 use crate::{EditorCanvas, EditorSession, EditorSource, Result, strings::fl};
@@ -94,6 +98,7 @@ pub struct EditorWindow {
     content: Content,
     tool_row: Option<AnyView>,
     inspector: Option<AnyView>,
+    tool_options: Option<Entity<ToolOptions>>,
     inspector_open: bool,
     pub(crate) low_res: bool,
     pub(crate) low_res_expanded: bool,
@@ -124,6 +129,7 @@ impl EditorWindow {
             content: Content::Loading,
             tool_row: None,
             inspector: None,
+            tool_options: None,
             inspector_open: true,
             low_res: false,
             low_res_expanded: false,
@@ -171,6 +177,7 @@ impl EditorWindow {
                 let look = session.look.clone();
                 let inspector = cx.new(|cx| Inspector::new(look, &canvas, cx));
                 self.inspector = Some(inspector.into());
+                let options = cx.new(|cx| ToolOptions::new(&session, cx));
                 self._subscriptions = vec![
                     cx.observe(&session.doc, |this, _, cx| {
                         cx.notify();
@@ -189,8 +196,22 @@ impl EditorWindow {
                             row.update(cx, |r, cx| r.set_cropping(on, cx));
                         }
                     }),
+                    cx.observe(&options, |_, _, cx| cx.notify()),
+                    cx.subscribe(&options, {
+                        let row = tool_row.clone();
+                        move |this, _, _: &ToolOptionsEvent, cx| {
+                            if !this.inspector_open {
+                                this.toggle_inspector(cx);
+                                row.update(cx, |r, cx| r.set_inspector_open(true, cx));
+                            }
+                        }
+                    }),
                     cx.subscribe(&tool_row, |this, row, event: &ToolRowEvent, cx| {
-                        if *event == ToolRowEvent::ToggleInspector {
+                        if *event == ToolRowEvent::ShowOptions {
+                            if let Some(options) = this.tool_options.clone() {
+                                options.update(cx, |o, cx| o.show(cx));
+                            }
+                        } else if *event == ToolRowEvent::ToggleInspector {
                             this.toggle_inspector(cx);
                             let open = this.inspector_open;
                             row.update(cx, |r, cx| r.set_inspector_open(open, cx));
@@ -206,6 +227,7 @@ impl EditorWindow {
                     }),
                 ];
                 self.tool_row = Some(tool_row.clone().into());
+                self.tool_options = Some(options);
                 self.probe_ocr(cx);
                 self.content = Content::Ready {
                     session: Box::new(session),
@@ -311,6 +333,10 @@ impl EditorWindow {
 
     pub fn inspector(&self) -> Option<Entity<Inspector>> {
         self.inspector.clone()?.downcast::<Inspector>().ok()
+    }
+
+    pub fn tool_options(&self) -> Option<Entity<ToolOptions>> {
+        self.tool_options.clone()
     }
 
     /// Applies the `[editor]` zoom anchor, the `[ocr]` languages and the low-resolution preview setting to this window.
@@ -443,7 +469,21 @@ impl EditorWindow {
             .children(self.tool_row.clone())
     }
 
-    fn inspector_column(&self, t: &Tokens) -> impl IntoElement {
+    /// The tool's options replace the usual inspector while they are up; the page rises in as Settings pages do.
+    fn inspector_column(
+        &self,
+        t: &Tokens,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
+        let page: Option<AnyView> = self
+            .tool_options
+            .clone()
+            .filter(|o| o.read(cx).shows_page(cx))
+            .map(Into::into);
+        let tool_page = page.is_some();
+        let arrived = since_change("inspector-page", tool_page, PAGE_CHANGE, window, cx);
+        let shown = page.or_else(|| self.inspector.clone());
         div()
             .id("inspector")
             .flex_none()
@@ -454,7 +494,14 @@ impl EditorWindow {
             .border_l(t.metrics.hairline)
             .border_color(t.border)
             .accessible(Role::Pane, fl!("editor-inspector-a11y"))
-            .children(self.inspector.clone())
+            .child(
+                div()
+                    .relative()
+                    .size_full()
+                    .top(PAGE_RISE * (1.0 - arrived))
+                    .opacity(arrived)
+                    .children(shown),
+            )
     }
 
     fn workspace(&self, t: &Tokens) -> AnyElement {
@@ -536,7 +583,7 @@ impl Render for EditorWindow {
                     .min_h_0()
                     .child(self.workspace(&t))
                     .when(self.inspector_open && self.session().is_some(), |d| {
-                        d.child(self.inspector_column(&t))
+                        d.child(self.inspector_column(&t, window, cx))
                     }),
             )
             .child(self.footer(cx))

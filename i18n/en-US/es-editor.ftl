@@ -78,6 +78,8 @@ editor-redact-kind-card = card numbers
 editor-redact-kind-key = keys
 editor-color = Color
 editor-tool-options-a11y = { $tool } options
+editor-options-back = Back
+editor-options-back-help = Back to the image settings
 editor-arrowhead-start = Start
 editor-arrowhead-end = End
 editor-arrowhead-none = None
@@ -115,7 +117,8 @@ editor-inspector-hide = Hide Inspector
 editor-inspector-show = Show Inspector
 editor-inspector-toggle-a11y = Toggle image inspector
 
-## Text style popover
+## Text options
+editor-font = Font
 editor-font-family-help = Font family
 editor-font-pro = Inter
 editor-font-compact = Inter Tight
@@ -129,6 +132,7 @@ editor-text-italic = Italic
 editor-text-italic-glyph = I
 editor-text-underline = Underline
 editor-text-underline-glyph = U
+editor-text-style = Size and style
 editor-text-align = Alignment
 editor-text-align-start = Align left
 editor-text-align-center = Align center

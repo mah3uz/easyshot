@@ -8,12 +8,12 @@ use es_ui::{
 };
 use gpui::{App, Context, Div, ParentElement, Styled, Window, div, px};
 
-use super::{
-    Control, ToolRow,
+use super::{Control, ToolOptions, section};
+use crate::strings::fl;
+use crate::toolbar::{
     menus::{choice_menu, menu_trigger},
     track,
 };
-use crate::strings::fl;
 
 pub fn aspect_title(aspect: AspectPreset) -> String {
     match aspect {
@@ -28,9 +28,9 @@ pub fn aspect_title(aspect: AspectPreset) -> String {
 }
 
 /// The ratio menu, then Reset, Cancel and Apply, acting on the crop in progress.
-pub(super) fn content(row: &ToolRow, cx: &mut Context<ToolRow>) -> Div {
+pub(super) fn content(page: &ToolOptions, cx: &mut Context<ToolOptions>) -> Div {
     let t = tokens(cx).clone();
-    let crop = row.crop.clone();
+    let crop = page.crop.clone();
     let aspect = crop
         .read(cx)
         .state()
@@ -61,7 +61,7 @@ pub(super) fn content(row: &ToolRow, cx: &mut Context<ToolRow>) -> Div {
         .flex()
         .gap(px(8.))
         .child(track(
-            &row.drawn,
+            &page.drawn,
             Control::CropReset,
             EditorButton::new("crop-reset")
                 .label(fl!("editor-crop-reset"))
@@ -70,14 +70,14 @@ pub(super) fn content(row: &ToolRow, cx: &mut Context<ToolRow>) -> Div {
         ))
         .child(div().flex_1())
         .child(track(
-            &row.drawn,
+            &page.drawn,
             Control::CropCancel,
             EditorButton::new("crop-cancel")
                 .label(fl!("editor-crop-cancel"))
                 .on_click(move |_, _, cx| cancel.update(cx, |c, cx| c.cancel(cx))),
         ))
         .child(track(
-            &row.drawn,
+            &page.drawn,
             Control::CropApply,
             EditorButton::new("crop-apply")
                 .kind(ButtonKind::Prominent)
@@ -91,14 +91,15 @@ pub(super) fn content(row: &ToolRow, cx: &mut Context<ToolRow>) -> Div {
     div()
         .flex()
         .flex_col()
-        .gap(px(12.))
-        .child(
+        .child(section(
+            fl!("editor-crop-aspect-help"),
             track(
-                &row.drawn,
+                &page.drawn,
                 Control::CropAspect,
                 choice_menu(trigger, choices, Some(aspect), pick),
             )
             .w_full(),
-        )
+            &t,
+        ))
         .child(buttons)
 }

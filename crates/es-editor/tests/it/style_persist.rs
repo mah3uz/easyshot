@@ -3,8 +3,9 @@
 use crate::shell::{Fixture, launch_seeded};
 
 use es_anno::StylePatch;
+use es_editor::inspector::options::Control;
 use es_editor::session::style::DELAY;
-use es_editor::toolbar::Control;
+use es_editor::toolbar::Control as RowControl;
 use es_model::{Arrowhead, StylePreset, Swatch, Tool};
 use es_store::{Paths, presets};
 use std::collections::BTreeMap;
@@ -31,10 +32,10 @@ fn on_disk(f: &Fixture) -> StylePreset {
 }
 
 fn apply(f: &mut Fixture, patch: StylePatch) {
-    let row = f.row();
+    let options = f.options();
     f.app
         .cx
-        .update(|cx| row.update(cx, |r, cx| r.apply_style(patch, None, cx)));
+        .update(|cx| options.update(cx, |o, cx| o.apply_style(patch, None, cx)));
     f.app.settle();
 }
 
@@ -103,7 +104,8 @@ fn reset_returns_the_armed_tool_family_to_the_defaults_and_saves() {
         ..StylePreset::default()
     };
     let mut f = open(seed(saved));
-    f.click(Control::ResetStyle);
+    f.click(RowControl::Tool(Tool::Rectangle));
+    f.click_option(Control::ResetStyle);
     let defaults = StylePreset::default();
     let now = current(&f);
     assert_eq!(

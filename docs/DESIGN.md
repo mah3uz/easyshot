@@ -33,13 +33,14 @@ means centre-resize), region selection across outputs, and numeric geometry fiel
 
 ## 3. Tool options
 
-A tool's options hang under its button in the popover style (the dropdown fill, popover
-radius, hairline border and shadow), with a notch pointing at the button. The panel slides
-to stay 8 px inside the window while the notch stays on the button, and it opens below the
-tool row, never over it. It is not a popover that closes on outside clicks: it stays until
-the tool changes, so you can draw, restyle and draw again. Esc keeps its ladder. The same
-panel holds crop's ratio, Reset, Cancel and Apply, so the title bar keeps Save and Export
-only.
+A tool's options are a page of the inspector: a back arrow and the tool's name where the
+preset bar sits, then labelled sections in the inspector's own label style, spacing and
+fills, so nothing covers the image you are drawing on. Picking a tool brings its page
+forward and opens a hidden inspector; a new selection shows its page without opening one.
+The page stays until the tool changes or you go back, so you can draw, restyle and draw
+again. Clicking the armed tool keeps it and brings its page back. The page rises in with
+`PAGE_CHANGE`, as Settings pages do. The same page holds crop's ratio, Reset, Cancel and
+Apply, so the title bar keeps Save and Export only.
 
 ## 4. Cursors
 
@@ -91,7 +92,7 @@ is a fast start that settles softly, `cubic-bezier(.2, .8, .2, 1)`.
 | Editor: switching the fill library, or the wallpaper source, fades the new swatches in | `FILL_SWITCH` | 160 ms, snappy |
 | Deck: a card's picture fades in over "Loading preview…", and "Saving…" fades in and out | `CROSSFADE` | 150 ms, ease-out |
 | Settings home: tiles and recent rows fill in under the pointer and fade back after it | `HOVER_FILL` | 120 ms fade, ease-out |
-| Settings: a page rises 8 px into place and fades in | `PAGE_CHANGE` | 180 ms, ease-out |
+| Settings, and the editor's inspector switching to or from a tool's options: a page rises 8 px into place and fades in | `PAGE_CHANGE` | 180 ms, ease-out |
 | Introduction: a step slides in from the side you are heading to | `STEP_CHANGE` | 200 ms, ease-out |
 | Tooltips open after a rest, and at once while you move straight on | `TOOLTIP_DELAY`, `TOOLTIP_WARM` | 160 ms, 500 ms |
 

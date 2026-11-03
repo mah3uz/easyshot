@@ -10,8 +10,9 @@ use gpui::{
     Context, Div, InteractiveElement, ParentElement, StatefulInteractiveElement, Styled, div, px,
 };
 
-use super::{Control, ToolRow, style_bar::swatch_strip, track};
+use super::{Control, ToolOptions, swatches::swatch_strip};
 use crate::strings::fl;
+use crate::toolbar::track;
 
 const BORDER_WIDTHS: [f32; 3] = [2., 3., 5.];
 
@@ -20,8 +21,8 @@ fn none_pill(
     control: Control,
     on: bool,
     patch: StylePatch,
-    row: &ToolRow,
-    cx: &mut Context<ToolRow>,
+    page: &ToolOptions,
+    cx: &mut Context<ToolOptions>,
 ) -> Div {
     let t = tokens(cx).clone();
     let weak = cx.entity().downgrade();
@@ -44,13 +45,13 @@ fn none_pill(
         .toggled(on)
         .hover(move |s| s.bg(hover))
         .on_click(move |_, _, cx| {
-            let _ = weak.update(cx, |r, cx| r.apply_style(patch.clone(), None, cx));
+            let _ = weak.update(cx, |o, cx| o.apply_style(patch.clone(), None, cx));
         })
         .child(fl!("editor-text-box-none"));
-    track(&row.drawn, control, pill)
+    track(&page.drawn, control, pill)
 }
 
-fn heading(label: String, none: Div, cx: &Context<ToolRow>) -> Div {
+fn heading(label: String, none: Div, cx: &Context<ToolOptions>) -> Div {
     let t = tokens(cx);
     div()
         .flex()
@@ -65,14 +66,14 @@ fn heading(label: String, none: Div, cx: &Context<ToolRow>) -> Div {
         .child(none)
 }
 
-pub(super) fn fill(row: &ToolRow, style: &CurrentStyle, cx: &mut Context<ToolRow>) -> Div {
+pub(super) fn fill(page: &ToolOptions, style: &CurrentStyle, cx: &mut Context<ToolOptions>) -> Div {
     let weak = cx.entity().downgrade();
     let none = none_pill(
         "text-fill-none",
         Control::TextFillNone,
         style.text_fill.is_none(),
         StylePatch::TextFill(None),
-        row,
+        page,
         cx,
     );
     div()
@@ -86,19 +87,23 @@ pub(super) fn fill(row: &ToolRow, style: &CurrentStyle, cx: &mut Context<ToolRow
             Control::TextFill,
             style.text_fill.as_ref(),
             weak,
-            &row.drawn,
+            &page.drawn,
             |swatch| StylePatch::TextFill(Some(swatch)),
         ))
 }
 
-pub(super) fn border(row: &ToolRow, style: &CurrentStyle, cx: &mut Context<ToolRow>) -> Div {
+pub(super) fn border(
+    page: &ToolOptions,
+    style: &CurrentStyle,
+    cx: &mut Context<ToolOptions>,
+) -> Div {
     let weak = cx.entity().downgrade();
     let none = none_pill(
         "text-border-none",
         Control::TextBorderNone,
         style.text_border.is_none(),
         StylePatch::TextBorder(None),
-        row,
+        page,
         cx,
     );
     let width = style.text_border.as_ref().map(|b| b.width);
@@ -110,7 +115,7 @@ pub(super) fn border(row: &ToolRow, style: &CurrentStyle, cx: &mut Context<ToolR
         Control::TextBorder,
         style.text_border.as_ref().map(|b| &b.swatch),
         weak.clone(),
-        &row.drawn,
+        &page.drawn,
         move |swatch: Swatch| {
             StylePatch::TextBorder(Some(TextBorder {
                 swatch,
@@ -129,9 +134,9 @@ pub(super) fn border(row: &ToolRow, style: &CurrentStyle, cx: &mut Context<ToolR
                     width: f64::from(w),
                 };
                 let patch = StylePatch::TextBorder(Some(border));
-                let _ = pick.update(cx, |r, cx| r.apply_style(patch, None, cx));
+                let _ = pick.update(cx, |o, cx| o.apply_style(patch, None, cx));
             });
-        track(&row.drawn, Control::TextBorderWidth, dots).w_full()
+        track(&page.drawn, Control::TextBorderWidth, dots).w_full()
     });
     div()
         .flex()

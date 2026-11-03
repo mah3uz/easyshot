@@ -14,13 +14,12 @@ use gpui::{
     SharedString, StatefulInteractiveElement, Styled, WeakEntity, div, px,
 };
 
-use super::{
-    Control, ToolRow,
-    menus::{choice_menu, menu_trigger},
-    style_bar::swatches,
-    text_box, track,
-};
+use super::{Control, ToolOptions, section, swatches::swatches, text_box};
 use crate::strings::fl;
+use crate::toolbar::{
+    menus::{choice_menu, menu_trigger},
+    track,
+};
 
 const FAMILIES: [FontFamily; 3] = [FontFamily::Pro, FontFamily::Compact, FontFamily::Rounded];
 const ALIGNS: [TextAlign; 3] = [TextAlign::Start, TextAlign::Middle, TextAlign::End];
@@ -38,9 +37,9 @@ fn family_title(family: FontFamily) -> String {
 
 type Apply = Rc<dyn Fn(StylePatch, &mut App)>;
 
-fn applier(row: WeakEntity<ToolRow>) -> Apply {
+fn applier(page: WeakEntity<ToolOptions>) -> Apply {
     Rc::new(move |patch, cx| {
-        let _ = row.update(cx, |r, cx| r.apply_style(patch, None, cx));
+        let _ = page.update(cx, |o, cx| o.apply_style(patch, None, cx));
     })
 }
 
@@ -177,7 +176,11 @@ fn emphasis(
         ))
 }
 
-pub(super) fn content(row: &ToolRow, style: &CurrentStyle, cx: &mut Context<ToolRow>) -> Div {
+pub(super) fn content(
+    page: &ToolOptions,
+    style: &CurrentStyle,
+    cx: &mut Context<ToolOptions>,
+) -> Div {
     let weak = cx.entity().downgrade();
     let t = tokens(cx).clone();
     let apply = applier(weak.clone());
@@ -220,16 +223,24 @@ pub(super) fn content(row: &ToolRow, style: &CurrentStyle, cx: &mut Context<Tool
     div()
         .flex()
         .flex_col()
-        .gap(px(12.))
-        .child(track(&row.drawn, Control::FontFamily, family).w_full())
-        .child(swatches(
-            "swatches",
-            Control::Swatches,
-            &style.swatch,
-            weak,
-            &row.drawn,
+        .child(section(
+            fl!("editor-font"),
+            track(&page.drawn, Control::FontFamily, family).w_full(),
+            &t,
         ))
-        .child(
+        .child(section(
+            fl!("editor-color"),
+            swatches(
+                "swatches",
+                Control::Swatches,
+                &style.swatch,
+                weak,
+                &page.drawn,
+            ),
+            &t,
+        ))
+        .child(section(
+            fl!("editor-text-style"),
             div()
                 .flex()
                 .items_center()
@@ -242,8 +253,9 @@ pub(super) fn content(row: &ToolRow, style: &CurrentStyle, cx: &mut Context<Tool
                     &apply,
                     &t,
                 )),
-        )
-        .child(align)
-        .child(text_box::fill(row, style, cx))
-        .child(text_box::border(row, style, cx))
+            &t,
+        ))
+        .child(section(fl!("editor-text-align"), align, &t))
+        .child(text_box::fill(page, style, cx))
+        .child(text_box::border(page, style, cx))
 }

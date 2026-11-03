@@ -171,12 +171,30 @@ impl Fixture {
             .read_with(&self.app.cx, |w, _| w.toolbar().unwrap())
     }
 
+    pub fn options(&self) -> Entity<es_editor::inspector::options::ToolOptions> {
+        self.editor
+            .read_with(&self.app.cx, |w, _| w.tool_options().unwrap())
+    }
+
     pub fn click(&mut self, control: es_editor::toolbar::Control) {
         let at = self
             .row()
             .read_with(&self.app.cx, |r, _| r.control_bounds(control))
             .unwrap_or_else(|| panic!("{control:?} is not drawn"))
             .center();
+        self.click_at(at);
+    }
+
+    pub fn click_option(&mut self, control: es_editor::inspector::options::Control) {
+        let at = self
+            .options()
+            .read_with(&self.app.cx, |o, _| o.control_bounds(control))
+            .unwrap_or_else(|| panic!("{control:?} is not drawn"))
+            .center();
+        self.click_at(at);
+    }
+
+    fn click_at(&mut self, at: gpui::Point<gpui::Pixels>) {
         for down in [true, false] {
             self.send(if down {
                 PlatformInput::MouseDown(gpui::MouseDownEvent {

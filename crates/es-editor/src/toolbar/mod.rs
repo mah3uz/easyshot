@@ -1,32 +1,23 @@
-pub mod crop_options;
 pub(crate) mod menus;
-mod options;
-mod reset;
-pub(crate) mod style_bar;
-mod text_box;
-mod text_style;
 pub mod tools;
 
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, hash::Hash, rc::Rc};
 
-use es_anno::{GestureId, StylePatch};
 use es_model::{RedactionKind, Tool};
 use es_ui::{
-    components::{EditorButton, InspectorSlider, Popover, SliderEvent, ValueFormat},
+    components::{EditorButton, Popover},
     icons::IconName,
     theme::tokens,
     tokens::Typeset,
 };
 use gpui::{
-    Anchor, AnyElement, App, AppContext, Bounds, Context, Div, Entity, EventEmitter, IntoElement,
+    Anchor, AnyElement, App, Bounds, Context, Div, Entity, EventEmitter, IntoElement,
     ParentElement, Pixels, Render, Styled, Subscription, Window, canvas, div, px,
 };
 
 use crate::session::{
     EditorSession,
-    crop::CropModel,
     doc::{DocEvent, DocModel},
-    style::StyleStore,
 };
 use crate::strings::fl;
 use menus::{Pick, choice_menu, menu_trigger};
@@ -55,6 +46,7 @@ pub enum ToolRowEvent {
     Flip(FlipAxis),
     SmartRedact(RedactionKind),
     ToggleInspector,
+    ShowOptions,
 }
 
 /// A control whose last drawn bounds the row remembers, for anchoring and for tests.
@@ -67,44 +59,19 @@ pub enum Control {
     SmartRedact,
     RedactPixelate,
     RedactBlur,
-    Options,
-    Swatches,
-    Stroke,
-    FontFamily,
-    TextFill,
-    TextFillNone,
-    TextBorder,
-    TextBorderNone,
-    TextBorderWidth,
-    ArrowStart,
-    ArrowEnd,
-    Dash,
-    HighlighterMode,
-    Strength,
-    Delete,
-    ResetStyle,
-    CropAspect,
-    CropReset,
-    CropCancel,
-    CropApply,
     Inspector,
 }
 
-type Drawn = Rc<RefCell<HashMap<Control, Bounds<Pixels>>>>;
+pub(crate) type Drawn<C> = Rc<RefCell<HashMap<C, Bounds<Pixels>>>>;
 
 pub struct ToolRow {
     doc: Entity<DocModel>,
-    crop: Entity<CropModel>,
-    style: Entity<StyleStore>,
     cropping: bool,
     inspector_open: bool,
     redact_open: bool,
     redact_busy: bool,
     ocr_ready: bool,
-    strength: Option<Entity<InspectorSlider>>,
-    gestures: u64,
-    dragging: Option<GestureId>,
-    drawn: Drawn,
+    drawn: Drawn<Control>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -117,51 +84,14 @@ impl ToolRow {
         let on_crop = cx.observe(&session.crop, |_, _, cx| cx.notify());
         Self {
             doc,
-            crop: session.crop.clone(),
-            style: session.style.clone(),
             cropping: false,
             inspector_open: true,
             redact_open: false,
             redact_busy: false,
             ocr_ready: true,
-            strength: None,
-            gestures: 0,
-            dragging: None,
             drawn: Rc::default(),
             _subscriptions: vec![on_doc, on_crop],
         }
-    }
-
-    /// Built on first draw, since the slider needs a window; kept in step with the engine's density.
-    fn strength(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Entity<InspectorSlider> {
-        let density = self.doc.read(cx).editor().current_style().redaction_density;
-        if let Some(slider) = &self.strength {
-            if slider.read(cx).value() != density.clamp(0.15, 1.0) {
-                slider.update(cx, |s, cx| s.set_value(density, window, cx));
-            }
-            return slider.clone();
-        }
-        let slider = cx.new(|cx| {
-            InspectorSlider::new(
-                fl!("editor-redact-strength"),
-                density,
-                0.15..=1.0,
-                ValueFormat::percent(),
-                window,
-                cx,
-            )
-        });
-        let on_strength = cx.subscribe(&slider, |this, _, event: &SliderEvent, cx| match event {
-            SliderEvent::DragStarted => this.dragging = Some(this.fresh_gesture()),
-            SliderEvent::Changed(value) => {
-                let gesture = this.dragging;
-                this.apply_style(StylePatch::RedactionDensity(*value), gesture, cx);
-            }
-            SliderEvent::DragEnded => this.dragging = None,
-        });
-        self._subscriptions.push(on_strength);
-        self.strength = Some(slider.clone());
-        slider
     }
 
     /// While cropping only the crop toggle stays live.
@@ -190,34 +120,13 @@ impl ToolRow {
         self.drawn.borrow().get(&control).copied()
     }
 
-    /// Picking the armed tool again returns to Select.
+    /// Picking the armed tool again keeps it and brings its options forward.
     pub fn pick_tool(&mut self, tool: Tool, cx: &mut Context<Self>) {
-        self.doc
-            .update(cx, |d, cx| d.apply(cx, |e| e.select_tool(tool)));
-    }
-
-    /// Sets the style for new shapes and restyles the selection as one undo step; calls sharing a gesture make one.
-    pub fn apply_style(
-        &mut self,
-        patch: StylePatch,
-        gesture: Option<GestureId>,
-        cx: &mut Context<Self>,
-    ) {
-        let gesture = gesture.unwrap_or_else(|| self.fresh_gesture());
-        self.doc
-            .update(cx, |d, cx| d.apply(cx, |e| e.apply_style(patch, gesture)));
-        self.style.update(cx, |s, cx| s.changed(cx));
-        cx.notify();
-    }
-
-    fn fresh_gesture(&mut self) -> GestureId {
-        self.gestures += 1;
-        GestureId(self.gestures)
-    }
-
-    fn delete_selection(&mut self, cx: &mut Context<Self>) {
-        self.doc
-            .update(cx, |d, cx| d.apply(cx, |e| e.delete_selected()));
+        if self.doc.read(cx).editor().tool() != tool {
+            self.doc
+                .update(cx, |d, cx| d.apply(cx, |e| e.select_tool(tool)));
+        }
+        cx.emit(ToolRowEvent::ShowOptions);
     }
 
     fn track(&self, control: Control, child: impl IntoElement) -> Div {
@@ -373,7 +282,11 @@ impl ToolRow {
     }
 }
 
-fn track(drawn: &Drawn, control: Control, child: impl IntoElement) -> Div {
+pub(crate) fn track<C: Copy + Eq + Hash + 'static>(
+    drawn: &Drawn<C>,
+    control: C,
+    child: impl IntoElement,
+) -> Div {
     let drawn = drawn.clone();
     div().relative().flex_none().child(child).child(
         canvas(
@@ -397,7 +310,7 @@ fn divider(cx: &App) -> Div {
 }
 
 impl Render for ToolRow {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.drawn.borrow_mut().clear();
         let t = tokens(cx).clone();
         let (tool, straight) = {
@@ -420,13 +333,7 @@ impl Render for ToolRow {
                     let _ = row.update(cx, |_, cx| cx.emit(ToolRowEvent::Crop));
                 })
         };
-        let mut options = options::render(self, tool, window, cx);
-        let mut hang =
-            |control: Control, tracked: Div| match options.take_if(|(c, _)| *c == control) {
-                Some((_, panel)) => tracked.child(panel),
-                None => tracked,
-            };
-        let crop = hang(Control::Crop, self.track(Control::Crop, crop));
+        let crop = self.track(Control::Crop, crop);
         let tools: Vec<AnyElement> = Tool::ALL
             .iter()
             .enumerate()
@@ -453,8 +360,7 @@ impl Render for ToolRow {
                     .on_click(move |_, _, cx| {
                         let _ = row.update(cx, |r, cx| r.pick_tool(each, cx));
                     });
-                hang(Control::Tool(each), self.track(Control::Tool(each), button))
-                    .into_any_element()
+                self.track(Control::Tool(each), button).into_any_element()
             })
             .collect();
         let inspector = {

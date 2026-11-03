@@ -3,8 +3,9 @@ use es_model::{Swatch, Tool};
 use es_ui::components::{SwatchPick, SwatchStrip};
 use gpui::{Hsla, IntoElement, Rgba, SharedString, Styled, WeakEntity};
 
-use super::{Control, Drawn, ToolRow, track};
+use super::{Control, ToolOptions};
 use crate::strings::fl;
+use crate::toolbar::{Drawn, track};
 
 /// Which options the inspected tool takes: the one selected shape's, else the first selected, else the armed tool's.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -87,15 +88,15 @@ pub(super) fn swatches(
     id: &'static str,
     control: Control,
     current: &Swatch,
-    row: WeakEntity<ToolRow>,
-    drawn: &Drawn,
+    page: WeakEntity<ToolOptions>,
+    drawn: &Drawn<Control>,
 ) -> impl IntoElement {
     swatch_strip(
         id,
         fl!("editor-color"),
         control,
         Some(current),
-        row,
+        page,
         drawn,
         StylePatch::Swatch,
     )
@@ -106,8 +107,8 @@ pub(super) fn swatch_strip(
     label: String,
     control: Control,
     current: Option<&Swatch>,
-    row: WeakEntity<ToolRow>,
-    drawn: &Drawn,
+    page: WeakEntity<ToolOptions>,
+    drawn: &Drawn<Control>,
     patch: impl Fn(Swatch) -> StylePatch + 'static,
 ) -> impl IntoElement {
     let palette = Swatch::palette();
@@ -131,7 +132,7 @@ pub(super) fn swatch_strip(
             SwatchPick::Custom(colour) => Some(custom(colour)),
         };
         let Some(swatch) = swatch else { return };
-        let _ = row.update(cx, |r, cx| r.apply_style(patch(swatch), None, cx));
+        let _ = page.update(cx, |o, cx| o.apply_style(patch(swatch), None, cx));
     });
     track(drawn, control, strip).w_full()
 }

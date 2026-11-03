@@ -11,9 +11,9 @@ use gpui::{
     Styled, Subscription, Window, div, prelude::FluentBuilder,
 };
 
+use crate::inspector::options::swatches::{colour, custom, swatch_title};
 use crate::session::look::LookModel;
 use crate::strings::fl;
-use crate::toolbar::style_bar::{colour, custom, swatch_title};
 
 pub const THICKNESS: RangeInclusive<f64> = 0.002..=0.08;
 pub const OPACITY: RangeInclusive<f64> = 0.0..=1.0;

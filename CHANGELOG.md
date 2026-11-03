@@ -24,7 +24,7 @@
 - In the editor the mouse wheel zooms about the pointer and touchpad scrolling pans; annotations stay on the image.
 - Scrolling capture: select an area, scroll, and get one tall image.
 - The editor's inspector on the right, with a button in the tool row to hide it, and its Background, Camera and Progressive Blur sections: colours, gradients, seven built-in wallpapers or your own, padding, shadow, corners, a canvas shape (Free, 1:1, 4:3, 3:2, 16:9), alignment, and a focus pad for the sharp area.
-- Each editor tool's options open in a panel under its button and stay until you change tools: colour and stroke, arrowheads and line style for arrows, font, size, bold, italic and underline for text, blur strength, the Highlighter's mode, and crop's ratio with Reset, Cancel and Apply.
+- Each editor tool's options show in the inspector, with a back arrow to the image settings, and stay until you change tools: colour and stroke, arrowheads and line style for arrows, font, size, bold, italic and underline for text, blur strength, the Highlighter's mode, and crop's ratio with Reset, Cancel and Apply.
 - Each kind of editor tool has its own pointer: a cross for shapes and arrows, a pen for drawing, a text cursor for text, a badge for the counter and a dotted square for Highlight, Pixelate and Blur.
 - The Highlighter tool (key M) paints translucent colour that keeps the text under it readable, freehand or as a straight line (Shift snaps to 15 degrees; M again switches mode).
 - Smart Redaction scans the image for private text and covers it, flashes what it found, and says what it hid ("Hid 3 items: emails, keys") with an Undo button; Pixelate and Blur keep a minimum strength tied to the text height, so covered text cannot be read back.

@@ -5,12 +5,13 @@ use crate::canvas_support::{TEXT, opened, rect};
 use std::{cell::RefCell, rc::Rc};
 
 use es_anno::crop::{AspectPreset, CropHandle};
+use es_editor::inspector::options::{Control, ToolOptions};
 use es_editor::session::crop::{CropModel, CropTarget};
-use es_editor::toolbar::{Control, ToolRow};
-use es_editor::window::{TITLE_BAR_HEIGHT, TOOL_ROW_HEIGHT};
+use es_editor::toolbar::{Control as Row, ToolRow};
+use es_editor::window::{INSPECTOR_WIDTH, TITLE_BAR_HEIGHT};
 use es_editor::{EditorSession, EditorWindow};
 use es_geom::Point;
-use es_model::{BackgroundSettings, Tool};
+use es_model::{BackgroundSettings, ShapeKind, Swatch, Tool};
 use es_testkit::Headless;
 use es_ui::tokens::ThemeMode;
 use gpui::{
@@ -19,8 +20,11 @@ use gpui::{
 };
 use gpui_component::Root;
 
+#[path = "tool_options_text.rs"]
+mod text;
+
 const WIDTH: f32 = 1080.;
-const HEIGHT: f32 = 720.;
+const HEIGHT: f32 = 860.;
 
 type App = Headless<Root>;
 
@@ -28,6 +32,7 @@ struct Editor {
     app: App,
     window: Entity<EditorWindow>,
     row: Entity<ToolRow>,
+    options: Entity<ToolOptions>,
 }
 
 fn launch(mode: ThemeMode) -> Editor {
@@ -60,10 +65,32 @@ fn launch(mode: ThemeMode) -> Editor {
         .borrow_mut()
         .take()
         .expect("the window built the editor");
-    let row = window
-        .read_with(&app.cx, |w, _| w.toolbar())
-        .expect("a loaded session has a tool row");
-    Editor { app, window, row }
+    let (row, options) = window.read_with(&app.cx, |w, _| {
+        (
+            w.toolbar().expect("a loaded session has a tool row"),
+            w.tool_options().expect("and a tool options page"),
+        )
+    });
+    Editor {
+        app,
+        window,
+        row,
+        options,
+    }
+}
+
+fn stroke_of(shape: &es_model::AnnoShape) -> f64 {
+    match &shape.kind {
+        ShapeKind::Geo(g) => g.stroke_width,
+        _ => panic!("not a rectangle"),
+    }
+}
+
+fn swatch_of(shape: &es_model::AnnoShape) -> Swatch {
+    match &shape.kind {
+        ShapeKind::Geo(g) => g.swatch.clone(),
+        _ => panic!("not a rectangle"),
+    }
 }
 
 impl Editor {
@@ -101,8 +128,12 @@ impl Editor {
 
     fn bounds(&mut self, control: Control) -> Option<Bounds<Pixels>> {
         self.app.settle();
-        self.row
-            .read_with(&self.app.cx, |r, _| r.control_bounds(control))
+        self.options
+            .read_with(&self.app.cx, |o, _| o.control_bounds(control))
+    }
+
+    fn shows(&mut self, control: Control) -> bool {
+        self.bounds(control).is_some()
     }
 
     fn click(&mut self, control: Control) {
@@ -110,6 +141,44 @@ impl Editor {
             .bounds(control)
             .unwrap_or_else(|| panic!("{control:?} is not drawn"));
         self.click_at(b.center());
+    }
+
+    fn click_row(&mut self, control: Row) {
+        self.app.settle();
+        let b = self
+            .row
+            .read_with(&self.app.cx, |r, _| r.control_bounds(control))
+            .unwrap_or_else(|| panic!("{control:?} is not drawn"));
+        self.click_at(b.center());
+    }
+
+    fn inspector_open(&self) -> bool {
+        self.window
+            .read_with(&self.app.cx, |w, _| w.inspector_open())
+    }
+
+    /// Whether the page is up; it is drawn exactly when it is up and the sidebar is open.
+    fn page_shown(&mut self) -> bool {
+        self.app.settle();
+        let up = self
+            .options
+            .read_with(&self.app.cx, |o, cx| o.shows_page(cx));
+        let drawn = self.shows(Control::Page);
+        if self.inspector_open() {
+            assert_eq!(drawn, up, "the page is drawn exactly when it is up");
+        }
+        up
+    }
+
+    fn assert_in_sidebar(&mut self) -> Bounds<Pixels> {
+        let page = self.bounds(Control::Page).expect("the options page is up");
+        assert!(
+            page.origin.x >= px(WIDTH) - INSPECTOR_WIDTH,
+            "the page at {:?} is not in the sidebar",
+            page.origin.x
+        );
+        assert!(page.origin.y > TITLE_BAR_HEIGHT);
+        page
     }
 
     fn tool(&self) -> Tool {
@@ -120,9 +189,21 @@ impl Editor {
 
     fn arm(&mut self, tool: Tool) {
         if self.tool() != tool {
-            self.click(Control::Tool(tool));
+            self.click_row(Row::Tool(tool));
         }
         assert_eq!(self.tool(), tool);
+    }
+
+    fn first_shape(&self) -> es_model::AnnoShape {
+        self.window.read_with(&self.app.cx, |w, cx| {
+            w.session().unwrap().doc.read(cx).editor().doc().shapes()[0].clone()
+        })
+    }
+
+    fn can_undo(&self) -> bool {
+        self.window.read_with(&self.app.cx, |w, cx| {
+            w.session().unwrap().doc.read(cx).editor().can_undo()
+        })
     }
 
     fn cropping(&self) -> bool {
@@ -164,145 +245,6 @@ impl Editor {
         self.app.screenshot(name);
     }
 
-    /// Checks the panel hangs below the row, inside the window, across the anchor's centre.
-    fn assert_under(&mut self, anchor: Control) -> Bounds<Pixels> {
-        let panel = self.bounds(Control::Options).expect("the options are open");
-        let button = self.bounds(anchor).expect("the anchor is drawn");
-        let row_bottom = TITLE_BAR_HEIGHT + TOOL_ROW_HEIGHT;
-        assert!(
-            panel.origin.y >= row_bottom,
-            "{anchor:?}: the panel at {:?} covers the tool row",
-            panel.origin.y
-        );
-        assert!(
-            panel.origin.y - button.bottom() < px(24.),
-            "{anchor:?}: the panel floats away from its button"
-        );
-        assert!(
-            panel.origin.x >= px(0.) && panel.right() <= px(WIDTH),
-            "{anchor:?}: the panel leaves the window"
-        );
-        let centre = button.center().x;
-        assert!(
-            panel.origin.x < centre && centre < panel.right(),
-            "{anchor:?}: the panel is not under its button"
-        );
-        panel
-    }
-}
-
-#[test]
-fn the_options_open_under_the_armed_tool_and_follow_it_to_the_next() {
-    let mut e = launch(ThemeMode::Dark);
-    e.arm(Tool::Rectangle);
-    let under_rectangle = e.assert_under(Control::Tool(Tool::Rectangle));
-    e.arm(Tool::Blur);
-    let under_blur = e.assert_under(Control::Tool(Tool::Blur));
-    assert!(
-        under_blur.center().x > under_rectangle.center().x + px(100.),
-        "the panel moved with the tool"
-    );
-    e.arm(Tool::Select);
-    assert!(
-        e.bounds(Control::Options).is_none(),
-        "Select with nothing selected has no options"
-    );
-}
-
-#[test]
-fn the_options_stay_open_across_clicks_on_the_canvas() {
-    let mut e = launch(ThemeMode::Dark);
-    e.arm(Tool::Arrow);
-    let before = e.assert_under(Control::Tool(Tool::Arrow));
-    let canvas = e
-        .window
-        .read_with(&e.app.cx, |w, cx| w.canvas().unwrap().read(cx).bounds());
-    for at in [
-        canvas.center(),
-        point(canvas.right() - px(40.), canvas.bottom() - px(40.)),
-    ] {
-        e.click_at(at);
-        assert_eq!(
-            e.bounds(Control::Options),
-            Some(before),
-            "a canvas click closed or moved the options"
-        );
-    }
-    assert_eq!(e.tool(), Tool::Arrow);
-}
-
-#[test]
-fn crop_options_hang_under_crop_and_apply_cancel_and_reset_work() {
-    let mut e = launch(ThemeMode::Dark);
-    let whole = e.image_size();
-    e.click(Control::Crop);
-    assert!(e.cropping());
-    e.assert_under(Control::Crop);
-
-    e.with_crop(|c, cx| {
-        c.press(CropTarget::Handle(CropHandle::TopLeft), Point::ZERO);
-        c.drag_to(Point::new(240.0, 120.0), false, cx);
-        c.release(cx);
-    });
-    assert!(e.crop_rect().x0 > 0.);
-    e.click(Control::CropReset);
-    assert_eq!(
-        e.crop_rect().x0,
-        0.,
-        "Reset returns the rect to the whole image"
-    );
-
-    e.click(Control::CropCancel);
-    assert!(!e.cropping(), "Cancel leaves crop mode");
-    assert_eq!(e.image_size(), whole, "Cancel changes nothing");
-    assert!(e.bounds(Control::CropApply).is_none());
-
-    e.click(Control::Crop);
-    e.set_aspect(AspectPreset::Square);
-    e.click(Control::CropApply);
-    assert!(!e.cropping(), "Apply leaves crop mode");
-    let (w, h) = e.image_size();
-    assert_eq!(w, h, "Apply cut the image to the square");
-}
-
-#[test]
-fn the_title_bar_holds_no_crop_buttons() {
-    let mut e = launch(ThemeMode::Dark);
-    e.click(Control::Crop);
-    e.set_aspect(AspectPreset::Square);
-    let whole = e.image_size();
-    let y = TITLE_BAR_HEIGHT / 2.;
-    for x in [WIDTH - 40., WIDTH - 120., WIDTH - 200., WIDTH - 280.] {
-        e.click_at(point(px(x), y));
-        assert!(e.cropping(), "a title bar click at {x} ended the crop");
-    }
-    assert_eq!(e.image_size(), whole);
-}
-
-#[test]
-fn screenshots_of_each_tool_family_in_both_themes() {
-    let families = [
-        (Tool::Rectangle, "shape"),
-        (Tool::Arrow, "arrow"),
-        (Tool::Text, "text"),
-        (Tool::Blur, "blur"),
-        (Tool::Highlighter, "highlighter"),
-    ];
-    for (mode, theme) in [(ThemeMode::Dark, "dark"), (ThemeMode::Light, "light")] {
-        let mut e = launch(mode);
-        for (tool, name) in families {
-            e.arm(tool);
-            e.assert_under(Control::Tool(tool));
-            e.shot(&format!("tool-options-{theme}-{name}"));
-        }
-        e.arm(Tool::Select);
-        e.click(Control::Crop);
-        e.assert_under(Control::Crop);
-        e.shot(&format!("tool-options-{theme}-crop"));
-    }
-}
-
-impl Editor {
     fn edit(&mut self, f: impl FnOnce(&mut es_anno::Editor) -> es_anno::Changes) {
         let doc = self
             .window
@@ -311,34 +253,6 @@ impl Editor {
             .cx
             .update(|cx| doc.update(cx, |d, cx| d.apply(cx, f)));
         self.app.settle();
-    }
-
-    fn new_text(&mut self) {
-        self.arm(Tool::Text);
-        self.edit(|e| e.create_text(Point::new(200., 200.)));
-        self.edit(|e| e.update_text("Note"));
-        let id = self.texts().last().map(|(id, _)| *id).unwrap();
-        self.edit(|e| e.stop_text());
-        self.edit(|e| e.select([id]));
-    }
-
-    fn texts(&self) -> Vec<(es_model::AnnoShapeId, es_model::TextProps)> {
-        self.window.read_with(&self.app.cx, |w, cx| {
-            let doc = w.session().unwrap().doc.read(cx);
-            doc.editor()
-                .doc()
-                .shapes()
-                .iter()
-                .filter_map(|s| match &s.kind {
-                    es_model::ShapeKind::Text(p) => Some((s.id, p.clone())),
-                    _ => None,
-                })
-                .collect()
-        })
-    }
-
-    fn text(&self) -> es_model::TextProps {
-        self.texts().last().unwrap().1.clone()
     }
 
     fn pick_swatch(&mut self, strip: Control, index: usize) {
@@ -352,82 +266,297 @@ impl Editor {
             b.origin.y + b.size.height / 2. * (row as f32 + 0.5),
         ));
     }
+}
 
-    fn pick_width(&mut self, index: usize) {
-        let b = self.bounds(Control::TextBorderWidth).unwrap();
-        let cell = b.size.width / 3.;
-        self.click_at(point(
-            b.origin.x + cell * (index as f32 + 0.5),
-            b.center().y,
-        ));
+#[test]
+fn the_editor_opens_on_the_usual_sidebar_with_a_tool_armed() {
+    let mut e = launch(ThemeMode::Dark);
+    assert_eq!(e.tool(), Tool::Rectangle);
+    assert!(
+        !e.page_shown(),
+        "opening the editor is for the image settings"
+    );
+}
+
+#[test]
+fn clicking_the_active_tool_keeps_it_and_brings_its_page_back() {
+    let mut e = launch(ThemeMode::Dark);
+    e.arm(Tool::Arrow);
+    e.click(Control::Back);
+    assert!(!e.page_shown());
+    e.click_row(Row::Tool(Tool::Arrow));
+    assert_eq!(e.tool(), Tool::Arrow, "a second click keeps the tool");
+    assert!(e.page_shown(), "and shows its options again");
+    e.assert_in_sidebar();
+}
+
+#[test]
+fn activating_a_tool_shows_its_page_and_opens_a_hidden_sidebar() {
+    let mut e = launch(ThemeMode::Dark);
+    e.click_row(Row::Inspector);
+    assert!(!e.inspector_open());
+    e.arm(Tool::Arrow);
+    assert!(e.inspector_open(), "a click on a tool opens the sidebar");
+    e.assert_in_sidebar();
+    assert!(e.shows(Control::ArrowStart));
+
+    e.click_row(Row::Inspector);
+    e.edit(|e| e.select_tool(Tool::Text));
+    assert!(e.inspector_open(), "so does a tool's key");
+    assert!(e.shows(Control::FontFamily));
+}
+
+#[test]
+fn a_new_selection_waits_in_a_hidden_sidebar() {
+    let mut e = launch(ThemeMode::Dark);
+    e.arm(Tool::Select);
+    e.click_row(Row::Inspector);
+    e.edit(|e| e.select_all());
+    assert!(!e.inspector_open(), "selecting does not open the sidebar");
+    e.click_row(Row::Inspector);
+    assert!(e.page_shown());
+    assert!(e.shows(Control::Delete));
+}
+
+#[test]
+fn back_returns_to_the_usual_sidebar_until_the_next_tool() {
+    let mut e = launch(ThemeMode::Dark);
+    e.arm(Tool::Blur);
+    e.assert_in_sidebar();
+    e.click(Control::Back);
+    assert!(!e.page_shown(), "Back shows the usual sidebar");
+    assert!(e.inspector_open(), "and keeps the sidebar open");
+    assert_eq!(e.tool(), Tool::Blur, "the tool stays armed");
+    e.arm(Tool::Line);
+    assert!(e.page_shown(), "the next tool brings its page");
+}
+
+#[test]
+fn hand_and_select_show_the_usual_sidebar() {
+    let mut e = launch(ThemeMode::Dark);
+    e.arm(Tool::Arrow);
+    assert!(e.page_shown());
+    e.arm(Tool::Select);
+    assert!(
+        !e.page_shown(),
+        "Select with nothing selected has no options"
+    );
+    e.arm(Tool::Highlight);
+    assert!(!e.page_shown(), "the spotlight has no options");
+}
+
+#[test]
+fn the_page_stays_across_clicks_on_the_canvas() {
+    let mut e = launch(ThemeMode::Dark);
+    e.arm(Tool::Arrow);
+    let before = e.assert_in_sidebar();
+    let canvas = e
+        .window
+        .read_with(&e.app.cx, |w, cx| w.canvas().unwrap().read(cx).bounds());
+    for at in [
+        canvas.center(),
+        point(canvas.right() - px(40.), canvas.bottom() - px(40.)),
+    ] {
+        e.click_at(at);
+        assert_eq!(e.bounds(Control::Page), Some(before));
     }
+    assert_eq!(e.tool(), Tool::Arrow);
 }
 
 #[test]
-fn a_background_picked_for_the_selected_text_fills_it_and_none_clears_it() {
-    let mut e = launch(ThemeMode::Light);
-    e.new_text();
-    assert_eq!(e.text().fill, None);
-    e.pick_swatch(Control::TextFill, 6);
-    assert_eq!(e.text().fill.map(|s| s.id), Some("blue".into()));
-    e.click(Control::TextFillNone);
-    assert_eq!(e.text().fill, None);
-}
-
-#[test]
-fn the_border_width_pills_show_only_while_a_border_is_set() {
-    let mut e = launch(ThemeMode::Light);
-    e.new_text();
-    assert!(e.bounds(Control::TextBorder).is_some());
-    assert!(e.bounds(Control::TextBorderWidth).is_none());
-    e.pick_swatch(Control::TextBorder, 1);
-    let border = e.text().border.unwrap();
-    assert_eq!((border.swatch.id.as_str(), border.width), ("red", 3.0));
-    assert!(e.bounds(Control::TextBorderWidth).is_some());
-    e.pick_width(2);
-    let border = e.text().border.unwrap();
-    assert_eq!((border.swatch.id.as_str(), border.width), ("red", 5.0));
-    e.click(Control::TextBorderNone);
-    assert_eq!(e.text().border, None);
-    assert!(e.bounds(Control::TextBorderWidth).is_none());
-}
-
-#[test]
-fn new_text_starts_with_the_chosen_background_and_border() {
-    let mut e = launch(ThemeMode::Light);
+fn the_options_offer_only_what_the_inspected_tool_takes() {
+    let mut e = launch(ThemeMode::Dark);
+    let shown = |e: &mut Editor| {
+        [
+            Control::Swatches,
+            Control::Stroke,
+            Control::FontFamily,
+            Control::ArrowStart,
+            Control::Dash,
+            Control::HighlighterMode,
+            Control::Strength,
+            Control::Delete,
+        ]
+        .map(|c| e.shows(c))
+    };
+    let (y, n) = (true, false);
+    e.arm(Tool::Ellipse);
+    assert_eq!(shown(&mut e), [y, y, n, n, n, n, n, n], "shape");
+    e.arm(Tool::Arrow);
+    assert_eq!(shown(&mut e), [y, y, n, y, y, n, n, n], "arrow");
+    e.arm(Tool::Line);
+    assert_eq!(shown(&mut e), [y, y, n, n, y, n, n, n], "line");
     e.arm(Tool::Text);
-    e.pick_swatch(Control::TextFill, 9);
-    e.pick_swatch(Control::TextBorder, 4);
-    e.pick_width(0);
-    e.edit(|e| e.create_text(Point::new(300., 300.)));
-    e.edit(|e| e.update_text("Note"));
-    let props = e.text();
-    assert_eq!(props.fill.map(|s| s.id), Some("white".into()));
-    let border = props.border.unwrap();
-    assert_eq!((border.swatch.id.as_str(), border.width), ("green", 2.0));
+    assert_eq!(shown(&mut e), [y, n, y, n, n, n, n, n], "text");
+    e.arm(Tool::Highlighter);
+    assert_eq!(shown(&mut e), [y, y, n, n, n, y, n, n], "highlighter");
+    e.arm(Tool::Blur);
+    assert_eq!(shown(&mut e), [n, n, n, n, n, n, y, n], "blur");
+    e.arm(Tool::Select);
+    e.edit(|e| e.select_all());
+    assert_eq!(
+        shown(&mut e),
+        [y, y, n, n, n, n, n, y],
+        "select with a rectangle selected inspects the rectangle"
+    );
 }
 
 #[test]
-fn undo_reverts_a_background_and_a_border_one_step_each() {
-    let mut e = launch(ThemeMode::Light);
-    e.new_text();
-    e.pick_swatch(Control::TextFill, 6);
-    e.pick_swatch(Control::TextBorder, 1);
-    e.edit(|e| e.undo());
-    assert_eq!(e.text().border, None);
-    assert!(e.text().fill.is_some());
-    e.edit(|e| e.undo());
-    assert_eq!(e.text().fill, None);
+fn the_highlighter_mode_switches_from_its_options() {
+    let mut e = launch(ThemeMode::Dark);
+    e.arm(Tool::Highlighter);
+    let straight = |e: &Editor| {
+        e.window.read_with(&e.app.cx, |w, cx| {
+            w.session()
+                .unwrap()
+                .doc
+                .read(cx)
+                .editor()
+                .highlighter_straight()
+        })
+    };
+    assert!(!straight(&e));
+    let modes = e.bounds(Control::HighlighterMode).unwrap();
+    e.click_at(point(
+        modes.origin.x + modes.size.width * 0.75,
+        modes.center().y,
+    ));
+    assert!(straight(&e), "the second segment draws straight lines");
+    assert_eq!(e.tool(), Tool::Highlighter, "and keeps the tool armed");
+    e.click_at(point(
+        modes.origin.x + modes.size.width * 0.25,
+        modes.center().y,
+    ));
+    assert!(!straight(&e));
 }
 
 #[test]
-fn screenshots_of_the_text_panel_in_both_themes() {
+fn a_swatch_recolours_new_shapes_and_the_selection_in_one_undo_step() {
+    let mut e = launch(ThemeMode::Dark);
+    e.arm(Tool::Select);
+    e.edit(|e| e.select_all());
+    let before = swatch_of(&e.first_shape());
+    e.pick_swatch(Control::Swatches, 2);
+    let style = e.window.read_with(&e.app.cx, |w, cx| {
+        let doc = w.session().unwrap().doc.read(cx);
+        doc.editor().current_style().swatch.id.clone()
+    });
+    assert_eq!(style, "orange", "new shapes take the pick");
+    assert_eq!(swatch_of(&e.first_shape()).id, "orange");
+    e.edit(|e| e.undo());
+    assert_eq!(swatch_of(&e.first_shape()), before);
+    assert!(!e.can_undo(), "the pick was a single undo step");
+}
+
+#[test]
+fn a_stroke_dot_restyles_the_selection_in_one_undo_step() {
+    let mut e = launch(ThemeMode::Dark);
+    e.arm(Tool::Select);
+    e.edit(|e| e.select_all());
+    let before = stroke_of(&e.first_shape());
+    let dots = e.bounds(Control::Stroke).unwrap();
+    e.click_at(point(
+        dots.origin.x + dots.size.width * 0.9,
+        dots.center().y,
+    ));
+    let (slider, page) = e.window.read_with(&e.app.cx, |w, cx| {
+        let doc = w.session().unwrap().doc.read(cx);
+        let editor = doc.editor();
+        (
+            editor.current_style().stroke_width,
+            editor.viewport().page_stroke_width(12.),
+        )
+    });
+    assert_eq!(slider, 12.);
+    assert_eq!(stroke_of(&e.first_shape()), page);
+    assert_ne!(page, before);
+    e.edit(|e| e.undo());
+    assert_eq!(stroke_of(&e.first_shape()), before);
+    assert!(!e.can_undo());
+}
+
+#[test]
+fn crop_options_fill_the_sidebar_and_apply_cancel_and_reset_work() {
+    let mut e = launch(ThemeMode::Dark);
+    let whole = e.image_size();
+    e.click_row(Row::Inspector);
+    e.click_row(Row::Crop);
+    assert!(e.cropping());
+    assert!(e.inspector_open(), "crop opens the sidebar for its buttons");
+    e.assert_in_sidebar();
+    assert!(!e.shows(Control::Back), "crop is left with Cancel or Apply");
+
+    e.with_crop(|c, cx| {
+        c.press(CropTarget::Handle(CropHandle::TopLeft), Point::ZERO);
+        c.drag_to(Point::new(240.0, 120.0), false, cx);
+        c.release(cx);
+    });
+    assert!(e.crop_rect().x0 > 0.);
+    e.click(Control::CropReset);
+    assert_eq!(e.crop_rect().x0, 0., "Reset returns to the whole image");
+
+    e.click(Control::CropCancel);
+    assert!(!e.cropping(), "Cancel leaves crop mode");
+    assert_eq!(e.image_size(), whole, "Cancel changes nothing");
+    assert!(e.bounds(Control::CropApply).is_none());
+
+    e.click_row(Row::Crop);
+    e.set_aspect(AspectPreset::Square);
+    e.click(Control::CropApply);
+    assert!(!e.cropping(), "Apply leaves crop mode");
+    let (w, h) = e.image_size();
+    assert_eq!(w, h, "Apply cut the image to the square");
+}
+
+#[test]
+fn the_title_bar_holds_no_crop_buttons() {
+    let mut e = launch(ThemeMode::Dark);
+    e.click_row(Row::Crop);
+    e.set_aspect(AspectPreset::Square);
+    let whole = e.image_size();
+    let y = TITLE_BAR_HEIGHT / 2.;
+    for x in [WIDTH - 40., WIDTH - 120., WIDTH - 200., WIDTH - 280.] {
+        e.click_at(point(px(x), y));
+        assert!(e.cropping(), "a title bar click at {x} ended the crop");
+    }
+    assert_eq!(e.image_size(), whole);
+}
+
+#[test]
+fn screenshots_of_each_page_in_both_themes() {
+    let families = [
+        (Tool::Rectangle, "shape"),
+        (Tool::Arrow, "arrow"),
+        (Tool::Line, "line"),
+        (Tool::Freehand, "pen"),
+        (Tool::Highlighter, "highlighter"),
+        (Tool::Text, "text"),
+        (Tool::NumberedCircle, "counter"),
+        (Tool::Blur, "blur"),
+        (Tool::Pixelate, "pixelate"),
+    ];
     for (mode, theme) in [(ThemeMode::Dark, "dark"), (ThemeMode::Light, "light")] {
         let mut e = launch(mode);
-        e.arm(Tool::Text);
-        e.pick_swatch(Control::TextFill, 3);
-        e.pick_swatch(Control::TextBorder, 6);
-        e.pick_width(2);
-        e.shot(&format!("text-box-panel-{theme}"));
+        e.shot(&format!("sidebar-{theme}-usual"));
+        for (tool, name) in families {
+            e.arm(tool);
+            e.click_row(Row::Tool(tool));
+            e.assert_in_sidebar();
+            e.shot(&format!("sidebar-{theme}-{name}"));
+        }
+        e.arm(Tool::Select);
+        e.edit(|e| e.select_all());
+        e.assert_in_sidebar();
+        e.shot(&format!("sidebar-{theme}-selection"));
+        e.edit(|e| e.select([]));
+        e.click_row(Row::Crop);
+        e.assert_in_sidebar();
+        e.shot(&format!("sidebar-{theme}-crop"));
+        e.click(Control::CropCancel);
+        e.click_row(Row::Inspector);
+        e.shot(&format!("sidebar-{theme}-hidden"));
+        e.arm(Tool::Arrow);
+        e.assert_in_sidebar();
+        e.shot(&format!("sidebar-{theme}-hidden-then-arrow"));
     }
 }

@@ -45,6 +45,7 @@ icons! {
         Camera = "camera",
         Check = "check",
         ChevronDown = "chevron-down",
+        ChevronLeft = "chevron-left",
         ChevronRight = "chevron-right",
         Circle = "circle",
         CircleAlert = "circle-alert",

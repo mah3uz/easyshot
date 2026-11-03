@@ -1,12 +1,13 @@
 use es_anno::StylePatch;
-use es_model::{StylePreset, Tool};
+use es_model::StylePreset;
 use es_ui::components::EditorButton;
 use gpui::{Context, Div};
 
-use super::{Control, ToolRow, style_bar::Facets, track};
+use super::{Control, ToolOptions, swatches::Facets};
 use crate::strings::fl;
+use crate::toolbar::track;
 
-impl ToolRow {
+impl ToolOptions {
     /// Puts the options the panel shows for `facets` back to the defaults, as one undo step on a selection.
     pub(super) fn reset_style(&mut self, facets: Facets, cx: &mut Context<Self>) {
         let d = StylePreset::default();
@@ -46,21 +47,21 @@ impl ToolRow {
             self.apply_style(patch, Some(gesture), cx);
         }
         if facets.mode && self.doc.read(cx).editor().highlighter_straight() {
-            self.pick_tool(Tool::Highlighter, cx);
+            self.switch_highlighter_mode(cx);
         }
     }
 }
 
-pub(super) fn button(row: &ToolRow, facets: Facets, cx: &mut Context<ToolRow>) -> Div {
+pub(super) fn button(page: &ToolOptions, facets: Facets, cx: &mut Context<ToolOptions>) -> Div {
     let weak = cx.entity().downgrade();
     track(
-        &row.drawn,
+        &page.drawn,
         Control::ResetStyle,
         EditorButton::new("reset-style")
             .label(fl!("editor-reset-style"))
             .tooltip(fl!("editor-reset-style-help"))
             .on_click(move |_, _, cx| {
-                let _ = weak.update(cx, |r, cx| r.reset_style(facets, cx));
+                let _ = weak.update(cx, |o, cx| o.reset_style(facets, cx));
             }),
     )
 }
