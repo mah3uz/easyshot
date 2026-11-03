@@ -3,11 +3,13 @@ use super::pickers::{Declining, declining_folder_picker};
 use super::reopen_recovered;
 use super::windows::{Wiring, onboarding_input, open_practice};
 use es_app::capture_coordinator::CaptureCoordinator;
+use es_app::deck::{Deck, DeckPolicy};
 use es_app::dispatcher::{Action, RouteDispatcher};
 use es_app::errors::{Error, Result};
 use es_app::events::Origin;
-use es_app::history::History;
+use es_app::history::{History, HistoryEvent};
 use es_app::platform_ui::ClipboardSink;
+use es_app::platform_ui::{LayerShellSurfaces, OutputSource};
 use es_app::settings_model::SettingsModel;
 use es_app::toast::{MemorySink, install_toasts};
 use es_app::windows::{WindowKey, WindowKind, Windows};
@@ -15,8 +17,10 @@ use es_backend::{BindHelper, BindSyntax, Caps, Trigger};
 use es_desktop::{Notification, NotificationId, Notifier};
 use es_editor::EditorWindow;
 use es_editor::session::journal::{self, Entry};
+use es_geom::Point;
 use es_model::AnnotationDocument;
-use es_model::platform::ClipItem;
+use es_model::platform::{ClipItem, OutputId, OutputInfo};
+use es_overlays::deck::view::{DeckSettings, DeckSurface};
 use es_overlays::record::bar::BarEvent;
 use es_protocol::{Route, SettingsPage};
 use es_shell::gallery::{FileResult, GalleryFiles};
@@ -70,7 +74,28 @@ struct Rig {
     paths: Paths,
     dir: tempfile::TempDir,
     settings: Entity<SettingsModel>,
+    deck: Entity<Deck>,
+    history: Entity<History>,
+    deck_surface: Rc<DeckSurface>,
     _watch: Option<Task<()>>,
+    _live: gpui::Subscription,
+}
+
+struct NoOutputs;
+
+impl OutputSource for NoOutputs {
+    fn outputs(&self) -> Vec<OutputInfo> {
+        Vec::new()
+    }
+    fn pointer_output(&self) -> Option<OutputId> {
+        None
+    }
+    fn focused_output(&self) -> Option<OutputId> {
+        None
+    }
+    fn pointer_global(&self) -> Option<Point> {
+        None
+    }
 }
 
 fn png(path: &Path) {
@@ -123,11 +148,15 @@ fn rig_with(cx: &mut TestAppContext, binds: Option<Arc<dyn BindHelper>>) -> Rig 
         std::mem::forget(super::look::install(&settings, None, cx));
         let watch = super::config_watch::install(&settings, cx);
         let history = cx.new(|_| History::open(&paths, 10).unwrap());
+        let deck = cx.new(|_| Deck::new(DeckPolicy::default()));
+        let surfaces = Rc::new(LayerShellSurfaces::new(Arc::new(NoOutputs), None));
+        let deck_surface = DeckSurface::attach(surfaces, &deck, DeckSettings::default(), cx);
+        let live = super::live_settings::install(&settings, &deck, &deck_surface, &history, cx);
         let windows = Windows::default();
         let wiring = Wiring::new(
             paths.clone(),
             settings.clone(),
-            history,
+            history.clone(),
             Rc::new(NoClipboard),
             Rc::new(Declining),
             Arc::new(NoFiles),
@@ -156,7 +185,11 @@ fn rig_with(cx: &mut TestAppContext, binds: Option<Arc<dyn BindHelper>>) -> Rig 
             paths,
             dir,
             settings,
+            deck,
+            history,
+            deck_surface,
             _watch: watch,
+            _live: live,
         }
     })
 }
@@ -521,4 +554,88 @@ fn the_daemons_own_save_does_not_come_back_as_an_edit(cx: &mut TestAppContext) {
     settle(cx);
     assert_eq!(seen.get(), 1);
     assert_eq!(history_limit(&rig, cx), 5);
+}
+
+#[gpui::test]
+fn overlay_and_keep_previews_changes_reach_the_live_deck(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    cx.update(|cx| {
+        rig.settings.update(cx, |s, cx| {
+            s.update(
+                |c| {
+                    c.overlay.card_size = "large".into();
+                    c.overlay.position = "top-left".into();
+                    c.overlay.dismiss_delay = 9;
+                    c.capture.keep_in_deck_until_saved = !c.capture.keep_in_deck_until_saved;
+                },
+                cx,
+            )
+        });
+    });
+    cx.update(|cx| {
+        let cfg = rig.settings.read(cx).config().clone();
+        let policy = rig.deck.read(cx).policy();
+        assert_eq!(
+            policy,
+            DeckPolicy::from_settings(&cfg.overlay, &cfg.capture)
+        );
+        assert_eq!(policy.delay, Some(std::time::Duration::from_secs(9)));
+        assert_eq!(
+            rig.deck_surface.settings(),
+            DeckSettings::from_settings(&cfg.overlay)
+        );
+        assert_ne!(rig.deck_surface.settings(), DeckSettings::default());
+    });
+}
+
+#[gpui::test]
+fn a_new_history_limit_reaches_the_live_history(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    let limits = Rc::new(std::cell::Cell::new(0));
+    let counter = limits.clone();
+    let _sub = cx.update(|cx| {
+        cx.subscribe(&rig.history, move |_, e: &HistoryEvent, _| {
+            if *e == HistoryEvent::LimitChanged {
+                counter.set(counter.get() + 1);
+            }
+        })
+    });
+    cx.update(|cx| {
+        rig.settings
+            .update(cx, |s, cx| s.update(|c| c.general.history_limit = 3, cx))
+    });
+    assert_eq!(limits.get(), 1);
+}
+
+#[gpui::test]
+fn a_broken_file_raises_a_toast_with_settings_closed(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    let sink = MemorySink::new();
+    cx.update(|cx| install_toasts(sink.clone(), Arc::new(Silent), cx));
+    std::fs::write(rig.paths.config_file(), "[general\nhistory_limit = ").unwrap();
+    wait_until(cx, "the toast", |_| !sink.shown().is_empty());
+    let shown = sink.shown();
+    assert_eq!(shown[0].title, "Settings file has an error");
+    assert!(
+        shown[0]
+            .message
+            .as_deref()
+            .is_some_and(|m| m.contains("Line 1"))
+    );
+}
+
+#[gpui::test]
+fn a_failed_save_raises_a_toast_with_settings_closed(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    let sink = MemorySink::new();
+    cx.update(|cx| install_toasts(sink.clone(), Arc::new(Silent), cx));
+    std::fs::remove_dir_all(rig.paths.config_file().parent().unwrap()).unwrap();
+    std::fs::write(rig.paths.config_file().parent().unwrap(), "not a directory").unwrap();
+    cx.update(|cx| {
+        rig.settings
+            .update(cx, |s, cx| s.update(|c| c.general.play_sound = false, cx));
+        rig.settings.update(cx, |s, cx| s.flush(cx));
+    });
+    wait_until(cx, "the toast", |_| !sink.shown().is_empty());
+    assert_eq!(sink.shown()[0].title, "Couldn’t save settings");
 }

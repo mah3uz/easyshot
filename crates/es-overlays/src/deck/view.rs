@@ -16,7 +16,7 @@ use gpui::{
     Render, RenderImage, SharedString, StatefulInteractiveElement as _, Styled as _, Subscription,
     Window, canvas, div, prelude::FluentBuilder as _, px,
 };
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::path::Path;
 use std::rc::{Rc, Weak};
@@ -317,7 +317,7 @@ struct Shown {
 pub struct DeckSurface {
     surfaces: Rc<LayerShellSurfaces>,
     deck: Entity<Deck>,
-    settings: DeckSettings,
+    settings: Cell<DeckSettings>,
     shown: RefCell<Option<Shown>>,
     observe: RefCell<Option<Subscription>>,
 }
@@ -332,7 +332,7 @@ impl DeckSurface {
         let this = Rc::new(DeckSurface {
             surfaces,
             deck: deck.clone(),
-            settings,
+            settings: Cell::new(settings),
             shown: RefCell::default(),
             observe: RefCell::default(),
         });
@@ -351,6 +351,24 @@ impl DeckSurface {
         this
     }
 
+    pub fn settings(&self) -> DeckSettings {
+        self.settings.get()
+    }
+
+    /// A mapped deck is rebuilt, since its view keeps the settings it was opened with.
+    pub fn set_settings(&self, settings: DeckSettings, cx: &mut App) {
+        if self.settings.get() == settings {
+            return;
+        }
+        self.settings.set(settings);
+        if let Some(shown) = self.shown.borrow_mut().take() {
+            shown.handle.close(cx);
+        }
+        if let Err(error) = self.sync(cx) {
+            tracing::warn!(%error, "deck surface");
+        }
+    }
+
     pub fn is_shown(&self) -> bool {
         self.shown.borrow().is_some()
     }
@@ -364,7 +382,8 @@ impl DeckSurface {
             }
             return Ok(());
         }
-        let geometry = self.settings.geometry(count);
+        let settings = self.settings.get();
+        let geometry = settings.geometry(count);
         let mut slot = self.shown.borrow_mut();
         match slot.as_mut() {
             Some(shown) if shown.count == count => return Ok(()),
@@ -383,7 +402,7 @@ impl DeckSurface {
                 let handle =
                     self.surfaces
                         .open_surface(SurfaceRole::Deck, &output, geometry.panel(), cx)?;
-                let (deck, settings) = (self.deck.clone(), self.settings);
+                let deck = self.deck.clone();
                 let view = cx.new(|cx| DeckView::new(deck, settings, cx));
                 handle.set_content(view.into(), cx);
                 *slot = Some(Shown { handle, count });

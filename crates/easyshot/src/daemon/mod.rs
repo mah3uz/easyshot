@@ -5,6 +5,7 @@ mod config_watch;
 mod crash;
 #[cfg(feature = "test-hooks")]
 mod inject;
+mod live_settings;
 mod look;
 mod notices;
 mod pickers;
@@ -449,6 +450,7 @@ fn start(
     let subscriptions = vec![
         routes::deck_events(&action_deps, clipboard, cx),
         routes::video_cards(&action_deps, cx),
+        live_settings::install(&settings, &deck, &deck_surface, &history, cx),
     ];
     dispatcher.set_action_handler(routes::actions(action_deps));
 
