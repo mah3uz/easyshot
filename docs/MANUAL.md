@@ -505,6 +505,28 @@ Commands:
   `height`) and `source` (`output`, `window` or `file`); positions are pixels of the image
   that was read.
 
+- `agent record start` starts recording one target and prints the recording's id. Give exactly
+  one of `--output NAME`, `--geometry "x,y WxH"`, `--window <id|app_id|title>` or
+  `--fullscreen`. It records as you would from the capture bar, with the control bar and the
+  tray indicator showing, so you can see that a recording is running and stop it yourself. It
+  never touches a recording you started: if one is running the command exits 4.
+  - `--audio system|mic|both|none` (default: your recording settings), `--fps 30|60`
+    (default: the setting) and `--keystrokes`, which also records clicks and keys for the
+    editor, apply to this recording only.
+  - `--max-seconds N` (1 to 600, default 120) stops the recording by itself after that time.
+    A recording an agent started also stops, and is kept, when its access ends: when the
+    grant is revoked or runs out, or when you run `agent disable`.
+  - With `--json` the answer is `{"ok":true,"kind":"recording","id":...,"state":"recording","target":...,"max_seconds":...}`.
+- `agent record stop [--id ID]` stops it and prints the path of the video: the file in the
+  recording's project folder, or the MP4 in your videos folder when the setting that saves recordings is on.
+  With `--json`: `{"ok":true,"kind":"recording","id":...,"path":...,"duration_ms":...,"width":...,"height":...,"bytes":...}`.
+  After a recording ended by itself, `stop` still gives its path. The width and height are 0
+  when `ffprobe` is not installed.
+- `agent record status` says `idle` or `recording`, and for an agent's recording its id,
+  target, `elapsed_ms` and `max_seconds`. `agent record discard [--id ID]` stops it and
+  deletes it. Both `stop` and `discard` answer `not_found` (exit 5) when no recording
+  started by an agent is running.
+
 Without `--json` each output or window is one line of tab-separated text, with geometry
 written `x,y WxH`. With `--json` (before or after the subcommand) easyshot prints exactly
 one JSON object on standard output, errors included:
@@ -519,7 +541,7 @@ A capture answer gives the size in pixels, not logical pixels, and `scale`, and 
 (see Hiding secrets); a window capture adds a `window` object like an entry of
 `agent list windows`.
 
-`kind` is `outputs`, `windows`, `capture`, `export`, `ocr`, `access` (enable, disable and status), `config`, or `usage` when the command line itself could not be read.
+`kind` is `outputs`, `windows`, `capture`, `export`, `ocr`, `recording`, `access` (enable, disable and status), `config`, or `usage` when the command line itself could not be read.
 Fields may be added to these objects in later versions; existing ones keep their meaning.
 
 Exit codes and error codes:
@@ -537,7 +559,8 @@ Exit codes and error codes:
 | 8 | `access_denied` | agent access was refused |
 
 `agent capture` reads your screen: it takes the one still frame you asked for, and nothing
-records or watches it.
+watches it. `agent record` records until it is stopped, and it is the one agent command that
+keeps running after it answers.
 
 ### Hiding secrets
 

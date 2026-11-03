@@ -50,6 +50,7 @@ pub struct Meta {
 
 pub struct Completed {
     pub item: DeckItem,
+    pub capture: RecordingCapture,
 }
 
 fn stem(dir: &Path) -> String {
@@ -128,6 +129,7 @@ pub fn complete(
     folder.finish(&capture, &project, input, runner)?;
     Ok(Completed {
         item: card(folder.dir(), out.file.clone(), kind),
+        capture,
     })
 }
 

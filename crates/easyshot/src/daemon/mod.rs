@@ -457,7 +457,7 @@ fn start(
         select_area: Rc::new(move |cx| area_flow.run(SelectMode::Region, cx)),
         input: recording::input::for_system(Arc::new(es_record::SystemClock::default()), backend),
     });
-    wiring.set_recordings(recordings.clone());
+    wiring.set_recordings(recordings.clone(), cx);
     let gate = recordings.clone();
     coordinator.set_gate(Rc::new(move |request, cx| match request.kind {
         CaptureKind::Recording | CaptureKind::RecordingArea => gate.admit(cx),

@@ -2,6 +2,8 @@ use super::gate::{self as agent_gate, scope::Scope};
 use super::redact::{Redactor, inspect};
 use super::window_entry;
 use crate::daemon::capture::{Direct, cut, shoot};
+use crate::daemon::recording::Recordings;
+use es_app::agent_access::AgentAccessHandle;
 use es_app::agent_capture::{Options, Saved, save};
 use es_app::capture_coordinator::{Direct as Source, DirectCapture};
 use es_app::dispatcher::RouteDispatcher;
@@ -77,15 +79,25 @@ pub fn install(
     });
     let recognizer = super::ocr::recognizer();
     let ocr = super::ocr::runner(deps.clone(), recognizer.clone());
-    dispatcher.set_agent_handler(super::handler_with(
+    let gate = agent_gate::install(
+        cx,
+        Rc::new(es_overlays::consent::LayerPrompt::new(surfaces.clone())),
+    );
+    let access = cx.global::<AgentAccessHandle>().0.clone();
+    let record = super::record::install(
+        cx,
+        &cx.global::<Recordings>().clone(),
+        super::sources(backend),
+        &access,
+        &pipeline.settings,
+    );
+    dispatcher.set_agent_handler(super::handler_full(
         super::sources(backend),
         jobs.clone(),
-        agent_gate::install(
-            cx,
-            Rc::new(es_overlays::consent::LayerPrompt::new(surfaces.clone())),
-        ),
+        gate,
         Some(runner(deps, Rc::new(Redactor::new(recognizer)))),
         Some(ocr),
+        Some(record),
     ));
 }
 

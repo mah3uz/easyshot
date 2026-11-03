@@ -123,7 +123,8 @@ impl Wiring {
         })
     }
 
-    pub fn set_recordings(&self, recordings: super::recording::Recordings) {
+    pub fn set_recordings(&self, recordings: super::recording::Recordings, cx: &mut App) {
+        cx.set_global(recordings.clone());
         *self.recordings.borrow_mut() = Some(recordings);
     }
 

@@ -2,6 +2,7 @@ mod access;
 mod capture;
 mod export;
 mod ocr;
+mod record;
 mod run;
 #[cfg(test)]
 mod tests;
@@ -9,6 +10,7 @@ mod tests;
 pub use capture::CaptureArgs;
 pub use export::ExportArgs;
 pub use ocr::OcrArgs;
+pub use record::RecordCommand;
 pub use run::{run, usage_error};
 
 use clap::{Args, Subcommand, ValueEnum};
@@ -43,6 +45,9 @@ pub enum AgentCommand {
     Export(ExportArgs),
     /// Read the text and QR codes on a target or in an image file
     Ocr(OcrArgs),
+    /// Record the screen: start, stop, status and discard
+    #[command(subcommand)]
+    Record(RecordCommand),
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
@@ -75,6 +80,7 @@ impl AgentArgs {
             AgentCommand::Config(c) => (AgentRoute::Manage(c.route()), true),
             AgentCommand::Export(args) => (AgentRoute::Export(args.spec()), args.wait()),
             AgentCommand::Ocr(args) => (AgentRoute::Ocr(args.spec()), true),
+            AgentCommand::Record(c) => (AgentRoute::Record(c.route()), true),
         };
         AgentCall {
             route,

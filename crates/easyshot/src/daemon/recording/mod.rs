@@ -1,3 +1,5 @@
+pub mod agent;
+mod card;
 #[cfg(any(test, feature = "test-hooks"))]
 pub mod fake;
 mod finish;
@@ -8,7 +10,7 @@ mod tests;
 pub mod ui;
 
 use es_app::capture_coordinator::CaptureKind;
-use es_app::deck::{Deck, DeckItem};
+use es_app::deck::Deck;
 use es_app::errors::{Error, Result};
 use es_app::platform_ui::Selection;
 use es_app::settings_model::SettingsModel;
@@ -78,6 +80,7 @@ pub struct Deps {
 pub struct Start {
     pub request: RecordingRequest,
     pub area: Option<(OutputId, Rect)>,
+    pub options: agent::Options,
 }
 
 struct Session {
@@ -100,6 +103,7 @@ struct Inner {
     deps: Deps,
     active: RefCell<Option<Session>>,
     starting: Cell<bool>,
+    observer: RefCell<Option<agent::Observer>>,
 }
 
 /// Held from the moment a start is asked for until the recorder runs or the start gives up.
@@ -144,6 +148,7 @@ impl Recordings {
             deps,
             active: RefCell::new(None),
             starting: Cell::new(false),
+            observer: RefCell::new(None),
         }))
     }
 
@@ -204,7 +209,7 @@ impl Recordings {
             _ => (RecordingTarget::Display(output), None),
         };
         let request = self.configured(target, cx);
-        self.launch(Start { request, area }, cx)
+        self.launch(Start::new(request, area), cx)
     }
 
     /// From the capture bar: an area target is chosen first, then the delay runs, then recording starts.
@@ -214,11 +219,7 @@ impl Recordings {
             Err(e) => return Task::ready(Err(e)),
         };
         if !matches!(request.target, RecordingTarget::Area) {
-            let start = Start {
-                request,
-                area: None,
-            };
-            return self.run(claim, start, cx);
+            return self.run(claim, Start::new(request, None), cx);
         }
         let selected = (self.0.deps.select_area)(cx);
         let me = self.clone();
@@ -227,7 +228,7 @@ impl Recordings {
                 output, logical, ..
             } => {
                 let area = Some((output, logical));
-                cx.update(|cx| me.run(claim, Start { request, area }, cx))
+                cx.update(|cx| me.run(claim, Start::new(request, area), cx))
                     .await
             }
             _ => Err(Error::Cancelled),
@@ -278,7 +279,8 @@ impl Recordings {
         let deps = &self.0.deps;
         let outputs = (deps.outputs)();
         let (recorded, source) = resolve(&start, &outputs)?;
-        let cfg = deps.settings.read(cx).config().recording.clone();
+        let mut cfg = deps.settings.read(cx).config().recording.clone();
+        start.options.apply(&mut cfg);
         let recorder = (deps.recorder)(&cfg.recorder)?;
         if start.request.system_audio
             && !recorder.can_record_system_audio(start.request.mic.is_some())
@@ -317,8 +319,9 @@ impl Recordings {
             .then(|| input::start(&deps.input, &recorded, &outputs, cx))
             .flatten();
         let me = self.clone();
+        let options = start.options.clone();
         let keystrokes_off = cx.observe(&deps.settings, move |s, cx| {
-            if !s.read(cx).config().recording.keystrokes {
+            if !options.keeps_keystrokes(&s.read(cx).config().recording) {
                 input::halt(me.take_input(), cx);
             }
         });
@@ -449,7 +452,10 @@ impl Recordings {
             let done = {
                 let active = me.0.active.borrow();
                 let Some(s) = active.as_ref() else { return };
-                let cfg = cx.update(|cx| deps.settings.read(cx).config().clone());
+                let mut cfg = cx.update(|cx| deps.settings.read(cx).config().clone());
+                s.start
+                    .options
+                    .apply(&mut Arc::make_mut(&mut cfg).recording);
                 (
                     ProjectFolder::open(s.folder.dir()),
                     finish::Meta {
@@ -492,6 +498,7 @@ impl Recordings {
                 me.end_session(cx);
                 match completed {
                     Ok(done) => {
+                        me.ended(&agent::Ended::kept(&done, cfg.recording.save), cx);
                         if cfg.recording.open_editor_after {
                             let template = cfg.general.file_name_template.clone();
                             deps.ui.open_trim(done.item.file.clone(), template, cx);
@@ -500,6 +507,7 @@ impl Recordings {
                     }
                     Err(e) => {
                         tracing::error!(error = %e, "recording not kept");
+                        me.ended(&agent::Ended::Failed, cx);
                         show_toast(Toast::error("toast-recording-save-failed"), cx);
                     }
                 }
@@ -507,15 +515,6 @@ impl Recordings {
         })
         .detach();
         Ok(())
-    }
-
-    fn show_card(&self, item: DeckItem, save: bool, cx: &mut App) {
-        let id = item.id;
-        tracing::info!(file = %item.file.display(), "recording card shown");
-        self.0.deps.deck.update(cx, |d, cx| d.show(item, cx));
-        if save {
-            self.save_card(id, cx);
-        }
     }
 
     pub fn discard(&self, cx: &mut App) -> Result<()> {
@@ -546,6 +545,9 @@ impl Recordings {
                 if let Err(e) = std::fs::remove_dir_all(session.folder.dir()) {
                     tracing::warn!(error = %e, "recording folder not removed");
                 }
+                if !again {
+                    me.ended(&agent::Ended::Discarded, cx);
+                }
                 if again && let Err(e) = me.start(session.start.clone(), cx) {
                     tracing::error!(error = %e, "start over");
                     show_toast(Toast::error("toast-error-generic"), cx);
@@ -554,47 +556,5 @@ impl Recordings {
         })
         .detach();
         Ok(())
-    }
-
-    /// Remuxes the card's recording into the save folder; the card goes when that works.
-    pub fn save_card(&self, id: uuid::Uuid, cx: &mut App) {
-        let deps = &self.0.deps;
-        let Some(video) = deps.deck.read(cx).get(id).map(|i| i.file.clone()) else {
-            return;
-        };
-        let config = deps.settings.read(cx).config().clone();
-        let (runner, paths) = (deps.runner.clone(), deps.paths.clone());
-        let deck = deps.deck.clone();
-        cx.spawn(async move |cx| {
-            let saved = cx
-                .background_executor()
-                .spawn(async move {
-                    let now = OffsetDateTime::now_utc();
-                    finish::save_mp4(&video, &paths, &config, now, runner.as_ref())
-                })
-                .await;
-            cx.update(|cx| match saved {
-                Ok(path) => {
-                    tracing::info!(file = %path.display(), "recording saved");
-                    show_toast(saved_toast("toast-recording-saved", &path), cx);
-                    deck.update(cx, |d, cx| d.saved(id, cx));
-                }
-                Err(e) => {
-                    tracing::warn!(error = %e, "recording not saved");
-                    show_toast(Toast::error("toast-recording-save-failed"), cx);
-                    deck.update(cx, |d, cx| d.save_failed(id, cx));
-                }
-            });
-        })
-        .detach();
-    }
-
-    /// Cards for recordings that recovery finished at start-up.
-    pub fn show_recovered(&self, found: &[es_record::recovery::Recovered], cx: &mut App) {
-        self.0.deps.deck.update(cx, |deck, cx| {
-            for r in found {
-                deck.show(finish::recovered_card(r), cx);
-            }
-        });
     }
 }

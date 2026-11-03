@@ -1,5 +1,5 @@
-use super::OcrInfo;
 use super::access::{AccessStatus, ConfigEntry};
+use super::{OcrInfo, RecordingInfo};
 use serde::{Deserialize, Serialize};
 
 /// Each code has its own process exit status, so a script can branch without reading the JSON.
@@ -68,6 +68,7 @@ pub enum ReplyKind {
     Config,
     Export,
     Ocr,
+    Recording,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -186,6 +187,8 @@ pub struct AgentReply {
     pub export: Option<Box<ExportInfo>>,
     #[serde(flatten, default, skip_serializing_if = "Option::is_none")]
     pub ocr: Option<Box<OcrInfo>>,
+    #[serde(flatten, default, skip_serializing_if = "Option::is_none")]
+    pub recording: Option<Box<RecordingInfo>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub access: Option<AccessStatus>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -208,6 +211,8 @@ struct WireReply {
     windows: Option<Vec<WindowEntry>>,
     #[serde(flatten, default)]
     made: Option<Made>,
+    #[serde(flatten, default)]
+    recording: RecordingInfo,
     #[serde(default)]
     access: Option<AccessStatus>,
     #[serde(default)]
@@ -227,11 +232,14 @@ enum Made {
 impl From<WireReply> for AgentReply {
     fn from(w: WireReply) -> AgentReply {
         let (capture, export, ocr) = match w.made {
+            _ if w.kind == ReplyKind::Recording => (None, None, None),
             Some(Made::Capture(c)) => (Some(c), None, None),
             Some(Made::Export(e)) => (None, Some(e), None),
             Some(Made::Ocr(o)) => (None, None, Some(o)),
             None => (None, None, None),
         };
+        let recording = (w.kind == ReplyKind::Recording && w.recording != RecordingInfo::default())
+            .then(|| Box::new(w.recording));
         AgentReply {
             ok: w.ok,
             kind: w.kind,
@@ -241,6 +249,7 @@ impl From<WireReply> for AgentReply {
             capture,
             export,
             ocr,
+            recording,
             access: w.access,
             config: w.config,
             error: w.error,
@@ -261,6 +270,7 @@ impl AgentReply {
             config: None,
             export: None,
             ocr: None,
+            recording: None,
             error: None,
         }
     }

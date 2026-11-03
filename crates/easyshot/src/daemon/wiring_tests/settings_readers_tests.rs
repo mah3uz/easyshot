@@ -169,7 +169,7 @@ const READERS: &[(&str, &str, &str)] = &[
     (
         "recording.keystrokes",
         "crates/easyshot/src/daemon/recording/mod.rs",
-        "recording.keystrokes",
+        ".keystrokes",
     ),
     (
         "recording.start_delay",

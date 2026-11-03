@@ -124,6 +124,12 @@ fn print(json: bool, reply: &AgentReply, out: &mut dyn Write, err: &mut dyn Writ
     if let Some(done) = &reply.export {
         let _ = writeln!(out, "{}", done.path);
     }
+    if let Some(rec) = &reply.recording {
+        let shown = rec.path.as_ref().or(rec.id.as_ref()).or(rec.state.as_ref());
+        if let Some(line) = shown {
+            let _ = writeln!(out, "{line}");
+        }
+    }
     if let Some(ocr) = reply.ocr.as_deref().filter(|o| !o.text.is_empty()) {
         let _ = writeln!(out, "{}", ocr.text);
     }

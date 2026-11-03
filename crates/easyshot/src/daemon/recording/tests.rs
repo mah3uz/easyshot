@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used)]
 use super::fake::FakeRecorder;
 use super::*;
-use es_app::deck::DeckPolicy;
+use es_app::deck::{DeckItem, DeckPolicy};
 use es_record::project::CommandRunner;
 use es_record::{Clock, recovery};
 use es_store::ConfigFile;
@@ -207,6 +207,7 @@ fn display() -> Start {
             delay_secs: 0,
         },
         area: None,
+        options: Default::default(),
     }
 }
 
@@ -394,6 +395,7 @@ async fn a_start_counting_down_already_holds_the_recorder(cx: &mut TestAppContex
             ..display().request
         },
         area: None,
+        options: Default::default(),
     };
     let first = cx.update(|cx| rig.recordings.launch(delayed, cx));
     cx.run_until_parked();

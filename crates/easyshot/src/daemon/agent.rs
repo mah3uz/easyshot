@@ -6,6 +6,8 @@ mod export;
 pub(super) mod gate;
 #[path = "agent_ocr.rs"]
 mod ocr;
+#[path = "agent_record.rs"]
+pub(super) mod record;
 #[path = "agent_redact.rs"]
 mod redact;
 
@@ -16,6 +18,7 @@ use es_model::platform::{OutputInfo, WindowInfo};
 use es_protocol::agent::{AgentReply, ErrorCode, OutputEntry, WindowEntry};
 use es_protocol::{AgentRoute, JobStatus};
 use gate::{Gate, Work};
+use gpui::Task;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -43,6 +46,7 @@ pub fn handler(sources: Sources, jobs: Jobs, gate: Gate) -> AgentHandler {
     handler_with(sources, jobs, gate, None, None)
 }
 
+#[cfg(test)]
 pub fn handler_with(
     sources: Sources,
     jobs: Jobs,
@@ -50,11 +54,31 @@ pub fn handler_with(
     capture: Option<capture::CaptureRunner>,
     ocr: Option<ocr::OcrRunner>,
 ) -> AgentHandler {
+    handler_full(sources, jobs, gate, capture, ocr, None)
+}
+
+pub fn handler_full(
+    sources: Sources,
+    jobs: Jobs,
+    gate: Gate,
+    capture: Option<capture::CaptureRunner>,
+    ocr: Option<ocr::OcrRunner>,
+    record: Option<record::RecordRunner>,
+) -> AgentHandler {
     Rc::new(move |job, route, origin, cx| {
         let kind = route.kind();
         let work: Work = {
             let (sources, capture, ocr) = (sources.clone(), capture.clone(), ocr.clone());
+            let record = record.clone();
             Box::new(move |route, scope, cx| match (route, capture, ocr) {
+                (AgentRoute::Record(r), ..) => match record {
+                    Some(run) => run(r.clone(), scope.clone(), cx),
+                    None => Task::ready(AgentReply::failed(
+                        kind,
+                        ErrorCode::Unsupported,
+                        "this desktop gives easyshot no screen recording",
+                    )),
+                },
                 (AgentRoute::Capture(spec), Some(capture), _) => {
                     capture(spec.clone(), scope.clone(), cx)
                 }
@@ -105,6 +129,7 @@ fn answer(route: &AgentRoute, sources: &Sources) -> AgentReply {
         AgentRoute::Capture(_) => unsupported("screen capture"),
         AgentRoute::Export(spec) => export::export(spec),
         AgentRoute::Ocr(_) => unsupported("text recognition"),
+        AgentRoute::Record(_) => unsupported("screen recording"),
         AgentRoute::ListWindows => {
             if !sources.caps.contains(Caps::WINDOW_LIST) {
                 return unsupported("window list");

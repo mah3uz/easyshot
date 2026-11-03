@@ -2,6 +2,7 @@ mod access;
 mod capture;
 mod export;
 mod ocr;
+mod record;
 mod reply;
 mod target;
 
@@ -13,6 +14,10 @@ pub use export::{
 };
 pub use ocr::{
     OcrCode, OcrInfo, OcrInput, OcrLine, OcrSource, OcrSpec, check_file, parse_languages,
+};
+pub use record::{
+    AUDIO, Audio, DEFAULT_MAX_SECONDS, FPS, MAX_SECONDS, RecordRoute, RecordSpec, RecordingInfo,
+    check_id,
 };
 pub use reply::{
     AgentReply, CaptureInfo, ErrorCode, ExportInfo, OutputEntry, Redaction, ReplyError, ReplyKind,
@@ -38,17 +43,22 @@ pub enum AgentRoute {
     Manage(ManageRoute),
     Export(ExportSpec),
     Ocr(OcrSpec),
+    Record(RecordRoute),
 }
 
 impl AgentRoute {
     /// The routes access gates, and the only ones; `Manage` routes are outside it.
     /// The capture entry is a sample; its fields are not part of the route's identity.
-    pub const ALL: [AgentRoute; 5] = [
+    pub const ALL: [AgentRoute; 9] = [
         AgentRoute::ListOutputs,
         AgentRoute::ListWindows,
         AgentRoute::Capture(CaptureSpec::new(AgentTarget::Fullscreen)),
         AgentRoute::Export(ExportSpec::new(PathBuf::new())),
         AgentRoute::Ocr(OcrSpec::new(OcrInput::Target(AgentTarget::Fullscreen))),
+        AgentRoute::Record(RecordRoute::Start(RecordSpec::new(AgentTarget::Fullscreen))),
+        AgentRoute::Record(RecordRoute::Stop(None)),
+        AgentRoute::Record(RecordRoute::Status),
+        AgentRoute::Record(RecordRoute::Discard(None)),
     ];
 
     pub fn route_name(&self) -> &'static str {
@@ -59,6 +69,7 @@ impl AgentRoute {
             AgentRoute::Manage(m) => m.route_name(),
             AgentRoute::Export(_) => "agent/export",
             AgentRoute::Ocr(_) => "agent/ocr",
+            AgentRoute::Record(r) => r.route_name(),
         }
     }
 
@@ -70,6 +81,7 @@ impl AgentRoute {
             AgentRoute::Manage(m) => m.kind(),
             AgentRoute::Export(_) => ReplyKind::Export,
             AgentRoute::Ocr(_) => ReplyKind::Ocr,
+            AgentRoute::Record(_) => ReplyKind::Recording,
         }
     }
 
@@ -81,6 +93,7 @@ impl AgentRoute {
             AgentRoute::Manage(m) => m.command_args(),
             AgentRoute::Export(_) => vec!["agent", "export"],
             AgentRoute::Ocr(_) => vec!["agent", "ocr"],
+            AgentRoute::Record(r) => r.command_args(),
         }
     }
 
@@ -92,6 +105,7 @@ impl AgentRoute {
             AgentRoute::Capture(spec) => spec.write_args(&mut args),
             AgentRoute::Export(spec) => spec.write_args(&mut args),
             AgentRoute::Ocr(spec) => spec.write_args(&mut args),
+            AgentRoute::Record(r) => r.write_args(&mut args),
             _ => {}
         }
         if let AgentRoute::Manage(m) = self {
@@ -108,6 +122,7 @@ impl AgentRoute {
                 OcrInput::Target(target) => Some(target),
                 OcrInput::File(_) => None,
             },
+            AgentRoute::Record(r) => r.target(),
             AgentRoute::ListOutputs
             | AgentRoute::ListWindows
             | AgentRoute::Export(_)
@@ -137,6 +152,11 @@ impl AgentRoute {
         if manage {
             return ManageRoute::parse(name, args)
                 .map(AgentRoute::Manage)
+                .map_err(bad);
+        }
+        if let Some(AgentRoute::Record(_)) = route {
+            return RecordRoute::parse(name, args)
+                .map(AgentRoute::Record)
                 .map_err(bad);
         }
         if let Some(AgentRoute::Ocr(_)) = route {
