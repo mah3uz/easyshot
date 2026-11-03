@@ -92,4 +92,21 @@ pub enum ClipItem {
 pub trait CursorSource: Send + Sync {
     /// Global logical pointer position and when it was sampled.
     fn sample(&self) -> Option<(Point, Instant)>;
+    /// For a source that must stream positions: a source that streams only while it lives.
+    /// `None` when `sample` works without one.
+    fn open(&self) -> Option<Arc<dyn CursorSource>> {
+        None
+    }
+}
+
+/// The compositor's keymap in XKB text form; `serial` changes whenever the keymap does.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KeymapText {
+    pub serial: u64,
+    pub text: Arc<str>,
+}
+
+pub trait KeymapSource: Send + Sync {
+    /// `None` until the compositor has sent a keymap.
+    fn keymap(&self) -> Option<KeymapText>;
 }

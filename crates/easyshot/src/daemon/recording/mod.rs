@@ -16,7 +16,7 @@ use es_app::toast::{IconName, Toast, show_toast};
 use es_desktop::RecordingTrayState;
 use es_geom::Rect;
 use es_model::CaptureKind as StoredKind;
-use es_model::platform::{CursorSource, OutputId, OutputInfo};
+use es_model::platform::{OutputId, OutputInfo};
 use es_overlays::record::{
     ControlBar, ControlEvent, Phase, Recorded, RecordingRequest, RecordingTarget,
 };
@@ -70,8 +70,7 @@ pub struct Deps {
     pub runner: Arc<dyn CommandRunner>,
     pub countdown: Countdown,
     pub select_area: AreaSelector,
-    pub input: input::InputFor,
-    pub cursor: Option<Arc<dyn CursorSource>>,
+    pub input: input::Inputs,
 }
 
 /// A request with its area chosen, in global logical points.
@@ -91,6 +90,7 @@ struct Session {
     source: String,
     created_at: OffsetDateTime,
     input: Option<InputCollector>,
+    _keystrokes_off: Subscription,
     _bar_events: Subscription,
     _events: Task<()>,
     _tick: Task<()>,
@@ -314,8 +314,14 @@ impl Recordings {
         let events = handle.events();
         let input = cfg
             .keystrokes
-            .then(|| input::start(&deps.input, deps.cursor.as_ref(), &recorded, &outputs, cx))
+            .then(|| input::start(&deps.input, &recorded, &outputs, cx))
             .flatten();
+        let me = self.clone();
+        let keystrokes_off = cx.observe(&deps.settings, move |s, cx| {
+            if !s.read(cx).config().recording.keystrokes {
+                input::halt(me.take_input(), cx);
+            }
+        });
         let bar = cx.new(|cx| ControlBar::new(deps.clock.clone(), cx));
         let shown = deps.ui.show(&recorded, cfg.whole_screen_bar, &bar, cx);
         let me = self.clone();
@@ -354,6 +360,7 @@ impl Recordings {
             source: output_name(&source),
             created_at,
             input,
+            _keystrokes_off: keystrokes_off,
             _bar_events: bar_events,
             _events: events_task,
             _tick: tick,
@@ -430,12 +437,7 @@ impl Recordings {
         let (handle, bar) = self.handle_of()?;
         bar.update(cx, |b, cx| b.finishing(cx));
         let elapsed = bar.read(cx).elapsed();
-        let collector = self
-            .0
-            .active
-            .borrow_mut()
-            .as_mut()
-            .and_then(|s| s.input.take());
+        let collector = self.take_input();
         let read = cx
             .background_executor()
             .spawn(async move { collector.map(InputCollector::stop) });
@@ -524,8 +526,13 @@ impl Recordings {
         self.drop_recording(true, cx)
     }
 
+    fn take_input(&self) -> Option<InputCollector> {
+        self.0.active.borrow_mut().as_mut()?.input.take()
+    }
+
     fn drop_recording(&self, again: bool, cx: &mut App) -> Result<()> {
         let (handle, bar) = self.handle_of()?;
+        input::halt(self.take_input(), cx);
         bar.update(cx, |b, cx| b.finishing(cx));
         let me = self.clone();
         cx.spawn(async move |cx| {

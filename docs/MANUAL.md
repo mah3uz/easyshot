@@ -303,16 +303,22 @@ and exporting from the trim viewer both write to `easyshot` inside your Videos f
 (usually `~/Videos/easyshot/`), with a dated name that never replaces an earlier file.
 
 With Settings, Recording, Keystrokes on, the folder also gets an `input.json` with your
-clicks and shortcuts, timed on the video's clock with pauses removed, for click effects and
-key badges such as "Ctrl+C". Each click has its button and, where easyshot can read the
-pointer (Hyprland, or a compositor with the cursor capture protocol), its place in the
-recording; elsewhere the place is left out. Keys are only shortcuts (a key held with Ctrl,
-the left Alt or Super) and special keys (Enter, Esc, Tab, Backspace, Delete, arrows, Home,
-End, Page Up and Down, Insert, F1 to F12). Plain typing is never saved, including with
-Shift or AltGr, so what you type in a password field stays out. If you type characters with
-the left Alt or Super as a third-level key, those are saved as shortcuts. Pointer travel is
-not recorded: `travel` is always empty. With Keystrokes off nothing reads your keyboard or
-mouse and `input.json` is empty.
+clicks and shortcuts, timed on the video's clock with pauses removed (keys to the nearest
+hundredth of a second), for click effects and key badges such as "Ctrl+C". Each click has its
+button and, where easyshot can read the pointer (Hyprland, or a compositor with the cursor
+capture protocol), its place in the recording; a click outside the recorded area is left out.
+A key is saved only when, under your keyboard layout as the compositor sends it, it types no
+text: shortcuts such as Ctrl+C, and special keys (Enter, Esc, Tab, Backspace, Delete, arrows,
+Home, End, Page Up and Down, Insert, F1 to F12). A key that types a character is never saved,
+whatever is held with it: plain typing, Shift, AltGr or any other third-level key, a second
+layout, dead keys and Compose, Alt or Super with a letter, and Ctrl+Shift+U Unicode entry.
+Until easyshot has your layout, only special keys are saved. Each keyboard counts its own
+modifiers. Nothing is read while your session is locked or switched away from, or when
+easyshot cannot ask logind. Pointer travel is not recorded: `travel` is always empty. With
+Keystrokes off nothing reads your keyboard or mouse and `input.json` is empty; switching it
+off during a recording stops reading at once and saves nothing from that recording.
+`input.json` stays in the recording's folder under `~/.local/share/easyshot/recordings/`
+until you delete that folder; Discard and Start over delete it at once.
 
 Reading the keyboard and mouse needs your user in the `input` group. Run
 `sudo usermod -aG input $USER`, then log out and back in. Until then a recording with

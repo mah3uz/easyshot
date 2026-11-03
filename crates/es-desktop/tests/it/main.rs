@@ -4,6 +4,7 @@ mod dbus_support;
 mod desktop_support;
 mod files;
 mod files_noop;
+mod login;
 mod notify;
 mod portal;
 mod tray;

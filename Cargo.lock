@@ -1839,6 +1839,7 @@ dependencies = [
  "tracing-appender",
  "tracing-subscriber",
  "uuid",
+ "xkbcommon",
 ]
 
 [[package]]
@@ -2221,6 +2222,7 @@ dependencies = [
  "time",
  "tracing",
  "uuid",
+ "xkbcommon",
 ]
 
 [[package]]

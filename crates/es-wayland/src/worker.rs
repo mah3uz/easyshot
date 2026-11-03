@@ -1,12 +1,14 @@
 use crate::capture::{Batch, CAPTURE_TIMEOUT, Job, Reply};
 use crate::clipboard::{Clipboard, Offers, offers};
 use crate::input::{CursorSession, Input};
+use crate::keyboard::{Keyboard, SharedKeymap};
 use crate::output::OutputState;
 use crate::toplevel::{Toplevel, ToplevelState, WlrToplevel};
 use crate::{Error, WlGlobals};
 use es_geom::Point;
 use es_model::platform::{
-    CaptureOpts, ClipItem, Frame, OutputEvent, OutputId, OutputInfo, WindowEvent, WindowInfo,
+    CaptureOpts, ClipItem, Frame, KeymapText, OutputEvent, OutputId, OutputInfo, WindowEvent,
+    WindowInfo,
 };
 use rustix::event::{PollFd, PollFlags, Timespec, poll};
 use std::collections::HashMap;
@@ -74,6 +76,7 @@ pub(crate) struct State {
     pub window_tx: async_channel::Sender<WindowEvent>,
     pub window_snapshot: Arc<Mutex<Vec<WindowInfo>>>,
     pub seat: Option<WlSeat>,
+    pub keyboard: Keyboard,
     pub clipboard: Clipboard,
     pub input: Input,
     pub jobs: HashMap<u64, Job>,
@@ -206,6 +209,7 @@ pub struct Connection {
     events: async_channel::Receiver<OutputEvent>,
     windows: Arc<Mutex<Vec<WindowInfo>>>,
     window_events: async_channel::Receiver<WindowEvent>,
+    keymap: SharedKeymap,
     thread: Option<JoinHandle<()>>,
 }
 
@@ -219,12 +223,14 @@ impl Connection {
         let outputs = Arc::new(Mutex::new(Vec::new()));
         let (window_tx, window_events) = async_channel::bounded(WINDOW_EVENTS);
         let windows = Arc::new(Mutex::new(Vec::new()));
+        let keymap = SharedKeymap::default();
         let (setup_tx, setup_rx) = mpsc::channel();
         let published = Published {
             outputs: outputs.clone(),
             output_tx,
             windows: windows.clone(),
             window_tx,
+            keymap: keymap.clone(),
         };
         let thread = std::thread::Builder::new()
             .name("es-wayland".into())
@@ -246,8 +252,17 @@ impl Connection {
             events,
             windows,
             window_events,
+            keymap,
             thread: Some(thread),
         })
+    }
+
+    /// The seat keyboard's keymap, which the compositor sends to every client without focus.
+    pub fn keymap(&self) -> Option<KeymapText> {
+        self.keymap
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     pub fn globals(&self) -> &WlGlobals {
@@ -348,6 +363,7 @@ struct Published {
     output_tx: async_channel::Sender<OutputEvent>,
     windows: Arc<Mutex<Vec<WindowInfo>>>,
     window_tx: async_channel::Sender<WindowEvent>,
+    keymap: SharedKeymap,
 }
 
 fn run(
@@ -399,6 +415,7 @@ fn start(published: Published) -> Result<Started, Error> {
         window_tx: published.window_tx,
         window_snapshot: published.windows,
         seat: None,
+        keyboard: Keyboard::new(published.keymap),
         clipboard: Clipboard::default(),
         input: Input::new(),
         jobs: HashMap::new(),

@@ -453,8 +453,7 @@ fn start(
         runner: Arc::new(es_record::project::SystemRunner),
         countdown: recording::ui::countdown(surfaces.clone()),
         select_area: Rc::new(move |cx| area_flow.run(SelectMode::Region, cx)),
-        input: recording::input::for_system(Arc::new(es_record::SystemClock::default())),
-        cursor: backend.cursor.clone(),
+        input: recording::input::for_system(Arc::new(es_record::SystemClock::default()), backend),
     });
     wiring.set_recordings(recordings.clone());
     let gate = recordings.clone();

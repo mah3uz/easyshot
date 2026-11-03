@@ -87,6 +87,20 @@ struct FakeInput {
     queue: Arc<Mutex<Vec<es_record::RawEvent>>>,
 }
 
+struct UsKeymap;
+
+impl es_model::platform::KeymapSource for UsKeymap {
+    fn keymap(&self) -> Option<es_model::platform::KeymapText> {
+        use xkbcommon::xkb;
+        let ctx = xkb::Context::new(xkb::CONTEXT_NO_FLAGS);
+        let map = xkb::Keymap::new_from_names(&ctx, "", "", "us", "", None, 0)?;
+        Some(es_model::platform::KeymapText {
+            serial: 1,
+            text: map.get_as_string(xkb::KEYMAP_FORMAT_TEXT_V1).into(),
+        })
+    }
+}
+
 struct Queued(Arc<Mutex<Vec<es_record::RawEvent>>>);
 
 impl es_record::input::EventSource for Queued {
@@ -153,14 +167,20 @@ fn rig_with_tools(cx: &mut TestAppContext, mut recorder: FakeRecorder, missing: 
                 picked.set(picked.get() + 1);
                 Task::ready(Err(Error::Cancelled))
             }),
-            input: Rc::new(move || {
-                opener.opened.set(opener.opened.get() + 1);
-                if opener.denied.get() {
-                    return Err(es_model::recording::InputAccess::Denied);
-                }
-                Ok(Box::new(Queued(opener.queue.clone())))
-            }),
-            cursor: None,
+            input: input::Inputs {
+                open: Rc::new(move || {
+                    opener.opened.set(opener.opened.get() + 1);
+                    if opener.denied.get() {
+                        return Err(es_model::recording::InputAccess::Denied);
+                    }
+                    Ok(Box::new(Queued(opener.queue.clone())))
+                }),
+                sources: es_record::input::Sources {
+                    cursor: None,
+                    keymap: Some(Arc::new(UsKeymap)),
+                    session_open: Arc::new(std::sync::atomic::AtomicBool::new(true)),
+                },
+            },
         });
         (recordings, deck)
     });
@@ -486,7 +506,12 @@ impl Rig {
                 if code >= 0x110 {
                     es_record::RawEvent::Button { code, down, t_us }
                 } else {
-                    es_record::RawEvent::Key { code, down, t_us }
+                    es_record::RawEvent::Key {
+                        device: 0,
+                        code,
+                        down,
+                        t_us,
+                    }
                 }
             }));
         while !self.input.queue.lock().unwrap().is_empty() {
@@ -621,4 +646,42 @@ async fn without_device_access_the_recording_runs_with_a_hint_and_an_empty_log(
     );
     assert_eq!(cards(&rig, cx).len(), 1, "the recording is kept");
     assert_eq!(rig.input_json()["keystrokes"], serde_json::json!([]));
+}
+
+#[gpui::test]
+async fn discard_and_switching_keystrokes_off_stop_reading_at_once(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    let unread = |rig: &Rig| {
+        let t_us = rig.now_us();
+        let key = |down| es_record::RawEvent::Button {
+            code: 0x110,
+            down,
+            t_us,
+        };
+        for _ in 0..2 {
+            rig.input
+                .queue
+                .lock()
+                .unwrap()
+                .extend([key(true), key(false)]);
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        rig.input.queue.lock().unwrap().len()
+    };
+    rig.keystrokes(true, cx);
+    cx.update(|cx| rig.recordings.start(display(), cx)).unwrap();
+    cx.run_until_parked();
+    cx.update(|cx| rig.recordings.discard(cx)).unwrap();
+    assert!(unread(&rig) >= 2, "read after Discard");
+    cx.run_until_parked();
+    rig.input.queue.lock().unwrap().clear();
+
+    cx.update(|cx| rig.recordings.start(display(), cx)).unwrap();
+    cx.run_until_parked();
+    rig.keystrokes(false, cx);
+    cx.run_until_parked();
+    assert!(unread(&rig) >= 2, "read after Keystrokes was switched off");
+    cx.update(|cx| rig.recordings.stop(cx)).unwrap();
+    cx.run_until_parked();
+    assert_eq!(rig.input_json()["presses"], serde_json::json!([]));
 }

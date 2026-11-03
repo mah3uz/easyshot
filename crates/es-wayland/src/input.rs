@@ -183,17 +183,19 @@ impl State {
 impl Dispatch<WlSeat, ()> for State {
     fn event(
         state: &mut Self,
-        _: &WlSeat,
+        seat: &WlSeat,
         event: wl_seat::Event,
         _: &(),
         _: &Connection,
-        _: &QueueHandle<Self>,
+        qh: &QueueHandle<Self>,
     ) {
         if let wl_seat::Event::Capabilities {
             capabilities: WEnum::Value(caps),
         } = event
         {
             state.input.pointer_capability = caps.contains(wl_seat::Capability::Pointer);
+            let keyboard = caps.contains(wl_seat::Capability::Keyboard);
+            state.keyboard.set_capability(keyboard, seat, qh);
         }
     }
 }

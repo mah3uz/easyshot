@@ -1,39 +1,25 @@
 #![allow(clippy::unwrap_used)]
 
+use crate::input_keys::us_text;
 use es_geom::{Point, Rect};
-use es_model::platform::CursorSource;
+use es_model::platform::{CursorSource, KeymapSource, KeymapText};
 use es_model::recording::{InputAccess, PressPhase};
 use es_record::input::{
-    EventSource, HeldModifiers, InputBuilder, InputCollector, RawEvent, access, is_event_node,
+    EventSource, HeldKeys, InputBuilder, InputCollector, KeyFilter, Keymap, RawEvent, Sources,
+    access, is_event_node,
 };
 use es_record::{Clock, RecordingOutput, SystemClock, movie_time};
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 const FIRST: u64 = 1_000_000;
 const ESC: u16 = 1;
-const KEY_1: u16 = 2;
-const BACKSPACE: u16 = 14;
-const TAB: u16 = 15;
-const KEY_Q: u16 = 16;
-const KEY_P: u16 = 25;
 const ENTER: u16 = 28;
 const CTRL: u16 = 29;
 const KEY_A: u16 = 30;
-const KEY_L: u16 = 38;
-const SHIFT: u16 = 42;
 const KEY_C: u16 = 46;
-const KEY_T: u16 = 20;
-const COMMA: u16 = 51;
-const ALT: u16 = 56;
-const SPACE: u16 = 57;
-const F5: u16 = 63;
-const KP_7: u16 = 71;
-const RIGHT_ALT: u16 = 100;
-const UP: u16 = 103;
-const LEFT: u16 = 105;
-const SUPER: u16 = 125;
 
 fn out(segments: &[(u64, u64)]) -> RecordingOutput {
     RecordingOutput {
@@ -48,7 +34,12 @@ fn rect() -> Rect {
 }
 
 fn key(code: u16, down: bool, t_us: u64) -> RawEvent {
-    RawEvent::Key { code, down, t_us }
+    RawEvent::Key {
+        device: 0,
+        code,
+        down,
+        t_us,
+    }
 }
 
 fn button(down: bool, t_us: u64) -> RawEvent {
@@ -59,130 +50,69 @@ fn button(down: bool, t_us: u64) -> RawEvent {
     }
 }
 
-fn tap(code: u16) -> [(u16, bool); 2] {
-    [(code, true), (code, false)]
+fn us() -> KeyFilter {
+    KeyFilter::new(Keymap::from_text(&us_text()))
 }
 
-fn chord(mods: &[u16], code: u16) -> Vec<(u16, bool)> {
-    let mut seq: Vec<_> = mods.iter().map(|&m| (m, true)).collect();
-    seq.extend(tap(code));
-    seq.extend(mods.iter().rev().map(|&m| (m, false)));
-    seq
-}
-
-fn recorded(seq: &[(u16, bool)]) -> Vec<String> {
+#[test]
+fn a_key_whose_release_was_lost_stops_counting_once_the_device_says_it_is_up() {
+    let mut held = HeldKeys::default();
+    let mut keys = us();
     let mut b = InputBuilder::new(rect());
-    for (n, &(code, down)) in seq.iter().enumerate() {
-        b.event(key(code, down, FIRST + 1000 * (n as u64 + 1)), None);
-    }
-    b.finish(&out(&[(FIRST, FIRST + 10_000_000)]))
-        .keystrokes
-        .iter()
-        .map(|k| format!("{}{}", k.modifiers.concat(), k.key))
-        .collect()
-}
-
-#[test]
-fn plain_typing_and_shifted_characters_are_never_stored() {
-    let mut password = Vec::new();
-    for code in [KEY_P, KEY_A, KEY_1, COMMA, SPACE, KP_7] {
-        password.extend(tap(code));
-    }
-    password.extend(chord(&[SHIFT], KEY_Q));
-    password.extend(chord(&[SHIFT], KEY_1));
-    password.extend(chord(&[RIGHT_ALT], KEY_Q));
-    password.extend(chord(&[RIGHT_ALT, SHIFT], KEY_A));
-    assert_eq!(recorded(&password), Vec::<String>::new());
-}
-
-#[test]
-fn shortcuts_and_special_keys_are_stored() {
-    let mut seq = Vec::new();
-    seq.extend(chord(&[CTRL], KEY_C));
-    seq.extend(chord(&[ALT], TAB));
-    seq.extend(chord(&[SUPER], KEY_L));
-    seq.extend(chord(&[CTRL, SHIFT], KEY_T));
-    for code in [ENTER, ESC, UP, LEFT, F5, BACKSPACE] {
-        seq.extend(tap(code));
-    }
-    seq.extend(chord(&[SHIFT], TAB));
-    assert_eq!(
-        recorded(&seq),
-        [
-            "⌃C",
-            "⌥Tab",
-            "⌘L",
-            "⌃⇧T",
-            "Enter",
-            "Esc",
-            "Up",
-            "Left",
-            "F5",
-            "Backspace",
-            "⇧Tab"
-        ]
-    );
-}
-
-#[test]
-fn a_modifier_whose_release_was_lost_stops_counting_once_the_device_says_it_is_up() {
-    let mut held = HeldModifiers::default();
-    let mut b = InputBuilder::new(rect());
-    let mut feed = |b: &mut InputBuilder, ev: RawEvent| {
+    let mut feed = |b: &mut InputBuilder, keys: &mut KeyFilter, ev: RawEvent| {
         if let RawEvent::Key { code, down, .. } = ev {
             held.note(code, down);
         }
-        b.event(ev, None);
+        b.event(ev, None, keys);
     };
-    feed(&mut b, key(CTRL, true, FIRST + 1));
-    feed(&mut b, key(KEY_C, true, FIRST + 2));
-    for ev in held.lost(|_| false, FIRST + 3) {
-        b.event(ev, None);
+    feed(&mut b, &mut keys, key(CTRL, true, FIRST + 1));
+    feed(&mut b, &mut keys, key(KEY_C, true, FIRST + 2));
+    for ev in held.lost(0, |_| false, FIRST + 3) {
+        b.event(ev, None, &mut keys);
     }
     assert!(held.is_empty());
-    b.event(key(KEY_A, true, FIRST + 4), None);
-    b.event(key(KEY_A, false, FIRST + 5), None);
-    let keys = b.finish(&out(&[(FIRST, FIRST + 1_000_000)])).keystrokes;
-    assert_eq!(keys.len(), 1, "only the real Ctrl+C: {keys:?}");
-    assert_eq!(keys[0].key, "C");
+    b.event(key(KEY_A, true, FIRST + 4), None, &mut keys);
+    b.event(key(KEY_A, false, FIRST + 5), None, &mut keys);
+    let stored = b.finish(&out(&[(FIRST, FIRST + 1_000_000)])).keystrokes;
+    assert_eq!(stored.len(), 1, "only the real Ctrl+C: {stored:?}");
+    assert_eq!(stored[0].key, "C");
 
-    let mut still = HeldModifiers::default();
+    let mut still = HeldKeys::default();
     still.note(CTRL, true);
     still.note(KEY_A, true);
-    assert!(still.lost(|c| c == CTRL, 0).is_empty());
+    assert_eq!(still.lost(0, |c| c == CTRL, 0).len(), 1, "A is up");
     assert!(!still.is_empty());
 }
 
 #[test]
-fn presses_carry_the_pointer_normalised_and_no_position_when_unknown() {
+fn presses_inside_the_area_are_normalised_and_presses_outside_it_are_dropped() {
+    let mut keys = KeyFilter::default();
     let mut b = InputBuilder::new(rect());
-    b.event(
-        button(true, FIRST + 200_000),
-        Some(Point::new(200.0, 300.0)),
-    );
-    b.event(button(false, FIRST + 400_000), Some(Point::new(0.0, 900.0)));
-    b.event(button(true, FIRST + 500_000), None);
-    b.event(
-        RawEvent::Button {
-            code: 0x14a,
-            down: true,
-            t_us: FIRST + 600_000,
-        },
-        None,
-    );
+    let at = |x, y| Some(Point::new(x, y));
+    b.event(button(true, FIRST + 200_000), at(200.0, 300.0), &mut keys);
+    b.event(button(false, FIRST + 400_000), at(300.0, 400.0), &mut keys);
+    b.event(button(true, FIRST + 450_000), at(150.0, 900.0), &mut keys);
+    b.event(button(true, FIRST + 460_000), at(50.0, 300.0), &mut keys);
+    b.event(button(true, FIRST + 500_000), None, &mut keys);
+    let touch = RawEvent::Button {
+        code: 0x14a,
+        down: true,
+        t_us: FIRST + 600_000,
+    };
+    b.event(touch, None, &mut keys);
     let i = b.finish(&out(&[(FIRST, FIRST + 9_000_000)]));
     assert!(i.travel.is_empty());
-    assert_eq!(i.presses.len(), 3, "a touch contact is not a click");
     let p = &i.presses;
+    assert_eq!(p.len(), 3, "outside the area or a touch contact: {p:?}");
     assert_eq!((p[0].x, p[0].y, p[0].button), (Some(0.5), Some(0.5), 0));
     assert_eq!(p[0].phase, PressPhase::Down);
-    assert_eq!((p[1].x, p[1].y), (Some(0.0), Some(1.0)));
+    assert_eq!((p[1].x, p[1].y), (Some(1.0), Some(1.0)), "the far edge");
     assert_eq!(p[1].phase, PressPhase::Up);
     assert_eq!((p[2].x, p[2].y), (None, None));
 }
 
 #[test]
-fn paused_time_is_subtracted_and_events_inside_a_pause_are_dropped() {
+fn paused_time_is_subtracted_and_key_times_are_coarse() {
     let segs = [
         (FIRST, FIRST + 1_000_000),
         (FIRST + 3_000_000, FIRST + 4_000_000),
@@ -193,26 +123,29 @@ fn paused_time_is_subtracted_and_events_inside_a_pause_are_dropped() {
     assert_eq!(movie_time(FIRST + 3_500_000, &o), Some(1.5));
     assert_eq!(movie_time(FIRST - 1, &o), None);
 
+    let mut keys = KeyFilter::default();
     let mut b = InputBuilder::new(rect());
-    b.event(button(true, FIRST + 100_000), None);
-    b.event(key(ENTER, true, FIRST + 2_000_000), None);
-    b.event(key(ESC, true, FIRST + 3_500_000), None);
+    b.event(button(true, FIRST + 100_000), None, &mut keys);
+    b.event(key(ENTER, true, FIRST + 2_000_000), None, &mut keys);
+    b.event(key(ESC, true, FIRST + 3_503_721), None, &mut keys);
     let i = b.finish(&o);
     assert_eq!(i.presses.iter().map(|p| p.time).collect::<Vec<_>>(), [0.1]);
-    let keys: Vec<_> = i.keystrokes.iter().map(|k| (k.time, &*k.key)).collect();
-    assert_eq!(keys, [(1.5, "Esc")]);
+    let stored: Vec<_> = i.keystrokes.iter().map(|k| (k.time, &*k.key)).collect();
+    assert_eq!(stored, [(1.5, "Esc")]);
 }
 
 #[test]
 fn input_json_has_the_documented_shape() {
+    let mut keys = us();
     let mut b = InputBuilder::new(rect());
     b.event(
         button(true, FIRST + 200_000),
         Some(Point::new(200.0, 300.0)),
+        &mut keys,
     );
-    b.event(button(false, FIRST + 300_000), None);
-    b.event(key(CTRL, true, FIRST + 400_000), None);
-    b.event(key(KEY_C, true, FIRST + 500_000), None);
+    b.event(button(false, FIRST + 300_000), None, &mut keys);
+    b.event(key(CTRL, true, FIRST + 400_000), None, &mut keys);
+    b.event(key(KEY_C, true, FIRST + 500_000), None, &mut keys);
     let i = b.finish(&out(&[(FIRST, FIRST + 1_000_000)]));
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("input.json");
@@ -235,6 +168,35 @@ impl CursorSource for Still {
     }
 }
 
+/// Samples only through a stream it opens, and counts the streams still alive.
+struct Streaming {
+    opened: Mutex<Vec<std::sync::Weak<dyn CursorSource>>>,
+    samples: Arc<Mutex<usize>>,
+}
+impl CursorSource for Streaming {
+    fn sample(&self) -> Option<(Point, Instant)> {
+        None
+    }
+    fn open(&self) -> Option<Arc<dyn CursorSource>> {
+        let s: Arc<dyn CursorSource> = Arc::new(Still(self.samples.clone()));
+        self.opened.lock().unwrap().push(Arc::downgrade(&s));
+        Some(s)
+    }
+}
+impl Streaming {
+    fn alive(&self) -> usize {
+        let opened = self.opened.lock().unwrap();
+        opened.iter().filter(|w| w.strong_count() > 0).count()
+    }
+}
+
+struct Fixed(Mutex<Option<KeymapText>>);
+impl KeymapSource for Fixed {
+    fn keymap(&self) -> Option<KeymapText> {
+        self.0.lock().unwrap().clone()
+    }
+}
+
 struct Scripted(Arc<Mutex<Vec<RawEvent>>>);
 impl EventSource for Scripted {
     fn next_batch(&mut self, wait: Duration) -> Vec<RawEvent> {
@@ -243,36 +205,143 @@ impl EventSource for Scripted {
     }
 }
 
+struct Rig {
+    clock: SystemClock,
+    queue: Arc<Mutex<Vec<RawEvent>>>,
+    open: Arc<AtomicBool>,
+    keymap: Arc<Fixed>,
+    first: u64,
+}
+
+impl Rig {
+    fn start(cursor: Arc<dyn CursorSource>) -> (Rig, InputCollector) {
+        let clock = SystemClock::default();
+        let rig = Rig {
+            first: clock.monotonic_us(),
+            clock,
+            queue: Arc::new(Mutex::new(Vec::new())),
+            open: Arc::new(AtomicBool::new(true)),
+            keymap: Arc::new(Fixed(Mutex::new(Some(KeymapText {
+                serial: 1,
+                text: us_text().into(),
+            })))),
+        };
+        let sources = Sources {
+            cursor: Some(cursor),
+            keymap: Some(rig.keymap.clone()),
+            session_open: rig.open.clone(),
+        };
+        let c = InputCollector::start(rect(), sources, Box::new(Scripted(rig.queue.clone())));
+        (rig, c)
+    }
+
+    fn ctrl_c(&self) {
+        let now = self.clock.monotonic_us();
+        self.queue.lock().unwrap().extend([
+            key(CTRL, true, now),
+            key(KEY_C, true, now),
+            key(KEY_C, false, now),
+            key(CTRL, false, now),
+        ]);
+        std::thread::sleep(Duration::from_millis(80));
+    }
+
+    fn finish(&self, c: InputCollector) -> es_model::recording::RecordingInput {
+        let end = self.clock.monotonic_us();
+        c.stop().unwrap().finish(&RecordingOutput {
+            file: PathBuf::new(),
+            first_frame_monotonic_us: self.first,
+            segments: vec![(self.first, end)],
+        })
+    }
+}
+
 #[test]
 fn the_collector_reads_a_fake_source_and_asks_for_the_pointer_only_on_clicks() {
-    let clock = Arc::new(SystemClock::default());
-    let queue = Arc::new(Mutex::new(Vec::new()));
     let samples = Arc::new(Mutex::new(0));
-    let c = InputCollector::start(
-        rect(),
-        Some(Arc::new(Still(samples.clone()))),
-        Box::new(Scripted(queue.clone())),
-    );
-    let first = clock.monotonic_us();
+    let (rig, c) = Rig::start(Arc::new(Still(samples.clone())));
     std::thread::sleep(Duration::from_millis(80));
     assert_eq!(*samples.lock().unwrap(), 0, "no pointer polling while idle");
-    queue.lock().unwrap().extend([
-        button(true, clock.monotonic_us()),
-        key(CTRL, true, clock.monotonic_us()),
-        key(KEY_C, true, clock.monotonic_us()),
-        key(KEY_A, true, clock.monotonic_us()),
+    let now = rig.clock.monotonic_us();
+    rig.queue.lock().unwrap().extend([
+        button(true, now),
+        key(CTRL, true, now),
+        key(KEY_C, true, now),
     ]);
     std::thread::sleep(Duration::from_millis(80));
-    let end = clock.monotonic_us();
-    let i = c.stop().unwrap().finish(&RecordingOutput {
-        file: PathBuf::new(),
-        first_frame_monotonic_us: first,
-        segments: vec![(first, end)],
-    });
-    assert!(i.travel.is_empty());
+    let i = rig.finish(c);
     assert_eq!(i.presses.len(), 1);
     assert_eq!(i.presses[0].x, Some(0.5));
-    assert_eq!(i.keystrokes.len(), 2);
+    assert_eq!(i.keystrokes.len(), 1);
+}
+
+#[test]
+fn nothing_is_read_while_the_session_is_inactive_or_locked() {
+    let (rig, c) = Rig::start(Arc::new(Still(Arc::default())));
+    rig.ctrl_c();
+    rig.open.store(false, Ordering::Relaxed);
+    std::thread::sleep(Duration::from_millis(40));
+    let now = rig.clock.monotonic_us();
+    rig.queue
+        .lock()
+        .unwrap()
+        .extend([key(CTRL, true, now), button(true, now)]);
+    rig.ctrl_c();
+    rig.open.store(true, Ordering::Relaxed);
+    std::thread::sleep(Duration::from_millis(40));
+    let now = rig.clock.monotonic_us();
+    rig.queue.lock().unwrap().push(key(KEY_A, true, now));
+    rig.ctrl_c();
+    let i = rig.finish(c);
+    assert!(i.presses.is_empty(), "{:?}", i.presses);
+    let stored: Vec<_> = i.keystrokes.iter().map(|k| &*k.key).collect();
+    assert_eq!(stored, ["C", "C"], "a Ctrl held while locked is forgotten");
+}
+
+#[test]
+fn the_collector_follows_the_keymap_and_stores_no_letters_without_one() {
+    let (rig, c) = Rig::start(Arc::new(Still(Arc::default())));
+    *rig.keymap.0.lock().unwrap() = None;
+    rig.ctrl_c();
+    *rig.keymap.0.lock().unwrap() = Some(KeymapText {
+        serial: 2,
+        text: us_text().into(),
+    });
+    rig.ctrl_c();
+    let i = rig.finish(c);
+    assert_eq!(i.keystrokes.len(), 1, "{:?}", i.keystrokes);
+}
+
+#[test]
+fn halting_stops_reading_at_once() {
+    let (rig, c) = Rig::start(Arc::new(Still(Arc::default())));
+    c.halt();
+    std::thread::sleep(Duration::from_millis(40));
+    rig.ctrl_c();
+    assert!(rig.finish(c).keystrokes.is_empty());
+}
+
+#[test]
+fn a_streaming_cursor_is_open_only_while_the_collector_runs() {
+    let cursor = Arc::new(Streaming {
+        opened: Mutex::default(),
+        samples: Arc::default(),
+    });
+    assert_eq!(cursor.alive(), 0);
+    let (rig, c) = Rig::start(cursor.clone());
+    std::thread::sleep(Duration::from_millis(40));
+    assert_eq!(cursor.alive(), 1);
+    let now = rig.clock.monotonic_us();
+    rig.queue.lock().unwrap().push(button(true, now));
+    std::thread::sleep(Duration::from_millis(80));
+    assert_eq!(
+        *cursor.samples.lock().unwrap(),
+        1,
+        "sampled through the stream"
+    );
+    let i = rig.finish(c);
+    assert_eq!(i.presses[0].x, Some(0.5));
+    assert_eq!(cursor.alive(), 0, "closed with the recording");
 }
 
 #[test]

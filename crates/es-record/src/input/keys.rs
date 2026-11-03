@@ -1,36 +1,24 @@
+/// Modifier keys by evdev code, for when no keymap is known. It only labels special keys: without
+/// the keymap nothing says what a held key types, so no letter, digit or punctuation is stored.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct ModState {
     ctrl: u8,
     alt: u8,
-    alt_gr: u8,
     shift: u8,
     meta: u8,
 }
 
-enum Modifier {
-    Ctrl,
-    Alt,
-    AltGr,
-    Shift,
-    Meta,
-}
-
-fn modifier_of(code: u16) -> Option<Modifier> {
+fn modifier_of(code: u16) -> Option<usize> {
     match code {
-        29 | 97 => Some(Modifier::Ctrl),
-        56 => Some(Modifier::Alt),
-        100 => Some(Modifier::AltGr),
-        42 | 54 => Some(Modifier::Shift),
-        125 | 126 => Some(Modifier::Meta),
+        29 | 97 => Some(0),
+        56 | 100 => Some(1),
+        42 | 54 => Some(2),
+        125 | 126 => Some(3),
         _ => None,
     }
 }
 
-fn is_modifier(code: u16) -> bool {
-    modifier_of(code).is_some()
-}
-
-fn special_name(code: u16) -> Option<&'static str> {
+pub(super) fn special_name(code: u16) -> Option<&'static str> {
     Some(match code {
         1 => "Esc",
         14 => "Backspace",
@@ -62,59 +50,28 @@ fn special_name(code: u16) -> Option<&'static str> {
     })
 }
 
-fn plain_name(code: u16) -> String {
-    let s = match code {
-        2..=10 => return char::from(b'1' + (code - 2) as u8).to_string(),
-        11 => "0",
-        12 => "-",
-        13 => "=",
-        16..=25 => return char::from(b"QWERTYUIOP"[usize::from(code - 16)]).to_string(),
-        26 => "[",
-        27 => "]",
-        30..=38 => return char::from(b"ASDFGHJKL"[usize::from(code - 30)]).to_string(),
-        39 => ";",
-        40 => "'",
-        41 => "`",
-        43 => "\\",
-        44..=50 => return char::from(b"ZXCVBNM"[usize::from(code - 44)]).to_string(),
-        51 => ",",
-        52 => ".",
-        53 => "/",
-        57 => "Space",
-        _ => return format!("Key{code}"),
-    };
-    s.to_owned()
-}
-
 impl ModState {
-    fn symbols(&self, with_shift: bool) -> Vec<String> {
-        let mut m = Vec::new();
-        if self.ctrl > 0 {
-            m.push("⌃".to_owned());
-        }
-        if self.alt > 0 || self.alt_gr > 0 {
-            m.push("⌥".to_owned());
-        }
-        if with_shift && self.shift > 0 {
-            m.push("⇧".to_owned());
-        }
-        if self.meta > 0 {
-            m.push("⌘".to_owned());
-        }
-        m
+    fn symbols(&self) -> Vec<String> {
+        [
+            (self.ctrl, "⌃"),
+            (self.alt, "⌥"),
+            (self.shift, "⇧"),
+            (self.meta, "⌘"),
+        ]
+        .into_iter()
+        .filter(|&(n, _)| n > 0)
+        .map(|(_, s)| s.to_owned())
+        .collect()
     }
 
-    /// Feeds one key transition; returns a keystroke only for a chord (Ctrl, left Alt or Meta
-    /// held) or a special key. Plain typing yields nothing. Right Alt never makes a chord because
-    /// on many layouts it is AltGr, which types characters.
+    /// Feeds one key transition; returns a keystroke only for a special key.
     pub fn feed(&mut self, code: u16, down: bool) -> Option<(Vec<String>, String)> {
-        if let Some(m) = modifier_of(code) {
-            let n = match m {
-                Modifier::Ctrl => &mut self.ctrl,
-                Modifier::Alt => &mut self.alt,
-                Modifier::AltGr => &mut self.alt_gr,
-                Modifier::Shift => &mut self.shift,
-                Modifier::Meta => &mut self.meta,
+        if let Some(i) = modifier_of(code) {
+            let n = match i {
+                0 => &mut self.ctrl,
+                1 => &mut self.alt,
+                2 => &mut self.shift,
+                _ => &mut self.meta,
             };
             *n = if down {
                 n.saturating_add(1)
@@ -126,25 +83,18 @@ impl ModState {
         if !down {
             return None;
         }
-        let chord = self.ctrl > 0 || self.alt > 0 || self.meta > 0;
-        if let Some(name) = special_name(code) {
-            return Some((self.symbols(true), name.to_owned()));
-        }
-        chord.then(|| (self.symbols(true), plain_name(code)))
+        special_name(code).map(|name| (self.symbols(), name.to_owned()))
     }
 }
 
-/// The modifiers one device reported down. A release that never arrives (the device was
-/// unplugged, or another program grabbed it) would leave a chord held and turn plain typing into
-/// recorded chords, so the source checks these against the device and releases what is up.
+/// The keys one device reported down. A release that never arrives (the device was unplugged, or
+/// another program grabbed it) would leave a modifier held and turn plain typing into chords, so
+/// the source checks these against the device and releases what is up.
 #[derive(Debug, Default, Clone)]
-pub struct HeldModifiers(Vec<u16>);
+pub struct HeldKeys(Vec<u16>);
 
-impl HeldModifiers {
+impl HeldKeys {
     pub fn note(&mut self, code: u16, down: bool) {
-        if !is_modifier(code) {
-            return;
-        }
         self.0.retain(|&c| c != code);
         if down {
             self.0.push(code);
@@ -155,13 +105,19 @@ impl HeldModifiers {
         self.0.is_empty()
     }
 
-    /// Releases for every noted modifier that `still_down` says is up.
-    pub fn lost(&mut self, still_down: impl Fn(u16) -> bool, t_us: u64) -> Vec<super::RawEvent> {
+    /// Releases for every noted key that `still_down` says is up.
+    pub fn lost(
+        &mut self,
+        device: u32,
+        still_down: impl Fn(u16) -> bool,
+        t_us: u64,
+    ) -> Vec<super::RawEvent> {
         let mut out = Vec::new();
         self.0.retain(|&code| {
             let held = still_down(code);
             if !held {
                 out.push(super::RawEvent::Key {
+                    device,
                     code,
                     down: false,
                     t_us,

@@ -6,8 +6,8 @@ use crate::{desktop, wayland};
 use bitflags::bitflags;
 use es_desktop::{Appearance, FilePicker, Notifier, Shortcuts, Tray};
 use es_model::platform::{
-    CaptureOpts, ClipItem, CursorSource, Frame, OutputEvent, OutputId, OutputInfo, WindowEvent,
-    WindowId, WindowInfo,
+    CaptureOpts, ClipItem, CursorSource, Frame, KeymapSource, OutputEvent, OutputId, OutputInfo,
+    WindowEvent, WindowId, WindowInfo,
 };
 use es_record::Recorder;
 use std::sync::Arc;
@@ -90,6 +90,7 @@ pub struct Backend {
     /// Best provider first.
     pub recorders: Vec<Box<dyn Recorder>>,
     pub cursor: Option<Arc<dyn CursorSource>>,
+    pub keymap: Option<Arc<dyn KeymapSource>>,
     pub virtual_input: Option<Box<dyn VirtualInput>>,
     pub overlay: OverlayKind,
     /// Derived from the chosen providers and `Probe.tools`, never set by hand.
@@ -154,6 +155,7 @@ impl Backend {
                 .unwrap_or_else(|| Box::new(NoClipboard)),
             virtual_input: select("virtual_input", reg.virtual_input, probe, &mut report),
             cursor: select("cursor", reg.cursor, probe, &mut report).map(Arc::from),
+            keymap: wayland::keymap(probe),
             shortcuts: select("shortcuts", reg.shortcuts, probe, &mut report)
                 .unwrap_or_else(|| Box::new(desktop::UserBinds::new())),
             tray: select("tray", reg.tray, probe, &mut report),

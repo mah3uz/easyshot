@@ -7,9 +7,11 @@ use crate::probe::{Probe, Provider};
 use crate::traits::{Capture, Clipboard, VirtualInput, WindowList};
 use capture::WaylandCapture;
 use es_geom::Point;
-use es_model::platform::{ClipItem, CursorSource, WindowEvent, WindowInfo};
+use es_model::platform::{
+    ClipItem, CursorSource, KeymapSource, KeymapText, WindowEvent, WindowInfo,
+};
 use es_wayland::{Connection, CursorSession};
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 use std::time::Instant;
 
 fn connection(p: &Probe) -> std::result::Result<Arc<Connection>, BackendError> {
@@ -96,24 +98,36 @@ pub const VIRTUAL_POINTER: Provider<dyn VirtualInput> = Provider {
     build: |p| Ok(Box::new(VirtualPointer(connection(p)?))),
 };
 
-// The session streams cursor events for every output while it lives, so it starts on first use.
-struct LazyCursor {
-    conn: Arc<Connection>,
-    session: OnceLock<Option<CursorSession>>,
+// A session streams cursor events for every output while it lives, so one is open only while a
+// caller holds it.
+struct StreamCursor(Arc<Connection>);
+
+impl CursorSource for StreamCursor {
+    fn sample(&self) -> Option<(Point, Instant)> {
+        None
+    }
+
+    fn open(&self) -> Option<Arc<dyn CursorSource>> {
+        let session: CursorSession = self
+            .0
+            .cursor_session()
+            .inspect_err(|e| tracing::warn!("cursor session: {e}"))
+            .ok()?;
+        Some(Arc::new(session))
+    }
 }
 
-impl CursorSource for LazyCursor {
-    fn sample(&self) -> Option<(Point, Instant)> {
-        self.session
-            .get_or_init(|| {
-                self.conn
-                    .cursor_session()
-                    .inspect_err(|e| tracing::warn!("cursor session: {e}"))
-                    .ok()
-            })
-            .as_ref()
-            .and_then(CursorSource::sample)
+struct SeatKeymap(Arc<Connection>);
+
+impl KeymapSource for SeatKeymap {
+    fn keymap(&self) -> Option<KeymapText> {
+        self.0.keymap()
     }
+}
+
+pub fn keymap(p: &Probe) -> Option<Arc<dyn KeymapSource>> {
+    let conn = p.wayland.clone()?;
+    Some(Arc::new(SeatKeymap(conn)))
 }
 
 pub const CURSOR_SESSION: Provider<dyn CursorSource> = Provider {
@@ -123,10 +137,5 @@ pub const CURSOR_SESSION: Provider<dyn CursorSource> = Provider {
             && p.globals.ext_output_capture_source.is_some())
         .then_some(5)
     },
-    build: |p| {
-        Ok(Box::new(LazyCursor {
-            conn: connection(p)?,
-            session: OnceLock::new(),
-        }))
-    },
+    build: |p| Ok(Box::new(StreamCursor(connection(p)?))),
 };

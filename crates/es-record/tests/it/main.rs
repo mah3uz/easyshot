@@ -2,6 +2,7 @@ mod audio;
 mod common;
 mod gsr;
 mod input;
+mod input_keys;
 mod lifeline;
 mod project;
 mod recovery;

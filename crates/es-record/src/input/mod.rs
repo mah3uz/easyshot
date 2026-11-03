@@ -1,3 +1,4 @@
+mod keymap;
 mod keys;
 
 #[cfg(feature = "evdev-input")]
@@ -5,11 +6,12 @@ mod evdev_source;
 
 #[cfg(feature = "evdev-input")]
 pub use evdev_source::{EvdevSource, discover_devices};
-pub use keys::{HeldModifiers, ModState};
+pub use keymap::{KeyFilter, Keymap};
+pub use keys::HeldKeys;
 
 use crate::{Clock, Error, RecordingOutput, Result};
 use es_geom::{Point, Rect};
-use es_model::platform::CursorSource;
+use es_model::platform::{CursorSource, KeymapSource};
 use es_model::recording::{InputAccess, KeystrokeSample, PressPhase, PressSample, RecordingInput};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -22,11 +24,21 @@ pub const DEV_INPUT: &str = "/dev/input";
 const BTN_FIRST: u16 = 0x110;
 const BTN_LAST: u16 = 0x11f;
 const TICK: Duration = Duration::from_millis(16);
+const KEY_TIME_STEP: f64 = 0.01;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RawEvent {
-    Button { code: u16, down: bool, t_us: u64 },
-    Key { code: u16, down: bool, t_us: u64 },
+    Button {
+        code: u16,
+        down: bool,
+        t_us: u64,
+    },
+    Key {
+        device: u32,
+        code: u16,
+        down: bool,
+        t_us: u64,
+    },
 }
 
 pub trait EventSource: Send {
@@ -94,7 +106,6 @@ pub struct InputBuilder {
     capture_rect: Rect,
     presses: Vec<(u64, Option<Point>, u32, PressPhase)>,
     keys: Vec<(u64, Vec<String>, String)>,
-    mods: ModState,
 }
 
 impl InputBuilder {
@@ -103,12 +114,11 @@ impl InputBuilder {
             capture_rect,
             presses: Vec::new(),
             keys: Vec::new(),
-            mods: ModState::default(),
         }
     }
 
     /// `pointer` is where the pointer was when the event was read, in the capture rect's space.
-    pub fn event(&mut self, ev: RawEvent, pointer: Option<Point>) {
+    pub fn event(&mut self, ev: RawEvent, pointer: Option<Point>, keys: &mut KeyFilter) {
         match ev {
             RawEvent::Button { code, down, t_us } => {
                 if !(BTN_FIRST..=BTN_LAST).contains(&code) {
@@ -122,8 +132,13 @@ impl InputBuilder {
                 self.presses
                     .push((t_us, pointer, u32::from(code - BTN_FIRST), phase));
             }
-            RawEvent::Key { code, down, t_us } => {
-                if let Some((mods, key)) = self.mods.feed(code, down) {
+            RawEvent::Key {
+                device,
+                code,
+                down,
+                t_us,
+            } => {
+                if let Some((mods, key)) = keys.feed(device, code, down) {
                     self.keys.push((t_us, mods, key));
                 }
             }
@@ -134,9 +149,11 @@ impl InputBuilder {
         let r = self.capture_rect;
         let (w, h) = (r.width().max(1.0), r.height().max(1.0));
         let at = |t| movie_time(t, out);
+        let inside = |p: Point| p.x >= r.x0 && p.x <= r.x1 && p.y >= r.y0 && p.y <= r.y1;
         let mut presses: Vec<PressSample> = self
             .presses
             .iter()
+            .filter(|(_, p, _, _)| p.is_none_or(inside))
             .filter_map(|&(t, p, button, phase)| {
                 Some(PressSample {
                     time: at(t)?,
@@ -152,7 +169,7 @@ impl InputBuilder {
             .into_iter()
             .filter_map(|(t, modifiers, key)| {
                 Some(KeystrokeSample {
-                    time: at(t)?,
+                    time: (at(t)? / KEY_TIME_STEP).round() * KEY_TIME_STEP,
                     modifiers,
                     key,
                 })
@@ -200,6 +217,15 @@ pub fn write_input(path: &Path, input: &RecordingInput) -> Result<()> {
     crate::project::write_json(path, input)
 }
 
+/// What the collector reads besides the devices.
+#[derive(Clone)]
+pub struct Sources {
+    pub cursor: Option<Arc<dyn CursorSource>>,
+    pub keymap: Option<Arc<dyn KeymapSource>>,
+    /// False while the login session is inactive or locked; nothing is read then.
+    pub session_open: Arc<AtomicBool>,
+}
+
 pub struct InputCollector {
     builder: Arc<Mutex<InputBuilder>>,
     quit: Arc<AtomicBool>,
@@ -208,17 +234,24 @@ pub struct InputCollector {
 
 impl InputCollector {
     /// Reads `events` on its own thread; the pointer is asked for only when a button changes.
-    pub fn start(
-        capture_rect: Rect,
-        cursor: Option<Arc<dyn CursorSource>>,
-        mut events: Box<dyn EventSource>,
-    ) -> Self {
+    pub fn start(capture_rect: Rect, sources: Sources, mut events: Box<dyn EventSource>) -> Self {
         let builder = Arc::new(Mutex::new(InputBuilder::new(capture_rect)));
         let quit = Arc::new(AtomicBool::new(false));
         let (b, q) = (builder.clone(), quit.clone());
         let thread = std::thread::spawn(move || {
+            let stream = sources.cursor.as_ref().and_then(|c| c.open());
+            let cursor = stream.or(sources.cursor);
+            let mut keys = KeyFilter::default();
             while !q.load(Ordering::Relaxed) {
                 let batch = events.next_batch(TICK);
+                if q.load(Ordering::Relaxed) {
+                    break;
+                }
+                if !sources.session_open.load(Ordering::Relaxed) {
+                    keys.forget();
+                    continue;
+                }
+                keys.follow(sources.keymap.as_ref().and_then(|k| k.keymap()).as_ref());
                 let pointer = batch
                     .iter()
                     .any(|e| matches!(e, RawEvent::Button { .. }))
@@ -227,7 +260,7 @@ impl InputCollector {
                     .map(|(p, _)| p);
                 let Ok(mut g) = b.lock() else { return };
                 for ev in batch {
-                    g.event(ev, pointer);
+                    g.event(ev, pointer, &mut keys);
                 }
             }
         });
@@ -249,8 +282,13 @@ impl InputCollector {
         Ok(std::mem::replace(&mut *g, InputBuilder::new(rect)))
     }
 
-    fn join(&mut self) {
+    /// Stops reading at once, without waiting for the thread.
+    pub fn halt(&self) {
         self.quit.store(true, Ordering::Relaxed);
+    }
+
+    fn join(&mut self) {
+        self.halt();
         if let Some(t) = self.thread.take() {
             let _ = t.join();
         }

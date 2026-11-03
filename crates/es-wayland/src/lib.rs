@@ -2,6 +2,7 @@ mod capture;
 mod clipboard;
 mod globals;
 mod input;
+mod keyboard;
 mod output;
 mod shm;
 #[cfg(test)]

@@ -1,9 +1,21 @@
-use super::{EventSource, HeldModifiers, RawEvent, event_nodes};
+use super::{EventSource, HeldKeys, RawEvent, event_nodes};
 use crate::Clock;
 use evdev::{Device, EventType, KeyCode};
+use std::os::fd::OwnedFd;
+use std::os::unix::fs::OpenOptionsExt as _;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+/// Read-only, so no descriptor this process holds can write events into a device.
+fn open_read_only(path: &Path) -> Option<Device> {
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(rustix::fs::OFlags::NONBLOCK.bits() as i32)
+        .open(path)
+        .ok()?;
+    Device::from_fd(OwnedFd::from(file)).ok()
+}
 
 /// Opens every readable `eventN` node under `dir` to read its capabilities, so it touches real
 /// devices; callers outside tests only.
@@ -11,7 +23,7 @@ pub fn discover_devices(dir: &Path) -> Vec<PathBuf> {
     event_nodes(dir)
         .into_iter()
         .filter(|p| {
-            Device::open(p).is_ok_and(|d| {
+            open_read_only(p).is_some_and(|d| {
                 d.supported_keys()
                     .is_some_and(|k| k.contains(KeyCode::BTN_LEFT) || k.contains(KeyCode::KEY_A))
             })
@@ -21,7 +33,8 @@ pub fn discover_devices(dir: &Path) -> Vec<PathBuf> {
 
 struct Node {
     device: Device,
-    held: HeldModifiers,
+    id: u32,
+    held: HeldKeys,
 }
 
 pub struct EvdevSource {
@@ -40,12 +53,15 @@ impl EvdevSource {
         let nodes = paths
             .iter()
             .filter_map(|p| {
-                let device = Device::open(p).ok()?;
+                let device = open_read_only(p)?;
                 device.set_nonblocking(true).ok()?;
-                Some(Node {
-                    device,
-                    held: HeldModifiers::default(),
-                })
+                Some(device)
+            })
+            .zip(0..)
+            .map(|(device, id)| Node {
+                device,
+                id,
+                held: HeldKeys::default(),
             })
             .collect();
         Self { nodes, clock }
@@ -57,8 +73,9 @@ impl EvdevSource {
 }
 
 impl Node {
-    /// False when the device is gone; every modifier it held is released then.
+    /// False when the device is gone; every key it held is released then.
     fn read(&mut self, delta: i128, now: u64, out: &mut Vec<RawEvent>) -> bool {
+        let id = self.id;
         match self.device.fetch_events() {
             Ok(events) => {
                 for ev in events {
@@ -71,17 +88,22 @@ impl Node {
                         .map_or(0, |d| d.as_micros());
                     let t_us = u64::try_from((rt as i128 - delta).max(0)).unwrap_or(0);
                     let (code, down) = (ev.code(), ev.value() == 1);
-                    self.held.note(code, down);
                     out.push(if (0x110..=0x11f).contains(&code) {
                         RawEvent::Button { code, down, t_us }
                     } else {
-                        RawEvent::Key { code, down, t_us }
+                        self.held.note(code, down);
+                        RawEvent::Key {
+                            device: id,
+                            code,
+                            down,
+                            t_us,
+                        }
                     });
                 }
             }
             Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
             Err(_) => {
-                out.extend(self.held.lost(|_| false, now));
+                out.extend(self.held.lost(id, |_| false, now));
                 return false;
             }
         }
@@ -90,11 +112,11 @@ impl Node {
         }
         match self.device.get_key_state() {
             Ok(keys) => {
-                out.extend(self.held.lost(|c| keys.contains(KeyCode::new(c)), now));
+                out.extend(self.held.lost(id, |c| keys.contains(KeyCode::new(c)), now));
                 true
             }
             Err(_) => {
-                out.extend(self.held.lost(|_| false, now));
+                out.extend(self.held.lost(id, |_| false, now));
                 false
             }
         }
