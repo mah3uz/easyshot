@@ -1,8 +1,12 @@
+use super::recording::Recordings;
 use super::windows::Wiring;
 use es_app::capture_coordinator::Hook;
+use es_app::errors::Error;
+use es_app::toast::{Toast, show_toast};
 use es_app::windows::{WindowKey, WindowKind, Windows};
 use es_model::platform::WindowInfo;
 use es_overlays::record::bar::{BarEvent, CaptureBar};
+use es_overlays::record::options::RecordingRequest;
 use es_record::AudioDevice;
 use es_record::audio::{Runner, list_audio_devices};
 use gpui::{App, AppContext as _, Entity};
@@ -19,6 +23,7 @@ pub fn close_before_capture(windows: &Windows) -> Hook {
 pub struct BarSources {
     pub windows: Rc<dyn Fn() -> Vec<WindowInfo>>,
     pub devices: Rc<dyn Fn() -> Vec<AudioDevice>>,
+    pub recorder_missing: bool,
 }
 
 impl Default for BarSources {
@@ -26,6 +31,7 @@ impl Default for BarSources {
         BarSources {
             windows: Rc::new(Vec::new),
             devices: Rc::new(Vec::new),
+            recorder_missing: false,
         }
     }
 }
@@ -48,10 +54,27 @@ impl Runner for NoAudio {
     }
 }
 
+/// A refusal is explained by `admit`'s own toast, so only a failed start adds another.
+pub fn start_recording(recordings: &Recordings, request: RecordingRequest, cx: &mut App) {
+    if recordings.admit(cx).is_err() {
+        return;
+    }
+    let started = recordings.with_request(request, cx);
+    cx.spawn(async move |cx| {
+        if let Err(e) = started.await
+            && !matches!(e, Error::Cancelled)
+        {
+            tracing::warn!(error = %e, "recording did not start");
+            cx.update(|cx| show_toast(Toast::error("toast-error-generic"), cx));
+        }
+    })
+    .detach();
+}
+
 pub fn new_bar(w: &Rc<Wiring>, cx: &mut App) -> Entity<CaptureBar> {
     let sources = w.bar_sources.borrow().clone();
     let devices = (sources.devices)();
-    let bar = cx.new(|cx| CaptureBar::new((w.outputs)(), devices, cx));
+    let bar = cx.new(|cx| CaptureBar::new((w.outputs)(), devices, sources.recorder_missing, cx));
     let options = bar.read(cx).options().clone();
     options.update(cx, |o, cx| o.set_windows((sources.windows)(), cx));
     cx.subscribe(&bar, move |bar, event: &BarEvent, cx| {

@@ -1,4 +1,6 @@
 mod bar;
+#[cfg(test)]
+mod bar_tests;
 mod bus;
 mod capture;
 mod config_watch;
@@ -385,6 +387,7 @@ fn start(
         } else {
             Rc::new(es_record::audio::SystemRunner)
         }),
+        recorder_missing,
     });
 
     let coordinator = CaptureCoordinator::new(jobs.clone());

@@ -90,7 +90,7 @@ const CLOSE_X: f32 = 648.;
 #[test]
 fn every_capture_bar_item_emits_its_route() {
     let mut s = Surface::open(BAR.width as f32, BAR.height as f32, |cx| {
-        CaptureBar::new(vec![output("A", 0., 1280., 720.)], devices(), cx)
+        CaptureBar::new(vec![output("A", 0., 1280., 720.)], devices(), false, cx)
     });
     s.app.screenshot("capture-bar");
     let view = s.view.clone();
@@ -125,7 +125,7 @@ fn every_capture_bar_item_emits_its_route() {
 #[test]
 fn escape_closes_a_fresh_capture_bar_without_a_click() {
     let mut s = Surface::open(BAR.width as f32, BAR.height as f32, |cx| {
-        CaptureBar::new(vec![output("A", 0., 1280., 720.)], devices(), cx)
+        CaptureBar::new(vec![output("A", 0., 1280., 720.)], devices(), false, cx)
     });
     let (events, _sub) = s.record::<BarEvent>();
     s.key("escape");
@@ -144,7 +144,7 @@ fn escape_closes_a_fresh_capture_bar_without_a_click() {
 fn timer_and_recording_open_their_popups_above_the_bar() {
     let h = 480.;
     let mut s = Surface::open(BAR.width as f32, h, |cx| {
-        CaptureBar::new(vec![output("A", 0., 1280., 720.)], devices(), cx)
+        CaptureBar::new(vec![output("A", 0., 1280., 720.)], devices(), false, cx)
     });
     let y = h - 32.;
     let view = s.view.clone();
@@ -560,7 +560,7 @@ fn screenshot_timer_row(h: f32, i: usize) -> f32 {
 fn the_screenshot_timer_steps_off_3_5_10_and_times_area_screen_and_window() {
     let h = 480.;
     let mut s = Surface::open(BAR.width as f32, h, |cx| {
-        CaptureBar::new(vec![output("A", 0., 1280., 720.)], devices(), cx)
+        CaptureBar::new(vec![output("A", 0., 1280., 720.)], devices(), false, cx)
     });
     let y = h - 32.;
     let view = s.view.clone();
@@ -596,4 +596,17 @@ fn the_screenshot_timer_steps_off_3_5_10_and_times_area_screen_and_window() {
         Route::CaptureScroll,
     ]);
     assert_eq!(routes, expected);
+}
+
+#[test]
+fn a_bar_without_a_recorder_disables_recording_and_says_why() {
+    let h = 480.;
+    let mut s = Surface::open(BAR.width as f32, h, |cx| {
+        CaptureBar::new(vec![output("A", 0., 1280., 720.)], devices(), true, cx)
+    });
+    let view = s.view.clone();
+    s.click(RECORDING_X, h - 32.);
+    assert_eq!(s.app.cx.update(|cx| view.read(cx).popup()), None);
+    let hint = s.app.cx.update(|cx| view.read(cx).recording_hint());
+    assert!(hint.contains("No screen recorder is installed"), "{hint}");
 }

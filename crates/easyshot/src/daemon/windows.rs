@@ -1,4 +1,4 @@
-use super::bar::{BarSources, new_bar};
+use super::bar::{BarSources, new_bar, start_recording};
 use es_app::dispatcher::{HomeTab, RouteDispatcher};
 use es_app::errors::{Error, Result};
 use es_app::events::Origin;
@@ -551,21 +551,7 @@ fn open_bar(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>> {
             let Some(recordings) = recordings else {
                 return;
             };
-            let started = recordings.with_request((**request).clone(), cx);
-            cx.spawn(async move |cx| {
-                if let Err(e) = started.await
-                    && !matches!(e, Error::Cancelled)
-                {
-                    tracing::warn!(error = %e, "recording did not start");
-                    cx.update(|cx| {
-                        es_app::toast::show_toast(
-                            es_app::toast::Toast::error("toast-error-generic"),
-                            cx,
-                        )
-                    });
-                }
-            })
-            .detach();
+            start_recording(&recordings, (**request).clone(), cx);
         }
         _ => {}
     })

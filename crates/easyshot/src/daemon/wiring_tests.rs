@@ -521,12 +521,26 @@ fn the_capture_bar_lists_devices_and_windows_and_refresh_asks_again(cx: &mut Tes
             d.set(d.get() + 1);
             Vec::new()
         }),
+        recorder_missing: false,
     });
     let bar = cx.update(|cx| new_bar(&rig.wiring, cx));
     assert_eq!((windows.get(), devices.get()), (1, 1), "listed at open");
     bar.update(cx, |_, cx| cx.emit(BarEvent::RefreshWindows));
     assert_eq!(windows.get(), 2, "Refresh Windows lists the windows again");
     assert_eq!(devices.get(), 1);
+}
+
+#[gpui::test]
+fn the_capture_bar_is_told_when_no_recorder_is_installed(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    let sources = BarSources {
+        recorder_missing: true,
+        ..BarSources::default()
+    };
+    rig.wiring.set_bar_sources(sources);
+    let bar = cx.update(|cx| new_bar(&rig.wiring, cx));
+    let hint = cx.update(|cx| bar.read(cx).recording_hint());
+    assert!(hint.contains("No screen recorder is installed"), "{hint}");
 }
 
 struct Pactl(&'static str);

@@ -217,7 +217,7 @@ fn main() {
                 backend.clone(),
                 Some(test_output.clone()),
             ));
-            let bar_view = cx.new(|cx| CaptureBar::new(outputs.clone(), Vec::new(), cx));
+            let bar_view = cx.new(|cx| CaptureBar::new(outputs.clone(), Vec::new(), false, cx));
             let bar_handle = open(
                 &surfaces,
                 SurfaceRole::Bar,

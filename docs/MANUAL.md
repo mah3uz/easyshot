@@ -15,8 +15,9 @@ and keeps a history.
 - Tesseract for reading text (OCR). Without it, OCR still reads QR codes; when the region
   has none, it shows "Text recognition needs Tesseract" and how to install it.
 - gpu-screen-recorder or wf-recorder for recording; easyshot uses gpu-screen-recorder when
-  both are installed. Without one, the tray's Record item is greyed out and reads "Record (install wf-recorder)",
-  and every other way to start a recording (shortcut, bar, `easyshot record`, link) answers at
+  both are installed. Without one, the tray's Record item is greyed out and reads "Record (install wf-recorder)", the
+  capture bar's Recording button is greyed out with the same hint, and every other way to
+  start a recording (shortcut, `easyshot record`, link) answers at
   once with "No screen recorder is installed" and the install hint, before anything is
   selected or frozen.
 

@@ -80,6 +80,7 @@ pub(crate) fn divider(colour: Hsla) -> impl IntoElement {
 pub struct CaptureBar {
     popup: Option<Popup>,
     screenshot_timer: u32,
+    recorder_missing: bool,
     options: Entity<RecordingOptions>,
     focus: FocusHandle,
     focused: bool,
@@ -98,6 +99,7 @@ impl CaptureBar {
     pub fn new(
         outputs: Vec<OutputInfo>,
         devices: Vec<AudioDevice>,
+        recorder_missing: bool,
         cx: &mut Context<Self>,
     ) -> Self {
         let options = cx.new(|_| RecordingOptions::new(outputs, devices));
@@ -116,6 +118,7 @@ impl CaptureBar {
         CaptureBar {
             popup: None,
             screenshot_timer: 0,
+            recorder_missing,
             options,
             focus: cx.focus_handle(),
             focused: false,
@@ -133,6 +136,14 @@ impl CaptureBar {
 
     pub fn screenshot_timer(&self) -> u32 {
         self.screenshot_timer
+    }
+
+    pub fn recording_hint(&self) -> String {
+        if self.recorder_missing {
+            fl!("bar-recording-missing")
+        } else {
+            fl!("bar-recording-help")
+        }
     }
 
     pub fn size(&self, cx: &App) -> Size {
@@ -331,19 +342,25 @@ impl Render for CaptureBar {
                 .toggled(self.popup == Some(Popup::Timer))
                 .on_click(cx.listener(|bar, _, _, cx| bar.toggle(Popup::Timer, cx))),
             )
-            .child(
-                captioned(
+            .child({
+                let hint = self.recording_hint();
+                let button = captioned(
                     "bar-recording",
                     IconName::Video,
                     fl!("bar-caption-recording"),
-                    fl!("bar-recording-help"),
-                    fl!("bar-recording-help"),
-                    true,
+                    hint.clone(),
+                    hint,
+                    !self.recorder_missing,
                     cx,
-                )
-                .toggled(self.popup == Some(Popup::Options))
-                .on_click(cx.listener(|bar, _, _, cx| bar.toggle(Popup::Options, cx))),
-            )
+                );
+                if self.recorder_missing {
+                    button
+                } else {
+                    button
+                        .toggled(self.popup == Some(Popup::Options))
+                        .on_click(cx.listener(|bar, _, _, cx| bar.toggle(Popup::Options, cx)))
+                }
+            })
             .child(
                 div()
                     .id("bar-close")

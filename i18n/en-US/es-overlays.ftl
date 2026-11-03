@@ -68,6 +68,7 @@ bar-title-color = Color
 bar-timer-off-help = Timer off
 bar-timer-recording-help = Recording timer { $seconds }s
 bar-recording-help = Recording options
+bar-recording-missing = No screen recorder is installed. Install gpu-screen-recorder or wf-recorder.
 bar-close-help = Close
 bar-close-a11y = Close capture bar — Esc
 bar-timer-a11y = Screenshot and recording timers
