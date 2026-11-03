@@ -97,6 +97,18 @@ impl BindHelper for Lines {
     fn existing_binds(&self) -> es_backend::Result<Vec<(Trigger, String)>> {
         Ok(Vec::new())
     }
+    fn file_name(&self) -> &'static str {
+        "binds.conf"
+    }
+    fn file_text(&self, binds: &[(Trigger, Route)]) -> String {
+        self.snippet(binds)
+    }
+    fn include_line(&self, dir: &str) -> String {
+        format!("include {dir}/binds.conf")
+    }
+    fn is_included(&self, _: &std::path::Path) -> es_backend::Result<bool> {
+        Ok(false)
+    }
 }
 
 fn rig_with(cx: &mut TestAppContext, binds: Option<Arc<dyn BindHelper>>) -> Rig {
@@ -326,12 +338,11 @@ fn recovered_journals_reopen_in_editors_with_a_toast(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
-fn onboarding_has_no_bind_lines_while_no_key_is_chosen(cx: &mut TestAppContext) {
+fn onboarding_offers_the_bind_helper_with_no_keys_chosen(cx: &mut TestAppContext) {
     let rig = rig_with(cx, Some(Arc::new(Lines)));
-    assert_eq!(
-        cx.update(|cx| onboarding_input(&rig.wiring, cx)).snippet,
-        None
-    );
+    let input = cx.update(|cx| onboarding_input(&rig.wiring, cx));
+    assert!(input.binds.is_some());
+    assert!(input.global_shortcuts.is_empty());
 }
 
 #[gpui::test]

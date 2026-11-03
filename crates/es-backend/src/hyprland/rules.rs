@@ -1,8 +1,10 @@
 use super::ipc::Ipc;
 use super::json::Bind;
 use crate::error::Result;
+use crate::include_scan;
 use crate::traits::{BindHelper, BindSyntax, RuleSet, Trigger, WindowRules};
 use es_protocol::Route;
+use std::path::{Path, PathBuf};
 
 pub const LAYER_NAMESPACES: [&str; 8] = [
     "easyshot-overlay",
@@ -112,6 +114,20 @@ pub fn parse_binds(json: &[u8]) -> Result<Vec<(Trigger, String)>> {
 pub struct HyprBinds {
     pub ipc: Ipc,
     pub syntax: BindSyntax,
+    /// The main config file, `hyprland.lua` or `hyprland.conf`.
+    pub config: Option<PathBuf>,
+    pub home: Option<PathBuf>,
+}
+
+const HEADER: &str =
+    "easyshot rewrites this file when you change its shortcuts. Edit them in easyshot.";
+
+fn lua_file(binds: &[(Trigger, Route)]) -> String {
+    format!("-- {HEADER}\n{}", lua_snippet(binds))
+}
+
+fn hyprlang_file(binds: &[(Trigger, Route)]) -> String {
+    format!("# {HEADER}\n{}", hyprlang_snippet(binds))
 }
 
 impl BindHelper for HyprBinds {
@@ -126,5 +142,34 @@ impl BindHelper for HyprBinds {
     }
     fn existing_binds(&self) -> Result<Vec<(Trigger, String)>> {
         parse_binds(&self.ipc.request("j/binds")?)
+    }
+    fn file_name(&self) -> &'static str {
+        match self.syntax {
+            BindSyntax::Hyprlang => "binds.conf",
+            _ => "binds.lua",
+        }
+    }
+    fn file_text(&self, binds: &[(Trigger, Route)]) -> String {
+        match self.syntax {
+            BindSyntax::Hyprlang => hyprlang_file(binds),
+            _ => lua_file(binds),
+        }
+    }
+    fn include_line(&self, dir: &str) -> String {
+        match self.syntax {
+            BindSyntax::Hyprlang => format!("source = {dir}/binds.conf"),
+            _ => format!("pcall(require, \"{dir}/binds\")"),
+        }
+    }
+    fn is_included(&self, dir: &Path) -> Result<bool> {
+        let main = self
+            .config
+            .as_deref()
+            .ok_or_else(|| crate::Error::NotFound("hyprland config (no HOME)".into()))?;
+        let rule = match self.syntax {
+            BindSyntax::Hyprlang => &include_scan::HYPRLANG,
+            _ => &include_scan::LUA,
+        };
+        include_scan::scan(main, self.home.as_deref(), rule, dir)
     }
 }

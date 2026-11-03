@@ -36,6 +36,7 @@ struct Fixture {
     view: Entity<SettingsWindow>,
     clipboard: FakeClipboard,
     config: PathBuf,
+    paths: Paths,
     _dir: tempfile::TempDir,
 }
 
@@ -44,6 +45,7 @@ fn fixture(caps: Caps, binds: Option<Arc<dyn BindHelper>>, prepare: impl FnOnce(
     let paths = Paths::rooted(dir.path());
     paths.ensure_all().unwrap();
     let config = paths.config_file();
+    let deps_paths = paths.clone();
     prepare(&config);
     let file = ConfigFile::load(&config).unwrap();
     let clipboard = FakeClipboard::default();
@@ -57,6 +59,7 @@ fn fixture(caps: Caps, binds: Option<Arc<dyn BindHelper>>, prepare: impl FnOnce(
             history: None,
             caps,
             binds,
+            paths: deps_paths,
             clipboard: Rc::new(sink),
             outputs: vec!["DP-1".into(), "HDMI-A-1".into()],
             version: "v9.9.9".to_owned(),
@@ -71,6 +74,7 @@ fn fixture(caps: Caps, binds: Option<Arc<dyn BindHelper>>, prepare: impl FnOnce(
         view,
         clipboard,
         config,
+        paths,
         _dir: dir,
     };
     let handle = fx.app.window.into();
@@ -168,6 +172,8 @@ fn hyprland_binds(dir: &Path) -> Arc<dyn BindHelper> {
     Arc::new(hyprland::HyprBinds {
         ipc: hyprland::Ipc::new(dir),
         syntax: BindSyntax::HyprLua,
+        config: None,
+        home: None,
     })
 }
 
@@ -255,17 +261,20 @@ fn the_setup_checklist_follows_the_backend_caps() {
 fn each_compositor_gets_its_own_snippet_and_copy_goes_to_the_clipboard() {
     let dir = tempfile::tempdir().unwrap();
     let niri_config = dir.path().join("config.kdl");
-    for (binds, region) in [
+    for (binds, binds_name, region) in [
         (
             hyprland_binds(dir.path()),
+            "binds.lua",
             "hl.bind(\"SUPER + SHIFT + 4\", hl.dsp.exec_cmd(\"easyshot capture region\"))\n",
         ),
         (
             sway_binds(),
-            "bindsym $mod+Shift+4 exec easyshot capture region\n",
+            "binds.conf",
+            "bindsym Mod4+Shift+4 exec easyshot capture region\n",
         ),
         (
             niri_binds(&niri_config),
+            "binds.kdl",
             "Mod+Shift+4 { spawn \"easyshot\" \"capture\" \"region\"; }\n",
         ),
     ] {
@@ -288,8 +297,16 @@ fn each_compositor_gets_its_own_snippet_and_copy_goes_to_the_clipboard() {
             !snippet.contains("open-image"),
             "a route with arguments has no fixed command"
         );
-        fx.update(|v, cx| v.copy_snippet(cx));
-        assert_eq!(*fx.clipboard.0.borrow(), vec![snippet]);
+        let file = fx.paths.binds_file(binds_name);
+        let written = std::fs::read_to_string(&file).unwrap();
+        assert!(
+            written.contains(region),
+            "the file holds the chosen key: {written}"
+        );
+        fx.update(|v, cx| v.copy_include_line(cx));
+        let line = fx.read(|v, _| v.include_line()).unwrap();
+        assert!(line.contains("/binds"), "{line}");
+        assert_eq!(*fx.clipboard.0.borrow(), vec![line]);
     }
 }
 
@@ -373,12 +390,12 @@ fn bind_records_a_key_and_stores_an_editor_override() {
     fx.record("capture-window", "super-shift-w");
     let (snippet, stored) = fx.read(|v, cx| (v.snippet().unwrap(), v.config(cx).shortcuts.clone()));
     assert!(
-        snippet.contains("bindsym $mod+Shift+w exec easyshot capture window"),
+        snippet.contains("bindsym Mod4+Shift+w exec easyshot capture window"),
         "{snippet}"
     );
     assert!(
         !stored.contains_key("capture-window"),
-        "the compositor owns global keys"
+        "global keys are not editor overrides"
     );
 }
 
@@ -430,4 +447,148 @@ fn about_shows_the_full_colour_logo() {
         .map(|p| (p.0[0] >> 5, p.0[1] >> 5, p.0[2] >> 5))
         .collect();
     assert!(colourful.len() >= 12, "{} colours", colourful.len());
+}
+
+fn global_keys(fx: &mut Fixture) -> std::collections::BTreeMap<String, String> {
+    fx.read(|v, cx| v.config(cx).global_shortcuts.clone())
+}
+
+#[test]
+fn global_keys_are_saved_in_the_config_and_come_back_after_a_restart() {
+    let mut fx = fixture(Caps::BIND_CHECK, Some(sway_binds()), |_| {});
+    fx.update(|v, cx| v.show(Page::Shortcuts, cx));
+    fx.record("capture-window", "super-shift-w");
+    assert_eq!(
+        global_keys(&mut fx)
+            .get("capture-window")
+            .map(String::as_str),
+        Some("Super+Shift+W")
+    );
+    fx.advance(SAVE_DEBOUNCE);
+    let saved = std::fs::read_to_string(&fx.config).unwrap();
+    assert!(saved.contains("[global_shortcuts]"), "{saved}");
+
+    let mut again = fixture(Caps::BIND_CHECK, Some(sway_binds()), |config| {
+        std::fs::write(config, saved).unwrap();
+    });
+    let key = again.read(|v, cx| {
+        v.shortcut_rows()
+            .iter()
+            .find(|r| r.entry.id == "capture-window")
+            .and_then(|r| r.field.read(cx).trigger().map(|t| t.label()))
+    });
+    assert_eq!(key.as_deref(), Some("Super+Shift+W"));
+    assert!(
+        again
+            .read(|v, _| v.snippet())
+            .unwrap()
+            .contains("bindsym Mod4+Shift+w exec easyshot capture window"),
+        "the restored key is bound again"
+    );
+}
+
+#[test]
+fn clearing_a_global_key_drops_it_from_the_config_and_the_binds_file() {
+    let mut fx = fixture(Caps::BIND_CHECK, Some(sway_binds()), |_| {});
+    fx.update(|v, cx| v.show(Page::Shortcuts, cx));
+    let file = fx.paths.binds_file("binds.conf");
+    assert!(
+        std::fs::read_to_string(&file)
+            .unwrap()
+            .lines()
+            .all(|l| l.starts_with('#')),
+        "the file exists, empty of binds, before any key is chosen"
+    );
+    fx.record("capture-window", "super-shift-w");
+    assert!(
+        std::fs::read_to_string(&file)
+            .unwrap()
+            .contains("capture window")
+    );
+    fx.record("capture-region", "printscreen");
+    let text = std::fs::read_to_string(&file).unwrap();
+    assert!(
+        text.contains("bindsym Print exec easyshot capture region"),
+        "{text}"
+    );
+    assert!(text.contains("capture window"), "{text}");
+
+    fx.record("capture-window", "delete");
+    let text = std::fs::read_to_string(&file).unwrap();
+    assert!(!text.contains("capture window"), "{text}");
+    assert!(text.contains("capture region"), "{text}");
+    assert!(!global_keys(&mut fx).contains_key("capture-window"));
+    let names: Vec<_> = std::fs::read_dir(fx.paths.config_dir())
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .filter(|n| n.starts_with(".easyshot-tmp"))
+        .collect();
+    assert!(
+        names.is_empty(),
+        "the rewrite leaves no temp file: {names:?}"
+    );
+}
+
+fn wait_for_include(fx: &mut Fixture) -> Result<bool, String> {
+    let view = fx.view.clone();
+    fx.app
+        .until("the include check", |cx| view.read(cx).included().is_some());
+    fx.read(|v, _| v.included().cloned()).unwrap()
+}
+
+#[test]
+fn the_include_check_reads_found_not_found_and_a_sourced_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = dir.path().join("config.kdl");
+    let mut fx = fixture(Caps::BIND_CHECK, Some(niri_binds(&config)), |_| {});
+    let line = fx.read(|v, _| v.include_line()).unwrap();
+    assert!(line.starts_with("include optional=true \""), "{line}");
+
+    std::fs::write(&config, "binds { }\n").unwrap();
+    fx.update(|v, cx| v.show(Page::Shortcuts, cx));
+    assert_eq!(wait_for_include(&mut fx), Ok(false));
+
+    std::fs::write(&config, format!("binds {{ }}\n{line}\n")).unwrap();
+    fx.update(|v, cx| v.check_binds(cx));
+    assert_eq!(wait_for_include(&mut fx), Ok(true));
+
+    std::fs::write(&config, "include \"keys.kdl\"\n").unwrap();
+    std::fs::write(dir.path().join("keys.kdl"), format!("{line}\n")).unwrap();
+    fx.update(|v, cx| v.check_binds(cx));
+    assert_eq!(wait_for_include(&mut fx), Ok(true));
+
+    std::fs::remove_file(&config).unwrap();
+    fx.update(|v, cx| v.check_binds(cx));
+    assert!(
+        wait_for_include(&mut fx).is_err(),
+        "no config is a problem, not a miss"
+    );
+}
+
+#[test]
+fn reload_asks_the_compositor_and_shows_when_it_cannot() {
+    let mut fx = fixture(Caps::BIND_CHECK, Some(sway_binds()), |_| {});
+    fx.update(|v, cx| v.show(Page::Shortcuts, cx));
+    fx.update(|v, cx| v.reload_compositor(cx));
+    let view = fx.view.clone();
+    fx.app
+        .until("the reload", |cx| view.read(cx).reloaded().is_some());
+    assert!(fx.read(|v, _| v.reloaded().cloned()).unwrap().is_err());
+}
+
+#[test]
+fn the_shortcuts_page_shows_the_include_line_in_light_and_dark() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = dir.path().join("config.kdl");
+    let mut fx = fixture(Caps::BIND_CHECK, Some(niri_binds(&config)), |_| {});
+    let line = fx.read(|v, _| v.include_line()).unwrap();
+    std::fs::write(&config, format!("binds {{ }}\n{line}\n")).unwrap();
+    fx.update(|v, cx| v.show(Page::Shortcuts, cx));
+    fx.record("capture-region", "printscreen");
+    assert_eq!(wait_for_include(&mut fx), Ok(true));
+    for (mode, name) in [(ThemeMode::Dark, "dark"), (ThemeMode::Light, "light")] {
+        fx.app.cx.update(|cx| theme::set_mode(mode, cx));
+        fx.update(|_, cx| cx.notify());
+        fx.shot(&format!("settings-shortcuts-include-{name}"));
+    }
 }

@@ -251,3 +251,12 @@ What was rejected beyond that, and why: not recorded.
     `screen-capture` to cover wf-recorder, sway has no rule, and gpu-screen-recorder reads the
     scanout buffer, which bypasses every compositor rule. Rejected: shipping rules for some
     compositors only, which would make the same recording differ by compositor.
+27. **easyshot keeps its own binds file and never edits the compositor config** (maintainer's
+    decision, 2026-11-03): `binds.lua` or `binds.conf` (Hyprland, by which config exists),
+    `binds.conf` (sway), `binds.kdl` (niri), in `~/.config/easyshot/`, rewritten atomically
+    through `es-store` whenever a global key changes; global keys persist in `[global_shortcuts]`.
+    The user adds one include line; Settings checks the main config and files it includes
+    directly. The file is created empty first, and the niri line is `optional=true`, so a
+    missing file cannot break the compositor config. Keys are `Mod4`, not `$mod`, because an
+    included file cannot rely on the variable. Rejected: editing the compositor config, and a
+    paste-in snippet, which was lost when the window closed.

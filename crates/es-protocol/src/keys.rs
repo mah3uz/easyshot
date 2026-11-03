@@ -58,6 +58,7 @@ static NAMED: &[Named] = &[
     key("Right", "→", "Right Arrow", Some("→")),
     key("Eisu", "英数", "Eisu", Some("英数")),
     key("Kana", "かな", "Kana", Some("かな")),
+    key("PrintScreen", "Print", "Print Screen", Some("Print")),
     key("KeypadClear", "Clear", "Keypad Clear", Some("clear")),
     key("Equal", "=", "Equals", None),
     key("Minus", "-", "Minus", None),

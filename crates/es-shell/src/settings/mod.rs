@@ -2,11 +2,13 @@ mod binds;
 mod general;
 mod home;
 mod pages;
+pub mod setup;
 mod shortcuts;
 mod widgets;
 
 pub use binds::{BindStatus, compositor_trigger, from_backend, trigger_string};
 pub use shortcuts::ShortcutRow;
+pub(crate) use widgets::status_mark;
 
 use crate::strings::fl;
 use es_app::history::History;
@@ -14,6 +16,7 @@ use es_app::settings_model::{SettingsEvent, SettingsModel};
 use es_backend::{BindHelper, Caps};
 use es_model::Config;
 use es_protocol::Route;
+use es_store::paths::Paths;
 use es_ui::{
     a11y::{Accessible, Role},
     components::{InspectorSlider, SliderEvent, ValueFormat},
@@ -128,6 +131,7 @@ pub struct SettingsDeps {
     pub history: Option<Entity<History>>,
     pub caps: Caps,
     pub binds: Option<Arc<dyn BindHelper>>,
+    pub paths: Paths,
     pub clipboard: Rc<dyn ClipboardSink>,
     /// Output names for "A specific screen".
     pub outputs: Vec<String>,
@@ -327,7 +331,8 @@ impl SettingsWindow {
                 }
             }),
         );
-        let shortcuts = shortcuts::Shortcuts::new(&config, deps.binds, deps.clipboard, window, cx);
+        let shortcuts =
+            shortcuts::Shortcuts::new(&config, deps.binds, deps.paths, deps.clipboard, window, cx);
         Self {
             settings: deps.settings,
             history: deps.history,
@@ -352,6 +357,9 @@ impl SettingsWindow {
     pub fn show(&mut self, page: Page, cx: &mut Context<Self>) {
         self.page = page;
         self.confirm_restore = None;
+        if page == Page::Shortcuts {
+            self.check_include(cx);
+        }
         cx.notify();
     }
 

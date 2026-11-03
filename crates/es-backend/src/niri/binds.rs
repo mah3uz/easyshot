@@ -44,6 +44,17 @@ pub(crate) fn snippet(binds: &[(Trigger, Route)]) -> String {
     out
 }
 
+pub(crate) fn file(binds: &[(Trigger, Route)]) -> String {
+    let body: String = snippet(binds)
+        .lines()
+        .filter(|l| !l.starts_with("//"))
+        .map(|l| format!("    {l}\n"))
+        .collect();
+    format!(
+        "// easyshot rewrites this file when you change its shortcuts. Edit them in easyshot.\nbinds {{\n{body}}}\n"
+    )
+}
+
 /// `(opening, closing)` braces outside strings, up to a `//` comment.
 fn braces(line: &str) -> (usize, usize) {
     let (mut open, mut close, mut in_str, mut escaped) = (0, 0, false, false);

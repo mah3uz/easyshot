@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Key bindings for each compositor, in the formats Settings > Shortcuts > Copy Snippet produces.
+// Key bindings for each compositor, in the formats easyshot writes to its binds file.
 const binds = [
   ['SUPER SHIFT', '4', 'capture region'],
   ['SUPER SHIFT', '3', 'capture fullscreen'],

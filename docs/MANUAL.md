@@ -48,9 +48,25 @@ running for the whole session. The package installs a desktop entry (Easyshot in
 easyshot cannot register global keyboard shortcuts for you on Hyprland or wlroots
 compositors. You bind keys in your own compositor config to call `easyshot <command>`.
 easyshot sets no global key by default, so none clashes with your own binds: you choose each
-key in Settings > Shortcuts. The snippet it shows holds only the keys you chose, and says so
-when there are none. In niri, paste it inside
-your `binds { }` block. Every command in the snippet is one `easyshot --help` lists.
+key in Settings > Shortcuts, or accept the suggestions in the first-run step "Set your
+shortcuts" (Print, Shift+Print, Alt+Print and Ctrl+Print where your compositor leaves them
+free, otherwise a Super+Shift key). easyshot keeps the chosen keys in its own binds file in
+`~/.config/easyshot/` and rewrites it whenever they change; it never edits your compositor
+config. You add one line to that config yourself, once:
+
+| Compositor | Binds file | Line to add |
+|---|---|---|
+| Hyprland, Lua config | `binds.lua` | `pcall(require, "~/.config/easyshot/binds")` |
+| Hyprland, `hyprland.conf` | `binds.conf` | `source = ~/.config/easyshot/binds.conf` |
+| sway | `binds.conf` | `include ~/.config/easyshot/binds.conf` |
+| niri (26.04 or later) | `binds.kdl` | `include optional=true "~/.config/easyshot/binds.kdl"` |
+
+Settings > Shortcuts shows the line for your compositor with Copy Line, and Check reads your
+compositor config, and the files it includes directly, and shows Included or Not found. sway
+reads the file only on reload, so Settings has a Reload button that runs `swaymsg reload`;
+Hyprland and niri reload when the file changes. In sway, put the line after your own binds,
+and on niri after your `binds { }` block, so easyshot's keys win a clash. Every command in the
+file is one `easyshot --help` lists.
 
 ## Capturing
 
@@ -305,12 +321,11 @@ trim viewer as soon as a recording ends, and the card still appears.
 
 Shortcuts lists every action. Global actions start with no key and show the command your compositor runs, such
 as `easyshot capture region`. Click a key field and press a key to record it. For global
-actions, Copy Snippet puts the bind lines for your compositor (Hyprland, sway or niri) on
-the clipboard; paste them into its config yourself. easyshot never edits your compositor
-config. Check reads your compositor's current binds and marks actions that are already
-bound, and keys that run something else. Keys for editor actions are saved under
-`[shortcuts]` in `config.toml`. Global keys are not saved by easyshot: your compositor
-config holds them.
+actions, the keys are saved under `[global_shortcuts]` in `config.toml` and written to the
+binds file; Copy Line puts the one include line for your compositor on the clipboard. easyshot
+never edits your compositor config. Check reads your compositor's current binds and marks
+actions that are already bound, and keys that run something else, and shows whether the
+include line is found. Keys for editor actions are saved under `[shortcuts]`.
 
 About shows the version, links, and Show Onboarding Again.
 

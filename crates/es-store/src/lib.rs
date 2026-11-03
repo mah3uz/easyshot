@@ -1,4 +1,5 @@
 pub mod atomic;
+pub mod binds;
 pub mod bundle;
 pub mod commit;
 pub mod config;

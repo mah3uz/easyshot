@@ -17,6 +17,13 @@ pub(crate) fn snippet(binds: &[(Trigger, Route)]) -> String {
     out
 }
 
+pub(crate) fn file(binds: &[(Trigger, Route)]) -> String {
+    format!(
+        "# easyshot rewrites this file when you change its shortcuts. Edit them in easyshot.\n{}",
+        snippet(binds)
+    )
+}
+
 /// Binds of the default mode; variables such as `$mod` are left as written.
 pub(crate) fn parse_config(config: &str) -> Vec<(Trigger, String)> {
     let mut out = Vec::new();

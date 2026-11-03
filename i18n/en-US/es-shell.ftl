@@ -327,10 +327,18 @@ shortcuts-syntax-hypr-lua = Hyprland, Lua config
 shortcuts-syntax-hyprlang = Hyprland, hyprland.conf
 shortcuts-syntax-sway = sway
 shortcuts-syntax-niri = niri
-shortcuts-compositor-help = { -app-name } never edits your compositor config. Copy the snippet and paste it into the config yourself.
+shortcuts-compositor-help = { -app-name } keeps your keys in { $file } and never edits your compositor config. Add this line to the config yourself.
 shortcuts-compositor-none = No bind helper for this compositor
 shortcuts-compositor-none-help = Bind the commands below in your compositor’s own settings.
-shortcuts-copy-snippet = Copy Snippet
+shortcuts-copy-line = Copy Line
+shortcuts-include-a11y = Line to add to your compositor config
+shortcuts-included = Included
+shortcuts-not-found = Not found
+shortcuts-include-failed = Couldn’t read your compositor config. { $error }
+shortcuts-reload = Reload
+shortcuts-reload-help = Reloads your compositor so it reads the keys file.
+shortcuts-reload-failed = Couldn’t reload your compositor. { $error }
+shortcuts-file-failed = Couldn’t write the keys file. { $error }
 shortcuts-copied = Copied
 shortcuts-check = Check
 shortcuts-check-help = Reads your compositor’s current binds and marks the actions below.
@@ -343,11 +351,10 @@ shortcuts-check-summary =
        *[other] { $conflicts } conflicts
     }
 shortcuts-check-failed = Couldn’t read your binds. { $error }
-shortcuts-snippet-empty = No keys are set, so there is nothing to bind. Record a key for an action to add it to the snippet.
 shortcuts-status-bound = Bound
 shortcuts-status-conflict = Used by { $command }
 shortcuts-route = easyshot { $route }
-shortcuts-global-footer-compositor = Your compositor runs these keys. Record one, then copy the snippet into its config.
+shortcuts-global-footer-compositor = Your compositor runs these keys. Record one and { -app-name } writes it to the keys file.
 
 ## Settings: shortcut catalogue titles
 shortcut-capture-bar = Capture & Recording Bar
@@ -732,10 +739,15 @@ onboarding-check-recorder-fix = Install gpu-screen-recorder, then reopen { -app-
 onboarding-check-ocr = Text recognition
 onboarding-check-ocr-help = Copies the text in a capture with tesseract.
 onboarding-check-ocr-fix = Install tesseract and a language pack, such as tesseract-data-eng.
-onboarding-shortcuts = Add shortcuts
-onboarding-shortcuts-help = Paste these lines into your compositor config, then reload it.
+onboarding-step-shortcuts-title = Set your shortcuts
+onboarding-step-shortcuts-subtitle = Pick keys for the capture commands. You can change them later in Settings.
 onboarding-shortcuts-portal = Your desktop asks you to confirm the shortcuts the first time { -app-name } starts.
-onboarding-shortcuts-snippet-a11y = Shortcut configuration
+onboarding-shortcuts-none = Bind the commands in your compositor’s own settings, for example “easyshot capture region”.
+onboarding-shortcuts-none-free = No free key
+onboarding-shortcuts-use = Use These Shortcuts
+onboarding-shortcuts-saved = Saved
+onboarding-shortcuts-include = Add one line to your compositor config
+onboarding-shortcuts-include-help = { -app-name } keeps your keys in { $file } and never edits your compositor config.
 
 crash-notice-title = { -app-name } stopped unexpectedly
 crash-notice-body = A crash report was saved on this computer. It is never sent anywhere.

@@ -1,13 +1,14 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use es_backend::Caps;
+use es_backend::{BindHelper, Caps, Env, Probe, niri};
 use es_model::State;
 use es_protocol::Trigger;
 use es_shell::onboarding::{
     self, CURRENT_VERSION, Check, CheckRow, HEIGHT, Onboarding, OnboardingEvent, OnboardingInput,
     ShortcutSetup, Step, WIDTH,
 };
+use es_shell::settings::ClipboardSink;
 use es_store::paths::Paths;
 use es_testkit::Headless;
 use es_ui::{
@@ -18,6 +19,9 @@ use es_ui::{
 };
 use gpui::{AppContext, Entity};
 use gpui_component::Root;
+use std::collections::BTreeMap;
+use std::path::PathBuf;
+use std::sync::Arc;
 
 fn profile() -> (tempfile::TempDir, Paths) {
     let dir = tempfile::tempdir().expect("temp dir");
@@ -131,26 +135,54 @@ fn a_missing_capability_shows_its_fix_and_a_ready_one_its_purpose() {
 }
 
 #[test]
-fn shortcuts_show_the_snippet_unless_the_portal_asks_for_them() {
-    let snippet = Some("bind = SUPER SHIFT, 4, exec, easyshot region".to_owned());
+fn shortcuts_use_the_binds_file_unless_the_portal_asks_for_them() {
     assert_eq!(
-        ShortcutSetup::for_caps(Caps::empty(), snippet.clone()),
-        Some(ShortcutSetup::Snippet(snippet.clone().expect("snippet")))
+        ShortcutSetup::for_caps(Caps::empty(), true),
+        Some(ShortcutSetup::Binds)
     );
     assert_eq!(
-        ShortcutSetup::for_caps(Caps::PORTAL_SHORTCUTS, snippet),
+        ShortcutSetup::for_caps(Caps::PORTAL_SHORTCUTS, true),
         Some(ShortcutSetup::Portal)
     );
-    assert_eq!(ShortcutSetup::for_caps(Caps::empty(), None), None);
+    assert_eq!(ShortcutSetup::for_caps(Caps::empty(), false), None);
 }
 
-fn input() -> OnboardingInput {
+#[derive(Clone, Default)]
+struct FakeClipboard(Rc<RefCell<Vec<String>>>);
+
+impl ClipboardSink for FakeClipboard {
+    fn copy(&self, text: String, _: &mut gpui::App) {
+        self.0.borrow_mut().push(text);
+    }
+}
+
+fn niri_config(paths: &Paths) -> PathBuf {
+    paths.config_dir().with_file_name("niri-config.kdl")
+}
+
+fn niri_binds(config: &std::path::Path) -> Arc<dyn BindHelper> {
+    let probe = Probe {
+        env: Env::from_vars([("NIRI_CONFIG", config.to_str().expect("utf-8"))]),
+        ..Probe::default()
+    };
+    let helper = (niri::BINDS.build)(&probe);
+    Arc::from(helper.unwrap_or_else(|_| panic!("niri binds")))
+}
+
+fn input(paths: &Paths, clipboard: &FakeClipboard) -> OnboardingInput {
+    let config = niri_config(paths);
+    if !config.exists() {
+        std::fs::write(
+            &config,
+            "binds {\n    Print { screenshot; }\n    Ctrl+Print { screenshot-screen; }\n}\n",
+        )
+        .expect("niri config");
+    }
     OnboardingInput {
         caps: Caps::CAPTURE_OUTPUT | Caps::LAYER_SHELL | Caps::TRAY | Caps::CLIPBOARD_NO_FOCUS,
-        snippet: Some(
-            "bind = SUPER SHIFT, 4, exec, easyshot region\nbind = SUPER SHIFT, 3, exec, easyshot screen\nbind = SUPER SHIFT, 5, exec, easyshot record"
-                .into(),
-        ),
+        binds: Some(niri_binds(&config)),
+        clipboard: Some(Rc::new(clipboard.clone())),
+        global_shortcuts: BTreeMap::new(),
         capture_shortcut: Some(Trigger::parse("Super+Shift+4").expect("trigger")),
         save_dir: Some("/home/you/Pictures/Screenshots".into()),
         autosave: true,
@@ -174,6 +206,7 @@ fn open_sized(
     let events = Rc::new(RefCell::new(Vec::new()));
     let mut host = None;
     let seen = events.clone();
+    let clipboard = FakeClipboard::default();
     let app = Headless::open(
         Assets,
         |cx| {
@@ -183,7 +216,8 @@ fn open_sized(
         WIDTH,
         height,
         |window, cx| {
-            let view = cx.new(|cx| Onboarding::new(paths, input(), window, cx));
+            let input = input(&paths, &clipboard);
+            let view = cx.new(|cx| Onboarding::new(paths, input, window, cx));
             cx.subscribe(&view, move |_, e: &OnboardingEvent, _| {
                 seen.borrow_mut().push(e.clone());
             })
@@ -201,7 +235,7 @@ fn walking_through_to_done_records_the_introduction_as_seen() {
     onboarding::prepare_for_launch(&paths).expect("prepare");
     let (mut app, view, events) = open(paths.clone(), ThemeMode::Dark);
     let step = |app: &mut App| app.cx.update(|cx| view.read(cx).step());
-    for expected in [Step::Welcome, Step::Desktop, Step::Saving, Step::Practice] {
+    for expected in Step::ALL {
         assert_eq!(step(&mut app), expected);
         assert!(onboarding::should_present(&saved_state(&paths)));
         app.cx.update(|cx| view.update(cx, |o, cx| o.advance(cx)));
@@ -265,5 +299,154 @@ fn every_step_draws_in_light_and_dark() {
         tall.cx
             .update(|cx| view.update(cx, |o, cx| o.go(Step::Desktop, cx)));
         tall.screenshot(&format!("onboarding-2-whole-{name}"));
+    }
+}
+
+fn at_shortcuts(paths: &Paths) -> (App, Entity<Onboarding>, Rc<RefCell<Vec<OnboardingEvent>>>) {
+    let (mut app, view, events) = open(paths.clone(), ThemeMode::Dark);
+    app.cx
+        .update(|cx| view.update(cx, |o, cx| o.go(Step::Shortcuts, cx)));
+    app.settle();
+    (app, view, events)
+}
+
+#[test]
+fn suggestions_skip_keys_the_compositor_already_binds() {
+    let (_dir, paths) = profile();
+    paths.ensure_all().expect("dirs");
+    let (mut app, view, _) = at_shortcuts(&paths);
+    let suggested = app.cx.update(|cx| view.read(cx).suggested());
+    let key = |id: &str| {
+        suggested
+            .iter()
+            .find(|(i, _)| *i == id)
+            .and_then(|(_, t)| t.as_ref().map(Trigger::label))
+    };
+    assert_eq!(
+        key("capture-region").as_deref(),
+        Some("Super+Shift+S"),
+        "Print is bound to the compositor's own screenshot"
+    );
+    assert_eq!(key("capture-fullscreen").as_deref(), Some("Shift+Print"));
+    assert_eq!(key("capture-window").as_deref(), Some("Alt+Print"));
+    assert_eq!(
+        key("capture-bar").as_deref(),
+        Some("Super+Shift+A"),
+        "Ctrl+Print is taken too"
+    );
+}
+
+#[test]
+fn the_step_creates_an_empty_binds_file_so_the_include_line_is_safe_to_add() {
+    let (_dir, paths) = profile();
+    paths.ensure_all().expect("dirs");
+    let (_app, _view, events) = at_shortcuts(&paths);
+    let text = std::fs::read_to_string(paths.binds_file("binds.kdl")).expect("binds file");
+    assert!(text.contains("binds {\n}"), "{text}");
+    assert!(events.borrow().is_empty(), "nothing is saved until asked");
+}
+
+#[test]
+fn using_the_suggestions_writes_the_file_and_hands_the_keys_to_the_config() {
+    let (_dir, paths) = profile();
+    paths.ensure_all().expect("dirs");
+    let (mut app, view, events) = at_shortcuts(&paths);
+    app.cx
+        .update(|cx| view.update(cx, |o, cx| o.use_suggestions(cx)));
+    app.settle();
+
+    let text = std::fs::read_to_string(paths.binds_file("binds.kdl")).expect("binds file");
+    assert!(
+        text.contains("Mod+Shift+S { spawn \"easyshot\" \"capture\" \"region\"; }"),
+        "{text}"
+    );
+    assert!(
+        text.contains("Shift+Print { spawn \"easyshot\" \"capture\" \"fullscreen\"; }"),
+        "{text}"
+    );
+    let events = events.borrow();
+    let [OnboardingEvent::SetShortcuts(keys)] = events.as_slice() else {
+        panic!("one save request expected, got {events:?}");
+    };
+    assert_eq!(
+        keys.get("capture-region").map(String::as_str),
+        Some("Super+Shift+S")
+    );
+    assert_eq!(
+        keys.get("capture-window").map(String::as_str),
+        Some("Alt+PrintScreen")
+    );
+    assert!(app.cx.update(|cx| view.read(cx).shortcuts_saved()));
+}
+
+#[test]
+fn the_step_shows_the_include_line_and_whether_the_config_has_it() {
+    let (_dir, paths) = profile();
+    paths.ensure_all().expect("dirs");
+    let (mut app, view, _) = at_shortcuts(&paths);
+    let line = app
+        .cx
+        .update(|cx| view.read(cx).include_line())
+        .expect("a line");
+    assert!(line.starts_with("include optional=true \""), "{line}");
+
+    let included = |app: &mut App| {
+        app.cx
+            .update(|cx| view.update(cx, |o, cx| o.check_include(cx)));
+        app.until("the check", |cx| view.read(cx).included().is_some());
+        app.cx
+            .update(|cx| view.read(cx).included().cloned())
+            .expect("checked")
+    };
+    assert_eq!(included(&mut app), Ok(false));
+    std::fs::write(niri_config(&paths), format!("binds {{ }}\n{line}\n")).expect("config");
+    assert_eq!(included(&mut app), Ok(true));
+}
+
+#[test]
+fn copy_puts_the_include_line_on_the_clipboard() {
+    let (_dir, paths) = profile();
+    paths.ensure_all().expect("dirs");
+    let clipboard = FakeClipboard::default();
+    let mut host = None;
+    let mut app = Headless::open(Assets, gallery::init, WIDTH, HEIGHT, |window, cx| {
+        let input = input(&paths, &clipboard);
+        let view = cx.new(|cx| Onboarding::new(paths.clone(), input, window, cx));
+        host = Some(view.clone());
+        cx.new(|cx| Root::new(view, window, cx))
+    });
+    let view = host.expect("view");
+    app.cx
+        .update(|cx| view.update(cx, |o, cx| o.go(Step::Shortcuts, cx)));
+    app.cx
+        .update(|cx| view.update(cx, |o, cx| o.copy_include_line(cx)));
+    let line = app
+        .cx
+        .update(|cx| view.read(cx).include_line())
+        .expect("line");
+    assert_eq!(*clipboard.0.borrow(), vec![line]);
+}
+
+#[test]
+fn the_shortcuts_step_draws_before_and_after_choosing_in_light_and_dark() {
+    for (mode, name) in [(ThemeMode::Dark, "dark"), (ThemeMode::Light, "light")] {
+        let (_dir, paths) = profile();
+        paths.ensure_all().expect("dirs");
+        let (mut app, view, _) = open(paths.clone(), mode);
+        app.cx
+            .update(|cx| view.update(cx, |o, cx| o.go(Step::Shortcuts, cx)));
+        app.settle();
+        app.screenshot(&format!("onboarding-shortcuts-{name}"));
+        app.cx
+            .update(|cx| view.update(cx, |o, cx| o.use_suggestions(cx)));
+        let line = app
+            .cx
+            .update(|cx| view.read(cx).include_line())
+            .expect("line");
+        std::fs::write(niri_config(&paths), format!("binds {{ }}\n{line}\n")).expect("config");
+        app.cx
+            .update(|cx| view.update(cx, |o, cx| o.check_include(cx)));
+        app.until("the check", |cx| view.read(cx).included().is_some());
+        app.screenshot(&format!("onboarding-shortcuts-saved-{name}"));
     }
 }

@@ -28,6 +28,7 @@ fn main() {
                 history: None,
                 caps: Caps::CAPTURE_OUTPUT | Caps::LAYER_SHELL,
                 binds: None,
+                paths: paths.clone(),
                 clipboard: Rc::new(SystemClipboard),
                 outputs: Vec::new(),
                 version: env!("CARGO_PKG_VERSION").to_owned(),

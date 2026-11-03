@@ -4,6 +4,7 @@ mod layout;
 mod wire;
 
 use crate::error::{BackendError, Error, Result};
+use crate::include_scan;
 use crate::probe::{Probe, Provider};
 use crate::traits::{BindHelper, BindSyntax, PointerQuery, Trigger, WindowList};
 use es_geom::Point;
@@ -15,7 +16,7 @@ use std::collections::HashMap;
 use std::io::BufReader;
 use std::net::Shutdown;
 use std::os::unix::net::UnixStream;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError};
 use wire::{Event, Output, Request, Response};
 
@@ -213,6 +214,7 @@ pub const POINTER: Provider<dyn PointerQuery> = Provider {
 
 struct NiriBinds {
     config: Option<PathBuf>,
+    home: Option<PathBuf>,
 }
 
 impl BindHelper for NiriBinds {
@@ -238,6 +240,22 @@ impl BindHelper for NiriBinds {
             }),
         }
     }
+    fn file_name(&self) -> &'static str {
+        "binds.kdl"
+    }
+    fn file_text(&self, binds: &[(Trigger, Route)]) -> String {
+        binds::file(binds)
+    }
+    fn include_line(&self, dir: &str) -> String {
+        format!("include optional=true \"{dir}/binds.kdl\"")
+    }
+    fn is_included(&self, dir: &Path) -> Result<bool> {
+        let main = self
+            .config
+            .as_deref()
+            .ok_or_else(|| Error::NotFound("niri config (no HOME)".into()))?;
+        include_scan::scan(main, self.home.as_deref(), &include_scan::NIRI, dir)
+    }
 }
 
 pub const BINDS: Provider<dyn BindHelper> = Provider {
@@ -246,6 +264,7 @@ pub const BINDS: Provider<dyn BindHelper> = Provider {
     build: |p| {
         Ok(Box::new(NiriBinds {
             config: binds::config_path(&p.env),
+            home: include_scan::home(&p.env),
         }))
     },
 };

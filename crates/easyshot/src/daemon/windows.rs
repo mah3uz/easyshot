@@ -241,6 +241,7 @@ fn open_home(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>> {
             history: Some(w.history.clone()),
             caps: w.caps,
             binds: w.binds.clone(),
+            paths: w.paths.clone(),
             clipboard: Rc::new(settings::SystemClipboard),
             outputs: (w.outputs)().into_iter().map(|o| o.id.0).collect(),
             version: env!("EASYSHOT_VERSION").to_owned(),
@@ -369,7 +370,9 @@ pub(super) fn onboarding_input(w: &Wiring, cx: &App) -> OnboardingInput {
     let config = w.settings.read(cx).config();
     OnboardingInput {
         caps: w.caps,
-        snippet: None,
+        binds: w.binds.clone(),
+        clipboard: Some(Rc::new(settings::SystemClipboard)),
+        global_shortcuts: config.global_shortcuts.clone(),
         capture_shortcut: None,
         save_dir: es_store::paths::save_dir(config),
         autosave: config.after_capture.screenshot.save,
@@ -417,6 +420,11 @@ fn open_onboarding(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>>
                 w.settings.update(cx, |s, cx| {
                     s.update(|c| c.after_capture.screenshot.save = on, cx)
                 });
+            }
+            OnboardingEvent::SetShortcuts(keys) => {
+                let keys = keys.clone();
+                w.settings
+                    .update(cx, |s, cx| s.update(|c| c.global_shortcuts = keys, cx));
             }
             OnboardingEvent::CaptureArea => w.dispatch(Route::CaptureRegion, cx),
             OnboardingEvent::OpenPractice => open_practice(&w, cx),

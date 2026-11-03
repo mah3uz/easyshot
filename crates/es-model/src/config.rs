@@ -17,6 +17,8 @@ pub struct Config {
     pub ocr: Ocr,
     /// Editor-scope overrides: catalogue id to trigger.
     pub shortcuts: BTreeMap<String, String>,
+    /// Global shortcuts the compositor binds to `easyshot <command>`: catalogue id to trigger.
+    pub global_shortcuts: BTreeMap<String, String>,
 }
 
 impl Default for Config {
@@ -33,6 +35,7 @@ impl Default for Config {
             editor: Editor::default(),
             ocr: Ocr::default(),
             shortcuts: BTreeMap::new(),
+            global_shortcuts: BTreeMap::new(),
         }
     }
 }

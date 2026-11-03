@@ -37,7 +37,10 @@ impl SectionMask {
         mask.set(Self::COMPOSITOR, a.compositor != b.compositor);
         mask.set(Self::EDITOR, a.editor != b.editor);
         mask.set(Self::OCR, a.ocr != b.ocr);
-        mask.set(Self::SHORTCUTS, a.shortcuts != b.shortcuts);
+        mask.set(
+            Self::SHORTCUTS,
+            a.shortcuts != b.shortcuts || a.global_shortcuts != b.global_shortcuts,
+        );
         mask
     }
 }

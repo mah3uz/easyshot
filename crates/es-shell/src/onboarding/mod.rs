@@ -1,4 +1,5 @@
 mod rows;
+mod shortcuts;
 mod view;
 
 use es_backend::Caps;
@@ -81,22 +82,20 @@ pub fn checklist(caps: Caps) -> Vec<CheckRow> {
         .collect()
 }
 
-/// What the shortcut part of the checklist shows.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// What the shortcuts step shows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ShortcutSetup {
-    /// Lines for the user to paste into the compositor config.
-    Snippet(String),
+    /// Suggested keys, written to the binds file; the user adds one include line.
+    Binds,
     /// The desktop's shortcut portal asks the user itself.
     Portal,
 }
 
 impl ShortcutSetup {
-    pub fn for_caps(caps: Caps, snippet: Option<String>) -> Option<Self> {
+    pub fn for_caps(caps: Caps, has_binds: bool) -> Option<Self> {
         if caps.contains(Caps::PORTAL_SHORTCUTS) {
             return Some(ShortcutSetup::Portal);
         }
-        snippet
-            .filter(|s| !s.trim().is_empty())
-            .map(ShortcutSetup::Snippet)
+        has_binds.then_some(ShortcutSetup::Binds)
     }
 }

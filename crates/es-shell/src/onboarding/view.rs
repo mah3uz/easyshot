@@ -1,6 +1,9 @@
+use std::collections::BTreeMap;
 use std::path::PathBuf;
+use std::rc::Rc;
+use std::sync::Arc;
 
-use es_backend::Caps;
+use es_backend::{BindHelper, Caps};
 use es_protocol::Trigger;
 use es_store::paths::Paths;
 use es_ui::{
@@ -16,10 +19,11 @@ use gpui::{
     StatefulInteractiveElement, Styled, StyledImage, Window, div, img, linear_color_stop,
     linear_gradient, px,
 };
-use gpui_component::{ActiveTheme, Icon, switch::Switch};
+use gpui_component::{Icon, switch::Switch};
 
 use super::rows::{caption, check_row, form_row, group, row_title};
-use super::{ShortcutSetup, checklist, complete};
+use super::{checklist, complete};
+use crate::settings::ClipboardSink;
 use crate::strings::fl;
 
 pub const WIDTH: f32 = 760.;
@@ -30,23 +34,32 @@ const PAGE_WIDTH: f32 = 520.;
 pub enum Step {
     Welcome,
     Desktop,
+    Shortcuts,
     Saving,
     Practice,
 }
 
 impl Step {
-    pub const ALL: [Step; 4] = [Step::Welcome, Step::Desktop, Step::Saving, Step::Practice];
+    pub const ALL: [Step; 5] = [
+        Step::Welcome,
+        Step::Desktop,
+        Step::Shortcuts,
+        Step::Saving,
+        Step::Practice,
+    ];
 
     fn index(self) -> usize {
         self as usize
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct OnboardingInput {
     pub caps: Caps,
-    /// The compositor bind lines from the bind helper, when shortcuts are set up by hand.
-    pub snippet: Option<String>,
+    pub binds: Option<Arc<dyn BindHelper>>,
+    pub clipboard: Option<Rc<dyn ClipboardSink>>,
+    /// Global shortcuts already saved in the config: catalogue id to trigger.
+    pub global_shortcuts: BTreeMap<String, String>,
     pub capture_shortcut: Option<Trigger>,
     pub save_dir: Option<PathBuf>,
     pub autosave: bool,
@@ -60,13 +73,16 @@ pub enum OnboardingEvent {
     SetAutosave(bool),
     CaptureArea,
     OpenPractice,
+    /// The global shortcuts to save in the config, which now include the chosen keys.
+    SetShortcuts(BTreeMap<String, String>),
 }
 
 pub struct Onboarding {
-    paths: Paths,
-    input: OnboardingInput,
+    pub(super) paths: Paths,
+    pub(super) input: OnboardingInput,
     step: Step,
     practice: Option<PathBuf>,
+    pub(super) shortcuts: super::shortcuts::State,
     focus: FocusHandle,
 }
 
@@ -97,6 +113,7 @@ impl Onboarding {
             input,
             step: Step::Welcome,
             practice: None,
+            shortcuts: Default::default(),
             focus,
         }
     }
@@ -107,6 +124,9 @@ impl Onboarding {
 
     pub fn go(&mut self, step: Step, cx: &mut Context<Self>) {
         self.step = step;
+        if step == Step::Shortcuts {
+            self.enter_shortcuts(cx);
+        }
         cx.notify();
     }
 
@@ -162,6 +182,11 @@ impl Onboarding {
                 IconName::Monitor,
                 fl!("onboarding-step2-title"),
                 fl!("onboarding-step2-subtitle"),
+            ),
+            Step::Shortcuts => (
+                IconName::Keyboard,
+                fl!("onboarding-step-shortcuts-title"),
+                fl!("onboarding-step-shortcuts-subtitle"),
             ),
             Step::Saving => (
                 IconName::Folder,
@@ -249,55 +274,12 @@ impl Onboarding {
             ))
     }
 
-    fn desktop(&self, t: &Tokens, cx: &gpui::App) -> Div {
+    fn desktop(&self, t: &Tokens) -> Div {
         let mut list = group(t);
         for (i, row) in checklist(self.input.caps).into_iter().enumerate() {
             list = list.child(check_row(t, row, i > 0));
         }
-        let shortcuts =
-            ShortcutSetup::for_caps(self.input.caps, self.input.snippet.clone()).map(|setup| {
-                let body: AnyElement = match setup {
-                    ShortcutSetup::Portal => caption(t, fl!("onboarding-shortcuts-portal")),
-                    ShortcutSetup::Snippet(snippet) => div()
-                        .flex()
-                        .flex_col()
-                        .gap(px(8.))
-                        .child(caption(t, fl!("onboarding-shortcuts-help")))
-                        .child(
-                            div()
-                                .id("onboarding-snippet")
-                                .accessible(Role::Code, fl!("onboarding-shortcuts-snippet-a11y"))
-                                .p(px(10.))
-                                .rounded(px(8.))
-                                .bg(t.window)
-                                .border(t.metrics.hairline)
-                                .border_color(t.border)
-                                .font_family(cx.theme().mono_font_family.clone())
-                                .text_size(px(12.))
-                                .whitespace_nowrap()
-                                .overflow_x_scroll()
-                                .child(snippet),
-                        )
-                        .into_any_element(),
-                };
-                group(t).child(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .gap(px(6.))
-                        .px(px(14.))
-                        .py(px(12.))
-                        .child(row_title(fl!("onboarding-shortcuts")))
-                        .child(body),
-                )
-            });
-        div()
-            .flex()
-            .flex_col()
-            .gap(px(16.))
-            .w_full()
-            .child(list)
-            .children(shortcuts)
+        div().flex().flex_col().gap(px(16.)).w_full().child(list)
     }
 
     fn saving(&self, t: &Tokens, cx: &mut Context<Self>) -> Div {
@@ -524,7 +506,8 @@ impl Render for Onboarding {
         let t = tokens(cx).clone();
         let body = match self.step {
             Step::Welcome => self.welcome(&t),
-            Step::Desktop => self.desktop(&t, cx),
+            Step::Desktop => self.desktop(&t),
+            Step::Shortcuts => self.shortcuts_step(&t, cx),
             Step::Saving => self.saving(&t, cx),
             Step::Practice => self.practice(&t, cx),
         };

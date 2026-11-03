@@ -198,8 +198,7 @@ useHead({
         <!-- 4 -->
         <HowStep :n="4" id="shortcuts" title="Bind your keys">
           <p>
-            Wayland apps cannot grab global keys, so your compositor binds them, and easyshot sets none for you. Open <strong>Settings › Shortcuts</strong>, choose your own key for each action you want, and press <strong>Copy Snippet</strong> for lines like the ones below, ready for your compositor.
-            The snippet holds only the keys you chose. easyshot never edits your config; you paste them in and reload.
+            Wayland apps cannot grab global keys, so your compositor binds them, and easyshot sets none until you choose. On first run, <strong>Set your shortcuts</strong> suggests keys; later, use <strong>Settings › Shortcuts</strong>. easyshot writes your keys to its own file in <code>~/.config/easyshot/</code> and keeps it up to date. You add one line to your compositor config, once, and press <strong>Copy Line</strong> to get it. <strong>Check</strong> shows whether it is Included. easyshot never edits your config. The file it writes looks like the lines below.
           </p>
           <BindSnippet />
           <div class="overflow-hidden rounded-[18px] border border-line">

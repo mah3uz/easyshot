@@ -54,12 +54,12 @@ fn ipc(p: &Probe) -> Result<Ipc, BackendError> {
     Ok(ipc)
 }
 
+fn hypr_dir(env: &Env) -> Option<PathBuf> {
+    crate::include_scan::config_home(env).map(|c| c.join("hypr"))
+}
+
 fn config_is_lua(env: &Env) -> bool {
-    let config = env
-        .var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .or_else(|| env.var("HOME").map(|h| Path::new(h).join(".config")));
-    config.is_some_and(|c| c.join("hypr").join("hyprland.lua").exists())
+    hypr_dir(env).is_some_and(|d| d.join("hyprland.lua").exists())
 }
 
 pub struct HyprPointer {
@@ -135,9 +135,15 @@ pub const BINDS: Provider<dyn BindHelper> = Provider {
         } else {
             BindSyntax::Hyprlang
         };
+        let file = match syntax {
+            BindSyntax::Hyprlang => "hyprland.conf",
+            _ => "hyprland.lua",
+        };
         Ok(Box::new(HyprBinds {
             ipc: ipc(p)?,
             syntax,
+            config: hypr_dir(&p.env).map(|d| d.join(file)),
+            home: crate::include_scan::home(&p.env),
         }))
     },
 };

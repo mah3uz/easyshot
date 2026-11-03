@@ -60,13 +60,14 @@ fn rig(mode: ThemeMode, tab: Tab) -> Rig {
             });
             let deps = HomeDeps {
                 history: history.clone(),
-                paths,
+                paths: paths.clone(),
                 files,
                 settings: SettingsDeps {
                     settings: cx.new(|_| SettingsModel::new(config)),
                     history: Some(history),
                     caps: Caps::all(),
                     binds: None,
+                    paths: paths.clone(),
                     clipboard: Rc::new(NoClipboard),
                     outputs: vec!["DP-1".into()],
                     version: "v9.9.9".to_owned(),

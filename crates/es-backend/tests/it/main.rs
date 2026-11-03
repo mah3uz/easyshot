@@ -1,3 +1,4 @@
+mod binds_file;
 mod caps;
 mod desktop;
 mod hyprland;

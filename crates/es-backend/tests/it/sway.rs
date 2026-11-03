@@ -379,3 +379,19 @@ fn turning_float_editor_off_sends_no_rule_to_sway() {
         .unwrap();
     assert!(fake.shared.lock().unwrap().commands.is_empty());
 }
+
+#[test]
+fn reload_runs_sways_reload_command_and_reports_a_failure() {
+    let fake = FakeSway::start(TREE);
+    let Ok(binds) = (wlroots::BINDS.build)(&fake.probe()) else {
+        panic!("build failed");
+    };
+    binds.reload().unwrap();
+    assert_eq!(fake.shared.lock().unwrap().commands, ["reload"]);
+    fake.shared.lock().unwrap().command_reply =
+        r#"[{"success":false,"error":"Config file not found"}]"#.to_owned();
+    match binds.reload() {
+        Err(Error::Protocol(m)) => assert_eq!(m, "Config file not found"),
+        other => panic!("a failed reload must be reported, got {other:?}"),
+    }
+}

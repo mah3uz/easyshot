@@ -1,19 +1,22 @@
 use super::binds::{BindStatus, compositor_trigger, status, trigger_string};
+use super::setup::{self, route_of};
 use super::widgets::{group, row, status_mark};
 use super::{ClipboardSink, SettingsWindow};
 use crate::strings::{fl, loader};
 use es_backend::{BindHelper, BindSyntax, Trigger as CompositorTrigger};
 use es_model::Config;
-use es_protocol::{CATALOGUE, Route, Scope, ShortcutEntry, Target, Trigger};
+use es_protocol::{CATALOGUE, Route, Scope, ShortcutEntry, Trigger};
+use es_store::paths::Paths;
 use es_ui::{
+    a11y::{Accessible, Role},
     components::{ButtonKind, EditorButton, ShortcutField, ShortcutFieldEvent},
     theme::tokens,
 };
 use gpui::{
-    AnyElement, AppContext, Context, Entity, IntoElement, ParentElement, Styled, Subscription,
-    Window, div, px,
+    AnyElement, AppContext, Context, Entity, InteractiveElement, IntoElement, ParentElement,
+    Styled, Subscription, Window, div, px,
 };
-use gpui_component::h_flex;
+use gpui_component::{ActiveTheme, h_flex};
 use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -25,11 +28,15 @@ pub struct ShortcutRow {
 
 pub(super) struct Shortcuts {
     binds: Option<Arc<dyn BindHelper>>,
+    paths: Paths,
     clipboard: Rc<dyn ClipboardSink>,
     rows: Vec<ShortcutRow>,
     global: BTreeMap<&'static str, Trigger>,
     status: BTreeMap<&'static str, BindStatus>,
     check: Option<Result<(usize, usize), String>>,
+    included: Option<Result<bool, String>>,
+    reloaded: Option<Result<(), String>>,
+    file_error: Option<String>,
     copied: bool,
     _subscriptions: Vec<Subscription>,
 }
@@ -94,17 +101,11 @@ fn editor_trigger(entry: &ShortcutEntry, config: &Config) -> Option<Trigger> {
     }
 }
 
-fn route_of(entry: &ShortcutEntry) -> Option<&Route> {
-    match &entry.target {
-        Target::Route(route) if route.args().0.is_empty() => Some(route),
-        _ => None,
-    }
-}
-
 impl Shortcuts {
     pub(super) fn new(
         config: &Config,
         binds: Option<Arc<dyn BindHelper>>,
+        paths: Paths,
         clipboard: Rc<dyn ClipboardSink>,
         window: &mut Window,
         cx: &mut Context<SettingsWindow>,
@@ -134,13 +135,38 @@ impl Shortcuts {
             );
             rows.push(ShortcutRow { entry, field });
         }
+        let global: BTreeMap<&'static str, Trigger> = CATALOGUE
+            .iter()
+            .filter(|e| e.scope == Scope::Global)
+            .filter_map(|e| {
+                Some((
+                    e.id,
+                    Trigger::parse(config.global_shortcuts.get(e.id)?).ok()?,
+                ))
+            })
+            .collect();
+        for row in &rows {
+            if let Some(t) = global.get(row.entry.id) {
+                let t = t.clone();
+                row.field.update(cx, |f, cx| f.set_trigger(Some(t), cx));
+            }
+        }
+        let file_error = binds.as_ref().and_then(|b| {
+            setup::ensure_binds_file(b.as_ref(), &paths, &config.global_shortcuts)
+                .err()
+                .map(|e| e.to_string())
+        });
         Self {
             binds,
+            paths,
             clipboard,
             rows,
-            global: BTreeMap::new(),
+            global,
             status: BTreeMap::new(),
             check: None,
+            included: None,
+            reloaded: None,
+            file_error,
             copied: false,
             _subscriptions: subs,
         }
@@ -174,18 +200,75 @@ impl SettingsWindow {
         Some(binds.snippet(&list))
     }
 
-    pub fn copy_snippet(&mut self, cx: &mut Context<Self>) {
-        if let Some(snippet) = self.snippet().filter(|s| !s.is_empty()) {
-            self.shortcuts.clipboard.copy(snippet, cx);
+    /// The one line to add to the compositor config, or `None` without a bind helper.
+    pub fn include_line(&self) -> Option<String> {
+        let binds = self.shortcuts.binds.as_ref()?;
+        Some(setup::include_line(binds.as_ref(), &self.shortcuts.paths))
+    }
+
+    pub fn included(&self) -> Option<&Result<bool, String>> {
+        self.shortcuts.included.as_ref()
+    }
+
+    pub fn file_error(&self) -> Option<&str> {
+        self.shortcuts.file_error.as_deref()
+    }
+
+    pub fn copy_include_line(&mut self, cx: &mut Context<Self>) {
+        if let Some(line) = self.include_line() {
+            self.shortcuts.clipboard.copy(line, cx);
             self.shortcuts.copied = true;
             cx.notify();
         }
+    }
+
+    pub fn check_include(&mut self, cx: &mut Context<Self>) {
+        let Some(binds) = self.shortcuts.binds.clone() else {
+            return;
+        };
+        self.shortcuts.included = None;
+        let dir = self.shortcuts.paths.config_dir().to_path_buf();
+        cx.spawn(async move |this, cx| {
+            let found = cx
+                .background_executor()
+                .spawn(async move { binds.is_included(&dir) })
+                .await;
+            this.update(cx, |this, cx| {
+                this.shortcuts.included = Some(found.map_err(|e| e.to_string()));
+                cx.notify();
+            })
+            .ok();
+        })
+        .detach();
+    }
+
+    pub fn reload_compositor(&mut self, cx: &mut Context<Self>) {
+        let Some(binds) = self.shortcuts.binds.clone() else {
+            return;
+        };
+        cx.spawn(async move |this, cx| {
+            let done = cx
+                .background_executor()
+                .spawn(async move { binds.reload() })
+                .await;
+            this.update(cx, |this, cx| {
+                this.shortcuts.reloaded = Some(done.map_err(|e| e.to_string()));
+                this.check_include(cx);
+            })
+            .ok();
+        })
+        .detach();
+    }
+
+    pub fn reloaded(&self) -> Option<&Result<(), String>> {
+        self.shortcuts.reloaded.as_ref()
     }
 
     pub fn check_binds(&mut self, cx: &mut Context<Self>) {
         let Some(binds) = self.shortcuts.binds.clone() else {
             return;
         };
+        self.check_include(cx);
         cx.spawn(async move |this, cx| {
             let found = cx
                 .background_executor()
@@ -251,14 +334,41 @@ impl SettingsWindow {
                 );
             }
             Scope::Global => {
+                let value = trigger.as_ref().map(trigger_string);
                 match trigger {
                     Some(t) => self.shortcuts.global.insert(entry.id, t),
                     None => self.shortcuts.global.remove(entry.id),
                 };
                 self.shortcuts.status.remove(entry.id);
                 self.shortcuts.copied = false;
+                self.edit(
+                    move |c| match value {
+                        Some(v) => {
+                            c.global_shortcuts.insert(entry.id.to_owned(), v);
+                        }
+                        None => {
+                            c.global_shortcuts.remove(entry.id);
+                        }
+                    },
+                    cx,
+                );
+                self.write_binds_file(cx);
             }
         }
+        cx.notify();
+    }
+
+    fn write_binds_file(&mut self, cx: &mut Context<Self>) {
+        let s = &mut self.shortcuts;
+        let Some(binds) = &s.binds else { return };
+        let globals = s
+            .global
+            .iter()
+            .map(|(id, t)| ((*id).to_owned(), trigger_string(t)))
+            .collect();
+        s.file_error = setup::write_binds_file(binds.as_ref(), &s.paths, &globals)
+            .err()
+            .map(|e| e.to_string());
         cx.notify();
     }
 
@@ -279,56 +389,75 @@ impl SettingsWindow {
             )
             .into_any_element();
         };
-        let snippet = self.snippet().unwrap_or_default();
-        let empty = snippet.is_empty();
-        let buttons = h_flex()
-            .gap(px(8.))
-            .child(
-                EditorButton::new("check-binds")
-                    .label(fl!("shortcuts-check"))
-                    .tooltip(fl!("shortcuts-check-help"))
+        let line = self.include_line().unwrap_or_default();
+        let file = format!("{}/{}", setup::display_dir(&s.paths), binds.file_name());
+        let mut buttons = h_flex().gap(px(8.)).child(
+            EditorButton::new("check-binds")
+                .label(fl!("shortcuts-check"))
+                .tooltip(fl!("shortcuts-check-help"))
+                .kind(ButtonKind::Bordered)
+                .on_click(cx.listener(|this, _, _, cx| this.check_binds(cx))),
+        );
+        if binds.needs_reload() {
+            buttons = buttons.child(
+                EditorButton::new("reload-compositor")
+                    .label(fl!("shortcuts-reload"))
+                    .tooltip(fl!("shortcuts-reload-help"))
                     .kind(ButtonKind::Bordered)
-                    .on_click(cx.listener(|this, _, _, cx| this.check_binds(cx))),
-            )
-            .child(
-                EditorButton::new("copy-snippet")
-                    .label(if s.copied {
-                        fl!("shortcuts-copied")
-                    } else {
-                        fl!("shortcuts-copy-snippet")
-                    })
-                    .kind(ButtonKind::Prominent)
-                    .disabled(empty)
-                    .on_click(cx.listener(|this, _, _, cx| this.copy_snippet(cx))),
+                    .on_click(cx.listener(|this, _, _, cx| this.reload_compositor(cx))),
             );
+        }
+        buttons = buttons.child(
+            EditorButton::new("copy-include")
+                .label(if s.copied {
+                    fl!("shortcuts-copied")
+                } else {
+                    fl!("shortcuts-copy-line")
+                })
+                .kind(ButtonKind::Prominent)
+                .on_click(cx.listener(|this, _, _, cx| this.copy_include_line(cx))),
+        );
         let code = div()
+            .id("include-line")
+            .accessible(Role::Code, fl!("shortcuts-include-a11y"))
             .mx(px(16.))
             .mb(px(12.))
             .p(px(10.))
             .rounded(px(8.))
             .bg(t.track)
-            .text_size(px(11.))
-            .text_color(if empty { t.text_tertiary } else { t.text })
-            .child(if empty {
-                fl!("shortcuts-snippet-empty")
-            } else {
-                snippet.trim_end().to_owned()
-            });
+            .font_family(cx.theme().mono_font_family.clone())
+            .text_size(px(12.))
+            .child(line);
         let mut rows = vec![row(
             syntax_name(binds.syntax()),
-            Some(fl!("shortcuts-compositor-help").into()),
+            Some(fl!("shortcuts-compositor-help", file = file).into()),
             buttons,
             cx,
         )];
         rows.push(code.into_any_element());
-        let footer = match &s.check {
-            Some(Ok((bound, conflicts))) => Some(fl!(
+        let included = match &s.included {
+            Some(Ok(true)) => Some(status_mark(true, fl!("shortcuts-included"), cx)),
+            Some(Ok(false)) => Some(status_mark(false, fl!("shortcuts-not-found"), cx)),
+            _ => None,
+        };
+        if let Some(mark) = included {
+            rows.push(div().mx(px(16.)).mb(px(12.)).child(mark).into_any_element());
+        }
+        let footer = match (&s.file_error, &s.included, &s.reloaded, &s.check) {
+            (Some(error), ..) => Some(fl!("shortcuts-file-failed", error = error.clone())),
+            (_, Some(Err(error)), ..) => {
+                Some(fl!("shortcuts-include-failed", error = error.clone()))
+            }
+            (_, _, Some(Err(error)), _) => {
+                Some(fl!("shortcuts-reload-failed", error = error.clone()))
+            }
+            (.., Some(Ok((bound, conflicts)))) => Some(fl!(
                 "shortcuts-check-summary",
                 bound = bound,
                 conflicts = conflicts
             )),
-            Some(Err(error)) => Some(fl!("shortcuts-check-failed", error = error.clone())),
-            None => None,
+            (.., Some(Err(error))) => Some(fl!("shortcuts-check-failed", error = error.clone())),
+            _ => None,
         };
         group(
             Some(fl!("shortcuts-compositor").into()),

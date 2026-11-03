@@ -1,4 +1,5 @@
 mod atomic_and_paths;
+mod binds;
 mod commit;
 mod config_file;
 mod deck;

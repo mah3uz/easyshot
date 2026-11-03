@@ -249,6 +249,8 @@ fn existing_binds_come_from_binds_json() {
     let helper = HyprBinds {
         ipc: fake.ipc(),
         syntax: BindSyntax::HyprLua,
+        config: None,
+        home: None,
     };
     let binds = helper.existing_binds().expect("binds");
     assert_eq!(

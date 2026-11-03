@@ -5,6 +5,7 @@ use es_model::platform::{
     WindowInfo,
 };
 use es_protocol::Route;
+use std::path::Path;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -59,6 +60,21 @@ pub trait BindHelper: Send + Sync {
     fn syntax(&self) -> BindSyntax;
     fn snippet(&self, binds: &[(Trigger, Route)]) -> String;
     fn existing_binds(&self) -> Result<Vec<(Trigger, String)>>;
+    /// Name of easyshot's binds file inside its config directory.
+    fn file_name(&self) -> &'static str;
+    /// The whole binds file for these binds; an empty list gives a valid, empty file.
+    fn file_text(&self, binds: &[(Trigger, Route)]) -> String;
+    /// The one line the user adds to the compositor config; `dir` is easyshot's config directory as the user writes it.
+    fn include_line(&self, dir: &str) -> String;
+    /// Whether the compositor config, or a file it includes directly, includes the binds file in `dir`.
+    fn is_included(&self, dir: &Path) -> Result<bool>;
+    /// True when the compositor only reads a changed binds file after a reload.
+    fn needs_reload(&self) -> bool {
+        false
+    }
+    fn reload(&self) -> Result<()> {
+        Err(crate::Error::Unsupported)
+    }
 }
 
 pub trait Clipboard: Send + Sync {

@@ -1,5 +1,6 @@
 use es_backend::{Backend, BindHelper, BindSyntax, Trigger as CompositorTrigger};
 use es_protocol::{Modifiers, Route, Trigger};
+use std::path::Path;
 use std::sync::Arc;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -30,6 +31,38 @@ impl BindHelper for BackendBinds {
         match &self.0.binds {
             Some(b) => b.existing_binds(),
             None => Ok(Vec::new()),
+        }
+    }
+    fn file_name(&self) -> &'static str {
+        self.0.binds.as_ref().map_or("", |b| b.file_name())
+    }
+    fn file_text(&self, binds: &[(CompositorTrigger, Route)]) -> String {
+        self.0
+            .binds
+            .as_ref()
+            .map(|b| b.file_text(binds))
+            .unwrap_or_default()
+    }
+    fn include_line(&self, dir: &str) -> String {
+        self.0
+            .binds
+            .as_ref()
+            .map(|b| b.include_line(dir))
+            .unwrap_or_default()
+    }
+    fn is_included(&self, dir: &Path) -> es_backend::Result<bool> {
+        match &self.0.binds {
+            Some(b) => b.is_included(dir),
+            None => Ok(false),
+        }
+    }
+    fn needs_reload(&self) -> bool {
+        self.0.binds.as_ref().is_some_and(|b| b.needs_reload())
+    }
+    fn reload(&self) -> es_backend::Result<()> {
+        match &self.0.binds {
+            Some(b) => b.reload(),
+            None => Err(es_backend::Error::Unsupported),
         }
     }
 }
@@ -89,7 +122,7 @@ fn keysym(key: &str, syntax: BindSyntax) -> String {
 pub fn compositor_trigger(trigger: &Trigger, syntax: BindSyntax) -> CompositorTrigger {
     let names: [&str; 4] = match syntax {
         BindSyntax::HyprLua | BindSyntax::Hyprlang => ["SUPER", "CTRL", "ALT", "SHIFT"],
-        BindSyntax::Sway => ["$mod", "Ctrl", "Mod1", "Shift"],
+        BindSyntax::Sway => ["Mod4", "Ctrl", "Mod1", "Shift"],
         BindSyntax::NiriKdl => ["Mod", "Ctrl", "Alt", "Shift"],
     };
     let mut parts: Vec<String> = [
@@ -108,7 +141,7 @@ pub fn compositor_trigger(trigger: &Trigger, syntax: BindSyntax) -> CompositorTr
 }
 
 /// Modifier set and lower-case key, so `$mod+Shift+4`, `SUPER SHIFT, 4` and `Mod+Shift+4` compare equal.
-fn normalise(trigger: &str) -> (Modifiers, String) {
+pub(crate) fn normalise(trigger: &str) -> (Modifiers, String) {
     let mut words: Vec<String> = trigger
         .split(|c: char| c == '+' || c == ',' || c.is_whitespace())
         .filter(|w| !w.is_empty())
@@ -128,7 +161,7 @@ fn normalise(trigger: &str) -> (Modifiers, String) {
     (modifiers, key)
 }
 
-fn runs(command: &str, route: &Route) -> bool {
+pub(crate) fn runs(command: &str, route: &Route) -> bool {
     let words: Vec<&str> = command
         .split(|c: char| c.is_whitespace() || c == '"' || c == ',' || c == ';')
         .filter(|w| !w.is_empty())

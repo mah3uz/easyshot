@@ -1,6 +1,7 @@
 mod backend;
 mod doctor;
 mod error;
+mod include_scan;
 mod probe;
 pub mod registry;
 #[cfg(feature = "test-hooks")]

@@ -49,6 +49,11 @@ impl Paths {
         self.config.join("config.toml")
     }
 
+    /// The compositor binds file easyshot writes; `name` comes from the bind helper.
+    pub fn binds_file(&self, name: &str) -> PathBuf {
+        self.config.join(name)
+    }
+
     pub fn style_file(&self) -> PathBuf {
         self.config.join("annotation-style.json")
     }
