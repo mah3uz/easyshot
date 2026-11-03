@@ -7,3 +7,4 @@ mod picks;
 mod shortcut_field;
 mod support;
 mod tokens;
+mod tooltips;

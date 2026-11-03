@@ -82,6 +82,10 @@ fn fixture(caps: Caps, binds: Option<Arc<dyn BindHelper>>, prepare: impl FnOnce(
         .cx
         .update_window(handle, |_, window, _| window.activate_window())
         .unwrap();
+    // Pages rise in on the app clock, which these tests do not step.
+    fx.app
+        .cx
+        .update(|cx| es_ui::motion::set_reduce_motion(true, cx));
     fx.app.settle();
     fx
 }

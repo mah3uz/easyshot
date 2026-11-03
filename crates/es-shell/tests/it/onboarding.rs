@@ -11,6 +11,7 @@ use es_shell::onboarding::{
 use es_shell::settings::ClipboardSink;
 use es_store::paths::Paths;
 use es_testkit::Headless;
+use es_ui::motion::STEP_CHANGE;
 use es_ui::{
     assets::Assets,
     components::gallery,
@@ -216,6 +217,7 @@ fn open_sized(
         |cx| {
             gallery::init(cx);
             theme::set_mode(mode, cx);
+            es_ui::motion::set_reduce_motion(true, cx);
         },
         WIDTH,
         height,
@@ -453,4 +455,47 @@ fn the_shortcuts_step_draws_before_and_after_choosing_in_light_and_dark() {
         app.until("the check", |cx| view.read(cx).included().is_some());
         app.screenshot(&format!("onboarding-shortcuts-saved-{name}"));
     }
+}
+
+fn frame(app: &mut App, name: &str) -> image::RgbaImage {
+    let handle = app.window.into();
+    app.cx
+        .update_window(handle, |_, window, _| window.refresh())
+        .expect("window is open");
+    app.screenshot(name)
+}
+
+#[test]
+fn a_step_slides_and_fades_in_over_its_token_and_reduce_motion_shows_it_at_once() {
+    let (_dir, paths) = profile();
+    let (mut app, view, _) = open(paths, ThemeMode::Dark);
+    let go = |app: &mut App, step: Step| {
+        app.cx.update(|cx| view.update(cx, |o, cx| o.go(step, cx)));
+        app.settle();
+    };
+    app.cx
+        .update(|cx| es_ui::motion::set_reduce_motion(false, cx));
+
+    go(&mut app, Step::Desktop);
+    assert_eq!(
+        app.cx.update(|cx| view.read(cx).step()),
+        Step::Desktop,
+        "the step changes at once; only its drawing moves"
+    );
+    let start = frame(&mut app, "onboarding-step-change-0");
+    app.cx.advance_clock(STEP_CHANGE.duration / 2);
+    let mid = frame(&mut app, "onboarding-step-change-1-mid");
+    app.cx.advance_clock(STEP_CHANGE.duration / 2);
+    let end = frame(&mut app, "onboarding-step-change-2-end");
+    assert!(start != mid && mid != end && start != end);
+
+    go(&mut app, Step::Welcome);
+    app.cx.advance_clock(STEP_CHANGE.duration);
+    app.cx
+        .update(|cx| es_ui::motion::set_reduce_motion(true, cx));
+    go(&mut app, Step::Desktop);
+    assert!(
+        frame(&mut app, "onboarding-step-change-reduced") == end,
+        "with Reduce Motion the new step shows whole"
+    );
 }

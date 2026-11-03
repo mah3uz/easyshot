@@ -45,6 +45,7 @@ impl From<Appearance> for KitMode {
 
 pub fn install(cx: &mut App) {
     gpui_component::init(cx);
+    crate::motion::install_tooltip_timing(cx);
     let palettes = Palettes {
         light: palette(Appearance::Light, cx),
         dark: palette(Appearance::Dark, cx),

@@ -30,7 +30,7 @@ pub const TOOL_ROW_HEIGHT: Pixels = px(48.);
 pub const FOOTER_HEIGHT: Pixels = px(52.);
 pub const INSPECTOR_WIDTH: Pixels = px(300.);
 pub const CHROME_PADDING_X: Pixels = px(16.);
-pub const FLASH: Duration = Duration::from_millis(1400);
+pub const FLASH: Duration = es_ui::motion::FLASH_HOLD;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Job {

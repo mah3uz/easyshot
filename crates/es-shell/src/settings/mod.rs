@@ -21,6 +21,7 @@ use es_ui::{
     a11y::{Accessible, Role},
     components::{InspectorSlider, SliderEvent, ValueFormat},
     icons::IconName,
+    motion::{Clocked, PAGE_CHANGE, PAGE_RISE, progress},
     theme::tokens,
 };
 use gpui::{
@@ -212,6 +213,7 @@ pub struct SettingsWindow {
     outputs: Vec<String>,
     version: String,
     page: Page,
+    page_motion: Option<Clocked>,
     problem: Option<ConfigProblem>,
     save_failed: Option<String>,
     confirm_restore: Option<Page>,
@@ -342,6 +344,7 @@ impl SettingsWindow {
             outputs: deps.outputs,
             version: deps.version,
             page: Page::Home,
+            page_motion: None,
             problem,
             save_failed: None,
             confirm_restore: None,
@@ -357,6 +360,9 @@ impl SettingsWindow {
     }
 
     pub fn show(&mut self, page: Page, cx: &mut Context<Self>) {
+        if page != self.page {
+            self.page_motion = Clocked::start(PAGE_CHANGE, cx);
+        }
         self.page = page;
         self.confirm_restore = None;
         if page == Page::Shortcuts {
@@ -531,6 +537,7 @@ impl Render for SettingsWindow {
             Page::About => self.render_about(cx),
         });
         let t = tokens(cx);
+        let arrived = progress(self.page_motion, window, cx);
         h_flex()
             .size_full()
             .font_family(es_ui::theme::UI_FONT)
@@ -543,7 +550,12 @@ impl Render for SettingsWindow {
                     .min_w_0()
                     .h_full()
                     .overflow_y_scroll()
-                    .child(widgets::page(self.page.title().into(), children, cx)),
+                    .child(
+                        widgets::page(self.page.title().into(), children, cx)
+                            .relative()
+                            .top(PAGE_RISE * (1.0 - arrived))
+                            .opacity(arrived),
+                    ),
             )
     }
 }

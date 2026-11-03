@@ -10,6 +10,7 @@ use es_ui::{
     a11y::{Accessible, Role},
     components::{ButtonKind, EditorButton},
     icons::IconName,
+    motion::{Clocked, STEP_CHANGE},
     theme::{UI_FONT, tokens},
     tokens::Tokens,
 };
@@ -81,6 +82,7 @@ pub struct Onboarding {
     pub(super) paths: Paths,
     pub(super) input: OnboardingInput,
     step: Step,
+    step_motion: Option<(Clocked, Step)>,
     practice: Option<PathBuf>,
     pub(super) shortcuts: super::shortcuts::State,
     focus: FocusHandle,
@@ -112,6 +114,7 @@ impl Onboarding {
             paths,
             input,
             step: Step::Welcome,
+            step_motion: None,
             practice: None,
             shortcuts: Default::default(),
             focus,
@@ -123,6 +126,9 @@ impl Onboarding {
     }
 
     pub fn go(&mut self, step: Step, cx: &mut Context<Self>) {
+        if step != self.step {
+            self.step_motion = Clocked::start(STEP_CHANGE, cx).map(|c| (c, self.step));
+        }
         self.step = step;
         if step == Step::Shortcuts {
             self.enter_shortcuts(cx);
@@ -438,7 +444,7 @@ impl Onboarding {
             )
     }
 
-    fn footer(&self, t: &Tokens, cx: &mut Context<Self>) -> Div {
+    fn footer(&self, t: &Tokens, arrived: f32, from: Step, cx: &mut Context<Self>) -> Div {
         let first = self.step == Step::Welcome;
         let last = self.step == Step::Practice;
         let (back, next) = (cx.entity().downgrade(), cx.entity().downgrade());
@@ -455,9 +461,11 @@ impl Onboarding {
             .gap(px(6.))
             .children(Step::ALL.iter().map(|&s| {
                 let active = s == self.step;
+                let width = |current: bool| if current { 20. } else { 7. };
+                let (was, is) = (width(s == from), width(active));
                 div()
                     .h(px(7.))
-                    .w(px(if active { 20. } else { 7. }))
+                    .w(px(was + (is - was) * arrived))
                     .rounded_full()
                     .bg(if active { t.accent } else { t.text_tertiary })
             }));
@@ -502,8 +510,18 @@ impl Onboarding {
 }
 
 impl Render for Onboarding {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let t = tokens(cx).clone();
+        let (arrived, from) = match self.step_motion {
+            Some((clocked, from)) => (clocked.progress(window, cx), from),
+            None => (1.0, self.step),
+        };
+        let toward = if self.step.index() < from.index() {
+            -1.
+        } else {
+            1.
+        };
+        let slide = window.viewport_size().width * toward * (1.0 - arrived);
         let body = match self.step {
             Step::Welcome => self.welcome(&t),
             Step::Desktop => self.desktop(&t),
@@ -541,10 +559,13 @@ impl Render for Onboarding {
                             .flex_col()
                             .items_center()
                             .gap(px(28.))
+                            .relative()
+                            .left(slide)
+                            .opacity(arrived)
                             .child(self.header(&t))
                             .child(body),
                     ),
             )
-            .child(self.footer(&t, cx))
+            .child(self.footer(&t, arrived, from, cx))
     }
 }

@@ -1,6 +1,10 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
-use gpui::{Animation, AnimationExt, AnyElement, App, ElementId, Global, IntoElement, Pixels, px};
+use gpui::{
+    Animation, AnimationExt, AnyElement, App, ElementId, Global, IntoElement, Pixels,
+    TooltipTiming, Window, px,
+};
+use gpui_component::tooltip::TooltipDefaults;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Easing {
@@ -103,6 +107,48 @@ impl Transition {
     }
 }
 
+/// A transition timed on the app's clock instead of the wall clock, so tests can step it and its
+/// progress can drive painting that is not an element style.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Clocked {
+    transition: Transition,
+    started: Instant,
+}
+
+impl Clocked {
+    /// `None` when Reduce Motion skips the transition.
+    pub fn start(transition: Transition, cx: &App) -> Option<Self> {
+        transition.plays(reduce_motion(cx)).then(|| Self {
+            transition,
+            started: cx.background_executor().now(),
+        })
+    }
+
+    /// Eased from 0 to 1, asking the window for frames until it arrives.
+    pub fn progress(&self, window: &mut Window, cx: &App) -> f32 {
+        let t = self.linear(cx);
+        if t < 1.0 {
+            window.request_animation_frame();
+        }
+        self.transition.easing.at(t)
+    }
+
+    fn linear(&self, cx: &App) -> f32 {
+        if self.transition.duration.is_zero() {
+            return 1.0;
+        }
+        let elapsed = cx
+            .background_executor()
+            .now()
+            .saturating_duration_since(self.started);
+        (elapsed.as_secs_f32() / self.transition.duration.as_secs_f32()).min(1.0)
+    }
+}
+
+pub fn progress(clocked: Option<Clocked>, window: &mut Window, cx: &App) -> f32 {
+    clocked.map_or(1.0, |c| c.progress(window, cx))
+}
+
 struct ReduceMotion(bool);
 
 impl Global for ReduceMotion {}
@@ -114,6 +160,18 @@ pub fn set_reduce_motion(reduce: bool, cx: &mut App) {
 
 pub fn reduce_motion(cx: &App) -> bool {
     cx.try_global::<ReduceMotion>().is_some_and(|r| r.0)
+}
+
+/// Plain element tooltips and the kit's managed ones keep separate clocks, so both are set.
+pub fn install_tooltip_timing(cx: &mut App) {
+    cx.set_global(TooltipTiming {
+        delay: TOOLTIP_DELAY,
+        warm: TOOLTIP_WARM,
+    });
+    TooltipDefaults::new()
+        .with_show_delay(TOOLTIP_DELAY)
+        .with_grace_period(TOOLTIP_WARM)
+        .install(cx);
 }
 
 /// GPUI's own reduce-motion switch would also stop the short fades, so this gate is kept separately.
