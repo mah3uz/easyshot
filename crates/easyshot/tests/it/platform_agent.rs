@@ -336,3 +336,71 @@ fn platform_agent_captures_by_geometry_output_window_and_fullscreen() {
         assert!(message.contains(w["id"].as_str().unwrap()), "{message}");
     }
 }
+
+#[test]
+fn platform_agent_reads_text_from_a_geometry_target_and_a_file() {
+    if std::env::var("EASYSHOT_TEST").as_deref() != Ok("1")
+        || std::env::var("EASYSHOT_TEST_OUTPUT").as_deref() != Ok("HEADLESS-1")
+    {
+        eprintln!("skipped: not inside the headless sway harness");
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let root = root.path();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_easyshot"));
+    cmd.arg("daemon")
+        .env("EASYSHOT_TEST_OCR_TEXT", "fixed words");
+    xdg(&mut cmd, root);
+    let log = std::fs::File::create(root.join("daemon.log")).unwrap();
+    let _daemon = Daemon(cmd.stderr(Stdio::from(log)).spawn().unwrap());
+    let end = Instant::now() + Duration::from_secs(30);
+    while agent(root, "outputs").0 == 3 && Instant::now() < end {
+        sleep(Duration::from_millis(200));
+    }
+    for args in [
+        &["agent", "enable"][..],
+        &["agent", "config", "set", "consent", "always-allow"],
+    ] {
+        let mut setup = Command::new(env!("CARGO_BIN_EXE_easyshot"));
+        setup.args(args);
+        xdg(&mut setup, root);
+        assert!(setup.status().unwrap().success(), "{args:?}");
+    }
+    let ocr = |args: &[&str]| {
+        let mut cmd = Command::new(env!("CARGO_BIN_EXE_easyshot"));
+        cmd.args(["agent", "ocr", "--json"]).args(args);
+        xdg(&mut cmd, root);
+        let out = cmd.output().unwrap();
+        let text = String::from_utf8(out.stdout).unwrap();
+        (out.status.code().unwrap_or(-1), json_line(&text))
+    };
+    let (code, reply) = ocr(&["--geometry", "100,50 320x200"]);
+    assert_eq!(code, 0, "{reply}");
+    assert_eq!(reply["kind"], "ocr");
+    assert_eq!(reply["text"], "fixed words");
+    assert_eq!(reply["source"]["output"], "HEADLESS-1");
+    assert_eq!(
+        (
+            reply["lines"][0]["width"].as_u64(),
+            reply["lines"][0]["height"].as_u64()
+        ),
+        (Some(480), Some(300)),
+        "the line spans the 320x200 area at scale 1.5: {reply}"
+    );
+    assert!(library_images(root).is_empty(), "reading saves no capture");
+
+    let png = root.join("note.png");
+    image::RgbaImage::from_pixel(40, 20, image::Rgba([255; 4]))
+        .save(&png)
+        .unwrap();
+    let (code, reply) = ocr(&["--file", png.to_str().unwrap()]);
+    assert_eq!(code, 0, "{reply}");
+    assert_eq!(reply["source"]["file"].as_str(), png.to_str());
+    assert_eq!(reply["lines"][0]["width"], 40);
+    let missing = root.join("none.png");
+    let (code, reply) = ocr(&["--file", missing.to_str().unwrap()]);
+    assert_eq!(
+        (code, reply["error"]["code"].as_str()),
+        (5, Some("not_found"))
+    );
+}

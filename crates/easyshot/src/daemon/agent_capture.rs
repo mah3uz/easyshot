@@ -35,24 +35,25 @@ pub struct Deps {
 pub(super) struct Fail(pub ErrorCode, pub String);
 
 impl Fail {
-    fn new(code: ErrorCode, message: impl Into<String>) -> Fail {
+    pub(super) fn new(code: ErrorCode, message: impl Into<String>) -> Fail {
         Fail(code, message.into())
     }
 }
 
-fn fail_of(e: Error) -> Fail {
+pub(super) fn fail_of(e: Error) -> Fail {
     match e {
         Error::Unsupported => Fail::new(ErrorCode::Unsupported, "this desktop cannot capture that"),
         Error::NotFound(what) => Fail::new(ErrorCode::NotFound, format!("no {what}")),
         Error::Cancelled => Fail::new(ErrorCode::Cancelled, "cancelled"),
+        Error::TesseractMissing => Fail::new(ErrorCode::Unsupported, super::ocr::INSTALL_HINT),
         other => Fail::new(ErrorCode::Failed, other.to_string()),
     }
 }
 
 pub(super) struct Shot {
-    frame: Arc<Frame>,
-    kind: StoredKind,
-    window: Option<WindowInfo>,
+    pub(super) frame: Arc<Frame>,
+    pub(super) kind: StoredKind,
+    pub(super) window: Option<WindowInfo>,
 }
 
 pub fn install(
@@ -63,7 +64,7 @@ pub fn install(
     surfaces: &Rc<LayerShellSurfaces>,
     pipeline: &Rc<PipelineDeps>,
 ) {
-    let runner = runner(Deps {
+    let deps = Rc::new(Deps {
         backend: backend.clone(),
         direct: Rc::new(Direct::new(
             backend.clone(),
@@ -72,16 +73,17 @@ pub fn install(
         )),
         pipeline: pipeline.clone(),
     });
+    let ocr = super::ocr::runner(deps.clone(), super::ocr::recognizer());
     dispatcher.set_agent_handler(super::handler_with(
         super::sources(backend),
         jobs.clone(),
         agent_gate::install(cx),
-        Some(runner),
+        Some(runner(deps)),
+        Some(ocr),
     ));
 }
 
-fn runner(deps: Deps) -> CaptureRunner {
-    let deps = Rc::new(deps);
+fn runner(deps: Rc<Deps>) -> CaptureRunner {
     Rc::new(move |spec, scope, cx| {
         let deps = deps.clone();
         cx.spawn(async move |cx| {
@@ -154,7 +156,7 @@ fn check_out(out: &Path) -> Result<(), Fail> {
     Ok(())
 }
 
-fn check_caps(caps: Caps, target: &AgentTarget) -> Result<(), Fail> {
+pub(super) fn check_caps(caps: Caps, target: &AgentTarget) -> Result<(), Fail> {
     let (need, what) = match target {
         AgentTarget::Window(_) => (Caps::WINDOW_LIST, "window list"),
         _ => (Caps::CAPTURE_OUTPUT, "screen capture"),
@@ -169,7 +171,7 @@ fn check_caps(caps: Caps, target: &AgentTarget) -> Result<(), Fail> {
     }
 }
 
-async fn acquire(
+pub(super) async fn acquire(
     deps: &Deps,
     target: &AgentTarget,
     scope: &Scope,

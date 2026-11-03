@@ -70,7 +70,7 @@ impl CaptureArgs {
     }
 }
 
-fn parse_output(text: &str) -> Result<OutputName, String> {
+pub(super) fn parse_output(text: &str) -> Result<OutputName, String> {
     OutputName::new(text)
 }
 

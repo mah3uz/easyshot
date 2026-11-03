@@ -203,3 +203,14 @@ fn qr_codes_are_read_without_tesseract() {
     assert_eq!(got.text, "https://example.test/qr");
     assert!(got.words.is_empty());
 }
+
+#[test]
+fn a_code_comes_with_the_box_it_was_found_in() {
+    let mut canvas = RgbaImage::from_pixel(400, 300, Rgba([255; 4]));
+    image::imageops::overlay(&mut canvas, &qr("boxed", 200), 120, 60);
+    let got = recognize(&canvas, &OcrOptions::default()).unwrap();
+    let r = got.code_rects[0];
+    assert_eq!(got.codes, ["boxed"]);
+    assert!(r.x0 >= 110.0 && r.x1 <= 330.0 && r.y0 >= 50.0 && r.y1 <= 270.0);
+    assert!(r.width() > 100.0 && r.height() > 100.0, "{r:?}");
+}

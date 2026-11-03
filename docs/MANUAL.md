@@ -492,6 +492,16 @@ Commands:
     daemon has accepted it. With `--json` the answer is
     `{"ok":true,"kind":"export","path":...,"format":...,"width":...,"height":...,"duration_ms":...,"bytes":...}`.
     It reads no screen, so it needs no more than agent access being on.
+- `agent ocr` reads the text and QR codes on a target or in an image. Give exactly one of
+  the capture targets (`--output`, `--geometry`, `--window`, `--fullscreen`, read from a
+  still frame that is not saved anywhere) or `--file PATH`, a PNG or JPEG. `--lang eng+deu`
+  names the Tesseract languages; the default is
+  the `[ocr] languages` setting. Without `--json` it prints the text, QR codes first. QR codes are
+  read without Tesseract; text needs it, and without it (and with no QR code) the command
+  exits 6 with how to install it. With `--json` the answer holds `text`, `lines`
+  (`text`, `x`, `y`, `width`, `height`, `confidence`), `qr` (`text`, `x`, `y`, `width`,
+  `height`) and `source` (`output`, `window` or `file`); positions are pixels of the image
+  that was read.
 
 Without `--json` each output or window is one line of tab-separated text, with geometry
 written `x,y WxH`. With `--json` (before or after the subcommand) easyshot prints exactly
@@ -506,7 +516,7 @@ one JSON object on standard output, errors included:
 A capture answer gives the size in pixels, not logical pixels, and `scale`; a window capture
 adds a `window` object like an entry of `agent list windows`.
 
-`kind` is `outputs`, `windows`, `capture`, `export`, `access` (enable, disable and status), `config`, or `usage` when the command line itself could not be read.
+`kind` is `outputs`, `windows`, `capture`, `export`, `ocr`, `access` (enable, disable and status), `config`, or `usage` when the command line itself could not be read.
 Fields may be added to these objects in later versions; existing ones keep their meaning.
 
 Exit codes and error codes:

@@ -4,6 +4,8 @@ pub(super) mod capture;
 mod export;
 #[path = "agent_gate.rs"]
 pub(super) mod gate;
+#[path = "agent_ocr.rs"]
+mod ocr;
 
 use es_app::dispatcher::AgentHandler;
 use es_app::jobs::{Jobs, run_cpu};
@@ -36,7 +38,7 @@ pub fn sources(backend: &Arc<Backend>) -> Sources {
 
 #[cfg(test)]
 pub fn handler(sources: Sources, jobs: Jobs, gate: Gate) -> AgentHandler {
-    handler_with(sources, jobs, gate, None)
+    handler_with(sources, jobs, gate, None, None)
 }
 
 pub fn handler_with(
@@ -44,15 +46,17 @@ pub fn handler_with(
     jobs: Jobs,
     gate: Gate,
     capture: Option<capture::CaptureRunner>,
+    ocr: Option<ocr::OcrRunner>,
 ) -> AgentHandler {
     Rc::new(move |job, route, origin, cx| {
         let kind = route.kind();
         let work: Work = {
-            let (sources, capture) = (sources.clone(), capture.clone());
-            Box::new(move |route, scope, cx| match (route, capture) {
-                (AgentRoute::Capture(spec), Some(capture)) => {
+            let (sources, capture, ocr) = (sources.clone(), capture.clone(), ocr.clone());
+            Box::new(move |route, scope, cx| match (route, capture, ocr) {
+                (AgentRoute::Capture(spec), Some(capture), _) => {
                     capture(spec.clone(), scope.clone(), cx)
                 }
+                (AgentRoute::Ocr(spec), _, Some(ocr)) => ocr(spec.clone(), scope.clone(), cx),
                 _ => {
                     let route = route.clone();
                     let task = run_cpu(cx, move || answer(&route, &sources));
@@ -98,6 +102,7 @@ fn answer(route: &AgentRoute, sources: &Sources) -> AgentReply {
         }
         AgentRoute::Capture(_) => unsupported("screen capture"),
         AgentRoute::Export(spec) => export::export(spec),
+        AgentRoute::Ocr(_) => unsupported("text recognition"),
         AgentRoute::ListWindows => {
             if !sources.caps.contains(Caps::WINDOW_LIST) {
                 return unsupported("window list");

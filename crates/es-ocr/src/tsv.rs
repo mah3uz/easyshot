@@ -45,24 +45,34 @@ pub fn parse_tsv(tsv: &str) -> Vec<Word> {
 }
 
 pub(crate) fn lines(words: &[Word]) -> Vec<Line> {
-    let mut out: Vec<(u32, Line)> = Vec::new();
+    let mut out: Vec<(u32, usize, f32, Line)> = Vec::new();
     for w in words {
         match out.last_mut() {
-            Some((id, line)) if *id == w.line => {
+            Some((id, n, sum, line)) if *id == w.line => {
                 line.text.push(' ');
                 line.text.push_str(&w.text);
                 line.rect = line.rect.union(w.rect);
+                *n += 1;
+                *sum += w.confidence;
             }
             _ => out.push((
                 w.line,
+                1,
+                w.confidence,
                 Line {
                     text: w.text.clone(),
                     rect: w.rect,
+                    confidence: 0.0,
                 },
             )),
         }
     }
-    out.into_iter().map(|(_, l)| l).collect()
+    out.into_iter()
+        .map(|(_, n, sum, line)| Line {
+            confidence: sum / n as f32,
+            ..line
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -99,6 +109,12 @@ mod tests {
         assert_eq!(l.len(), 3);
         assert_eq!(l[0].text, "Hello there");
         assert_eq!(l[0].rect, Rect::new(20.0, 20.0, 190.0, 50.0));
+    }
+
+    #[test]
+    fn a_line_is_as_sure_as_the_mean_of_its_words() {
+        let l = lines(&parse_tsv(SAMPLE));
+        assert_eq!((l[0].confidence, l[1].confidence), (89.875, 95.0));
     }
 
     #[test]

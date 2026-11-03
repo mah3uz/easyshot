@@ -1,6 +1,7 @@
 mod access;
 mod capture;
 mod export;
+mod ocr;
 mod reply;
 mod target;
 
@@ -9,6 +10,9 @@ pub use capture::{CaptureSpec, MAX_DELAY_SECONDS, check_out};
 pub use export::{
     ExportSpec, FORMATS, LOOKS, MAX_BRIGHTNESS_MILLI, QUALITIES, SIZES, TrimRange, check_path,
     extension_format,
+};
+pub use ocr::{
+    OcrCode, OcrInfo, OcrInput, OcrLine, OcrSource, OcrSpec, check_file, parse_languages,
 };
 pub use reply::{
     AgentReply, CaptureInfo, ErrorCode, ExportInfo, OutputEntry, ReplyError, ReplyKind, WindowEntry,
@@ -32,16 +36,18 @@ pub enum AgentRoute {
     Capture(CaptureSpec),
     Manage(ManageRoute),
     Export(ExportSpec),
+    Ocr(OcrSpec),
 }
 
 impl AgentRoute {
     /// The routes access gates, and the only ones; `Manage` routes are outside it.
     /// The capture entry is a sample; its fields are not part of the route's identity.
-    pub const ALL: [AgentRoute; 4] = [
+    pub const ALL: [AgentRoute; 5] = [
         AgentRoute::ListOutputs,
         AgentRoute::ListWindows,
         AgentRoute::Capture(CaptureSpec::new(AgentTarget::Fullscreen)),
         AgentRoute::Export(ExportSpec::new(PathBuf::new())),
+        AgentRoute::Ocr(OcrSpec::new(OcrInput::Target(AgentTarget::Fullscreen))),
     ];
 
     pub fn route_name(&self) -> &'static str {
@@ -51,6 +57,7 @@ impl AgentRoute {
             AgentRoute::Capture(_) => "agent/capture",
             AgentRoute::Manage(m) => m.route_name(),
             AgentRoute::Export(_) => "agent/export",
+            AgentRoute::Ocr(_) => "agent/ocr",
         }
     }
 
@@ -61,6 +68,7 @@ impl AgentRoute {
             AgentRoute::Capture(_) => ReplyKind::Capture,
             AgentRoute::Manage(m) => m.kind(),
             AgentRoute::Export(_) => ReplyKind::Export,
+            AgentRoute::Ocr(_) => ReplyKind::Ocr,
         }
     }
 
@@ -71,6 +79,7 @@ impl AgentRoute {
             AgentRoute::Capture(_) => vec!["agent", "capture"],
             AgentRoute::Manage(m) => m.command_args(),
             AgentRoute::Export(_) => vec!["agent", "export"],
+            AgentRoute::Ocr(_) => vec!["agent", "ocr"],
         }
     }
 
@@ -81,6 +90,7 @@ impl AgentRoute {
         match self {
             AgentRoute::Capture(spec) => spec.write_args(&mut args),
             AgentRoute::Export(spec) => spec.write_args(&mut args),
+            AgentRoute::Ocr(spec) => spec.write_args(&mut args),
             _ => {}
         }
         if let AgentRoute::Manage(m) = self {
@@ -93,6 +103,10 @@ impl AgentRoute {
     pub fn target(&self) -> Option<&AgentTarget> {
         match self {
             AgentRoute::Capture(spec) => Some(&spec.target),
+            AgentRoute::Ocr(spec) => match &spec.input {
+                OcrInput::Target(target) => Some(target),
+                OcrInput::File(_) => None,
+            },
             AgentRoute::ListOutputs
             | AgentRoute::ListWindows
             | AgentRoute::Export(_)
@@ -123,6 +137,15 @@ impl AgentRoute {
             return ManageRoute::parse(name, args)
                 .map(AgentRoute::Manage)
                 .map_err(bad);
+        }
+        if let Some(AgentRoute::Ocr(_)) = route {
+            let known = |k: &str| {
+                k == VERSION_ARG || AgentTarget::ARGS.contains(&k) || OcrSpec::ARGS.contains(&k)
+            };
+            if let Some(extra) = args.0.keys().find(|k| !known(k)) {
+                return Err(bad(format!("unknown argument {extra}")));
+            }
+            return OcrSpec::from_args(args).map(AgentRoute::Ocr).map_err(bad);
         }
         if let Some(AgentRoute::Capture(_)) = route {
             let known = |k: &str| {

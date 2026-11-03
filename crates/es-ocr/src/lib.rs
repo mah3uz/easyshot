@@ -11,7 +11,7 @@ use std::time::Duration;
 use es_geom::Rect;
 use image::RgbaImage;
 
-pub use qr::decode_codes;
+pub use qr::{decode_code_boxes, decode_codes};
 pub use tesseract::{Probe, probe};
 pub use tsv::parse_tsv;
 
@@ -64,18 +64,22 @@ pub struct Word {
 pub struct Line {
     pub text: String,
     pub rect: Rect,
+    /// The mean of the line's word confidences, 0 to 100.
+    pub confidence: f32,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Recognized {
     pub text: String,
     pub codes: Vec<String>,
+    /// Where each entry of `codes` was found, in image pixels.
+    pub code_rects: Vec<Rect>,
     pub lines: Vec<Line>,
     pub words: Vec<Word>,
 }
 
 pub fn recognize(image: &RgbaImage, options: &OcrOptions) -> Result<Recognized, Error> {
-    let codes = decode_codes(image);
+    let (codes, code_rects): (Vec<_>, Vec<_>) = decode_code_boxes(image).into_iter().unzip();
     let words = match tesseract::run(image, options) {
         Err(Error::NotInstalled) if !codes.is_empty() => Vec::new(),
         other => other?,
@@ -91,6 +95,7 @@ pub fn recognize(image: &RgbaImage, options: &OcrOptions) -> Result<Recognized, 
     Ok(Recognized {
         text,
         codes,
+        code_rects,
         lines,
         words,
     })
@@ -115,6 +120,7 @@ mod tests {
         Line {
             text: t.to_owned(),
             rect: Rect::ZERO,
+            confidence: 0.0,
         }
     }
 

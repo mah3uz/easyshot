@@ -1,3 +1,4 @@
+use super::OcrInfo;
 use super::access::{AccessStatus, ConfigEntry};
 use serde::{Deserialize, Serialize};
 
@@ -66,6 +67,7 @@ pub enum ReplyKind {
     Access,
     Config,
     Export,
+    Ocr,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -151,6 +153,8 @@ pub struct AgentReply {
     pub capture: Option<Box<CaptureInfo>>,
     #[serde(flatten, default, skip_serializing_if = "Option::is_none")]
     pub export: Option<Box<ExportInfo>>,
+    #[serde(flatten, default, skip_serializing_if = "Option::is_none")]
+    pub ocr: Option<Box<OcrInfo>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub access: Option<AccessStatus>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -186,14 +190,16 @@ struct WireReply {
 enum Made {
     Export(Box<ExportInfo>),
     Capture(Box<CaptureInfo>),
+    Ocr(Box<OcrInfo>),
 }
 
 impl From<WireReply> for AgentReply {
     fn from(w: WireReply) -> AgentReply {
-        let (capture, export) = match w.made {
-            Some(Made::Capture(c)) => (Some(c), None),
-            Some(Made::Export(e)) => (None, Some(e)),
-            None => (None, None),
+        let (capture, export, ocr) = match w.made {
+            Some(Made::Capture(c)) => (Some(c), None, None),
+            Some(Made::Export(e)) => (None, Some(e), None),
+            Some(Made::Ocr(o)) => (None, None, Some(o)),
+            None => (None, None, None),
         };
         AgentReply {
             ok: w.ok,
@@ -203,6 +209,7 @@ impl From<WireReply> for AgentReply {
             windows: w.windows,
             capture,
             export,
+            ocr,
             access: w.access,
             config: w.config,
             error: w.error,
@@ -222,6 +229,7 @@ impl AgentReply {
             access: None,
             config: None,
             export: None,
+            ocr: None,
             error: None,
         }
     }

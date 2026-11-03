@@ -23,6 +23,8 @@ es-record.workspace = true
 es-backend.workspace = true
 es-ui = { workspace = true, optional = true }
 es-app = { workspace = true, optional = true }
+es-ocr = { workspace = true, optional = true }
+image = { workspace = true, optional = true }
 es-editor = { workspace = true, optional = true }
 es-overlays = { workspace = true, optional = true }
 es-shell = { workspace = true, optional = true }
@@ -53,10 +55,11 @@ es-testkit.workspace = true
 xkbcommon.workspace = true
 es-desktop = { workspace = true, features = ["test-hooks"] }
 tempfile.workspace = true
+rxing.workspace = true
 image.workspace = true
 
 [features]
-gui = ["dep:gpui", "dep:gpui_platform", "dep:es-ui", "dep:es-app", "dep:es-editor", "dep:es-overlays", "dep:es-shell", "dep:gpui-component", "dep:rayon", "dep:time", "dep:uuid", "dep:rustix"]
+gui = ["dep:gpui", "dep:gpui_platform", "dep:es-ui", "dep:es-app", "dep:es-ocr", "dep:image", "dep:es-editor", "dep:es-overlays", "dep:es-shell", "dep:gpui-component", "dep:rayon", "dep:time", "dep:uuid", "dep:rustix"]
 default = ["gui", "es-backend/hyprland", "es-backend/wlroots", "es-backend/niri"]
 hyprland = ["es-backend/hyprland"]
 wlroots = ["es-backend/wlroots"]

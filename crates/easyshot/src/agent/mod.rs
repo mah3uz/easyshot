@@ -1,12 +1,14 @@
 mod access;
 mod capture;
 mod export;
+mod ocr;
 mod run;
 #[cfg(test)]
 mod tests;
 
 pub use capture::CaptureArgs;
 pub use export::ExportArgs;
+pub use ocr::OcrArgs;
 pub use run::{run, usage_error};
 
 use clap::{Args, Subcommand, ValueEnum};
@@ -39,6 +41,8 @@ pub enum AgentCommand {
     Config(access::ConfigCommand),
     /// Re-encode a recording as MP4, WebM or GIF with the trim viewer's export options
     Export(ExportArgs),
+    /// Read the text and QR codes on a target or in an image file
+    Ocr(OcrArgs),
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
@@ -70,6 +74,7 @@ impl AgentArgs {
             AgentCommand::Status => (AgentRoute::Manage(ManageRoute::Status), true),
             AgentCommand::Config(c) => (AgentRoute::Manage(c.route()), true),
             AgentCommand::Export(args) => (AgentRoute::Export(args.spec()), args.wait()),
+            AgentCommand::Ocr(args) => (AgentRoute::Ocr(args.spec()), true),
         };
         AgentCall {
             route,

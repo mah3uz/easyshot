@@ -244,7 +244,7 @@ fn ask(
             pid: None,
         },
     );
-    let handler = super::super::handler_with(sources, jobs, rig.gate.clone(), capture);
+    let handler = super::super::handler_with(sources, jobs, rig.gate.clone(), capture, None);
     let route = AgentRoute::Capture(CaptureSpec::new(AgentTarget::Fullscreen));
     cx.update(|cx| handler(JobId(3), route, origin, cx));
     cx.run_until_parked();
