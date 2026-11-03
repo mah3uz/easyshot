@@ -296,19 +296,10 @@ fn recovered_journals_reopen_in_editors_with_a_toast(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
-fn onboarding_shows_the_compositor_bind_lines_from_the_backend(cx: &mut TestAppContext) {
+fn onboarding_has_no_bind_lines_while_no_key_is_chosen(cx: &mut TestAppContext) {
     let rig = rig_with(cx, Some(Arc::new(Lines)));
-    let snippet = cx
-        .update(|cx| onboarding_input(&rig.wiring, cx))
-        .snippet
-        .expect("a snippet when the backend can write binds");
-    assert!(
-        snippet.contains(&format!("exec easyshot {}", Route::CaptureRegion.as_str())),
-        "{snippet}"
-    );
-    let bare = self::rig(cx);
     assert_eq!(
-        cx.update(|cx| onboarding_input(&bare.wiring, cx)).snippet,
+        cx.update(|cx| onboarding_input(&rig.wiring, cx)).snippet,
         None
     );
 }

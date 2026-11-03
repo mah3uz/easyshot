@@ -86,7 +86,7 @@ frame (AVIF or WebP) for `prefers-reduced-motion` and slow connections.
 
 | Slot | Component | What to record | Format |
 |---|---|---|---|
-| Hero | `HeroShot.vue` | A full desktop with a browser and a terminal. Press Super+Shift+4, drag an area over the browser, adjust a handle, release; the card slides into the deck, hover it to show Copy and Save. | 16:9 loop, 8–12 s, 2560×1440, under 2.5 MB, plus a poster |
+| Hero | `HeroShot.vue` | A full desktop with a browser and a terminal. Press the capture key, drag an area over the browser, adjust a handle, release; the card slides into the deck, hover it to show Copy and Save. | 16:9 loop, 8–12 s, 2560×1440, under 2.5 MB, plus a poster |
 | Feature grid | `FeatureBento.vue` | One 3–5 s loop or still per tile: area, window highlight, OCR copying text, colour picker, scrolling capture growing, a pin over windows, the countdown, recording, the deck. | 16:9 or 2:1, 1200 px wide, under 400 KB each |
 | Editor | `EditorMock.vue` | Open a capture in the editor; draw an arrow and a box, add a step number, run Smart Redaction, then change background, padding, corners and camera 3D in the inspector. Keep the interactive mock-up as a fallback, or show the video above it. | 16:10 loop, 12–15 s, 2560×1600 |
 | Smart Redaction | `pages/index.vue` | A screenshot with an e-mail, a token, a card number and an IP address; press the redaction button and watch the pixelate shapes appear. Use made-up values only. | 4:3 loop, 4–6 s |

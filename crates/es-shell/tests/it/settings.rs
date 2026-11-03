@@ -270,7 +270,19 @@ fn each_compositor_gets_its_own_snippet_and_copy_goes_to_the_clipboard() {
         ),
     ] {
         let mut fx = fixture(Caps::BIND_CHECK, Some(binds), |_| {});
+        assert_eq!(
+            fx.read(|v, _| v.snippet()).as_deref(),
+            Some(""),
+            "no key chosen, so nothing to bind"
+        );
+        fx.update(|v, cx| v.show(Page::Shortcuts, cx));
+        fx.record("capture-region", "super-shift-4");
         let snippet = fx.read(|v, _| v.snippet()).unwrap();
+        assert_eq!(
+            snippet.lines().filter(|l| l.contains("easyshot")).count(),
+            1,
+            "only the chosen key: {snippet}"
+        );
         assert!(snippet.contains(region), "{snippet}");
         assert!(
             !snippet.contains("open-image"),
@@ -279,6 +291,36 @@ fn each_compositor_gets_its_own_snippet_and_copy_goes_to_the_clipboard() {
         fx.update(|v, cx| v.copy_snippet(cx));
         assert_eq!(*fx.clipboard.0.borrow(), vec![snippet]);
     }
+}
+
+#[test]
+fn stored_editor_keys_load_and_no_global_row_starts_with_a_key() {
+    let mut fx = fixture(Caps::BIND_CHECK, Some(sway_binds()), |config| {
+        std::fs::write(config, "[shortcuts]\nimage-crop = \"K\"\n").unwrap();
+    });
+    let (crop, globals_with_key) = fx.read(|v, cx| {
+        let rows = v.shortcut_rows();
+        let key = |id: &str| {
+            rows.iter()
+                .find(|r| r.entry.id == id)
+                .and_then(|r| r.field.read(cx).trigger().map(|t| t.label()))
+        };
+        let globals = rows
+            .iter()
+            .filter(|r| r.entry.scope == es_protocol::Scope::Global)
+            .filter(|r| r.field.read(cx).trigger().is_some())
+            .count();
+        (key("image-crop"), globals)
+    });
+    assert_eq!(crop.as_deref(), Some("K"));
+    assert_eq!(globals_with_key, 0);
+}
+
+#[test]
+fn the_shortcuts_page_renders_with_no_keys_set() {
+    let mut fx = fixture(Caps::BIND_CHECK, Some(sway_binds()), |_| {});
+    fx.update(|v, cx| v.show(Page::Shortcuts, cx));
+    fx.shot("settings-shortcuts-no-keys");
 }
 
 #[test]
@@ -291,6 +333,8 @@ fn check_marks_bound_actions_and_conflicts() {
     )
     .unwrap();
     let mut fx = fixture(Caps::BIND_CHECK, Some(niri_binds(&config)), |_| {});
+    fx.update(|v, cx| v.show(Page::Shortcuts, cx));
+    fx.record("capture-fullscreen", "super-shift-3");
     fx.update(|v, cx| v.check_binds(cx));
     let view = fx.view.clone();
     fx.app.until("the check", |cx| {
@@ -354,6 +398,8 @@ fn every_page_in_dark_and_light() {
     std::fs::write(&config, "binds {\n    Mod+Shift+3 { spawn \"grim\"; }\n}\n").unwrap();
     let caps = Caps::LAYER_SHELL | Caps::CAPTURE_OUTPUT | Caps::RECORDER | Caps::CLIPBOARD_NO_FOCUS;
     let mut fx = fixture(caps, Some(niri_binds(&config)), |_| {});
+    fx.update(|v, cx| v.show(Page::Shortcuts, cx));
+    fx.record("capture-fullscreen", "super-shift-3");
     fx.update(|v, cx| v.check_binds(cx));
     let view = fx.view.clone();
     fx.app.until("the check", |cx| {

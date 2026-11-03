@@ -47,7 +47,9 @@ running for the whole session. The package installs a desktop entry (Easyshot in
 
 easyshot cannot register global keyboard shortcuts for you on Hyprland or wlroots
 compositors. You bind keys in your own compositor config to call `easyshot <command>`.
-Settings > Shortcuts shows the snippet to paste for your compositor. In niri, paste it inside
+easyshot sets no global key by default, so none clashes with your own binds: you choose each
+key in Settings > Shortcuts. The snippet it shows holds only the keys you chose, and says so
+when there are none. In niri, paste it inside
 your `binds { }` block. Every command in the snippet is one `easyshot --help` lists.
 
 ## Capturing
@@ -222,7 +224,7 @@ login leaves easyshot in the tray with no window open. Open editors in full
 screen opens each editor window fullscreen. Open the editor when I stop (Recording) opens the
 trim viewer as soon as a recording ends, and the card still appears.
 
-Shortcuts lists every action. Global actions show the command your compositor runs, such
+Shortcuts lists every action. Global actions start with no key and show the command your compositor runs, such
 as `easyshot capture region`. Click a key field and press a key to record it. For global
 actions, Copy Snippet puts the bind lines for your compositor (Hyprland, sway or niri) on
 the clipboard; paste them into its config yourself. easyshot never edits your compositor

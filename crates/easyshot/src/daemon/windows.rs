@@ -374,7 +374,7 @@ pub(super) fn onboarding_input(w: &Wiring, cx: &App) -> OnboardingInput {
     let config = w.settings.read(cx).config();
     OnboardingInput {
         caps: w.caps,
-        snippet: w.binds.as_deref().map(settings::default_snippet),
+        snippet: None,
         capture_shortcut: None,
         save_dir: es_store::paths::save_dir(config),
         autosave: config.after_capture.screenshot.save,

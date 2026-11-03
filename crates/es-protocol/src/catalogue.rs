@@ -27,7 +27,7 @@ macro_rules! editor {
 }
 
 pub static CATALOGUE: &[ShortcutEntry] = &[
-    global!("capture-bar", Route::CaptureBar, Some("Super+Shift+2")),
+    global!("capture-bar", Route::CaptureBar, None),
     global!("gallery", Route::Gallery, None),
     global!("restore-last", Route::RestoreLast, None),
     global!("pin-last", Route::PinLast, None),
@@ -35,22 +35,10 @@ pub static CATALOGUE: &[ShortcutEntry] = &[
     global!("settings", Route::Settings(None), None),
     global!("unpin-all", Route::UnpinAll, None),
     global!("edit-clipboard", Route::EditClipboard, None),
-    global!(
-        "capture-region",
-        Route::CaptureRegion,
-        Some("Super+Shift+4")
-    ),
-    global!(
-        "capture-fullscreen",
-        Route::CaptureFullscreen,
-        Some("Super+Shift+3")
-    ),
+    global!("capture-region", Route::CaptureRegion, None),
+    global!("capture-fullscreen", Route::CaptureFullscreen, None),
     global!("capture-window", Route::CaptureWindow, None),
-    global!(
-        "capture-previous",
-        Route::CapturePrevious,
-        Some("Super+Shift+1")
-    ),
+    global!("capture-previous", Route::CapturePrevious, None),
     global!("capture-timed", Route::CaptureTimed, None),
     global!("capture-region-copy", Route::CaptureRegionCopy, None),
     global!("capture-region-save", Route::CaptureRegionSave, None),
@@ -61,10 +49,10 @@ pub static CATALOGUE: &[ShortcutEntry] = &[
     ),
     global!("capture-region-pin", Route::CaptureRegionPin, None),
     global!("capture-scroll", Route::CaptureScroll, None),
-    global!("ocr", Route::Ocr, Some("Super+Shift+O")),
+    global!("ocr", Route::Ocr, None),
     global!("ocr-single-line", Route::OcrSingleLine, None),
-    global!("color-picker", Route::ColorPicker, Some("Super+Shift+C")),
-    global!("record", Route::Record, Some("Super+Shift+5")),
+    global!("color-picker", Route::ColorPicker, None),
+    global!("record", Route::Record, None),
     global!("record-area", Route::RecordArea, None),
     global!("record-stop", Route::RecordStop, None),
     global!("record-pause", Route::RecordPause, None),
@@ -187,24 +175,10 @@ mod tests {
     }
 
     #[test]
-    fn suggested_global_triggers_are_the_mac_defaults_with_super() {
-        let defaults: Vec<_> = CATALOGUE
-            .iter()
-            .filter(|e| e.scope == Scope::Global)
-            .filter_map(|e| Some((e.id, e.default_trigger?)))
-            .collect();
-        assert_eq!(
-            defaults,
-            [
-                ("capture-bar", "Super+Shift+2"),
-                ("capture-region", "Super+Shift+4"),
-                ("capture-fullscreen", "Super+Shift+3"),
-                ("capture-previous", "Super+Shift+1"),
-                ("ocr", "Super+Shift+O"),
-                ("color-picker", "Super+Shift+C"),
-                ("record", "Super+Shift+5"),
-            ]
-        );
+    fn no_global_action_has_a_default_trigger() {
+        for e in CATALOGUE.iter().filter(|e| e.scope == Scope::Global) {
+            assert_eq!(e.default_trigger, None, "{} has a default key", e.id);
+        }
     }
 
     #[test]
@@ -220,15 +194,6 @@ mod tests {
                 context
             };
             assert!(seen.insert((context, t)), "{} reuses {t}", e.id);
-        }
-    }
-
-    #[test]
-    fn global_triggers_carry_a_modifier() {
-        for e in CATALOGUE.iter().filter(|e| e.scope == Scope::Global) {
-            if let Some(t) = e.default_trigger {
-                assert!(!Trigger::parse(t).unwrap().modifiers.is_empty(), "{}", e.id);
-            }
         }
     }
 

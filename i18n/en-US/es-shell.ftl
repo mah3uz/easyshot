@@ -340,7 +340,7 @@ shortcuts-check-summary =
        *[other] { $conflicts } conflicts
     }
 shortcuts-check-failed = Couldn’t read your binds. { $error }
-shortcuts-snippet-empty = Record a key for an action to add it to the snippet.
+shortcuts-snippet-empty = No keys are set, so there is nothing to bind. Record a key for an action to add it to the snippet.
 shortcuts-status-bound = Bound
 shortcuts-status-conflict = Used by { $command }
 shortcuts-route = easyshot { $route }

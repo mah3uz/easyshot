@@ -100,20 +100,6 @@ fn route_of(entry: &ShortcutEntry) -> Option<&Route> {
     }
 }
 
-/// Compositor lines for every global action's default trigger.
-pub fn default_snippet(binds: &dyn BindHelper) -> String {
-    let syntax = binds.syntax();
-    let list: Vec<(CompositorTrigger, Route)> = CATALOGUE
-        .iter()
-        .filter(|e| e.scope == Scope::Global)
-        .filter_map(|e| {
-            let trigger = Trigger::parse(e.default_trigger?).ok()?;
-            Some((compositor_trigger(&trigger, syntax), route_of(e)?.clone()))
-        })
-        .collect();
-    binds.snippet(&list)
-}
-
 impl Shortcuts {
     pub(super) fn new(
         config: &Config,
@@ -123,21 +109,15 @@ impl Shortcuts {
         cx: &mut Context<SettingsWindow>,
     ) -> Self {
         let mut rows = Vec::new();
-        let mut global = BTreeMap::new();
         let mut subs = Vec::new();
         for entry in CATALOGUE
             .iter()
             .filter(|e| e.scope == Scope::Editor || route_of(e).is_some())
         {
             let trigger = match entry.scope {
-                Scope::Global => entry.default_trigger.and_then(|t| Trigger::parse(t).ok()),
+                Scope::Global => None,
                 Scope::Editor => editor_trigger(entry, config),
             };
-            if entry.scope == Scope::Global
-                && let Some(t) = &trigger
-            {
-                global.insert(entry.id, t.clone());
-            }
             let title = loader().get(entry.title_id);
             let field = cx.new(|cx| {
                 let mut field =
@@ -157,7 +137,7 @@ impl Shortcuts {
             binds,
             clipboard,
             rows,
-            global,
+            global: BTreeMap::new(),
             status: BTreeMap::new(),
             check: None,
             copied: false,

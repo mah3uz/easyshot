@@ -196,3 +196,7 @@ What was rejected beyond that, and why: not recorded.
     anything else in `main`, with no GPUI and no daemon. Rejected: static scripts generated
     at package time, which cannot filter `open` to image files or list its URLs, and go
     stale against the installed binary.
+22. **No default global shortcuts** (maintainer's decision, 2026-11-03): every global action
+    starts with no key, and the Settings > Shortcuts snippet holds only keys the user chose.
+    Editor keys keep their defaults. Rejected: Super+Shift+1 to 5, which clashed with users'
+    own Hyprland binds.

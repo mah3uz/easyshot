@@ -26,13 +26,13 @@ const needs = [
 ]
 
 const keys = [
-  ['Super Shift 4', 'Capture an area', 'capture region'],
-  ['Super Shift 3', 'Capture the whole screen', 'capture fullscreen'],
-  ['Super Shift 1', 'Capture the previous area again', 'capture previous'],
-  ['Super Shift 2', 'Open or close the capture bar', 'capture-bar'],
-  ['Super Shift 5', 'Record the screen', 'record'],
-  ['Super Shift O', 'Capture text (OCR)', 'ocr'],
-  ['Super Shift C', 'Pick a colour', 'color-picker'],
+  ['Capture an area', 'capture region'],
+  ['Capture the whole screen', 'capture fullscreen'],
+  ['Capture the previous area again', 'capture previous'],
+  ['Open or close the capture bar', 'capture-bar'],
+  ['Record the screen', 'record'],
+  ['Capture text (OCR)', 'ocr'],
+  ['Pick a colour', 'color-picker'],
 ]
 
 const captures = [
@@ -197,21 +197,20 @@ useHead({
         <!-- 4 -->
         <HowStep :n="4" id="shortcuts" title="Bind your keys">
           <p>
-            Wayland apps cannot grab global keys, so your compositor binds them. Open <strong>Settings › Shortcuts</strong> and press <strong>Copy Snippet</strong> for the lines below, ready for your compositor.
-            easyshot never edits your config; you paste them in and reload.
+            Wayland apps cannot grab global keys, so your compositor binds them, and easyshot sets none for you. Open <strong>Settings › Shortcuts</strong>, choose your own key for each action you want, and press <strong>Copy Snippet</strong> for lines like the ones below, ready for your compositor.
+            The snippet holds only the keys you chose. easyshot never edits your config; you paste them in and reload.
           </p>
           <BindSnippet />
           <div class="overflow-hidden rounded-[18px] border border-line">
             <table class="w-full text-left text-[14.5px]">
-              <caption class="sr-only">Suggested global shortcuts</caption>
+              <caption class="sr-only">Global actions you can bind</caption>
               <thead class="bg-surface-2 text-xs tracking-wider text-fg-3 uppercase">
-                <tr><th scope="col" class="px-4 py-3 font-semibold">Keys</th><th scope="col" class="px-4 py-3 font-semibold">Action</th><th scope="col" class="hidden px-4 py-3 font-semibold sm:table-cell">Command</th></tr>
+                <tr><th scope="col" class="px-4 py-3 font-semibold">Action</th><th scope="col" class="hidden px-4 py-3 font-semibold sm:table-cell">Command</th></tr>
               </thead>
               <tbody class="divide-y divide-line bg-surface">
-                <tr v-for="k in keys" :key="k[2]" class="transition-colors hover:bg-surface-2">
-                  <td class="px-4 py-3"><span class="flex gap-1"><kbd v-for="part in k[0].split(' ')" :key="part">{{ part }}</kbd></span></td>
-                  <td class="px-4 py-3 text-fg-2">{{ k[1] }}</td>
-                  <td class="hidden px-4 py-3 font-mono text-[13px] text-fg-3 sm:table-cell">easyshot {{ k[2] }}</td>
+                <tr v-for="k in keys" :key="k[1]" class="transition-colors hover:bg-surface-2">
+                  <td class="px-4 py-3 text-fg-2">{{ k[0] }}</td>
+                  <td class="hidden px-4 py-3 font-mono text-[13px] text-fg-3 sm:table-cell">easyshot {{ k[1] }}</td>
                 </tr>
               </tbody>
             </table>
@@ -221,7 +220,7 @@ useHead({
 
         <!-- 5 -->
         <HowStep :n="5" id="capture" title="Take a screenshot">
-          <p>Press <kbd>Super</kbd> <kbd>Shift</kbd> <kbd>4</kbd>. The screen freezes, you drag an area, and the capture lands as a card in the preview deck, where you can copy, save, annotate, pin or drag it into another app or a file manager. Once auto-save has saved it, Save becomes Show in Folder.</p>
+          <p>Press the key you bound to <code>easyshot capture region</code>. The screen freezes, you drag an area, and the capture lands as a card in the preview deck, where you can copy, save, annotate, pin or drag it into another app or a file manager. Once auto-save has saved it, Save becomes Show in Folder.</p>
           <div class="grid gap-3 sm:grid-cols-2">
             <div v-for="c in captures" :key="c.title" class="card card-hover grid content-start gap-2.5 p-5">
               <h3 class="flex items-center gap-2 text-base"><Icon :name="c.icon" :size="18" class="text-accent" />{{ c.title }}</h3>
@@ -248,7 +247,7 @@ useHead({
 
         <!-- 7 -->
         <HowStep :n="7" id="record" title="Record your screen">
-          <p>Press <kbd>Super</kbd> <kbd>Shift</kbd> <kbd>5</kbd>, pick an area, a display or a window, system sound is recorded unless you turn it off, and the microphone only if you choose one. After the countdown a small bar lets you stop, pause, restart or discard.</p>
+          <p>Press the key you bound to <code>easyshot record</code>, pick an area, a display or a window, system sound is recorded unless you turn it off, and the microphone only if you choose one. After the countdown a small bar lets you stop, pause, restart or discard.</p>
           <CodeBlock prompt code="easyshot record          # start
 easyshot record stop     # stop and open the trim viewer" />
           <p>The recording appears as a deck card and opens in the trim viewer, where you cut it and export it. Saved recordings and exports go to <code>~/Videos/easyshot/</code>. One recording runs at a time.</p>

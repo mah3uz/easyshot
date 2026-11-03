@@ -16,7 +16,7 @@
 - Esc steps back one level: it commits the text you are typing, leaves crop, clears the selection, then switches to the Select tool.
 - Deck cards show the capture inside your default look, and saved captures reopen in the editor with that look still editable. `easyshot deck toggle` hides and shows the deck. Cards drag into file managers as a copy, and a card that auto-save has saved offers Show in Folder in place of Save.
 - The Settings window: Home, General, Capture, Overlay, Recording, Shortcuts and About, saved as you change them. "System" theme and Reduce Motion follow your desktop.
-- Settings > Shortcuts writes a bind snippet for Hyprland, sway or niri and checks which keys are already bound.
+- Settings > Shortcuts lets you choose your own global keys (none are set by default), writes a bind snippet with them for Hyprland, sway or niri, and checks which keys are already bound.
 - The capture bar takes the keyboard when it opens, so Esc closes it, and opening it again from its key, the tray or `easyshot capture-bar` closes it.
 - Screen recording, one at a time: the tray's Record item becomes Stop Recording while one runs, and system sound is recorded unless you turn it off.
 - Saved recordings and trim exports go to `~/Videos/easyshot/` with dated names, and each save notice says where.
