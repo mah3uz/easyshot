@@ -23,6 +23,7 @@ fn item(n: u32) -> DeckItem {
         staged: true,
         status: ItemStatus::Idle,
         auto_dismiss: true,
+        saved: None,
     }
 }
 
@@ -182,6 +183,58 @@ fn copy_edit_and_pin_ask_the_app_then_remove_the_card(cx: &mut TestAppContext) {
         "a card handed on as a copy leaves nothing staged behind"
     );
     assert!(!Removal::Saved.discards());
+}
+
+#[gpui::test]
+fn an_auto_saved_card_shows_its_file_instead_of_saving_it_again(cx: &mut TestAppContext) {
+    let (deck, log) = deck(
+        cx,
+        DeckPolicy {
+            delay: Some(Duration::from_secs(5)),
+            keep_until_saved: true,
+        },
+    );
+    deck.update(cx, |d, cx| {
+        d.show(
+            DeckItem {
+                saved: Some(PathBuf::from("/Pictures/shot1.png")),
+                ..item(1)
+            },
+            cx,
+        );
+        d.show(item(2), cx);
+    });
+    deck.update(cx, |d, cx| d.act(item(1).id, DeckAction::Save, cx));
+    deck.read_with(cx, |d, _| {
+        assert_eq!(
+            d.get(item(1).id).map(|i| i.status),
+            Some(ItemStatus::Idle),
+            "a second save would write a duplicate file"
+        );
+        assert!(
+            d.dismissing(item(1).id),
+            "a saved card follows the delay even when unsaved ones are kept"
+        );
+        assert!(!d.dismissing(item(2).id));
+    });
+    deck.update(cx, |d, cx| d.save_all(cx));
+    let requested: Vec<_> = log
+        .borrow()
+        .iter()
+        .filter_map(|e| match e {
+            DeckEvent::Requested { item, action } => Some((item.name.clone(), *action)),
+            DeckEvent::Removed { .. } => None,
+        })
+        .collect();
+    assert_eq!(
+        requested,
+        [
+            ("shot1".into(), DeckAction::ShowInFolder),
+            ("shot2".into(), DeckAction::Save)
+        ],
+        "Save All saves only what auto-save has not"
+    );
+    assert_eq!(order(&deck, cx), ["shot1", "shot2"]);
 }
 
 #[gpui::test]

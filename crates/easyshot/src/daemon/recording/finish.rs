@@ -69,6 +69,7 @@ pub fn card(dir: &Path, video: PathBuf, kind: CaptureKind) -> DeckItem {
         staged: false,
         status: ItemStatus::Idle,
         auto_dismiss: true,
+        saved: None,
     }
 }
 

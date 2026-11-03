@@ -25,6 +25,7 @@ deck-tool-copy = Copy
 deck-tool-save = Save
 deck-tool-edit = Edit
 deck-tool-cloud-share = Cloud Share
+deck-tool-show-in-folder = Show in Folder
 deck-card-a11y-screenshot = Screenshot preview
 deck-card-a11y-recording = Recording preview
 deck-card-open-image-editor-a11y = Open image editor

@@ -324,7 +324,10 @@ fn prepare(work: &Work, frame: &Frame) -> Result<Prepared> {
             .and_then(|entry| library_card(work, entry));
         match kept_card {
             Some(card) => Some(card),
-            None => Some(staged_card(work, &png, &raw_png)?),
+            None => Some(DeckItem {
+                saved: saved.as_ref().and_then(|s| s.as_ref().ok()).cloned(),
+                ..staged_card(work, &png, &raw_png)?
+            }),
         }
     } else {
         None
@@ -381,6 +384,7 @@ fn library_card(work: &Work, entry: &HistoryEntry) -> Option<DeckItem> {
         staged: false,
         status: crate::deck::ItemStatus::Idle,
         auto_dismiss: true,
+        saved: entry.export_path.clone(),
     })
 }
 

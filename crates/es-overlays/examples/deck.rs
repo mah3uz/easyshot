@@ -70,6 +70,7 @@ fn item(dir: &Path, n: u32) -> DeckItem {
         staged: true,
         status: ItemStatus::Idle,
         auto_dismiss: true,
+        saved: None,
     }
 }
 

@@ -80,8 +80,9 @@ shutter sound"; only builds with the `sound` feature make it), saves the file, c
 opens the editor. Each capture also appears as a card in a floating preview deck:
 
 - up to 5 cards;
-- hover actions in slots you can configure;
-- drag a card out into another app;
+- hover actions in slots you can configure; on a card that auto-save has already saved, Save
+  becomes Show in Folder, which opens your file manager on the saved file;
+- drag a card out into another app or a file manager, which gets a copy of the file;
 - cards disappear on their own, and pause while you hover over them;
 - Save All and Clear All.
 

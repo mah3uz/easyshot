@@ -29,6 +29,8 @@ pub struct DeckItem {
     pub status: ItemStatus,
     /// Items reopened from history or the tray stay until closed.
     pub auto_dismiss: bool,
+    /// Where auto-save wrote the capture; the card offers Show in folder in place of Save.
+    pub saved: Option<PathBuf>,
 }
 
 impl DeckItem {
@@ -43,7 +45,20 @@ impl DeckItem {
             staged: true,
             status: ItemStatus::Idle,
             auto_dismiss: true,
+            saved: None,
         }
+    }
+
+    /// What a layout slot holding `action` does for this card.
+    pub fn offered(&self, action: DeckAction) -> DeckAction {
+        match action {
+            DeckAction::Save if self.saved.is_some() => DeckAction::ShowInFolder,
+            other => other,
+        }
+    }
+
+    fn unsaved(&self) -> bool {
+        (self.staged || self.video) && self.saved.is_none()
     }
 }
 
@@ -55,9 +70,11 @@ pub enum DeckAction {
     Save,
     Edit,
     Share,
+    ShowInFolder,
 }
 
 impl DeckAction {
+    /// The actions a layout places; Show in folder only ever stands in for Save.
     pub const ALL: [DeckAction; 6] = [
         DeckAction::Pin,
         DeckAction::Dismiss,
@@ -185,7 +202,7 @@ impl Deck {
 
     pub fn can_save_all(&self) -> bool {
         self.items()
-            .any(|i| (i.staged || i.video) && i.status != ItemStatus::Saving)
+            .any(|i| i.unsaved() && i.status != ItemStatus::Saving)
     }
 
     fn position(&self, id: Uuid) -> Option<usize> {
@@ -236,12 +253,13 @@ impl Deck {
         if item.status == ItemStatus::Saving {
             return;
         }
+        let action = item.offered(action);
         let gone = match action {
             DeckAction::Dismiss => Some(Removal::Dismissed),
             DeckAction::Copy => Some(Removal::Copied),
             DeckAction::Edit => Some(Removal::Edited),
             DeckAction::Pin => Some(Removal::Pinned),
-            DeckAction::Save | DeckAction::Share => None,
+            DeckAction::Save | DeckAction::Share | DeckAction::ShowInFolder => None,
         };
         if action == DeckAction::Save {
             self.set_status(id, ItemStatus::Saving, cx);
@@ -269,7 +287,7 @@ impl Deck {
     pub fn save_all(&mut self, cx: &mut Context<Self>) {
         let ids: Vec<Uuid> = self
             .items()
-            .filter(|i| (i.staged || i.video) && i.status != ItemStatus::Saving)
+            .filter(|i| i.unsaved() && i.status != ItemStatus::Saving)
             .map(|i| i.id)
             .collect();
         for id in ids {
@@ -339,7 +357,7 @@ impl Deck {
         item.auto_dismiss
             && self.policy.delay.is_some()
             && item.status == ItemStatus::Idle
-            && !(self.policy.keep_until_saved && item.staged && !item.video)
+            && !(self.policy.keep_until_saved && item.staged && !item.video && item.saved.is_none())
     }
 
     pub fn dismissing(&self, id: Uuid) -> bool {

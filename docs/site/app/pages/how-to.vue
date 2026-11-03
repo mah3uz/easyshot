@@ -221,7 +221,7 @@ useHead({
 
         <!-- 5 -->
         <HowStep :n="5" id="capture" title="Take a screenshot">
-          <p>Press <kbd>Super</kbd> <kbd>Shift</kbd> <kbd>4</kbd>. The screen freezes, you drag an area, and the capture lands as a card in the preview deck, where you can copy, save, annotate, pin or drag it into another app.</p>
+          <p>Press <kbd>Super</kbd> <kbd>Shift</kbd> <kbd>4</kbd>. The screen freezes, you drag an area, and the capture lands as a card in the preview deck, where you can copy, save, annotate, pin or drag it into another app or a file manager. Once auto-save has saved it, Save becomes Show in Folder.</p>
           <div class="grid gap-3 sm:grid-cols-2">
             <div v-for="c in captures" :key="c.title" class="card card-hover grid content-start gap-2.5 p-5">
               <h3 class="flex items-center gap-2 text-base"><Icon :name="c.icon" :size="18" class="text-accent" />{{ c.title }}</h3>

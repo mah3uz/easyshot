@@ -55,6 +55,7 @@ fn restore_last(d: &ActionDeps, cx: &mut App) -> Result<(), Error> {
         staged: false,
         status: ItemStatus::Idle,
         auto_dismiss: false,
+        saved: entry.export_path,
     };
     d.deck.update(cx, |deck, cx| deck.show(item, cx));
     Ok(())
@@ -174,6 +175,17 @@ pub fn deck_events(d: &ActionDeps, clipboard: Rc<dyn ClipboardSink>, cx: &mut Ap
                 }
             }
             DeckAction::Save => save_card(&deck, item.clone(), &paths, &wiring, &history, cx),
+            DeckAction::ShowInFolder => {
+                if let Some(file) = item.saved.clone() {
+                    let request = wiring.files.show_in_folder(file);
+                    cx.spawn(async move |_| {
+                        if let Err(error) = request.await {
+                            tracing::warn!(%error, "show in folder from the deck");
+                        }
+                    })
+                    .detach();
+                }
+            }
             DeckAction::Dismiss | DeckAction::Share => {}
         },
     })

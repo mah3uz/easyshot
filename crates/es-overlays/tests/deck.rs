@@ -183,6 +183,7 @@ fn item(dir: &std::path::Path, n: u8) -> DeckItem {
         staged: true,
         status: ItemStatus::Idle,
         auto_dismiss: true,
+        saved: None,
     }
 }
 
@@ -197,8 +198,11 @@ struct Rig {
 }
 
 fn rig(cards: u8, dark: bool) -> Rig {
+    rig_with(cards, dark, DeckSettings::default(), None)
+}
+
+fn rig_with(cards: u8, dark: bool, settings: DeckSettings, saved: Option<&str>) -> Rig {
     let dir = tempfile::tempdir().unwrap();
-    let settings = DeckSettings::default();
     let geometry = settings.geometry(usize::from(cards));
     let panel = geometry.panel();
     let made = Rc::new(RefCell::new(None));
@@ -226,7 +230,12 @@ fn rig(cards: u8, dark: bool) -> Rig {
         };
         es_ui::theme::set_mode(mode, cx);
     });
-    let items: Vec<_> = (1..=cards).map(|n| item(dir.path(), n)).collect();
+    let items: Vec<_> = (1..=cards)
+        .map(|n| DeckItem {
+            saved: saved.map(|name| dir.path().join(name)),
+            ..item(dir.path(), n)
+        })
+        .collect();
     s.app
         .cx
         .update(|cx| deck.update(cx, |d, cx| items.into_iter().for_each(|i| d.show(i, cx))));
@@ -389,6 +398,35 @@ fn the_hover_tools_ask_for_their_actions() {
         Some(&("shot3".into(), DeckAction::Save))
     );
     assert_eq!(r.names(), ["shot3"], "a saving card waits for the save");
+}
+
+#[test]
+fn an_auto_saved_card_offers_show_in_folder_where_each_preset_puts_save() {
+    for preset in [
+        LayoutPreset::Standard,
+        LayoutPreset::Sharing,
+        LayoutPreset::Minimal,
+    ] {
+        let settings = DeckSettings {
+            layout: preset.layout().unwrap(),
+            ..DeckSettings::default()
+        };
+        let mut r = rig_with(1, false, settings, Some("shot1.png"));
+        let c = r.card(0);
+        let (x, y) = match settings.layout.slot_of(DeckAction::Save).unwrap() {
+            Slot::CenterRight => (c.center().x + 22., c.center().y),
+            Slot::BottomRight => (c.x1 - 19., c.y1 - 19.),
+            slot => panic!("{} puts Save in {slot:?}", preset.name()),
+        };
+        r.click(x as f32, y as f32);
+        assert_eq!(
+            r.requested(),
+            [("shot1".into(), DeckAction::ShowInFolder)],
+            "{}: an auto-saved capture is not saved twice",
+            preset.name()
+        );
+        assert_eq!(r.names(), ["shot1"], "showing the file keeps the card");
+    }
 }
 
 #[test]

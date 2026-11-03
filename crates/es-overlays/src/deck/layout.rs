@@ -108,6 +108,7 @@ pub fn action_name(action: DeckAction) -> &'static str {
         DeckAction::Save => "save",
         DeckAction::Edit => "edit",
         DeckAction::Share => "share",
+        DeckAction::ShowInFolder => "show-in-folder",
     }
 }
 

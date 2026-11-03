@@ -56,6 +56,7 @@ pub fn action_label(action: DeckAction) -> String {
         DeckAction::Save => fl!("deck-tool-save"),
         DeckAction::Edit => fl!("deck-tool-edit"),
         DeckAction::Share => fl!("deck-tool-cloud-share"),
+        DeckAction::ShowInFolder => fl!("deck-tool-show-in-folder"),
     }
 }
 
@@ -67,6 +68,7 @@ fn action_icon(action: DeckAction) -> IconName {
         DeckAction::Save => IconName::Download,
         DeckAction::Edit => IconName::Pencil,
         DeckAction::Share => IconName::CloudUpload,
+        DeckAction::ShowInFolder => IconName::FolderOpen,
     }
 }
 
@@ -147,6 +149,7 @@ impl Card {
     }
 
     fn tool(&self, slot: Slot, action: DeckAction) -> AnyElement {
+        let action = self.item.offered(action);
         let s = self.scale;
         let handler = self.on_action.clone();
         let label = action_label(action);
