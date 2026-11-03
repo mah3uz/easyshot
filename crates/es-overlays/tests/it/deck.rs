@@ -250,6 +250,13 @@ fn rig_with(cards: u8, dark: bool, settings: DeckSettings, saved: Option<&str>) 
     s.app.until("thumbnails load", |cx| {
         (1..=cards).all(|n| watched.read(cx).has_image(Uuid::from_u128(u128::from(n))))
     });
+    s.app.cx.advance_clock(es_ui::motion::CROSSFADE.duration);
+    let handle = s.app.window.into();
+    s.app
+        .cx
+        .update_window(handle, |_, window, _| window.refresh())
+        .unwrap();
+    s.app.settle();
     Rig {
         s,
         deck,

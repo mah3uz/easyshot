@@ -7,6 +7,7 @@ use es_ui::{
     a11y::{Accessible, Role},
     components::{AlignmentPad, ButtonKind, EditorButton, Segment, Segmented, Tile, TileGrid},
     icons::IconName,
+    motion::{FILL_SWITCH, since_change},
     theme::tokens,
     tokens::{Tokens, Typeset},
 };
@@ -182,7 +183,12 @@ impl BackgroundBody {
             .into_any_element()
     }
 
-    fn wallpaper_picker(&mut self, t: &Tokens, cx: &mut Context<Self>) -> AnyElement {
+    fn wallpaper_picker(
+        &mut self,
+        t: &Tokens,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
         let this = cx.entity().downgrade();
         let tab = self.tab;
         let tabs = Segmented::new(
@@ -205,12 +211,13 @@ impl BackgroundBody {
             WallpaperTab::Recent => self.recent_grid(t, cx),
             WallpaperTab::BuiltIn => self.built_in_grid(t, cx),
         };
+        let shown = since_change("bg-wallpaper-switch", tab, FILL_SWITCH, window, cx);
         div()
             .flex()
             .flex_col()
             .gap(t.metrics.row_spacing)
             .child(tabs)
-            .child(grid)
+            .child(div().opacity(shown).child(grid))
             .into_any_element()
     }
 
@@ -456,8 +463,9 @@ impl Render for BackgroundBody {
         let picker = match self.library {
             Library::Color => self.colour_picker(&t, cx),
             Library::Gradient => self.gradient_picker(cx),
-            Library::Wallpaper => self.wallpaper_picker(&t, cx),
+            Library::Wallpaper => self.wallpaper_picker(&t, window, cx),
         };
+        let shown = since_change("bg-fill-switch", self.library, FILL_SWITCH, window, cx);
         div()
             .flex()
             .flex_col()
@@ -471,7 +479,7 @@ impl Render for BackgroundBody {
                     .flex_col()
                     .gap(px(12.))
                     .child(library)
-                    .child(picker),
+                    .child(div().opacity(shown).child(picker)),
             ))
             .child(div().h(t.metrics.hairline).bg(t.separator.opacity(0.45)))
             .child(self.layout(&t, cx))

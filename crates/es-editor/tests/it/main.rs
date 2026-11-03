@@ -12,6 +12,7 @@ mod image_budget;
 mod inspector;
 mod inspector_background;
 mod inspector_effects;
+mod inspector_fill_motion;
 mod inspector_frame;
 mod interaction;
 mod interaction_bench;

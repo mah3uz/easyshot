@@ -4,7 +4,7 @@ use es_app::deck::{DeckAction, DeckItem, ItemStatus};
 use es_geom::Size;
 use es_ui::a11y::{Accessible as _, Role};
 use es_ui::icons::IconName;
-use es_ui::motion::{DECK_HOVER, animate};
+use es_ui::motion::{CROSSFADE, DECK_HOVER, animate, since_change};
 use es_ui::theme::UI_FONT;
 use gpui::{
     AnyElement, App, AppContext as _, BoxShadow, ElementId, ExternalDragPayload, FileDragPaths,
@@ -237,8 +237,12 @@ impl Card {
 }
 
 impl RenderOnce for Card {
-    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let saving = self.item.status == ItemStatus::Saving;
+        let loaded = self.image.is_some();
+        let loaded_in = since_change(self.id("thumb"), loaded, CROSSFADE, window, cx);
+        let saving_in = since_change(self.id("saving"), saving, CROSSFADE, window, cx);
+        let saving_shown = if saving { saving_in } else { 1. - saving_in };
         let a11y = if self.item.video {
             fl!("deck-card-a11y-recording")
         } else {
@@ -257,12 +261,15 @@ impl RenderOnce for Card {
                 .child(text)
         };
         let thumbnail = match self.image.clone() {
-            Some(image) => img(image)
+            Some(image) => div()
                 .size_full()
-                .object_fit(ObjectFit::Contain)
+                .opacity(loaded_in)
+                .child(img(image).size_full().object_fit(ObjectFit::Contain))
                 .into_any_element(),
             None => caption(fl!("deck-card-loading")).into_any_element(),
         };
+        let loading_out = (loaded && loaded_in < 1.)
+            .then(|| caption(fl!("deck-card-loading")).opacity(1. - loaded_in));
         let tools = self.tools.filter(|_| !saving).map(|shown| {
             animate(
                 self.tool_layer(),
@@ -311,9 +318,15 @@ impl RenderOnce for Card {
                     })
             })
             .child(thumbnail)
+            .children(loading_out)
             .children(tools)
-            .when(saving, |card| {
-                card.child(caption(fl!("deck-card-saving")).bg(black(0.45)))
+            .when(saving_shown > 0., |card| {
+                card.child(
+                    caption(fl!("deck-card-saving"))
+                        .rounded(RADIUS)
+                        .bg(black(0.45))
+                        .opacity(saving_shown),
+                )
             })
             .child(
                 div()

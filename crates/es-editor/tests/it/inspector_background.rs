@@ -313,7 +313,7 @@ fn without_a_stage_the_canvas_shape_is_off() {
     });
 }
 
-fn window(mode: ThemeMode) -> (Headless<Root>, Entity<EditorWindow>) {
+pub(crate) fn window(mode: ThemeMode) -> (Headless<Root>, Entity<EditorWindow>) {
     let look = BackgroundSettings {
         style: BackgroundStyle::Gradient(GradientPreset::by_id("soft-blush").unwrap().style()),
         padding: 0.11,

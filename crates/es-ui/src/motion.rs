@@ -83,7 +83,7 @@ pub const FLASH_HOLD: Duration = Duration::from_millis(1400);
 pub const SLIDER_MARKERS: Transition = fades(120, Easing::EaseOut);
 pub const HOVER_FILL: Transition = fades(120, Easing::EaseOut);
 pub const CROSSFADE: Transition = fades(150, Easing::EaseOut);
-pub const FILL_SWITCH: Transition = moves(160, Easing::Snappy);
+pub const FILL_SWITCH: Transition = fades(160, Easing::Snappy);
 pub const SETTLE: Transition = moves(180, Easing::Snappy);
 pub const PRESET_APPLY: Transition = moves(200, Easing::Snappy);
 pub const CROP_COMMIT: Transition = moves(220, Easing::Snappy);
@@ -329,6 +329,10 @@ mod tests {
             "the popover grows, which is movement"
         );
         assert!(!SECTION_EXPAND.plays(true));
+        assert!(
+            !CROSSFADE.plays(true) && !FILL_SWITCH.plays(true),
+            "a cross-fade over 120 ms is too long to keep"
+        );
         for t in [POPOVER_OPEN, TOAST_IN, TOAST_OUT, SECTION_EXPAND, FLASH] {
             assert!(t.plays(false));
         }
@@ -351,5 +355,7 @@ mod tests {
             (180, Easing::Snappy)
         );
         assert_eq!((ms(FLASH), FLASH_HOLD.as_millis()), (200, 1400));
+        assert_eq!((ms(CROSSFADE), CROSSFADE.easing), (150, Easing::EaseOut));
+        assert_eq!((ms(FILL_SWITCH), FILL_SWITCH.easing), (160, Easing::Snappy));
     }
 }
