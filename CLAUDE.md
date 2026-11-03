@@ -26,7 +26,9 @@ and nowhere else.
   workflow, adding a compositor.
 - `CHANGELOG.md` — what each release changed, for its user. A change a user would notice is
   added under `Unreleased` in `### New`, `### Improvements` or `### Bug fixes`, one short
-  line each. Internals, tests and docs are left out.
+  line each. Internals, tests and docs are left out. Until the first release, everything is
+  `### New`, written as what the release contains: no improvements and no fixes, since no
+  user had the earlier behaviour.
 - `README.md` — the front page: a summary with links. Change it only when a headline
   feature changes.
 - `docs/site/` — the website and how-to guide (`docs/site/README.md` says how it is built).
