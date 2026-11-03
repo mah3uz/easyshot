@@ -306,8 +306,9 @@ mod tests {
             "/../../tests/fixtures/formats/config/v1.toml"
         ));
         let mut expected = Config::default();
-        // Files written before the default changed store `true`, and a stored choice is kept.
+        // Files written before the defaults changed store the old values, and a stored choice is kept.
         expected.general.show_capture_bar_at_launch = true;
+        expected.recording.system_audio = false;
         assert_eq!(toml::from_str::<Config>(src).unwrap(), expected);
     }
 }
