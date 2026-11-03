@@ -4,6 +4,8 @@ mod export;
 mod ocr;
 mod record;
 mod run;
+mod skill;
+mod skill_install;
 #[cfg(test)]
 mod tests;
 
@@ -12,6 +14,7 @@ pub use export::ExportArgs;
 pub use ocr::OcrArgs;
 pub use record::RecordCommand;
 pub use run::{run, usage_error};
+pub use skill::{SkillCall, SkillCommand, run_skill};
 
 use clap::{Args, Subcommand, ValueEnum};
 use es_protocol::AgentRoute;
@@ -48,6 +51,9 @@ pub enum AgentCommand {
     /// Record the screen: start, stop, status and discard
     #[command(subcommand)]
     Record(RecordCommand),
+    /// Install the easyshot skill for AI agents, or show it
+    #[command(subcommand)]
+    Skill(SkillCommand),
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
@@ -65,7 +71,14 @@ pub struct AgentCall {
 }
 
 impl AgentArgs {
-    pub fn call(&self) -> AgentCall {
+    pub fn skill(&self) -> Option<SkillCall> {
+        match &self.command {
+            AgentCommand::Skill(s) => Some(s.call(self.json)),
+            _ => None,
+        }
+    }
+
+    pub fn call(&self) -> Option<AgentCall> {
         let (route, wait) = match &self.command {
             AgentCommand::List {
                 what: ListWhat::Outputs,
@@ -81,11 +94,12 @@ impl AgentArgs {
             AgentCommand::Export(args) => (AgentRoute::Export(args.spec()), args.wait()),
             AgentCommand::Ocr(args) => (AgentRoute::Ocr(args.spec()), true),
             AgentCommand::Record(c) => (AgentRoute::Record(c.route()), true),
+            AgentCommand::Skill(_) => return None,
         };
-        AgentCall {
+        Some(AgentCall {
             route,
             json: self.json,
             wait,
-        }
+        })
     }
 }

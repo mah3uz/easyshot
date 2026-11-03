@@ -36,6 +36,7 @@ pub fn execute(
             Request::Route(route) => send(&route, env, cancel, out, err).await,
             Request::Doctor { json, bundle } => doctor(json, bundle, env, out, err).await,
             Request::Agent(call) => crate::agent::run(&call, env, cancel, out, err).await,
+            Request::Skill(call) => crate::agent::run_skill(&call, out, err),
             Request::Daemon | Request::Completions(_) => {
                 let _ = writeln!(err, "easyshot: handled by main, not sent");
                 EXIT_ERROR

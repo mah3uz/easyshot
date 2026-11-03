@@ -132,6 +132,7 @@ pub enum Request {
     Route(Route),
     Doctor { json: bool, bundle: bool },
     Agent(crate::agent::AgentCall),
+    Skill(crate::agent::SkillCall),
     Daemon,
     Completions(clap_complete::Shell),
 }
@@ -214,7 +215,11 @@ impl Cli {
                 json: *json,
                 bundle: *bundle,
             },
-            Command::Agent(args) | Command::Ai(args) => Request::Agent(args.call()),
+            Command::Agent(args) | Command::Ai(args) => match (args.skill(), args.call()) {
+                (Some(skill), _) => Request::Skill(skill),
+                (None, Some(call)) => Request::Agent(call),
+                (None, None) => bail!("unknown agent command"),
+            },
             Command::Daemon => Request::Daemon,
             Command::Completions { shell } => Request::Completions(*shell),
         })

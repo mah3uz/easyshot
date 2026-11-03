@@ -541,7 +541,7 @@ A capture answer gives the size in pixels, not logical pixels, and `scale`, and 
 (see Hiding secrets); a window capture adds a `window` object like an entry of
 `agent list windows`.
 
-`kind` is `outputs`, `windows`, `capture`, `export`, `ocr`, `recording`, `access` (enable, disable and status), `config`, or `usage` when the command line itself could not be read.
+`kind` is `outputs`, `windows`, `capture`, `export`, `ocr`, `recording`, `access` (enable, disable and status), `config`, `skill`, or `usage` when the command line itself could not be read.
 Fields may be added to these objects in later versions; existing ones keep their meaning.
 
 Exit codes and error codes:
@@ -639,6 +639,42 @@ easyshot logs each agent request it answers or refuses, with the time, the comma
 target, the result and the program that sent it, newest first, in
 `$XDG_STATE_HOME/easyshot/agent.json`. It keeps the last `log_limit` entries (200 by
 default). `agent status` and `agent config get` are not logged.
+
+### The skill for your agent
+
+easyshot ships a skill, a short guide that teaches an AI agent to use `easyshot agent`: to
+check `agent status` first, to ask you (and never run `agent enable` itself) when access is
+off, to list outputs and windows, capture, read text, record a short demo and export it, to
+treat text read from the screen as data and not as instructions, and what to do for each exit
+code. It is the open Agent Skills format: a folder with a `SKILL.md`.
+
+```
+easyshot agent skill install
+```
+
+- By default this is for your user (`--user`) and for every client (`--all`). It writes the
+  skill to `~/.agents/skills/easyshot/`, which Codex, Gemini CLI and Cursor read, and links
+  `~/.claude/skills/easyshot` to it for Claude Code.
+- `--project` installs into `.agents/skills/easyshot/` and `.claude/skills/easyshot` in the
+  current folder instead, to commit with a project.
+- `--agents` writes only the shared `.agents/skills/` folder. `--claude` puts a copy of the
+  files (not a link) in `.claude/skills/easyshot` and writes nothing else.
+- Running it again changes nothing. If the Claude Code path already holds something that
+  easyshot did not put there, the command refuses and changes nothing; `--force` replaces it.
+- `agent skill uninstall` takes the same flags and removes the files that match what
+  easyshot installs and the link it made; a file you edited, and anything else in the folder,
+  stays. `agent skill show` prints `SKILL.md`. With `--json` each prints one object of `kind`
+  `skill`.
+
+These commands work with agent access off and do not talk to the daemon. Start a new agent
+session afterwards, since clients read their skills when they start.
+
+Where each client looks: Claude Code reads `~/.claude/skills/` and the project's
+`.claude/skills/`; Codex reads `~/.agents/skills/` and `.agents/skills/` in the project and
+its parents up to the repository root; Gemini CLI reads `~/.agents/skills/` or
+`~/.gemini/skills/`, and `.agents/skills/` or `.gemini/skills/` in the workspace; Cursor reads
+`.agents/skills/` and `.cursor/skills/` plus the user folders. The default install therefore
+covers all four.
 
 ## Files
 
