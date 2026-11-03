@@ -7,15 +7,17 @@ use std::{cell::RefCell, rc::Rc, time::Duration};
 use canvas_support::{TEXT, every_kind, opened, rect};
 use es_editor::{
     EditorSession, EditorWindow, EditorWindowEvent, Error, Job, Opened, Progress,
-    window::{FLASH, INSPECTOR_WIDTH},
+    inspector::{Section, background::BackgroundBody},
+    toolbar::Control,
+    window::{CHROME_PADDING_X, FLASH, INSPECTOR_WIDTH},
 };
 use es_model::{BackgroundSettings, BackgroundStyle};
 use es_render::beautify::GradientPreset;
 use es_testkit::Headless;
 use es_ui::{components::ZoomCommand, tokens::ThemeMode};
 use gpui::{
-    AppContext, Entity, Modifiers, MouseButton, MouseDownEvent, MouseUpEvent, PlatformInput, point,
-    px,
+    AppContext, Entity, FocusHandle, Focusable, Modifiers, MouseButton, MouseDownEvent,
+    MouseUpEvent, Pixels, PlatformInput, point, px,
 };
 use gpui_component::Root;
 
@@ -276,25 +278,123 @@ fn copy_shows_copied_for_its_flash_and_reports_failures() {
     );
 }
 
+fn canvas_span(app: &mut App, editor: &Entity<EditorWindow>) -> (Pixels, Pixels) {
+    let canvas = editor.read_with(&app.cx, |w, _| w.canvas().unwrap().clone());
+    let b = canvas.read_with(&app.cx, |c, _| c.bounds());
+    (b.left(), b.right())
+}
+
+fn click_toggle(app: &mut App, editor: &Entity<EditorWindow>) {
+    let row = editor.read_with(&app.cx, |w, _| w.toolbar().unwrap());
+    let at = row
+        .read_with(&app.cx, |r, _| r.control_bounds(Control::Inspector))
+        .expect("the toggle is drawn")
+        .center();
+    click(app, f32::from(at.x), f32::from(at.y));
+}
+
+fn focused(app: &mut App) -> Option<FocusHandle> {
+    let handle = app.window.into();
+    app.cx
+        .update_window(handle, |_, window, cx| window.focused(cx))
+        .unwrap()
+}
+
+fn tab(app: &mut App) -> Option<FocusHandle> {
+    let handle = app.window.into();
+    app.cx
+        .update_window(handle, |_, window, cx| window.focus_next(cx))
+        .unwrap();
+    app.settle();
+    focused(app)
+}
+
 #[test]
-fn the_inspector_takes_its_column_and_the_canvas_gets_the_rest() {
-    let (mut app, editor) = launch(Some(sample()), ThemeMode::Dark);
-    let canvas_width = |app: &mut App| {
-        let canvas = editor.read_with(&app.cx, |w, _| w.canvas().unwrap().clone());
-        canvas.read_with(&app.cx, |c, _| c.bounds().size.width)
-    };
+fn the_inspector_sits_at_the_right_edge_and_its_toggle_hides_and_shows_it() {
+    let (mut app, editor) = launch(Some(sample()), ThemeMode::Light);
     assert!(editor.read_with(&app.cx, |w, _| w.inspector_open()));
-    assert_eq!(canvas_width(&mut app), px(WIDTH) - INSPECTOR_WIDTH);
+    assert_eq!(
+        canvas_span(&mut app, &editor),
+        (px(0.), px(WIDTH) - INSPECTOR_WIDTH),
+        "the canvas starts at the left edge and stops where the inspector begins"
+    );
+    let shot = app.screenshot("window-inspector-right-light");
+    let fill = app
+        .cx
+        .update(|cx| gpui::Rgba::from(es_ui::theme::tokens(cx).inspector));
+    let want = [fill.r, fill.g, fill.b].map(|c| (c * 255.0).round() as i32);
+    let scale = shot.width() as f32 / WIDTH;
+    let edge = shot.get_pixel(
+        ((WIDTH - 6.0) * scale) as u32,
+        (HEIGHT * 0.8 * scale) as u32,
+    );
+    assert!(
+        edge.0[..3]
+            .iter()
+            .zip(want)
+            .all(|(&a, b)| (i32::from(a) - b).abs() <= 2),
+        "the strip along the right edge is the inspector: {edge:?}, want {want:?}"
+    );
 
-    app.cx
-        .update(|cx| editor.update(cx, |w, cx| w.toggle_inspector(cx)));
-    app.settle();
-    assert_eq!(canvas_width(&mut app), px(WIDTH));
+    click_toggle(&mut app, &editor);
+    assert!(!editor.read_with(&app.cx, |w, _| w.inspector_open()));
+    assert_eq!(canvas_span(&mut app, &editor), (px(0.), px(WIDTH)));
+    app.screenshot("window-inspector-hidden-light");
 
-    app.cx
-        .update(|cx| editor.update(cx, |w, cx| w.toggle_inspector(cx)));
-    app.settle();
-    assert_eq!(canvas_width(&mut app), px(WIDTH) - INSPECTOR_WIDTH);
+    click_toggle(&mut app, &editor);
+    assert!(editor.read_with(&app.cx, |w, _| w.inspector_open()));
+    assert_eq!(
+        canvas_span(&mut app, &editor),
+        (px(0.), px(WIDTH) - INSPECTOR_WIDTH)
+    );
+}
+
+#[test]
+fn the_tool_row_starts_with_crop_and_has_no_canvas_shape_menu() {
+    let (app, editor) = launch(Some(sample()), ThemeMode::Dark);
+    let row = editor.read_with(&app.cx, |w, _| w.toolbar().unwrap());
+    let crop = row
+        .read_with(&app.cx, |r, _| r.control_bounds(Control::Crop))
+        .unwrap();
+    assert_eq!(crop.left(), CHROME_PADDING_X, "nothing sits before Crop");
+}
+
+/// Tab runs toolbar, inspector, footer: the toggle's next stop is the inspector it sits above.
+#[test]
+fn tab_goes_from_the_toggle_into_the_inspector_and_then_to_the_footer() {
+    let (mut app, editor) = launch(Some(styled("tab.png")), ThemeMode::Dark);
+    click_toggle(&mut app, &editor);
+    let toggle = focused(&mut app).expect("a click focuses the toggle");
+    let after_toggle_when_hidden = tab(&mut app).expect("a stop follows the toggle");
+
+    click_toggle(&mut app, &editor);
+    assert_eq!(focused(&mut app).as_ref(), Some(&toggle));
+    let padding = app.cx.update(|cx| {
+        let inspector = editor.read(cx).inspector().unwrap();
+        let body = inspector
+            .read(cx)
+            .body(Section::Background)
+            .unwrap()
+            .clone()
+            .downcast::<BackgroundBody>()
+            .unwrap();
+        let [padding, _, _] = body.read(cx).sliders().unwrap();
+        padding.read(cx).focus_handle(cx)
+    });
+    let mut stops = Vec::new();
+    while let Some(stop) = tab(&mut app) {
+        if stop == toggle || stops.len() > 200 {
+            break;
+        }
+        stops.push(stop);
+    }
+    let first = |h: &FocusHandle| stops.iter().position(|s| s == h);
+    let (inside, footer) = (first(&padding), first(&after_toggle_when_hidden));
+    assert!(
+        matches!((inside, footer), (Some(i), Some(f)) if i < f),
+        "the padding slider ({inside:?}) comes after the toggle and before the footer ({footer:?})"
+    );
+    assert_ne!(stops.first(), Some(&after_toggle_when_hidden));
 }
 
 #[test]

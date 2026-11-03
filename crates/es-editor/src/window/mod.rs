@@ -437,7 +437,7 @@ impl EditorWindow {
             .h_full()
             .overflow_hidden()
             .bg(t.inspector)
-            .border_r(t.metrics.hairline)
+            .border_l(t.metrics.hairline)
             .border_color(t.border)
             .accessible(Role::Pane, fl!("editor-inspector-a11y"))
             .children(self.inspector.clone())
@@ -555,10 +555,10 @@ impl Render for EditorWindow {
                     .flex()
                     .flex_1()
                     .min_h_0()
+                    .child(self.workspace(&t))
                     .when(self.inspector_open && self.session().is_some(), |d| {
                         d.child(self.inspector_column(&t))
-                    })
-                    .child(self.workspace(&t)),
+                    }),
             )
             .child(self.footer(cx))
             .children(self.redact_toast_view(&t, cx))

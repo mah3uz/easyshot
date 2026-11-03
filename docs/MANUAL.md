@@ -112,6 +112,11 @@ and Close.
 The editor has 13 tools. You can select, move, resize and rotate shapes, bind arrows to
 shapes, edit text, and undo and redo. You can crop, rotate and flip, and zoom and pan.
 
+The window has the title bar (undo, redo, the name, Save and Export) on top, the tool row
+under it, the image in the middle, the inspector on the right and the footer (zoom, Copy)
+at the bottom. The button at the right end of the tool row hides and shows the inspector.
+Tab moves through the title bar, the tool row, the inspector, then the footer.
+
 The Highlighter (key M) paints translucent colour over text without hiding it: the stroke
 is multiplied into the image at about 40% strength, so dark text stays dark. It has two
 modes. Freehand follows the pointer; Straight draws one line from where you press, and Shift
@@ -138,8 +143,14 @@ first steps back through the edits you made after them. The editor keeps the las
 steps, and drops the oldest sooner when they would hold more than 768 MiB of pixels.
 
 Beautify options: background (colour, gradient, wallpaper), padding, corners, shadow and
-its style, alignment, aspect ratio, camera 3D, progressive blur, border, watermark and
+its style, alignment, canvas shape, camera 3D, progressive blur, border, watermark and
 presets.
+
+Canvas shape, in the inspector's Background section, sets the shape of the whole picture:
+Free (the image's own shape plus padding), 1:1, 4:3, 3:2 or 16:9. The background grows
+around the image to fill the shape. Picking a shape while padding is 0 sets padding to 8%,
+so you see the change at once. Canvas shape is greyed out while there is no background,
+camera effect or bleeding blur, since then there is nothing around the image to shape.
 
 In the Camera section you tilt and roll the camera, set its lens (FOV), zoom and pan, and
 rotate the card itself. Progressive Blur blurs the screenshot alone or the whole scene,

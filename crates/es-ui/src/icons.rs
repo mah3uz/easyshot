@@ -92,7 +92,7 @@ icons! {
         Monitor = "monitor",
         MousePointer2 = "mouse-pointer-2",
         Palette = "palette",
-        PanelLeft = "panel-left",
+        PanelRight = "panel-right",
         PanelTop = "panel-top",
         Pencil = "pencil",
         PencilLine = "pencil-line",

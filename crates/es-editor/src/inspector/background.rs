@@ -5,7 +5,7 @@ use std::{path::PathBuf, rc::Rc, sync::Arc};
 
 use es_model::{
     BackgroundSettings, BackgroundStyle,
-    background::{Alignment, BackgroundColor, ShadowStyle},
+    background::{Alignment, AspectRatio, BackgroundColor, ShadowStyle},
 };
 use es_render::beautify::gradients::{PRESETS, render_gradient};
 use es_ui::components::{InspectorSlider, ValueFormat};
@@ -221,6 +221,29 @@ impl BackgroundBody {
     pub fn set_shadow_style(&mut self, style: ShadowStyle, cx: &mut Context<Self>) {
         self.look
             .update(cx, |look, cx| look.update(|s| s.shadow_style = style, cx));
+    }
+
+    /// A fixed shape grows the stage around the card, which shows nothing without padding.
+    pub fn set_aspect_ratio(&mut self, aspect: AspectRatio, cx: &mut Context<Self>) {
+        if !self.shape_enabled(cx) {
+            return;
+        }
+        self.look.update(cx, |look, cx| {
+            look.update(
+                |s| {
+                    s.aspect_ratio = aspect;
+                    if aspect != AspectRatio::Auto && s.padding == 0.0 {
+                        s.padding = BackgroundSettings::default().padding;
+                    }
+                },
+                cx,
+            )
+        });
+    }
+
+    /// Only a background, camera or bleeding blur puts the card on a stage that can take a shape.
+    pub fn shape_enabled(&self, cx: &App) -> bool {
+        self.settings(cx).uses_canvas_layout()
     }
 
     pub fn set_alignment(&mut self, alignment: Alignment, cx: &mut Context<Self>) {

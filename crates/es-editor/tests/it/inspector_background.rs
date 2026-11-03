@@ -18,7 +18,7 @@ use es_editor::{
 };
 use es_model::{
     BackgroundSettings, BackgroundStyle,
-    background::{Alignment, BackgroundColor},
+    background::{Alignment, AspectRatio, BackgroundColor},
 };
 use es_render::beautify::GradientPreset;
 use es_store::Paths;
@@ -255,6 +255,64 @@ fn the_alignment_pad_is_off_while_the_camera_frames_the_card() {
     });
 }
 
+fn canvas_aspect(s: &BackgroundSettings) -> f64 {
+    let l = es_render::beautify::layout::layout(400.0, 300.0, s);
+    l.canvas_width / l.canvas_height
+}
+
+#[test]
+fn a_canvas_shape_on_a_padless_background_turns_padding_on_so_the_shape_shows() {
+    let mut r = rig(BackgroundSettings {
+        style: BackgroundStyle::Gradient(GradientPreset::by_id("soft-mint").unwrap().style()),
+        padding: 0.0,
+        ..BackgroundSettings::default()
+    });
+    let (body, canvas) = (r.body.clone(), r.canvas.clone());
+    r.app.cx.update(|cx| {
+        assert_eq!(canvas_aspect(canvas.read(cx).background()), 4.0 / 3.0);
+
+        body.update(cx, |b, cx| b.set_aspect_ratio(AspectRatio::Square, cx));
+        let s = canvas.read(cx).background().clone();
+        assert_eq!(s.aspect_ratio, AspectRatio::Square);
+        assert_eq!(s.padding, BackgroundSettings::default().padding);
+        assert_eq!(canvas_aspect(&s), 1.0);
+
+        body.update(cx, |b, cx| b.set_aspect_ratio(AspectRatio::SixteenNine, cx));
+        assert_eq!(canvas.read(cx).background().padding, 0.08);
+        assert_eq!(canvas_aspect(canvas.read(cx).background()), 16.0 / 9.0);
+    });
+}
+
+#[test]
+fn a_canvas_shape_keeps_chosen_padding_and_free_never_adds_any() {
+    let mut r = rig(BackgroundSettings {
+        style: BackgroundStyle::Gradient(GradientPreset::by_id("soft-mint").unwrap().style()),
+        padding: 0.2,
+        ..BackgroundSettings::default()
+    });
+    let (body, look) = (r.body.clone(), r.look.clone());
+    r.app.cx.update(|cx| {
+        body.update(cx, |b, cx| b.set_aspect_ratio(AspectRatio::ThreeTwo, cx));
+        assert_eq!(look.read(cx).settings().padding, 0.2);
+
+        look.update(cx, |l, cx| l.update(|s| s.padding = 0.0, cx));
+        body.update(cx, |b, cx| b.set_aspect_ratio(AspectRatio::Auto, cx));
+        let s = look.read(cx).settings();
+        assert_eq!((s.aspect_ratio, s.padding), (AspectRatio::Auto, 0.0));
+    });
+}
+
+#[test]
+fn without_a_stage_the_canvas_shape_is_off() {
+    let mut r = rig(BackgroundSettings::default());
+    let (body, look) = (r.body.clone(), r.look.clone());
+    r.app.cx.update(|cx| {
+        assert!(!body.read(cx).shape_enabled(cx));
+        body.update(cx, |b, cx| b.set_aspect_ratio(AspectRatio::Square, cx));
+        assert_eq!(look.read(cx).settings().aspect_ratio, AspectRatio::Auto);
+    });
+}
+
 fn window(mode: ThemeMode) -> (Headless<Root>, Entity<EditorWindow>) {
     let look = BackgroundSettings {
         style: BackgroundStyle::Gradient(GradientPreset::by_id("soft-blush").unwrap().style()),
@@ -300,6 +358,11 @@ fn screenshots_background_section() {
         });
         app.settle();
         app.screenshot(&format!("background-gradients-{tag}"));
+
+        app.cx
+            .update(|cx| body.update(cx, |b, cx| b.set_aspect_ratio(AspectRatio::SixteenNine, cx)));
+        app.settle();
+        app.screenshot(&format!("background-canvas-shape-{tag}"));
 
         app.cx.update(|cx| {
             body.update(cx, |b, cx| {

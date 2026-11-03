@@ -169,6 +169,14 @@ What was rejected beyond that, and why: not recorded.
   overwrote.
 - **Recording defaults: system sound on, microphone off.** A silent recording surprised the
   first user; the microphone stays opt-in.
+- **The editor's inspector is on the right.** Its toggle sits at the right end of the tool
+  row, directly above it, and Tab reaches it after the tool row. Rejected: the reference
+  design's left column, which the user did not want.
+- **Canvas shape lives in the Background section.** A fixed shape grows the stage around
+  the card, so it sits with padding, and picking one while padding is 0 sets the default
+  padding so the change shows. It is off while nothing puts the card on a stage. Rejected:
+  a ratio menu in the tool row, which did nothing visible without padding and confused the
+  first user.
 
 1. **Undo.** No entry is pushed for a press that changes nothing: `mark_undo` is deferred
    until the first mutation of the gesture. Typing in a text shape creates one undo entry

@@ -235,7 +235,7 @@ useHead({
         <HowStep :n="6" id="annotate" title="Annotate and share">
           <p>
             Choose <strong>Annotate</strong> on a deck card, or capture with <code>--annotate</code>. Add arrows, shapes, text and steps, blur what is private with <strong>Smart Redaction</strong> (it says what it hid and offers Undo), highlight text with the <strong>Highlighter</strong>, then set a background,
-            padding and shadow in the inspector. Save keeps your edits editable; Export writes PNG or JPEG.
+            padding, shadow and canvas shape in the inspector on the right. Save keeps your edits editable; Export writes PNG or JPEG.
           </p>
           <div class="grid gap-2 sm:grid-cols-2">
             <div v-for="k in editorKeys" :key="k[0]" class="flex items-center justify-between gap-4 rounded-xl border border-line bg-surface px-4 py-3 text-[14px]">

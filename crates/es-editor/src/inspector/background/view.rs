@@ -1,6 +1,6 @@
 use es_model::{
     BackgroundStyle,
-    background::{Alignment, BackgroundColor, ShadowStyle},
+    background::{Alignment, AspectRatio, BackgroundColor, ShadowStyle},
 };
 use es_render::beautify::gradients::PRESETS;
 use es_ui::{
@@ -338,6 +338,39 @@ impl BackgroundBody {
                 let _ = this.update(cx, |this, cx| this.set_shadow_style(style, cx));
             }
         });
+        let shapes = [
+            AspectRatio::Auto,
+            AspectRatio::Square,
+            AspectRatio::FourThree,
+            AspectRatio::ThreeTwo,
+            AspectRatio::SixteenNine,
+        ];
+        let shape_on = self.shape_enabled(cx);
+        let shape = Segmented::new(
+            "bg-canvas-shape",
+            fl!("editor-bg-canvas-shape"),
+            [
+                Segment::text(fl!("editor-bg-shape-free")),
+                Segment::text(fl!("editor-aspect-1-1")),
+                Segment::text(fl!("editor-aspect-4-3")),
+                Segment::text(fl!("editor-aspect-3-2")),
+                Segment::text(fl!("editor-aspect-16-9")),
+            ],
+        )
+        .selected(
+            shapes
+                .iter()
+                .position(|&x| x == s.aspect_ratio)
+                .unwrap_or(0),
+        )
+        .disabled(!shape_on)
+        .on_select({
+            let this = this.clone();
+            move |i, _, cx| {
+                let aspect = shapes[i.min(4)];
+                let _ = this.update(cx, |this, cx| this.set_aspect_ratio(aspect, cx));
+            }
+        });
         let enabled = self.alignment_enabled(cx);
         let pad = AlignmentPad::new("bg-alignment", fl!("editor-bg-align-pad-a11y"))
             .selected(if enabled {
@@ -358,6 +391,7 @@ impl BackgroundBody {
             .flex()
             .flex_col()
             .gap(GROUP_GAP)
+            .child(group(t, fl!("editor-bg-canvas-shape"), shape))
             .child(group(t, fl!("editor-bg-layout"), div().children(sliders)))
             .child(group(
                 t,

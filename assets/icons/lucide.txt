@@ -52,7 +52,7 @@ minus
 monitor
 mouse-pointer-2
 palette
-panel-left
+panel-right
 panel-top
 pencil
 pencil-line

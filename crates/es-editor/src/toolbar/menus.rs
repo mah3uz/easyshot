@@ -1,6 +1,5 @@
 use std::rc::Rc;
 
-use es_model::AspectRatio;
 use es_ui::{
     a11y::{Accessible, Role},
     icons::IconName,
@@ -9,34 +8,14 @@ use es_ui::{
 };
 use gpui::{
     Anchor, App, Div, ElementId, InteractiveElement, Interactivity, IntoElement, ParentElement,
-    Pixels, RenderOnce, SharedString, Stateful, StatefulInteractiveElement, StyleRefinement,
-    Styled, Window, div, prelude::FluentBuilder, px, transparent_black,
+    RenderOnce, SharedString, Stateful, StatefulInteractiveElement, StyleRefinement, Styled,
+    Window, div, prelude::FluentBuilder, px, transparent_black,
 };
 use gpui_component::{
     Icon, Selectable,
     menu::{DropdownMenu, PopupMenuItem},
     tooltip::Tooltip,
 };
-
-use crate::strings::fl;
-
-pub const ASPECTS: [AspectRatio; 5] = [
-    AspectRatio::Auto,
-    AspectRatio::Square,
-    AspectRatio::FourThree,
-    AspectRatio::ThreeTwo,
-    AspectRatio::SixteenNine,
-];
-
-pub fn aspect_title(aspect: AspectRatio) -> String {
-    match aspect {
-        AspectRatio::Auto => fl!("editor-aspect-auto"),
-        AspectRatio::Square => fl!("editor-aspect-1-1"),
-        AspectRatio::FourThree => fl!("editor-aspect-4-3"),
-        AspectRatio::ThreeTwo => fl!("editor-aspect-3-2"),
-        AspectRatio::SixteenNine => fl!("editor-aspect-16-9"),
-    }
-}
 
 /// The dropdown keeps its trigger's open state through `Selectable`, which a plain `Div` lacks.
 #[derive(IntoElement)]
@@ -150,27 +129,4 @@ pub fn choice_menu<T: Copy + PartialEq + 'static>(
         }
         menu
     })
-}
-
-pub fn aspect_menu(
-    current: AspectRatio,
-    width: Pixels,
-    disabled: bool,
-    on_pick: Pick<AspectRatio>,
-    cx: &App,
-) -> impl IntoElement {
-    let trigger = menu_trigger(
-        "aspect",
-        fl!("editor-aspect-help"),
-        Some(IconName::Ratio),
-        Some(aspect_title(current).into()),
-        disabled,
-        cx,
-    )
-    .w(width);
-    let choices = ASPECTS
-        .iter()
-        .map(|&a| (a, aspect_title(a), None))
-        .collect();
-    choice_menu(trigger, choices, Some(current), on_pick)
 }

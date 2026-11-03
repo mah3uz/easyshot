@@ -6,7 +6,7 @@ pub mod tools;
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use es_anno::{GestureId, StylePatch};
-use es_model::{AspectRatio, RedactionKind, Tool};
+use es_model::{RedactionKind, Tool};
 use es_ui::{
     components::{EditorButton, InspectorSlider, Popover, SliderEvent, ValueFormat},
     icons::IconName,
@@ -24,10 +24,9 @@ use crate::session::{
     doc::{DocEvent, DocModel},
 };
 use crate::strings::fl;
-use menus::{Pick, aspect_menu, choice_menu, menu_trigger};
+use menus::{Pick, choice_menu, menu_trigger};
 
 const GAP: Pixels = px(4.);
-const ASPECT_WIDTH: Pixels = px(110.);
 const DIVIDER_HEIGHT: Pixels = px(24.);
 const REDACT_WIDTH: Pixels = px(340.);
 
@@ -46,7 +45,6 @@ pub enum FlipAxis {
 /// What the row asks its window to do; tools and styles go straight to the engine instead.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ToolRowEvent {
-    Aspect(AspectRatio),
     Crop,
     Rotate(Rotation),
     Flip(FlipAxis),
@@ -57,7 +55,6 @@ pub enum ToolRowEvent {
 /// A control whose last drawn bounds the row remembers, for anchoring and for tests.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Control {
-    Aspect,
     Crop,
     Rotate,
     RotateMenu,
@@ -80,7 +77,6 @@ type Drawn = Rc<RefCell<HashMap<Control, Bounds<Pixels>>>>;
 
 pub struct ToolRow {
     doc: Entity<DocModel>,
-    aspect: AspectRatio,
     cropping: bool,
     inspector_open: bool,
     redact_open: bool,
@@ -98,11 +94,9 @@ impl EventEmitter<ToolRowEvent> for ToolRow {}
 impl ToolRow {
     pub fn new(session: &EditorSession, cx: &mut Context<Self>) -> Self {
         let doc = session.doc.clone();
-        let aspect = doc.read(cx).background().aspect_ratio;
         let on_doc = cx.subscribe(&doc, |_, _, _: &DocEvent, cx| cx.notify());
         Self {
             doc,
-            aspect,
             cropping: false,
             inspector_open: true,
             redact_open: false,
@@ -146,11 +140,6 @@ impl ToolRow {
         self._subscriptions.push(on_strength);
         self.strength = Some(slider.clone());
         slider
-    }
-
-    pub fn set_aspect(&mut self, aspect: AspectRatio, cx: &mut Context<Self>) {
-        self.aspect = aspect;
-        cx.notify();
     }
 
     /// While cropping only the crop toggle stays live.
@@ -448,7 +437,7 @@ impl Render for ToolRow {
                 fl!("editor-inspector-show")
             };
             EditorButton::new("inspector")
-                .icon(IconName::PanelLeft)
+                .icon(IconName::PanelRight)
                 .accessible_label(fl!("editor-inspector-toggle-a11y"))
                 .tooltip(tip)
                 .padding_x(padding)
@@ -463,16 +452,6 @@ impl Render for ToolRow {
             .h_full()
             .gap(GAP)
             .text_color(t.text)
-            .child(self.track(
-                Control::Aspect,
-                aspect_menu(
-                    self.aspect,
-                    ASPECT_WIDTH,
-                    self.cropping,
-                    self.emitter(cx, ToolRowEvent::Aspect),
-                    cx,
-                ),
-            ))
             .child(self.track(Control::Crop, crop))
             .child(self.rotate_group(cx))
             .child(divider(cx))
