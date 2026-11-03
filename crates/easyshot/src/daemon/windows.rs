@@ -2,7 +2,7 @@ use super::bar::{BarSources, new_bar};
 use es_app::dispatcher::{HomeTab, RouteDispatcher};
 use es_app::errors::{Error, Result};
 use es_app::events::Origin;
-use es_app::history::History;
+use es_app::history::{History, HistoryEvent};
 use es_app::platform_ui::{ClipboardSink, LayerShellSurfaces, SurfaceHandle as _, SurfaceRole};
 use es_app::settings_model::SettingsModel;
 use es_app::windows::{WindowHandle, WindowKey, WindowKind, Windows};
@@ -411,7 +411,7 @@ pub(super) fn onboarding_input(w: &Wiring, cx: &App) -> OnboardingInput {
         binds: w.binds.clone(),
         clipboard: Some(Rc::new(settings::SystemClipboard)),
         global_shortcuts: config.global_shortcuts.clone(),
-        capture_shortcut: None,
+        capture_shortcut: onboarding::capture_shortcut(&config.global_shortcuts),
         save_dir: es_store::paths::save_dir(config),
         autosave: config.after_capture.screenshot.save,
     }
@@ -447,25 +447,46 @@ fn open_onboarding(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>>
         cx.new(|cx| Root::new(view, window, cx))
     }))?;
     if let Some(view) = slot.borrow_mut().take() {
-        let w = w.clone();
+        let events = w.clone();
         cx.subscribe(&view, move |_, event: &OnboardingEvent, cx| match event {
             OnboardingEvent::Closed => {
                 let _ = window.update(cx, |_, window, _| window.remove_window());
             }
-            OnboardingEvent::ChooseFolder => choose_save_folder(&w, cx),
+            OnboardingEvent::ChooseFolder => choose_save_folder(&events, cx),
             OnboardingEvent::SetAutosave(on) => {
                 let on = *on;
-                w.settings.update(cx, |s, cx| {
+                events.settings.update(cx, |s, cx| {
                     s.update(|c| c.after_capture.screenshot.save = on, cx)
                 });
             }
             OnboardingEvent::SetShortcuts(keys) => {
                 let keys = keys.clone();
-                w.settings
+                events
+                    .settings
                     .update(cx, |s, cx| s.update(|c| c.global_shortcuts = keys, cx));
             }
-            OnboardingEvent::CaptureArea => w.dispatch(Route::CaptureRegion, cx),
-            OnboardingEvent::OpenPractice => open_practice(&w, cx),
+            OnboardingEvent::CaptureArea => events.dispatch(Route::CaptureRegion, cx),
+            OnboardingEvent::OpenPractice => open_practice(&events, cx),
+        })
+        .detach();
+        let weak = view.downgrade();
+        let wiring = w.clone();
+        cx.observe(&w.settings, move |_, cx| {
+            if let Some(view) = weak.upgrade() {
+                let input = onboarding_input(&wiring, cx);
+                view.update(cx, |v, cx| v.set_input(input, cx));
+            }
+        })
+        .detach();
+        let weak = view.downgrade();
+        let history = w.history.clone();
+        cx.subscribe(&w.history, move |_, event: &HistoryEvent, cx| {
+            if let (HistoryEvent::Added(id), Some(view)) = (event, weak.upgrade())
+                && let Some(entry) = history.read(cx).get(*id)
+            {
+                let file = entry.file.clone();
+                view.update(cx, |v, cx| v.show_practice(file, cx));
+            }
         })
         .detach();
     }

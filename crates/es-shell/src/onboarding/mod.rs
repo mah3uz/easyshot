@@ -82,20 +82,28 @@ pub fn checklist(caps: Caps) -> Vec<CheckRow> {
         .collect()
 }
 
+/// The key saved for the area capture, which the Practice step names.
+pub fn capture_shortcut(
+    globals: &std::collections::BTreeMap<String, String>,
+) -> Option<es_protocol::Trigger> {
+    es_protocol::Trigger::parse(globals.get("capture-region")?).ok()
+}
+
 /// What the shortcuts step shows.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ShortcutSetup {
     /// Suggested keys, written to the binds file; the user adds one include line.
     Binds,
-    /// The desktop's shortcut portal asks the user itself.
+    /// The desktop's shortcut portal asks the user itself; used only where no binds file can be written.
     Portal,
 }
 
 impl ShortcutSetup {
     pub fn for_caps(caps: Caps, has_binds: bool) -> Option<Self> {
-        if caps.contains(Caps::PORTAL_SHORTCUTS) {
-            return Some(ShortcutSetup::Portal);
+        if has_binds {
+            return Some(ShortcutSetup::Binds);
         }
-        has_binds.then_some(ShortcutSetup::Binds)
+        caps.contains(Caps::PORTAL_SHORTCUTS)
+            .then_some(ShortcutSetup::Portal)
     }
 }

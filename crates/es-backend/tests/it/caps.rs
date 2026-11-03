@@ -208,3 +208,24 @@ fn platform_detect_picks_ext_capture_in_headless_sway() {
     );
     assert!(b.caps.contains(Caps::CAPTURE_OUTPUT | Caps::LAYER_SHELL));
 }
+
+#[test]
+fn a_usable_binds_file_sets_shortcut_triggers_and_not_the_portal_flag() {
+    let p = Probe {
+        env: es_backend::Env::from_vars([(es_backend::wlroots::SOCKET_ENV, "/nonexistent/sock")]),
+        portals: es_backend::PortalIfaces {
+            global_shortcuts: true,
+            ..Default::default()
+        },
+        ..Probe::default()
+    };
+    let reg = Registry {
+        binds: es_backend::registry::BINDS,
+        shortcuts: es_backend::registry::SHORTCUTS,
+        ..Registry::EMPTY
+    };
+    let b = Backend::detect_with(&p, &reg);
+    assert!(b.caps.contains(Caps::SHORTCUT_TRIGGERS));
+    assert!(!b.caps.contains(Caps::PORTAL_SHORTCUTS));
+    assert!(b.shortcuts.user_binds_required());
+}

@@ -127,3 +127,44 @@ fn select_all_keeps_every_usable_provider_best_first() {
     assert_eq!(report.chosen("thing"), Some("high"));
     assert!(reason(&report, "broken").contains("socket refused"));
 }
+
+fn sway_probe() -> Probe {
+    Probe {
+        env: Env::from_vars([(es_backend::wlroots::SOCKET_ENV, "/nonexistent/sock")]),
+        portals: es_backend::PortalIfaces {
+            global_shortcuts: true,
+            ..Default::default()
+        },
+        ..Probe::default()
+    }
+}
+
+#[test]
+fn binds_file_outranks_the_shortcuts_portal_where_a_bind_helper_exists() {
+    let p = sway_probe();
+    let binds = (es_backend::desktop::USER_BINDS.probe)(&p);
+    let portal = (es_backend::desktop::PORTAL_GLOBAL_SHORTCUTS.probe)(&p);
+    assert!(
+        portal.is_some() && binds > portal,
+        "{binds:?} vs {portal:?}"
+    );
+    let mut report = ProviderReport::default();
+    select(
+        "shortcuts",
+        es_backend::registry::SHORTCUTS,
+        &p,
+        &mut report,
+    );
+    assert_eq!(report.chosen("shortcuts"), Some("user-binds"));
+}
+
+#[test]
+fn shortcuts_portal_is_the_fallback_without_a_bind_helper() {
+    let p = Probe {
+        env: Env::default(),
+        ..sway_probe()
+    };
+    let binds = (es_backend::desktop::USER_BINDS.probe)(&p);
+    let portal = (es_backend::desktop::PORTAL_GLOBAL_SHORTCUTS.probe)(&p);
+    assert!(portal > binds, "{binds:?} vs {portal:?}");
+}

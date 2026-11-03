@@ -68,6 +68,10 @@ Hyprland and niri reload when the file changes. In sway, put the line after your
 and on niri after your `binds { }` block, so easyshot's keys win a clash. Every command in the
 file is one `easyshot --help` lists.
 
+On a desktop where easyshot can write no binds file, it uses the desktop's global-shortcuts
+portal instead, when there is one, and your desktop asks you to confirm the shortcuts the
+first time easyshot starts. The binds file always comes first where it can be written.
+
 ## Capturing
 
 - **Region.** The screen freezes, you drag a selection, and you can adjust it. The previous

@@ -99,7 +99,12 @@ impl Shortcuts for UserBinds {
 
 pub const USER_BINDS: Provider<dyn Shortcuts> = Provider {
     name: "user-binds",
-    probe: |_| Some(1),
+    probe: |p| {
+        let has_helper = crate::registry::BINDS
+            .iter()
+            .any(|b| (b.probe)(p).is_some());
+        Some(if has_helper { 20 } else { 1 })
+    },
     build: |_| Ok(Box::new(UserBinds::new())),
 };
 

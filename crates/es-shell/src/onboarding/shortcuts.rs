@@ -72,6 +72,7 @@ impl Onboarding {
             Ok(_) => {
                 self.shortcuts.file_error = None;
                 self.shortcuts.saved = true;
+                self.input.capture_shortcut = super::capture_shortcut(&globals);
                 self.input.global_shortcuts = globals.clone();
                 cx.emit(OnboardingEvent::SetShortcuts(globals));
             }

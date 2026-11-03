@@ -67,7 +67,7 @@ pub static CURSOR: &[Provider<dyn CursorSource>] = &[
 ];
 
 pub static SHORTCUTS: &[Provider<dyn Shortcuts>] =
-    &[desktop::PORTAL_GLOBAL_SHORTCUTS, desktop::USER_BINDS];
+    &[desktop::USER_BINDS, desktop::PORTAL_GLOBAL_SHORTCUTS];
 
 pub static TRAY: &[Provider<dyn Tray>] = &[desktop::STATUS_NOTIFIER];
 

@@ -384,6 +384,25 @@ fn onboarding_offers_the_bind_helper_with_no_keys_chosen(cx: &mut TestAppContext
 }
 
 #[gpui::test]
+fn onboarding_names_the_saved_area_capture_key(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    rig.settings.update(cx, |s, cx| {
+        s.update(
+            |c| {
+                c.global_shortcuts
+                    .insert("capture-region".into(), "Super+Shift+4".into());
+            },
+            cx,
+        )
+    });
+    let input = cx.update(|cx| onboarding_input(&rig.wiring, cx));
+    assert_eq!(
+        input.capture_shortcut.map(|t| t.label()),
+        Some("Super+Shift+4".into())
+    );
+}
+
+#[gpui::test]
 fn the_practice_image_opens_in_the_editor_without_capturing(cx: &mut TestAppContext) {
     let rig = rig(cx);
     cx.update(|cx| open_practice(&rig.wiring, cx));

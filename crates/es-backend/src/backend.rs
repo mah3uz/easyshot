@@ -190,6 +190,7 @@ fn derive_caps(b: &Backend, probe: &Probe) -> Caps {
         Caps::PORTAL_SHORTCUTS,
         chosen("shortcuts") == Some(desktop::PORTAL_GLOBAL_SHORTCUTS.name),
     );
+    caps.set(Caps::SHORTCUT_TRIGGERS, chosen("binds").is_some());
     caps.set(Caps::POINTER_GLOBAL, b.pointer.is_some());
     caps.set(Caps::VIRTUAL_INPUT, b.virtual_input.is_some());
     caps.set(Caps::RECORDER, !b.recorders.is_empty());

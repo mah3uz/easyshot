@@ -135,13 +135,17 @@ fn a_missing_capability_shows_its_fix_and_a_ready_one_its_purpose() {
 }
 
 #[test]
-fn shortcuts_use_the_binds_file_unless_the_portal_asks_for_them() {
+fn shortcuts_use_the_binds_file_and_the_portal_only_without_one() {
     assert_eq!(
         ShortcutSetup::for_caps(Caps::empty(), true),
         Some(ShortcutSetup::Binds)
     );
     assert_eq!(
         ShortcutSetup::for_caps(Caps::PORTAL_SHORTCUTS, true),
+        Some(ShortcutSetup::Binds)
+    );
+    assert_eq!(
+        ShortcutSetup::for_caps(Caps::PORTAL_SHORTCUTS, false),
         Some(ShortcutSetup::Portal)
     );
     assert_eq!(ShortcutSetup::for_caps(Caps::empty(), false), None);
