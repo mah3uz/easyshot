@@ -676,6 +676,47 @@ its parents up to the repository root; Gemini CLI reads `~/.agents/skills/` or
 `.agents/skills/` and `.cursor/skills/` plus the user folders. The default install therefore
 covers all four.
 
+### The MCP server for your agent
+
+`easyshot agent mcp` is a Model Context Protocol server on standard input and output, for
+agents that prefer tools to shell commands. It offers `list_outputs`, `list_windows`,
+`capture`, `ocr`, `record_start`, `record_stop` and `export`; each call is the same request as
+the matching `easyshot agent` command, so agent access, consent, scope and hiding secrets
+apply exactly as they do there. `capture` returns the screenshot as an image scaled so its
+long edge is at most 1280 pixels (with secrets already pixelated), and the JSON with the saved
+file's path and full size; the full file stays on disk. `list_*` are marked read-only; the
+others are not, so a client that asks before non-read-only tools will ask you.
+
+When access is off, or you deny a request, the tool returns an error that tells the agent to
+ask you; it does not turn access on. Like the other agent commands, the server starts the
+daemon if it is not running. Register it with your client:
+
+- Claude Code: `claude mcp add easyshot -- easyshot agent mcp` (add `--scope project` to
+  write `.mcp.json` for a project).
+- Codex, in `~/.codex/config.toml`:
+
+  ```toml
+  [mcp_servers.easyshot]
+  command = "easyshot"
+  args = ["agent", "mcp"]
+  ```
+
+  `codex mcp add easyshot -- easyshot agent mcp` writes the same.
+- Gemini CLI, in `~/.gemini/settings.json` (`gemini mcp add easyshot easyshot agent mcp` does
+  the same):
+
+  ```json
+  { "mcpServers": { "easyshot": { "command": "easyshot", "args": ["agent", "mcp"] } } }
+  ```
+
+- Cursor, in `~/.cursor/mcp.json` (or `.cursor/mcp.json` in a project):
+
+  ```json
+  { "mcpServers": { "easyshot": { "type": "stdio", "command": "easyshot", "args": ["agent", "mcp"] } } }
+  ```
+
+The server runs for as long as the agent session does.
+
 ## Files
 
 | What | Where |

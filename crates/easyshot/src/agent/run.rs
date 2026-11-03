@@ -1,6 +1,6 @@
 use super::AgentCall;
 use crate::run::{Env, launch};
-use es_desktop::dbus::{Client, ClientError};
+use es_desktop::dbus::{Client, ClientError, Endpoint, Launch};
 use es_protocol::JobStatus;
 use es_protocol::agent::{AgentReply, ErrorCode, ReplyKind};
 use std::ffi::OsString;
@@ -20,8 +20,17 @@ pub async fn run(
 }
 
 async fn ask(call: &AgentCall, env: &Env, cancel: impl Future<Output = ()>) -> AgentReply {
+    ask_via(call, &env.endpoint, launch(env), cancel).await
+}
+
+pub(super) async fn ask_via(
+    call: &AgentCall,
+    endpoint: &Endpoint,
+    launch: Launch,
+    cancel: impl Future<Output = ()>,
+) -> AgentReply {
     let kind = call.route.kind();
-    let client = match Client::connect(&env.endpoint, launch(env)).await {
+    let client = match Client::connect(endpoint, launch).await {
         Ok(c) => c,
         Err(e) => return client_failure(kind, &e),
     };

@@ -1,6 +1,11 @@
 mod access;
 mod capture;
 mod export;
+mod mcp;
+mod mcp_image;
+#[cfg(test)]
+mod mcp_tests;
+mod mcp_tools;
 mod ocr;
 mod record;
 mod run;
@@ -11,6 +16,7 @@ mod tests;
 
 pub use capture::CaptureArgs;
 pub use export::ExportArgs;
+pub use mcp::serve as serve_mcp;
 pub use ocr::OcrArgs;
 pub use record::RecordCommand;
 pub use run::{run, usage_error};
@@ -54,6 +60,8 @@ pub enum AgentCommand {
     /// Install the easyshot skill for AI agents, or show it
     #[command(subcommand)]
     Skill(SkillCommand),
+    /// Serve the agent commands as a Model Context Protocol server on standard input and output
+    Mcp,
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
@@ -78,6 +86,10 @@ impl AgentArgs {
         }
     }
 
+    pub fn is_mcp(&self) -> bool {
+        matches!(self.command, AgentCommand::Mcp)
+    }
+
     pub fn call(&self) -> Option<AgentCall> {
         let (route, wait) = match &self.command {
             AgentCommand::List {
@@ -95,6 +107,7 @@ impl AgentArgs {
             AgentCommand::Ocr(args) => (AgentRoute::Ocr(args.spec()), true),
             AgentCommand::Record(c) => (AgentRoute::Record(c.route()), true),
             AgentCommand::Skill(_) => return None,
+            AgentCommand::Mcp => return None,
         };
         Some(AgentCall {
             route,

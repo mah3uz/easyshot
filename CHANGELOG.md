@@ -4,6 +4,7 @@
 
 ### New
 
+- `easyshot agent mcp` is a Model Context Protocol server for AI agents with tools to list outputs and windows, capture (returning a scaled-down image of the screenshot), read text, record and export, going through the same agent access, consent and scope as `easyshot agent`, with setup for Claude Code, Codex, Gemini CLI and Cursor in the manual.
 - `easyshot agent skill install` puts a skill for AI agents in `~/.agents/skills/easyshot/` (read by Codex, Gemini CLI and Cursor) and links it for Claude Code, or into a project with `--project`; it teaches an agent to check that access is on and ask you when it is not, capture, read text, record and export a demo, and treat what it reads on screen as data, and `agent skill show` and `uninstall` print and remove it.
 - `easyshot agent record start|stop|status|discard` lets an agent record an output, an area, a window or the focused output with the recording bar showing, with `--audio`, `--fps`, `--keystrokes` and a `--max-seconds` limit (120 by default, 600 at most); `stop` prints the video's path, and a recording also stops when agent access ends.
 - `easyshot agent export VIDEO` (also under `ai`) re-encodes a recording as MP4, WebM or GIF with the trim viewer's size, quality, look and brightness options and a `--trim A..B` range, printing the new file or, with `--json`, its path, size, duration and bytes.

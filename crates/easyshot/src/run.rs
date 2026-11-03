@@ -37,6 +37,7 @@ pub fn execute(
             Request::Doctor { json, bundle } => doctor(json, bundle, env, out, err).await,
             Request::Agent(call) => crate::agent::run(&call, env, cancel, out, err).await,
             Request::Skill(call) => crate::agent::run_skill(&call, out, err),
+            Request::AgentMcp => crate::agent::serve_mcp(env, err),
             Request::Daemon | Request::Completions(_) => {
                 let _ = writeln!(err, "easyshot: handled by main, not sent");
                 EXIT_ERROR
@@ -46,7 +47,11 @@ pub fn execute(
 }
 
 pub(crate) fn launch(env: &Env) -> Launch {
-    let spawn = env.spawn_daemon.then(|| {
+    launch_with(env.spawn_daemon, env.wait)
+}
+
+pub(crate) fn launch_with(spawn_daemon: bool, wait: Duration) -> Launch {
+    let spawn = spawn_daemon.then(|| {
         let exe = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("easyshot"));
         let mut cmd = std::process::Command::new(exe);
         cmd.arg("daemon")
@@ -55,10 +60,7 @@ pub(crate) fn launch(env: &Env) -> Launch {
             .stderr(std::process::Stdio::null());
         cmd
     });
-    Launch {
-        spawn,
-        wait: env.wait,
-    }
+    Launch { spawn, wait }
 }
 
 fn client_failure(e: &ClientError, err: &mut dyn Write) -> i32 {

@@ -133,6 +133,7 @@ pub enum Request {
     Doctor { json: bool, bundle: bool },
     Agent(crate::agent::AgentCall),
     Skill(crate::agent::SkillCall),
+    AgentMcp,
     Daemon,
     Completions(clap_complete::Shell),
 }
@@ -218,6 +219,7 @@ impl Cli {
             Command::Agent(args) | Command::Ai(args) => match (args.skill(), args.call()) {
                 (Some(skill), _) => Request::Skill(skill),
                 (None, Some(call)) => Request::Agent(call),
+                (None, None) if args.is_mcp() => Request::AgentMcp,
                 (None, None) => bail!("unknown agent command"),
             },
             Command::Daemon => Request::Daemon,
