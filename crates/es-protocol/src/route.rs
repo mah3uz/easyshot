@@ -59,31 +59,25 @@ const PNG_MAGIC: &[u8] = &[0x89, b'P', b'N', b'G'];
 const JPEG_MAGIC: &[u8] = &[0xFF, 0xD8, 0xFF];
 
 impl SettingsPage {
-    pub const ALL: [SettingsPage; 10] = [
+    pub const ALL: [SettingsPage; 7] = [
+        SettingsPage::Home,
         SettingsPage::General,
         SettingsPage::Capture,
         SettingsPage::Overlay,
-        SettingsPage::AfterCapture,
         SettingsPage::Recording,
-        SettingsPage::DefaultLook,
-        SettingsPage::Compositor,
-        SettingsPage::Editor,
-        SettingsPage::Ocr,
         SettingsPage::Shortcuts,
+        SettingsPage::About,
     ];
 
     pub fn as_str(self) -> &'static str {
         match self {
+            SettingsPage::Home => "home",
             SettingsPage::General => "general",
             SettingsPage::Capture => "capture",
             SettingsPage::Overlay => "overlay",
-            SettingsPage::AfterCapture => "after-capture",
             SettingsPage::Recording => "recording",
-            SettingsPage::DefaultLook => "default-look",
-            SettingsPage::Compositor => "compositor",
-            SettingsPage::Editor => "editor",
-            SettingsPage::Ocr => "ocr",
             SettingsPage::Shortcuts => "shortcuts",
+            SettingsPage::About => "about",
         }
     }
 
@@ -292,6 +286,18 @@ mod tests {
         }
         assert!(Route::parse("settings/nope", &no_args()).is_err());
         assert!(Route::parse("settings/", &no_args()).is_err());
+        for old in [
+            "after-capture",
+            "default-look",
+            "compositor",
+            "editor",
+            "ocr",
+        ] {
+            assert!(
+                Route::parse(&format!("settings/{old}"), &no_args()).is_err(),
+                "{old}"
+            );
+        }
     }
 
     #[test]

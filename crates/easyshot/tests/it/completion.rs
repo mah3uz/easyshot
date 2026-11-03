@@ -165,3 +165,69 @@ fn the_script_calls_back_into_the_binary() {
         );
     }
 }
+
+fn bash_reply(line: &str, words: &[&str], cword: usize, cur: &str) -> Vec<String> {
+    let bin = Path::new(env!("CARGO_BIN_EXE_easyshot")).parent().unwrap();
+    let registration = Command::new(env!("CARGO_BIN_EXE_easyshot"))
+        .args(["completions", "bash"])
+        .env_clear()
+        .output()
+        .unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let script = dir.path().join("reg.bash");
+    std::fs::write(&script, registration.stdout).unwrap();
+    let words_src: String = words.iter().map(|w| format!("'{w}' ")).collect();
+    let program = format!(
+        "source {}; COMP_WORDBREAKS=$' \\t\\n:='; COMP_LINE='{line}'; COMP_POINT=${{#COMP_LINE}}; \
+         COMP_WORDS=({words_src}); COMP_CWORD={cword}; COMP_TYPE=9; \
+         _clap_complete_easyshot easyshot '{cur}' x; printf '%s\\n' \"${{COMPREPLY[@]}}\"",
+        script.display()
+    );
+    let out = Command::new("bash")
+        .env_clear()
+        .env("PATH", format!("{}:/usr/bin", bin.display()))
+        .args(["-c", &program])
+        .output()
+        .unwrap();
+    String::from_utf8(out.stdout)
+        .unwrap()
+        .lines()
+        .map(str::to_owned)
+        .collect()
+}
+
+#[test]
+fn bash_completes_links_across_the_colon() {
+    let got = bash_reply(
+        "easyshot open easyshot://cap",
+        &["easyshot", "open", "easyshot", ":", "//cap"],
+        4,
+        "//cap",
+    );
+    assert_eq!(
+        got,
+        [
+            "//capture/region",
+            "//capture/fullscreen",
+            "//capture/window",
+            "//capture/scroll"
+        ]
+    );
+}
+
+#[test]
+fn bash_without_a_colon_is_left_alone() {
+    let got = bash_reply("easyshot setti", &["easyshot", "setti"], 1, "setti");
+    assert_eq!(got, ["settings"]);
+}
+
+#[test]
+fn zsh_registration_runs_the_completer_when_autoloaded() {
+    let out = Command::new(env!("CARGO_BIN_EXE_easyshot"))
+        .args(["completions", "zsh"])
+        .env_clear()
+        .output()
+        .unwrap();
+    let script = String::from_utf8(out.stdout).unwrap();
+    assert!(script.contains("$funcstack[1] == _easyshot"));
+}

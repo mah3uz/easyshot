@@ -231,11 +231,13 @@ impl Wiring {
 fn page_of(page: SettingsPage) -> settings::Page {
     use settings::Page;
     match page {
-        SettingsPage::General | SettingsPage::DefaultLook | SettingsPage::Editor => Page::General,
-        SettingsPage::Capture | SettingsPage::AfterCapture | SettingsPage::Ocr => Page::Capture,
+        SettingsPage::Home => Page::Home,
+        SettingsPage::General => Page::General,
+        SettingsPage::Capture => Page::Capture,
         SettingsPage::Overlay => Page::Overlay,
         SettingsPage::Recording => Page::Recording,
-        SettingsPage::Compositor | SettingsPage::Shortcuts => Page::Shortcuts,
+        SettingsPage::Shortcuts => Page::Shortcuts,
+        SettingsPage::About => Page::About,
     }
 }
 

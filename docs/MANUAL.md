@@ -247,7 +247,8 @@ The Home window holds the media gallery and Settings, one per tab; the switcher 
 of the window moves between them. Easyshot in your application menu, a bare `easyshot` and
 an `easyshot://home` link open it, on the gallery the first time. `easyshot gallery` and the tray's Media
 Gallery open it on the gallery; `easyshot settings [page]`, the tray's Settings and an
-`easyshot://settings` link open it on Settings, at that page when you name one. There is
+`easyshot://settings` link open it on Settings, at that page when you name one: `home`,
+`general`, `capture`, `overlay`, `recording`, `shortcuts` or `about`. There is
 only one Home window: opening it again brings it to the front and switches to the tab you
 asked for, or keeps the tab it shows when you asked for none.
 
@@ -267,7 +268,7 @@ wf-recorder records one audio track. With it, system sound is the default output
 a recording with a microphone, or with no default output found, is made without system sound;
 easyshot says so when it starts.
 
-The capture bar opens with `easyshot capture-bar`, its key (Super+Shift+2 by default) or the
+The capture bar opens with `easyshot capture-bar`, its key, if you set one in Settings > Shortcuts, or the
 tray; opening it again by any of these closes it. While it is open it has the keyboard, so
 Esc closes it, or closes its open menu first.
 
@@ -361,12 +362,13 @@ was built from: `v0.1.0+1a2b3c4d`, with `-dirty` when the checkout had uncommitt
 
 `easyshot completions bash|zsh|fish` prints a short registration script for that shell; the
 Arch package installs all three. After that, pressing Tab asks `easyshot` itself, so what
-it offers follows what you have typed: the subcommands; `capture` then the modes, and for
-`capture region` its `--copy`, `--save`, `--annotate` and `--pin`; the actions of `record`
-and `deck`; the pages of `settings`; `--json` and `--bundle` for `doctor`; the shells for
-`completions`; and for `open` the `easyshot://` links and the PNG and JPEG files and
-folders under the path you have typed. Completion reads no daemon state and starts no
-window. To try it without installing, run `source <(easyshot completions bash)` in bash,
+it offers follows what you have typed: the subcommands; the flags of each command, which
+include some that a particular mode then refuses; the modes of `capture`, the actions of
+`record` and `deck`, the seven pages of `settings`, the shells for `completions`; and for
+`open` the `easyshot://` links and the PNG and JPEG files and folders under the path you
+have typed. In bash a link completes across its colon. Completion reads no daemon state
+and starts no window. To try it without installing, run `source <(easyshot completions bash)`
+in bash, `source <(easyshot completions zsh)` in zsh after `compinit`,
 `easyshot completions zsh > ~/.zfunc/_easyshot` in zsh (with `~/.zfunc` in `fpath`), or
 `easyshot completions fish | source` in fish.
 

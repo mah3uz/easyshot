@@ -23,6 +23,43 @@ pub fn open_target(current: &OsStr) -> Vec<CompletionCandidate> {
     out
 }
 
+const BASH_WORDS: &str = r#"    if [[ "${BASH_VERSINFO[0]}" -ge 4 ]]; then
+        words[COMP_CWORD]="$2"
+    fi
+"#;
+
+const BASH_WORDS_JOINED: &str = r#"    if [[ "${BASH_VERSINFO[0]}" -ge 4 ]]; then
+        words[COMP_CWORD]="$2"
+    fi
+    local _line=${COMP_LINE:0:COMP_POINT}
+    local _token=${_line##*[[:space:]]}
+    local _trim=
+    if [[ $_token == *:* && $COMP_WORDBREAKS == *:* ]]; then
+        IFS=$' \t\n' read -ra words <<< "$_line"
+        _CLAP_COMPLETE_INDEX=$(( ${#words[@]} - 1 ))
+        _trim=${_token%"${_token##*:}"}
+    fi
+"#;
+
+const BASH_END: &str = "        compopt -o nospace\n    fi\n}";
+
+const BASH_END_TRIMMED: &str = "        compopt -o nospace\n    fi\n    if [[ -n $_trim && -n ${COMPREPLY-} ]]; then\n        COMPREPLY=( \"${COMPREPLY[@]#\"$_trim\"}\" )\n    fi\n}";
+
+/// bash splits words at `:`, which would cut `easyshot://` links in two; zsh's autoloaded
+/// `_easyshot` only registers the completer unless it also runs it once.
+pub fn adapt_registration(shell: &str, script: &str) -> String {
+    match shell {
+        "bash" => script
+            .replace(BASH_WORDS, BASH_WORDS_JOINED)
+            .replace(BASH_END, BASH_END_TRIMMED),
+        "zsh" => format!(
+            "{}\nif [[ $funcstack[1] == _easyshot ]]; then\n    _clap_dynamic_completer_easyshot \"$@\"\nfi\n",
+            script.trim_end()
+        ),
+        _ => script.to_owned(),
+    }
+}
+
 fn image_paths(current: &str) -> Vec<String> {
     let (dir, prefix) = match current.rfind('/') {
         Some(i) => current.split_at(i + 1),

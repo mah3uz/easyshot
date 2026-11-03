@@ -2,7 +2,7 @@ use crate::doctor_tools::{self, ToolRunner};
 use anyhow::{Context, Result};
 use es_backend::{Backend, Probe};
 use es_store::bundle::{BundleEntry, write_bundle};
-use serde_json::{Map, Value, json};
+use serde_json::{Value, json};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
@@ -11,29 +11,11 @@ const LOG_TAIL: usize = 1 << 20;
 pub fn standalone_report(probe: &Probe, runner: &dyn ToolRunner, config: &Path) -> String {
     let mut report: Value =
         serde_json::from_str(&Backend::detect(probe).doctor_json()).unwrap_or_else(|_| json!({}));
-    let globals: Map<String, Value> = probe
-        .globals
-        .all
-        .iter()
-        .map(|(name, version)| (name.clone(), json!(version)))
-        .collect();
-    let p = &probe.portals;
     if let Some(obj) = report.as_object_mut() {
         obj.insert("source".into(), json!("standalone"));
-        obj.insert("wayland_globals".into(), Value::Object(globals));
         obj.insert("services".into(), doctor_tools::services(&probe.dbus));
         obj.insert("tools".into(), doctor_tools::tools(runner));
         obj.insert("config".into(), doctor_tools::config_status(config));
-        obj.insert(
-            "portals".into(),
-            json!({
-                "FileChooser": p.file_chooser,
-                "Settings": p.settings,
-                "GlobalShortcuts": p.global_shortcuts,
-                "ScreenCast": p.screencast,
-                "Screenshot": p.screenshot,
-            }),
-        );
     }
     report.to_string()
 }

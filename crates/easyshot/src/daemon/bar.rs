@@ -1,10 +1,18 @@
 use super::windows::Wiring;
+use es_app::capture_coordinator::Hook;
+use es_app::windows::{WindowKey, WindowKind, Windows};
 use es_model::platform::WindowInfo;
 use es_overlays::record::bar::{BarEvent, CaptureBar};
 use es_record::AudioDevice;
 use es_record::audio::{Runner, list_audio_devices};
 use gpui::{App, AppContext as _, Entity};
 use std::rc::Rc;
+
+/// A capture started while the bar is open would otherwise show the bar in the frame.
+pub fn close_before_capture(windows: &Windows) -> Hook {
+    let windows = windows.clone();
+    Rc::new(move |cx| windows.close(WindowKind::CaptureBar, &WindowKey::Single, cx))
+}
 
 /// What the capture bar lists: windows to record and microphones to record with.
 #[derive(Clone)]

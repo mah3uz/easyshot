@@ -91,16 +91,13 @@ pub enum Route {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SettingsPage {
+    Home,
     General,
     Capture,
     Overlay,
-    AfterCapture,
     Recording,
-    DefaultLook,
-    Compositor,
-    Editor,
-    Ocr,
     Shortcuts,
+    About,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -34,6 +34,8 @@ pub fn doctor_json(report: &ProviderReport, caps: Caps, compositor: &CompositorI
         "caps": caps,
         "missing_tools": missing,
         "errors": report.errors,
+        "wayland_globals": report.wayland_globals,
+        "portals": report.portals,
     })
     .to_string()
 }

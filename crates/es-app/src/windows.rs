@@ -101,6 +101,17 @@ impl Windows {
         Ok(())
     }
 
+    pub fn close(&self, kind: WindowKind, key: &WindowKey, cx: &mut App) {
+        let key = key.clone().canonical();
+        let existing = self.inner.open.borrow().get(&(kind, key.clone())).cloned();
+        if let Some(handle) = existing {
+            if handle.is_open(cx) {
+                handle.close(cx);
+            }
+            self.forget(kind, &key);
+        }
+    }
+
     pub fn forget(&self, kind: WindowKind, key: &WindowKey) {
         self.inner
             .open

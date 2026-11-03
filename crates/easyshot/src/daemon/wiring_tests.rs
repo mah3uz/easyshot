@@ -343,6 +343,43 @@ fn the_capture_bar_needs_a_surface_provider(cx: &mut TestAppContext) {
     assert_eq!(cx.update(|cx| cx.windows().len()), 0);
 }
 
+struct FakeBar(Rc<std::cell::Cell<bool>>);
+
+impl es_app::windows::WindowHandle for FakeBar {
+    fn is_open(&self, _: &App) -> bool {
+        self.0.get()
+    }
+    fn focus(&self, _: &mut App) {}
+    fn close(&self, _: &mut App) {
+        self.0.set(false);
+    }
+}
+
+#[gpui::test]
+fn a_capture_closes_an_open_capture_bar_first(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    let open_flag = Rc::new(std::cell::Cell::new(false));
+    let flag = open_flag.clone();
+    rig.wiring.windows.register(
+        WindowKind::CaptureBar,
+        Rc::new(move |_, _| {
+            flag.set(true);
+            Ok(Rc::new(FakeBar(flag.clone())))
+        }),
+    );
+    open(&rig, Route::CaptureBar, cx);
+    assert!(open_flag.get());
+    let hook = super::bar::close_before_capture(&rig.wiring.windows);
+    cx.update(|cx| hook(cx));
+    assert!(!open_flag.get());
+    assert!(!is_open(
+        &rig,
+        WindowKind::CaptureBar,
+        &WindowKey::Single,
+        cx
+    ));
+}
+
 #[gpui::test]
 fn recovered_journals_reopen_in_editors_with_a_toast(cx: &mut TestAppContext) {
     let rig = rig(cx);

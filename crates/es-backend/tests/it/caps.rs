@@ -189,6 +189,18 @@ fn doctor_lists_providers_caps_and_missing_tools() {
     assert!(!missing.iter().any(|t| t["tool"] == "tesseract"));
 }
 
+#[test]
+fn doctor_from_the_detected_backend_lists_wayland_globals_and_portals() {
+    let mut p = probe();
+    p.globals.all = vec![("zwlr_layer_shell_v1".into(), 4)];
+    p.portals.file_chooser = true;
+    let b = Backend::detect_with(&p, &fakes());
+    let v: serde_json::Value = serde_json::from_str(&b.doctor_json()).expect("valid JSON");
+    assert_eq!(v["wayland_globals"]["zwlr_layer_shell_v1"], 4);
+    assert_eq!(v["portals"]["FileChooser"], true);
+    assert_eq!(v["portals"]["ScreenCast"], false);
+}
+
 // Runs inside tests/harness/sway.sh, whose only output is HEADLESS-1; skipped anywhere else.
 #[test]
 fn platform_detect_picks_ext_capture_in_headless_sway() {

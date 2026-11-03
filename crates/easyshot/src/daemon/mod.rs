@@ -440,6 +440,7 @@ fn start(
         }
     }));
 
+    coordinator.set_before_capture(bar::close_before_capture(&windows));
     let dispatcher = RouteDispatcher::new(jobs.clone(), coordinator, windows);
     wiring.set_dispatcher(dispatcher.clone());
     let action_deps = routes::ActionDeps {

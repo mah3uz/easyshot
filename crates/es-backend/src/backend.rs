@@ -66,6 +66,8 @@ pub struct ProviderReport {
     /// `(tool, package)` for each tool not on `PATH`.
     pub missing_tools: Vec<(&'static str, &'static str)>,
     pub errors: Vec<String>,
+    pub wayland_globals: serde_json::Map<String, serde_json::Value>,
+    pub portals: serde_json::Map<String, serde_json::Value>,
 }
 
 impl ProviderReport {
@@ -115,6 +117,22 @@ impl Backend {
                 .filter(|(tool, _)| !probe.tools.has(tool))
                 .collect(),
             errors: probe.errors.clone(),
+            wayland_globals: probe
+                .globals
+                .all
+                .iter()
+                .map(|(name, version)| (name.clone(), serde_json::json!(version)))
+                .collect(),
+            portals: [
+                ("FileChooser", probe.portals.file_chooser),
+                ("Settings", probe.portals.settings),
+                ("GlobalShortcuts", probe.portals.global_shortcuts),
+                ("ScreenCast", probe.portals.screencast),
+                ("Screenshot", probe.portals.screenshot),
+            ]
+            .into_iter()
+            .map(|(name, on)| (name.to_owned(), serde_json::json!(on)))
+            .collect(),
             ..ProviderReport::default()
         };
         let capture = select("capture", reg.capture, probe, &mut report);

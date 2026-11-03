@@ -231,8 +231,15 @@
     }
   ],
   "errors": [],
-  "source": "standalone",
   "wayland_globals": {},
+  "portals": {
+    "FileChooser": false,
+    "Settings": false,
+    "GlobalShortcuts": false,
+    "ScreenCast": false,
+    "Screenshot": false
+  },
+  "source": "standalone",
   "services": {
     "tray_watcher": false,
     "notification_server": false
@@ -252,12 +259,5 @@
   "config": {
     "path": "easyshot/config.toml",
     "status": "missing"
-  },
-  "portals": {
-    "FileChooser": false,
-    "Settings": false,
-    "GlobalShortcuts": false,
-    "ScreenCast": false,
-    "Screenshot": false
   }
 }

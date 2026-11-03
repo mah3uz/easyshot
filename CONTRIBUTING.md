@@ -69,6 +69,9 @@ once on the combined branch before merging.
 
 ## Builds
 
+`cargo run --features dev-inspector` turns on the GPUI element inspector in every window; use it only in a nested
+session, never on your live desktop.
+
 Rust is pinned by `rust-toolchain.toml`. `just build` makes the release binary, `just run
 <args>` runs it from the checkout and `just dev` runs a debug build.
 

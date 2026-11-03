@@ -54,13 +54,11 @@ fn print_registration(shell: clap_complete::Shell) -> std::io::Result<()> {
     let completer = shells
         .completer(&shell.to_string())
         .ok_or_else(|| std::io::Error::other("no completer for this shell"))?;
-    completer.write_registration(
-        "COMPLETE",
-        "easyshot",
-        "easyshot",
-        "easyshot",
-        &mut std::io::stdout(),
-    )
+    let mut script = Vec::new();
+    completer.write_registration("COMPLETE", "easyshot", "easyshot", "easyshot", &mut script)?;
+    let script =
+        complete::adapt_registration(&shell.to_string(), &String::from_utf8_lossy(&script));
+    std::io::Write::write_all(&mut std::io::stdout(), script.as_bytes())
 }
 
 fn main() -> ExitCode {
