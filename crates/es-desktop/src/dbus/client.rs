@@ -77,6 +77,15 @@ impl Client {
         proxy.call("Doctor", &()).await.map_err(map_call_error)
     }
 
+    /// Starts the job and returns its id without waiting for `JobFinished`.
+    pub async fn submit(&self, route: &str, args: &RouteArgs) -> Result<JobId, ClientError> {
+        let proxy = self.proxy().await?;
+        proxy
+            .call("Command", &(route, wire_args(args)?))
+            .await
+            .map_err(map_call_error)
+    }
+
     pub async fn run(
         &self,
         route: &str,

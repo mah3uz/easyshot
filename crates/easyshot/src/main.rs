@@ -1,3 +1,4 @@
+mod agent;
 mod cli;
 mod complete;
 #[cfg(feature = "gui")]
@@ -62,10 +63,21 @@ fn print_registration(shell: clap_complete::Shell) -> std::io::Result<()> {
 
 fn main() -> ExitCode {
     clap_complete::CompleteEnv::with_factory(Cli::command).complete();
-    let matches = Cli::command()
+    let matches = match Cli::command()
         .version(env!("EASYSHOT_VERSION"))
         .long_version(long_version())
-        .get_matches();
+        .try_get_matches()
+    {
+        Ok(m) => m,
+        Err(e) => {
+            let argv: Vec<_> = std::env::args_os().collect();
+            let (mut out, mut err) = (std::io::stdout(), std::io::stderr());
+            match agent::usage_error(&argv, &e, &mut out, &mut err) {
+                Some(code) => return ExitCode::from(code as u8),
+                None => e.exit(),
+            }
+        }
+    };
     let cli = match Cli::from_arg_matches(&matches) {
         Ok(cli) => cli,
         Err(e) => e.exit(),
@@ -94,8 +106,8 @@ fn main() -> ExitCode {
         let _ = cancel_tx.try_send(());
     });
     let env = run::Env {
-        endpoint: es_desktop::dbus::Endpoint::session(),
-        spawn_daemon: cfg!(feature = "gui"),
+        endpoint: endpoint(),
+        spawn_daemon: cfg!(feature = "gui") && !test_mode(),
         wait: Duration::from_secs(3),
         standalone_report: Box::new(|| {
             let probe = es_backend::Probe::gather()?;
@@ -124,6 +136,19 @@ fn main() -> ExitCode {
         &mut std::io::stderr(),
     );
     ExitCode::from(code as u8)
+}
+
+fn test_mode() -> bool {
+    cfg!(feature = "test-hooks") && std::env::var("EASYSHOT_TEST").as_deref() == Ok("1")
+}
+
+/// A test daemon answers on its own bus name, so a test-mode command never reaches the user's.
+fn endpoint() -> es_desktop::dbus::Endpoint {
+    #[cfg(feature = "test-hooks")]
+    if test_mode() {
+        return es_desktop::dbus::Endpoint::test();
+    }
+    es_desktop::dbus::Endpoint::session()
 }
 
 #[cfg(feature = "gui")]

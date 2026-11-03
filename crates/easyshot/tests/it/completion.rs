@@ -231,3 +231,41 @@ fn zsh_registration_runs_the_completer_when_autoloaded() {
     let script = String::from_utf8(out.stdout).unwrap();
     assert!(script.contains("$funcstack[1] == _easyshot"));
 }
+
+#[test]
+fn the_top_level_offers_agent_and_ai_but_none_of_their_subcommands() {
+    for shell in SHELLS {
+        let cwd = Path::new("/");
+        assert_offers(
+            shell,
+            cwd,
+            &[""],
+            &["agent", "ai", "capture"],
+            &["list", "outputs", "windows"],
+        );
+        assert_offers(shell, cwd, &["--"], &[], &["--json"]);
+        for namespace in ["agent", "ai"] {
+            assert_offers(
+                shell,
+                cwd,
+                &[namespace, ""],
+                &["list"],
+                &["capture", "outputs"],
+            );
+            assert_offers(
+                shell,
+                cwd,
+                &[namespace, "list", ""],
+                &["outputs", "windows"],
+                &[],
+            );
+            assert_offers(
+                shell,
+                cwd,
+                &[namespace, "list", "outputs", "--"],
+                &["--json"],
+                &[],
+            );
+        }
+    }
+}

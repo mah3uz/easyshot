@@ -50,6 +50,10 @@ impl Bridge {
             futures::executor::block_on(Service::start(endpoint(backend), callbacks(backend)))
                 .context("claiming the D-Bus name")?;
         let service = Arc::new(service);
+        dispatcher.set_agent_handler(super::agent::handler(
+            super::agent::sources(backend),
+            jobs.clone(),
+        ));
         let map = JobMap::default();
         let incoming = service.incoming();
         #[cfg(feature = "test-hooks")]

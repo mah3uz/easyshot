@@ -1,3 +1,4 @@
+mod agent;
 mod bar;
 #[cfg(test)]
 mod bar_tests;

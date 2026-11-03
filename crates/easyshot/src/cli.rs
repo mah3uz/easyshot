@@ -64,6 +64,11 @@ pub enum Command {
         #[arg(long)]
         bundle: bool,
     },
+    /// Commands for AI agents and scripts
+    Agent(crate::agent::AgentArgs),
+    /// The same as `agent`
+    // A clap alias is left out of completion whenever its command's own name is offered.
+    Ai(crate::agent::AgentArgs),
     /// Run the daemon
     Daemon,
     /// Print a shell completion script
@@ -126,6 +131,7 @@ pub enum DeckAction {
 pub enum Request {
     Route(Route),
     Doctor { json: bool, bundle: bool },
+    Agent(crate::agent::AgentCall),
     Daemon,
     Completions(clap_complete::Shell),
 }
@@ -208,6 +214,7 @@ impl Cli {
                 json: *json,
                 bundle: *bundle,
             },
+            Command::Agent(args) | Command::Ai(args) => Request::Agent(args.call()),
             Command::Daemon => Request::Daemon,
             Command::Completions { shell } => Request::Completions(*shell),
         })

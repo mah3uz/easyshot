@@ -14,14 +14,14 @@ use std::time::Duration;
 
 const FAKE_DOCTOR: &str = r#"{"compositor":{"name":"fake","version":null},"providers":[],"caps":[],"missing_tools":[],"errors":[]}"#;
 
-struct PrivateBus {
+pub(crate) struct PrivateBus {
     child: Child,
     address: String,
     _dir: tempfile::TempDir,
 }
 
 impl PrivateBus {
-    fn start() -> PrivateBus {
+    pub(crate) fn start() -> PrivateBus {
         // No service directories: a test must never activate a real desktop service.
         let dir = tempfile::tempdir().unwrap();
         let config = dir.path().join("bus.conf");
@@ -70,7 +70,7 @@ impl crate::doctor_tools::ToolRunner for NoTools {
     }
 }
 
-fn env(bus: &PrivateBus, dir: &Path) -> Env {
+pub(crate) fn env(bus: &PrivateBus, dir: &Path) -> Env {
     Env {
         endpoint: bus.endpoint(),
         spawn_daemon: false,
@@ -89,7 +89,12 @@ fn env(bus: &PrivateBus, dir: &Path) -> Env {
     }
 }
 
-fn serve(bus: &PrivateBus, jobs: usize, status: JobStatus, result: &'static str) -> Server {
+pub(crate) fn serve(
+    bus: &PrivateBus,
+    jobs: usize,
+    status: JobStatus,
+    result: &'static str,
+) -> Server {
     let endpoint = bus.endpoint();
     let (ready_tx, ready_rx) = mpsc::channel();
     let (stop, stopped) = mpsc::channel::<()>();
@@ -118,19 +123,19 @@ fn serve(bus: &PrivateBus, jobs: usize, status: JobStatus, result: &'static str)
     Server { handle, stop }
 }
 
-struct Server {
+pub(crate) struct Server {
     handle: JoinHandle<Vec<Route>>,
     stop: mpsc::Sender<()>,
 }
 
 impl Server {
-    fn finish(self) -> Vec<Route> {
+    pub(crate) fn finish(self) -> Vec<Route> {
         let _ = self.stop.send(());
         self.handle.join().unwrap()
     }
 }
 
-fn run_cli(args: &[&str], env: &Env) -> (i32, String, String) {
+pub(crate) fn run_cli(args: &[&str], env: &Env) -> (i32, String, String) {
     let cli = Cli::try_parse_from(std::iter::once("easyshot").chain(args.iter().copied())).unwrap();
     let request = cli.request().unwrap();
     let (mut out, mut err) = (Vec::new(), Vec::new());

@@ -35,6 +35,7 @@ pub fn execute(
         match request {
             Request::Route(route) => send(&route, env, cancel, out, err).await,
             Request::Doctor { json, bundle } => doctor(json, bundle, env, out, err).await,
+            Request::Agent(call) => crate::agent::run(&call, env, cancel, out, err).await,
             Request::Daemon | Request::Completions(_) => {
                 let _ = writeln!(err, "easyshot: handled by main, not sent");
                 EXIT_ERROR
@@ -43,7 +44,7 @@ pub fn execute(
     })
 }
 
-fn launch(env: &Env) -> Launch {
+pub(crate) fn launch(env: &Env) -> Launch {
     let spawn = env.spawn_daemon.then(|| {
         let exe = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("easyshot"));
         let mut cmd = std::process::Command::new(exe);

@@ -96,13 +96,31 @@ impl Jobs {
     where
         Fut: Future<Output = Result<()>> + 'static,
     {
+        self.spawn_answer(id, cx, move |cancel| {
+            let work = f(cancel);
+            async move {
+                let result = work.await;
+                (status_of(&result), result.err().map(|e| e.to_string()))
+            }
+        })
+    }
+
+    /// For work whose answer is a detail even when it succeeds.
+    pub fn spawn_answer<Fut>(
+        &self,
+        id: JobId,
+        cx: &App,
+        f: impl FnOnce(CancelToken) -> Fut + 'static,
+    ) -> CancelToken
+    where
+        Fut: Future<Output = (JobStatus, Option<String>)> + 'static,
+    {
         let cancel = CancelToken::default();
         let inner = self.inner.clone();
         let work = f(cancel.clone());
         let task = cx.foreground_executor().spawn(async move {
-            let result = work.await;
-            let detail = result.as_ref().err().map(ToString::to_string);
-            inner.finish(id, status_of(&result), detail);
+            let (status, detail) = work.await;
+            inner.finish(id, status, detail);
         });
         self.inner.running.borrow_mut().insert(
             id,

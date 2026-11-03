@@ -4,7 +4,7 @@ use crate::events::Origin;
 use crate::jobs::{JobId, Jobs};
 use crate::windows::{WindowKey, WindowKind, Windows};
 use es_model::capture::CaptureVariant;
-use es_protocol::{Route, SettingsPage, TimedMode};
+use es_protocol::{AgentRoute, Route, SettingsPage, TimedMode};
 use gpui::App;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -34,12 +34,15 @@ pub enum HomeTab {
 }
 
 pub type ActionHandler = Rc<dyn Fn(Action, &mut App) -> Result<()>>;
+/// Owns the job it is handed: it must finish it.
+pub type AgentHandler = Rc<dyn Fn(JobId, AgentRoute, Origin, &mut App)>;
 
 enum Target {
     Capture(CaptureRequest),
     Window(WindowKind, WindowKey),
     Home(Option<HomeTab>),
     Action(Action),
+    Agent(AgentRoute),
 }
 
 fn capture(kind: CaptureKind, variant: CaptureVariant) -> Target {
@@ -95,6 +98,7 @@ fn target(route: Route) -> Target {
         Route::DeckSaveAll => Target::Action(Action::DeckSaveAll),
         Route::DeckCloseAll => Target::Action(Action::DeckCloseAll),
         Route::Quit => Target::Action(Action::Quit),
+        Route::Agent(route) => Target::Agent(route),
     }
 }
 
@@ -104,6 +108,7 @@ pub struct RouteDispatcher {
     coordinator: CaptureCoordinator,
     windows: Windows,
     actions: Rc<RefCell<Option<ActionHandler>>>,
+    agent: Rc<RefCell<Option<AgentHandler>>>,
 }
 
 impl RouteDispatcher {
@@ -113,11 +118,16 @@ impl RouteDispatcher {
             coordinator,
             windows,
             actions: Rc::default(),
+            agent: Rc::default(),
         }
     }
 
     pub fn set_action_handler(&self, handler: ActionHandler) {
         *self.actions.borrow_mut() = Some(handler);
+    }
+
+    pub fn set_agent_handler(&self, handler: AgentHandler) {
+        *self.agent.borrow_mut() = Some(handler);
     }
 
     pub fn dispatch(&self, route: Route, origin: Origin, cx: &mut App) -> JobId {
@@ -137,6 +147,13 @@ impl RouteDispatcher {
             Target::Window(kind, key) => self.windows.open(kind, key, cx),
             Target::Home(tab) => self.open_home(tab, cx),
             Target::Action(action) => self.act(action, cx),
+            Target::Agent(route) => {
+                let handler = self.agent.borrow().clone();
+                match handler {
+                    Some(handler) => return handler(job, route, origin, cx),
+                    None => Err(Error::Unsupported),
+                }
+            }
         };
         self.jobs.report(job, &result);
     }

@@ -3,6 +3,7 @@ use std::fmt;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
+use crate::agent::{self, AgentRoute};
 use crate::timed::TimedMode;
 use crate::{ArgValue, Error, Result, Route, RouteArgs, SettingsPage, timed};
 
@@ -95,6 +96,9 @@ impl Route {
         if let Some(mode) = TimedMode::from_route_name(route) {
             return Route::timed_from_args(route, mode, args);
         }
+        if route.starts_with(agent::PREFIX) {
+            return AgentRoute::parse(route, args).map(Route::Agent);
+        }
         let parsed = if let Some((_, r)) = PLAIN.iter().find(|(name, _)| *name == route) {
             r.clone()
         } else if route == "settings" {
@@ -149,6 +153,7 @@ impl Route {
         all.extend(TimedMode::ALL.map(|mode| Route::timed(mode, Some(3))));
         all.push(Route::Settings(None));
         all.extend(SettingsPage::ALL.map(|p| Route::Settings(Some(p))));
+        all.extend(AgentRoute::ALL.map(Route::Agent));
         all
     }
 
@@ -158,6 +163,7 @@ impl Route {
             Route::Timed { mode, .. } => Cow::Borrowed(mode.route_name()),
             Route::Settings(None) => Cow::Borrowed("settings"),
             Route::Settings(Some(page)) => Cow::Owned(format!("settings/{}", page.as_str())),
+            Route::Agent(a) => Cow::Borrowed(a.route_name()),
             other => Cow::Borrowed(
                 PLAIN
                     .iter()
@@ -180,6 +186,7 @@ impl Route {
             Route::Home => vec![],
             Route::Open(_) => vec!["open"],
             Route::Timed { mode, .. } => vec!["capture", mode.word(), "--timed"],
+            Route::Agent(a) => a.command_args(),
             other => PLAIN
                 .iter()
                 .find(|(_, r)| r == other)
@@ -192,6 +199,7 @@ impl Route {
     pub fn args(&self) -> RouteArgs {
         let mut args = RouteArgs::default();
         match self {
+            Route::Agent(a) => return a.args(),
             Route::Open(path) => {
                 args.0
                     .insert(PATH_ARG.to_owned(), ArgValue::Path(path.clone()));
@@ -311,6 +319,7 @@ mod tests {
             Route::DeckSaveAll => 30,
             Route::DeckCloseAll => 31,
             Route::Quit => 32,
+            Route::Agent(_) => 33,
         }
     }
 
@@ -320,7 +329,7 @@ mod tests {
             Route::all().iter().map(variant_index).collect();
         assert_eq!(
             seen,
-            (0..=32).collect(),
+            (0..=33).collect(),
             "a variant is missing from Route::all"
         );
     }

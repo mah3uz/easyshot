@@ -1,8 +1,10 @@
+pub mod agent;
 mod catalogue;
 mod keys;
 mod route;
 mod timed;
 
+pub use agent::AgentRoute;
 pub use catalogue::{CATALOGUE, entry_by_id, entry_for_route};
 pub use keys::{Modifiers, Trigger, key_label, key_recording_name, key_spoken_name};
 pub use route::PATH_ARG;
@@ -87,6 +89,7 @@ pub enum Route {
     DeckSaveAll,
     DeckCloseAll,
     Quit,
+    Agent(AgentRoute),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

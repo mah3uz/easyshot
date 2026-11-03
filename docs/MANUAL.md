@@ -448,6 +448,51 @@ Commands:
 `home`, `settings`. A `record` link asks you to select the area first; it never starts recording the
 whole screen.
 
+## Agent use
+
+`easyshot agent` (or `easyshot ai`, the same command) is for AI agents and scripts. Tab
+completion offers `agent` and `ai` at the top level, and their subcommands and flags only
+after you have typed `easyshot agent ` or `easyshot ai `. Agent commands go to the daemon
+over your session bus like every other command; `easyshot://` links never reach them.
+
+Commands:
+
+- `agent list outputs` lists your outputs: name, description, position and size in logical
+  pixels, scale, and whether it is focused.
+- `agent list windows` lists the open windows: id, app id, title, position and size in
+  logical pixels, output, and `focused`, which is true for the window that has or last had
+  focus. What your compositor does not report is left out rather than guessed.
+
+Without `--json` each output or window is one line of tab-separated text, with geometry
+written `x,y WxH`. With `--json` (before or after the subcommand) easyshot prints exactly
+one JSON object on standard output, errors included:
+
+```json
+{"ok":true,"kind":"outputs","outputs":[{"name":"DP-1","description":"Dell U2720Q","x":0,"y":0,"width":2560,"height":1440,"scale":1.5,"focused":true}]}
+{"ok":false,"kind":"windows","error":{"code":"unsupported","message":"this desktop gives easyshot no window list"}}
+```
+
+`kind` is `outputs`, `windows`, or `usage` when the command line itself could not be read.
+Fields may be added to these objects in later versions; existing ones keep their meaning.
+
+Exit codes and error codes:
+
+| Exit | `error.code` | Meaning |
+|---|---|---|
+| 0 | | done |
+| 1 | `failed` | the command failed |
+| 2 | `cancelled` | cancelled, for example with Ctrl+C |
+| 3 | `no_daemon` | the daemon is not running, could not be started or went away |
+| 4 | `invalid_arguments` | the command line or its arguments are wrong, or the daemon is from a different easyshot version |
+| 5 | `not_found` | the output or window asked for does not exist |
+| 6 | `unsupported` | your compositor gives easyshot no output or window list |
+| 7 | `access_off` | agent access is turned off |
+| 8 | `access_denied` | agent access was refused |
+
+Agent access has no switch in this version: the daemon answers every agent command that
+arrives over the session bus, and refuses one from anywhere else. The commands only list
+outputs and windows; none captures, records or reads your screen.
+
 ## Files
 
 | What | Where |

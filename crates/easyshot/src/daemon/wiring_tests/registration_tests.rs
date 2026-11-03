@@ -33,7 +33,13 @@ fn dispatch_all(
     coordinator.set_selection_flow(Rc::new(Cancelling));
     coordinator.set_direct_capture(Rc::new(Cancelling));
     coordinator.set_pipeline(Rc::new(|_, _, _| Task::ready(Ok(()))));
-    let dispatcher = RouteDispatcher::new(jobs, coordinator, rig.wiring.windows.clone());
+    let dispatcher = RouteDispatcher::new(jobs.clone(), coordinator, rig.wiring.windows.clone());
+    let sources = crate::daemon::agent::Sources {
+        caps: Caps::empty(),
+        outputs: Arc::new(Vec::new),
+        windows: Arc::new(Vec::new),
+    };
+    dispatcher.set_agent_handler(crate::daemon::agent::handler(sources, jobs));
     let wiring = rig.wiring.clone();
     dispatcher.set_action_handler(Rc::new(move |action, cx| match action {
         Action::ShowHome(tab) => {

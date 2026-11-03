@@ -4,6 +4,7 @@
 
 ### New
 
+- `easyshot agent` (also `easyshot ai`) for AI agents and scripts: `agent list outputs` and `agent list windows`, with `--json` printing one JSON object and a distinct exit code for each kind of error.
 - Very large screenshots open in the editor with a low-resolution preview that keeps it fast, while saving, exporting and copying use the full image; Settings › General › Always use a low-resolution preview turns it on for every screenshot.
 - With Keystrokes on, each recording saves your clicks and shortcuts (never plain typing) to `input.json` beside the video, and reads nothing while your screen is locked where easyshot can see the lock; it needs your user in the `input` group; the Settings row shows whether it is working, and Settings, the start of a recording and `easyshot doctor` say how to allow it.
 - Edits you make by hand to `config.toml` apply while easyshot runs, and a later change in Settings keeps them; a file with a syntax error is left alone and the last good settings stay in use.

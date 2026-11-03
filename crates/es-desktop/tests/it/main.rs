@@ -1,4 +1,5 @@
 mod dbus;
+mod dbus_agent;
 mod dbus_hooks;
 mod dbus_support;
 mod desktop_support;
