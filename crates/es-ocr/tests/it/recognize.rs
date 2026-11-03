@@ -191,3 +191,15 @@ fn a_missing_binary_is_not_installed() {
         Err(Error::NotInstalled)
     ));
 }
+
+#[test]
+fn qr_codes_are_read_without_tesseract() {
+    let opts = OcrOptions {
+        tesseract_path: Some(PathBuf::from("/nonexistent/tesseract")),
+        ..OcrOptions::default()
+    };
+    let got = recognize(&qr("https://example.test/qr", 220), &opts).unwrap();
+    assert_eq!(got.codes, ["https://example.test/qr"]);
+    assert_eq!(got.text, "https://example.test/qr");
+    assert!(got.words.is_empty());
+}

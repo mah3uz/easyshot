@@ -76,7 +76,10 @@ pub struct Recognized {
 
 pub fn recognize(image: &RgbaImage, options: &OcrOptions) -> Result<Recognized, Error> {
     let codes = decode_codes(image);
-    let words = tesseract::run(image, options)?;
+    let words = match tesseract::run(image, options) {
+        Err(Error::NotInstalled) if !codes.is_empty() => Vec::new(),
+        other => other?,
+    };
     let lines = tsv::lines(&words);
     let text = join_text(&codes, &lines);
     tracing::debug!(

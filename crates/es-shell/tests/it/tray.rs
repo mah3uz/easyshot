@@ -29,6 +29,7 @@ fn input() -> TrayInput {
         screenshots: recent("Screenshot", 11),
         recordings: Vec::new(),
         has_pins: false,
+        recorder_missing: false,
         recording: None,
         version: "0.1.0".into(),
         update: None,
@@ -338,4 +339,18 @@ fn saved_global_shortcuts_become_tray_labels_and_unknown_ids_are_skipped() {
             Trigger::parse("Super+Shift+4").unwrap()
         )]
     );
+}
+
+#[test]
+fn a_missing_recorder_disables_the_record_row_with_an_install_hint() {
+    let items = tray::menu(&TrayInput {
+        recorder_missing: true,
+        ..input()
+    })
+    .items;
+    let record = find(&items, "tray-record");
+    assert!(!record.enabled);
+    assert_eq!(record.route, None);
+    assert!(record.label.as_deref().unwrap().contains("wf-recorder"));
+    assert!(find(&items, "tray-ocr").enabled);
 }

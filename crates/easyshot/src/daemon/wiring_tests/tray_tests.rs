@@ -31,7 +31,7 @@ impl TrayRig {
     }
 }
 
-fn tray_rig(rig: &Rig, cx: &mut TestAppContext) -> TrayRig {
+fn tray_rig(rig: &Rig, missing: bool, cx: &mut TestAppContext) -> TrayRig {
     let tray = Arc::new(es_desktop::RecordingTray::default());
     let pinned = Rc::new(std::cell::Cell::new(false));
     cx.update(|cx| {
@@ -47,6 +47,7 @@ fn tray_rig(rig: &Rig, cx: &mut TestAppContext) -> TrayRig {
             rig.history.clone(),
             rig.settings.clone(),
             rig.paths.videos_dir(),
+            missing,
         );
         let follow = feed.follow(&rig.deck, cx);
         TrayRig {
@@ -77,7 +78,7 @@ fn entry(rig: &Rig, name: &str) -> es_model::HistoryEntry {
 #[gpui::test]
 fn a_capture_that_lands_in_history_reaches_the_trays_recent_list(cx: &mut TestAppContext) {
     let rig = rig(cx);
-    let tray = tray_rig(&rig, cx);
+    let tray = tray_rig(&rig, false, cx);
     cx.update(|cx| tray.feed.refresh(cx));
     assert!(tray.recent("tray-recent-screenshots").is_empty());
     let shot = entry(&rig, "Fresh capture");
@@ -95,7 +96,7 @@ fn a_capture_that_lands_in_history_reaches_the_trays_recent_list(cx: &mut TestAp
 #[gpui::test]
 fn a_saved_global_shortcut_labels_its_tray_row(cx: &mut TestAppContext) {
     let rig = rig(cx);
-    let tray = tray_rig(&rig, cx);
+    let tray = tray_rig(&rig, false, cx);
     cx.update(|cx| tray.feed.refresh(cx));
     assert_eq!(tray.item("tray-region").unwrap().shortcut, None);
     cx.update(|cx| {
@@ -118,7 +119,7 @@ fn a_saved_global_shortcut_labels_its_tray_row(cx: &mut TestAppContext) {
 #[gpui::test]
 fn unpin_all_shows_only_while_something_is_pinned(cx: &mut TestAppContext) {
     let rig = rig(cx);
-    let tray = tray_rig(&rig, cx);
+    let tray = tray_rig(&rig, false, cx);
     cx.update(|cx| tray.feed.refresh(cx));
     assert!(tray.item("tray-unpin-all").is_none());
     tray.pinned.set(true);
@@ -129,7 +130,7 @@ fn unpin_all_shows_only_while_something_is_pinned(cx: &mut TestAppContext) {
 #[gpui::test]
 fn saved_videos_fill_the_trays_recent_recordings(cx: &mut TestAppContext) {
     let rig = rig(cx);
-    let tray = tray_rig(&rig, cx);
+    let tray = tray_rig(&rig, false, cx);
     std::fs::create_dir_all(rig.paths.videos_dir()).unwrap();
     std::fs::write(rig.paths.videos_dir().join("clip.mp4"), b"v").unwrap();
     std::fs::write(rig.paths.videos_dir().join("notes.txt"), b"t").unwrap();
@@ -137,5 +138,22 @@ fn saved_videos_fill_the_trays_recent_recordings(cx: &mut TestAppContext) {
     assert_eq!(
         tray.recent("tray-recent-recordings"),
         vec!["clip.mp4".to_owned()]
+    );
+}
+
+#[gpui::test]
+fn without_a_recorder_the_tray_record_row_is_disabled_and_names_the_package(
+    cx: &mut TestAppContext,
+) {
+    let rig = rig(cx);
+    let tray = tray_rig(&rig, true, cx);
+    cx.update(|cx| tray.feed.refresh(cx));
+    let record = tray.item("tray-record").expect("the record row stays");
+    assert!(!record.enabled);
+    assert_eq!(record.route, None);
+    assert!(record.label.unwrap().contains("wf-recorder"));
+    assert!(
+        tray.item("tray-ocr").unwrap().enabled,
+        "OCR still reads QR codes"
     );
 }

@@ -64,7 +64,7 @@ const files = [
 
 const trouble = [
   { q: 'A key bind does nothing', a: 'Run the command from a terminal, for example <code>easyshot capture region</code>. If it says the daemon is not running, start it with <code>systemctl --user start easyshot.service</code>. Then check that the bind line is in your compositor config and reload it.' },
-  { q: 'OCR or recording items are greyed out', a: 'A tool is missing. Install Tesseract for text, or gpu-screen-recorder or wf-recorder for recording. <code>easyshot doctor</code> lists what is missing.' },
+  { q: 'Recording is greyed out, or OCR says it needs Tesseract', a: 'A tool is missing. Install gpu-screen-recorder or wf-recorder for recording, or Tesseract for text; QR codes are read without it. <code>easyshot doctor</code> lists what is missing.' },
   { q: 'Window mode shows a list instead of a highlight', a: 'Your compositor does not report window positions. Pick the window from the list; the capture is the same.' },
   { q: 'The pointer disappears when I press Space in the editor', a: 'Your compositor hides the pointer when you press a key, until you move the mouse. On Hyprland turn off <code>cursor:hide_on_key_press</code>; on sway, <code>seat * hide_cursor when-typing disable</code>.' },
   { q: 'My settings file has an error', a: 'easyshot keeps running on the last good settings, never overwrites your file, and tells you the line and column. Fix it and save; changes apply live.' },

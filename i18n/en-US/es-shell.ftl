@@ -8,6 +8,7 @@ tray-region = Region
 tray-screen = Screen
 tray-window = Window
 tray-record = Record
+tray-record-missing = Record (install wf-recorder)
 tray-scrolling = Scrolling Capture
 tray-ocr = OCR
 tray-pick-color = Pick Color

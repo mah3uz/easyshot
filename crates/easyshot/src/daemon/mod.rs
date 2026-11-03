@@ -9,6 +9,7 @@ mod live_settings;
 mod look;
 mod notices;
 mod pickers;
+mod recorder;
 mod recording;
 mod recovery;
 mod routes;
@@ -315,6 +316,8 @@ fn start(
         capture::copy_file(clipboard.clone()),
     ));
 
+    let recorder = recorder::for_backend(backend.clone());
+    let recorder_missing = recorder("auto").is_err();
     let tray_feed = tray::TrayFeed::new(
         {
             let backend = backend.clone();
@@ -331,6 +334,7 @@ fn start(
         history.clone(),
         settings.clone(),
         paths.videos_dir(),
+        recorder_missing,
     );
     pins.set_on_change({
         let feed = tray_feed.clone();
@@ -430,7 +434,8 @@ fn start(
         settings: settings.clone(),
         paths: paths.clone(),
         deck: deck.clone(),
-        recorder: recorder_for(backend.clone()),
+        recorder,
+        recorder_missing,
         outputs: {
             let backend = backend.clone();
             Rc::new(move || backend.capture.outputs())
@@ -565,50 +570,6 @@ fn first_launch_pending(paths: &Paths) -> bool {
     !test_mode_requested()
         && es_store::state::open(paths)
             .is_ok_and(|state| es_shell::onboarding::should_present(&state.value))
-}
-
-/// Picks the recorder the settings name, else the best one the backend found; test mode fakes one.
-fn recorder_for(backend: Arc<Backend>) -> recording::RecorderFor {
-    struct Shared(Arc<Backend>, usize);
-    impl es_record::Recorder for Shared {
-        fn name(&self) -> &'static str {
-            self.0.recorders[self.1].name()
-        }
-        fn probe(&self) -> es_record::RecorderProbe {
-            self.0.recorders[self.1].probe()
-        }
-        fn start(
-            &self,
-            spec: es_record::RecordSpec,
-        ) -> es_record::Result<Box<dyn es_record::RecordingHandle>> {
-            self.0.recorders[self.1].start(spec)
-        }
-        fn prepare(
-            &self,
-            spec: &es_record::RecordSpec,
-            outputs: &[es_model::platform::OutputInfo],
-        ) {
-            self.0.recorders[self.1].prepare(spec, outputs)
-        }
-        fn can_record_system_audio(&self, with_mic: bool) -> bool {
-            self.0.recorders[self.1].can_record_system_audio(with_mic)
-        }
-    }
-    Rc::new(move |wanted| {
-        #[cfg(feature = "test-hooks")]
-        if test_mode_requested() {
-            return Ok(Arc::new(recording::fake::FakeRecorder {
-                video: true,
-                ..Default::default()
-            }));
-        }
-        let at = backend
-            .recorders
-            .iter()
-            .position(|r| wanted == "auto" || r.name() == wanted)
-            .ok_or(es_app::errors::Error::Unsupported)?;
-        Ok(Arc::new(Shared(backend.clone(), at)))
-    })
 }
 
 fn tray_update(feed: Rc<tray::TrayFeed>) -> recording::ui::TrayUpdate {

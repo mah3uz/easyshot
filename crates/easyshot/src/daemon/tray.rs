@@ -15,6 +15,7 @@ pub struct TrayFeed {
     history: Entity<History>,
     settings: Entity<SettingsModel>,
     videos: PathBuf,
+    recorder_missing: bool,
     recording: Cell<Option<RecordingTrayState>>,
 }
 
@@ -25,6 +26,7 @@ impl TrayFeed {
         history: Entity<History>,
         settings: Entity<SettingsModel>,
         videos: PathBuf,
+        recorder_missing: bool,
     ) -> Rc<Self> {
         Rc::new(TrayFeed {
             show,
@@ -32,6 +34,7 @@ impl TrayFeed {
             history,
             settings,
             videos,
+            recorder_missing,
             recording: Cell::new(None),
         })
     }
@@ -50,6 +53,7 @@ impl TrayFeed {
             screenshots,
             recordings: tray::recent_recordings(&self.videos),
             has_pins: (self.has_pins)(),
+            recorder_missing: self.recorder_missing,
             recording: self.recording.get(),
             version: env!("EASYSHOT_VERSION").to_owned(),
             update: None,

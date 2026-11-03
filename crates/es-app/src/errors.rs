@@ -9,6 +9,8 @@ use std::path::PathBuf;
 pub enum Error {
     #[error("unsupported on this system")]
     Unsupported,
+    #[error("tesseract is not installed")]
+    TesseractMissing,
     #[error("cancelled")]
     Cancelled,
     #[error("timed out")]
@@ -105,6 +107,7 @@ pub enum Presentation {
 pub fn title_id(error: &Error, op: Op) -> &'static str {
     match (error, op) {
         (Error::Unsupported, _) => "toast-unsupported",
+        (Error::TesseractMissing, _) => "toast-ocr-missing",
         (Error::NotFound(_), Op::Open) => "toast-capture-unavailable",
         (_, Op::Capture) => "toast-screenshot-failed",
         (_, Op::Save) => "toast-capture-save-failed",

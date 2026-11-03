@@ -57,6 +57,7 @@ pub fn tesseract() -> Recognize {
         };
         let found = es_ocr::recognize(image, &options).map_err(|e| match e {
             es_ocr::Error::Cancelled => Error::Cancelled,
+            es_ocr::Error::NotInstalled => Error::TesseractMissing,
             other => Error::Protocol(other.to_string()),
         })?;
         Ok(es_ocr::join_text(&found.codes, &found.lines))

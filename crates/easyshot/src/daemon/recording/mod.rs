@@ -60,6 +60,7 @@ pub struct Deps {
     pub paths: Paths,
     pub deck: Entity<Deck>,
     pub recorder: RecorderFor,
+    pub recorder_missing: bool,
     pub outputs: Rc<dyn Fn() -> Vec<OutputInfo>>,
     pub ui: Rc<dyn RecordingUi>,
     pub clock: Arc<dyn Clock>,
@@ -187,6 +188,10 @@ impl Recordings {
 
     /// The one gate every start passes, before any selection or countdown shows.
     pub fn admit(&self, cx: &mut App) -> Result<()> {
+        if self.0.deps.recorder_missing {
+            show_toast(Toast::error("toast-recorder-missing"), cx);
+            return Err(Error::Unsupported);
+        }
         if self.is_busy() {
             show_toast(Toast::new("toast-recording-busy", IconName::Info), cx);
             return Err(busy());

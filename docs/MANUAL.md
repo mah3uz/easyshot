@@ -12,10 +12,13 @@ and keeps a history.
 - A Wayland compositor. Version 1 targets Hyprland 0.57+, sway 1.12 and niri 26.04. Any
   compositor with layer-shell and a capture protocol should work for basic capture.
   river, labwc and COSMIC come later; KDE and GNOME are not supported in version 1.
-- Tesseract for text capture (OCR). Without it, the OCR items are disabled with an install
-  hint.
+- Tesseract for reading text (OCR). Without it, OCR still reads QR codes; when the region
+  has none, it shows "Text recognition needs Tesseract" and how to install it.
 - gpu-screen-recorder or wf-recorder for recording; easyshot uses gpu-screen-recorder when
-  both are installed. Without one, the record items are disabled with an install hint.
+  both are installed. Without one, the tray's Record item is greyed out and reads "Record (install wf-recorder)",
+  and every other way to start a recording (shortcut, bar, `easyshot record`, link) answers at
+  once with "No screen recorder is installed" and the install hint, before anything is
+  selected or frozen.
 
 `easyshot doctor` reports what your compositor and tools provide.
 
@@ -87,7 +90,7 @@ first time easyshot starts. The binds file always comes first where it can be wr
   1 to 60. On the capture bar, the timer button sets Off, 3, 5 or 10 seconds for Area,
   Fullscreen and Window.
 - **Text (OCR).** Reads text from a region, with or without line breaks, and reads QR
-  codes.
+  codes, which works without Tesseract.
 - **Colour picker.** Copies the colour as `#RRGGBB`.
 - **Scrolling capture.** Select an area, then scroll the page under it. easyshot joins what
   scrolls into view into one tall image, up to 30000 pixels. A bar under the area shows the
@@ -261,7 +264,9 @@ trash. The default limit is 100 entries.
 A capture bar and recording picker start a recording of an area, a display or a window.
 System sound is recorded unless you turn it off in Settings, Recording; the microphone is
 off until you choose one there. There is a countdown, and then a control bar with stop,
-pause and resume, restart and discard. The recorded area is highlighted.
+pause and resume, restart and discard. The recorded area is highlighted. Without
+gpu-screen-recorder or wf-recorder, nothing starts: you get a notice that names both and the
+Arch package to install.
 
 wf-recorder records one audio track. With it, system sound is the default output's monitor, and
 a recording with a microphone, or with no default output found, is made without system sound;
@@ -429,7 +434,8 @@ the editor. Whether the buttons show depends on your notification server.
 | Virtual input | No Auto Scroll; manual scroll capture still works. |
 | File picker portal | Export saves to your save folder and tells you where. |
 | Tray | The capture bar opens when the daemon starts, so you can still reach easyshot. |
-| Recorder or OCR tools | Those items are disabled with an install hint. |
+| Recorder | The tray's Record item is disabled with an install hint; other ways to record answer with the hint at once. |
+| Tesseract | OCR reads QR codes only; a region without one shows a notice that text recognition needs Tesseract. |
 
 `easyshot doctor` shows what applies to you.
 

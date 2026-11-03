@@ -75,6 +75,7 @@ pub struct TrayInput {
     pub screenshots: Vec<Recent>,
     pub recordings: Vec<Recent>,
     pub has_pins: bool,
+    pub recorder_missing: bool,
     pub recording: Option<RecordingTrayState>,
     pub version: String,
     pub update: Option<String>,
@@ -118,6 +119,10 @@ pub fn menu(input: &TrayInput) -> TrayModel {
         action("tray-screen", fl!("tray-screen"), Route::CaptureFullscreen),
         action("tray-window", fl!("tray-window"), Route::CaptureWindow),
         match input.recording {
+            None if input.recorder_missing => TrayItem {
+                enabled: false,
+                ..item("tray-record", fl!("tray-record-missing"), None)
+            },
             None => action("tray-record", fl!("tray-record"), Route::Record),
             Some(_) => item(
                 "tray-record-stop",

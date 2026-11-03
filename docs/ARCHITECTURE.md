@@ -192,7 +192,8 @@ Degradation, each reported by doctor:
 | file picker portal | Export writes to the save folder, with a toast and a doctor hint |
 | appearance portal | theme "system" means dark; Reduce Motion off |
 | tray watcher | capture bar shown at launch whatever the setting |
-| recorder / OCR tools | items disabled with an install hint |
+| recorder | tray Record disabled with an install hint; other starts answer with it at once |
+| tesseract | OCR returns QR codes only; no codes gives a notice that Tesseract is needed |
 | cursor source | `input.json` has no cursor travel |
 
 ## 7. Storage

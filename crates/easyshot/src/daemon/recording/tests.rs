@@ -96,6 +96,10 @@ fn rig(cx: &mut TestAppContext) -> Rig {
 }
 
 fn rig_with(cx: &mut TestAppContext, recorder: FakeRecorder) -> Rig {
+    rig_with_tools(cx, recorder, false)
+}
+
+fn rig_with_tools(cx: &mut TestAppContext, recorder: FakeRecorder, missing: bool) -> Rig {
     let dir = tempfile::tempdir().unwrap();
     let paths = Paths::rooted(dir.path());
     paths.ensure_all().unwrap();
@@ -116,6 +120,7 @@ fn rig_with(cx: &mut TestAppContext, recorder: FakeRecorder) -> Rig {
                 counted.set(counted.get() + 1);
                 Ok(Arc::new(recorder))
             }),
+            recorder_missing: missing,
             outputs: Rc::new(Vec::new),
             ui: Rc::new(FakeUi(log.clone())),
             clock: clock.clone(),
@@ -408,4 +413,19 @@ async fn a_recorder_without_system_sound_still_records_and_the_file_says_so(
     let capture: serde_json::Value =
         serde_json::from_slice(&std::fs::read(folder.join("capture.json")).unwrap()).unwrap();
     assert_eq!(capture["includes_system_audio"], false);
+}
+
+#[gpui::test]
+async fn without_a_recorder_every_start_answers_at_once_and_nothing_starts(
+    cx: &mut TestAppContext,
+) {
+    let rig = rig_with_tools(cx, FakeRecorder::default(), true);
+    assert!(cx.update(|cx| rig.recordings.admit(cx)).is_err());
+    let bar_area = cx.update(|cx| rig.recordings.with_request(area(), cx));
+    let bar_display = cx.update(|cx| rig.recordings.with_request(display().request, cx));
+    assert!(bar_area.await.is_err());
+    assert!(bar_display.await.is_err());
+    assert_eq!(rig.picks.get(), 0, "no area picker opens");
+    assert_eq!(rig.starts.get(), 0, "no recorder is asked for");
+    assert!(!rig.recordings.is_busy());
 }
