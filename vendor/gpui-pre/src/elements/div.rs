@@ -53,6 +53,37 @@ const DRAG_THRESHOLD: f64 = 2.;
 const DEFAULT_TOOLTIP_SHOW_DELAY: Duration = Duration::from_millis(500);
 const HOVERABLE_TOOLTIP_HIDE_DELAY: Duration = Duration::from_millis(500);
 
+/// App-wide timing for tooltips whose element sets no delay of its own: how long the pointer
+/// rests before a tooltip shows, and for how long after it leaves a shown tooltip the next one
+/// shows at once.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TooltipTiming {
+    /// The rest before a tooltip shows.
+    pub delay: Duration,
+    /// How long the tooltips stay warm after the pointer leaves a shown one.
+    pub warm: Duration,
+}
+
+impl Global for TooltipTiming {}
+
+struct TooltipLeftAt(scheduler::Instant);
+
+impl Global for TooltipLeftAt {}
+
+fn tooltip_show_delay(element_delay: Option<Duration>, cx: &App) -> Duration {
+    if let Some(delay) = element_delay {
+        return delay;
+    }
+    let Some(timing) = cx.try_global::<TooltipTiming>() else {
+        return DEFAULT_TOOLTIP_SHOW_DELAY;
+    };
+    let now = cx.background_executor().now();
+    let warm = cx
+        .try_global::<TooltipLeftAt>()
+        .is_some_and(|left| now.saturating_duration_since(left.0) < timing.warm);
+    if warm { Duration::ZERO } else { timing.delay }
+}
+
 /// The styling information for a given group.
 pub struct GroupStyle {
     /// The identifier for this group.
@@ -3779,7 +3810,6 @@ pub(crate) fn register_tooltip_mouse_handlers(
     window: &mut Window,
 ) {
     let current_view = window.current_view();
-    let show_delay = show_delay.unwrap_or(DEFAULT_TOOLTIP_SHOW_DELAY);
 
     window.on_mouse_event({
         let active_tooltip = active_tooltip.clone();
@@ -3878,7 +3908,7 @@ fn handle_tooltip_mouse_move(
     tooltip_id: Option<TooltipId>,
     current_view: EntityId,
     phase: DispatchPhase,
-    show_delay: Duration,
+    show_delay: Option<Duration>,
     window: &mut Window,
     cx: &mut App,
 ) {
@@ -3889,6 +3919,7 @@ fn handle_tooltip_mouse_move(
         CancelShow,
         ScheduleShow,
         CheckVisible,
+        Left,
     }
 
     let action = match active_tooltip.borrow().as_ref() {
@@ -3914,7 +3945,7 @@ fn handle_tooltip_mouse_move(
                 && (!*is_hoverable
                     || !tooltip_id.is_some_and(|tooltip_id| tooltip_id.is_hovered(window)))
             {
-                Action::CheckVisible
+                Action::Left
             } else {
                 Action::None
             }
@@ -3938,6 +3969,7 @@ fn handle_tooltip_mouse_move(
             active_tooltip.borrow_mut().take();
         }
         Action::ScheduleShow => {
+            let show_delay = tooltip_show_delay(show_delay, cx);
             let delayed_show_task = window.spawn(cx, {
                 let weak_active_tooltip = Rc::downgrade(active_tooltip);
                 let build_tooltip = build_tooltip.clone();
@@ -3967,6 +3999,12 @@ fn handle_tooltip_mouse_move(
                 });
         }
         Action::CheckVisible => cx.notify(current_view),
+        Action::Left => {
+            // Recorded in the capture phase, so a neighbour entered by the same move sees it.
+            let now = cx.background_executor().now();
+            cx.set_global(TooltipLeftAt(now));
+            cx.notify(current_view);
+        }
     }
 }
 
