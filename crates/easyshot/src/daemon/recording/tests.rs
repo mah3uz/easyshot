@@ -6,6 +6,7 @@ use es_record::project::CommandRunner;
 use es_record::{Clock, recovery};
 use es_store::ConfigFile;
 use gpui::TestAppContext;
+use std::cell::Cell;
 use std::os::unix::process::ExitStatusExt as _;
 use std::process::{ExitStatus, Output};
 use std::sync::Mutex;
@@ -61,13 +62,16 @@ impl RecordingUi for FakeUi {
     fn tray(&self, state: Option<RecordingTrayState>, _: &mut App) {
         self.0.borrow_mut().tray.push(state);
     }
-    fn open_trim(&self, video: std::path::PathBuf, _: &mut App) {
+    fn open_trim(&self, video: std::path::PathBuf, _: String, _: &mut App) {
         self.0.borrow_mut().trimmed.push(video);
     }
 }
 
 struct Rig {
     recordings: Recordings,
+    starts: Rc<Cell<usize>>,
+    picks: Rc<Cell<usize>>,
+    countdown_done: async_channel::Sender<()>,
     deck: Entity<Deck>,
     clock: Arc<ManualClock>,
     log: Rc<RefCell<Log>>,
@@ -93,6 +97,9 @@ fn rig(cx: &mut TestAppContext) -> Rig {
     paths.ensure_all().unwrap();
     let clock = Arc::new(ManualClock(Mutex::new(Duration::from_secs(100))));
     let log = Rc::new(RefCell::new(Log::default()));
+    let (starts, picks) = (Rc::new(Cell::new(0)), Rc::new(Cell::new(0)));
+    let (countdown_done, countdown_wait) = async_channel::unbounded::<()>();
+    let (counted, picked) = (starts.clone(), picks.clone());
     let (recordings, deck) = cx.update(|cx| {
         let file = ConfigFile::load(&dir.path().join("config.toml")).unwrap();
         let settings = cx.new(|_| SettingsModel::new(file));
@@ -101,18 +108,30 @@ fn rig(cx: &mut TestAppContext) -> Rig {
             settings,
             paths: paths.clone(),
             deck: deck.clone(),
-            recorder: Rc::new(|_| Ok(Arc::new(FakeRecorder::default()))),
+            recorder: Rc::new(move |_| {
+                counted.set(counted.get() + 1);
+                Ok(Arc::new(FakeRecorder::default()))
+            }),
             outputs: Rc::new(Vec::new),
             ui: Rc::new(FakeUi(log.clone())),
             clock: clock.clone(),
             runner: Arc::new(NoTools),
-            countdown: Rc::new(|_, _| Task::ready(Ok(()))),
-            select_area: Rc::new(|_| Task::ready(Err(Error::Cancelled))),
+            countdown: Rc::new(move |_, cx| {
+                let wait = countdown_wait.clone();
+                cx.spawn(async move |_| wait.recv().await.map_err(|_| Error::Cancelled))
+            }),
+            select_area: Rc::new(move |_| {
+                picked.set(picked.get() + 1);
+                Task::ready(Err(Error::Cancelled))
+            }),
         });
         (recordings, deck)
     });
     Rig {
         recordings,
+        starts,
+        picks,
+        countdown_done,
         deck,
         clock,
         log,
@@ -266,4 +285,99 @@ async fn stopped_recording_trimmed(open_editor_after: bool, cx: &mut TestAppCont
 async fn stop_opens_the_trim_viewer_only_when_asked(cx: &mut TestAppContext) {
     assert_eq!(stopped_recording_trimmed(true, cx).await, 1);
     assert_eq!(stopped_recording_trimmed(false, cx).await, 0);
+}
+
+fn area() -> RecordingRequest {
+    RecordingRequest {
+        target: RecordingTarget::Area,
+        ..display().request
+    }
+}
+
+#[gpui::test]
+async fn a_second_start_is_refused_from_every_path_while_one_records(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    cx.update(|cx| rig.recordings.start(display(), cx)).unwrap();
+    cx.run_until_parked();
+    assert_eq!(rig.starts.get(), 1);
+
+    let routed = cx.update(|cx| rig.recordings.admit(cx));
+    let launched = cx.update(|cx| rig.recordings.launch(display(), cx));
+    let bar_display = cx.update(|cx| rig.recordings.with_request(display().request, cx));
+    let bar_area = cx.update(|cx| rig.recordings.with_request(area(), cx));
+    let again = cx.update(|cx| rig.recordings.start(display(), cx));
+    assert!(
+        routed.is_err(),
+        "tray, shortcut, CLI and link are refused at the gate"
+    );
+    assert!(launched.await.is_err());
+    assert!(bar_display.await.is_err());
+    assert!(bar_area.await.is_err());
+    assert!(again.is_err());
+    assert_eq!(
+        rig.starts.get(),
+        1,
+        "the recorder never started a second time"
+    );
+    assert_eq!(
+        rig.picks.get(),
+        0,
+        "no area picker opens over a running recording"
+    );
+    assert!(rig.recordings.is_recording());
+}
+
+#[gpui::test]
+async fn a_start_counting_down_already_holds_the_recorder(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    let delayed = Start {
+        request: RecordingRequest {
+            delay_secs: 3,
+            ..display().request
+        },
+        area: None,
+    };
+    let first = cx.update(|cx| rig.recordings.launch(delayed, cx));
+    cx.run_until_parked();
+    assert!(!rig.recordings.is_recording());
+    assert!(cx.update(|cx| rig.recordings.admit(cx)).is_err());
+    let second = cx.update(|cx| rig.recordings.launch(display(), cx));
+    assert!(second.await.is_err());
+    rig.countdown_done.try_send(()).unwrap();
+    first.await.unwrap();
+    assert_eq!(rig.starts.get(), 1);
+    assert!(rig.recordings.is_recording());
+}
+
+#[gpui::test]
+async fn a_cancelled_area_pick_frees_the_recorder(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    let picked = cx.update(|cx| rig.recordings.with_request(area(), cx));
+    assert!(matches!(picked.await, Err(Error::Cancelled)));
+    assert!(!rig.recordings.is_busy());
+    cx.update(|cx| rig.recordings.start(display(), cx)).unwrap();
+    assert_eq!(rig.starts.get(), 1);
+}
+
+#[test]
+fn exports_get_dated_names_in_the_videos_folder_that_never_overwrite() {
+    let dir = tempfile::tempdir().unwrap();
+    let paths = Paths::rooted(dir.path());
+    let template = es_model::Config::default().general.file_name_template;
+    let now = OffsetDateTime::from_unix_timestamp(1_800_000_000).unwrap();
+    let first = finish::video_target(&paths, &template, now).unwrap();
+    std::fs::write(&first, b"video").unwrap();
+    let second = finish::video_target(&paths, &template, now).unwrap();
+    assert!(first.starts_with(paths.videos_dir()) && second.starts_with(paths.videos_dir()));
+    assert!(
+        !first.starts_with(paths.recordings_dir()),
+        "project data stays apart"
+    );
+    assert_ne!(
+        first, second,
+        "a second export in the same second keeps the first"
+    );
+    assert_eq!(first.extension().unwrap(), "mp4");
+    let name = first.file_name().unwrap().to_string_lossy().into_owned();
+    assert!(name.contains("2027"), "the name carries the date: {name}");
 }

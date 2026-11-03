@@ -195,3 +195,10 @@ fn an_empty_body_is_a_valid_default_for_every_kind() {
     empty::<State>();
     empty::<StylePreset>();
 }
+
+#[test]
+fn a_recording_takes_system_sound_and_no_microphone_unless_told_otherwise() {
+    let r: es_model::config::Recording = toml::from_str("fps = 30").unwrap();
+    assert!(r.system_audio, "a silent recording surprises the user");
+    assert!(r.mic.is_empty(), "the microphone is opt-in");
+}

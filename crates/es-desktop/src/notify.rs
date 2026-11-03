@@ -31,6 +31,9 @@ trait Notifications {
     fn action_invoked(&self, id: u32, action_key: String) -> zbus::Result<()>;
 }
 
+/// The key a notification server sends when the notification itself is clicked.
+pub const DEFAULT_ACTION: &str = "default";
+
 pub struct DesktopNotifier {
     proxy: NotificationsProxy<'static>,
     ours: Arc<Mutex<HashSet<u32>>>,

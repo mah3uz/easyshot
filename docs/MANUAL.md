@@ -173,17 +173,24 @@ trash. The default limit is 100 entries.
 
 ## Recording
 
-A capture bar and recording picker start a recording of an area, a display or a window,
-with system audio and microphone if you choose. There is a countdown, and then a control
-bar with stop, pause and resume, restart and discard. The recorded area is highlighted.
+A capture bar and recording picker start a recording of an area, a display or a window.
+System sound is recorded unless you turn it off in Settings, Recording; the microphone is
+off until you choose one there. There is a countdown, and then a control bar with stop,
+pause and resume, restart and discard. The recorded area is highlighted.
 
 The capture bar opens with `easyshot capture-bar`, its key (Super+Shift+2 by default) or the
 tray; opening it again by any of these closes it. While it is open it has the keyboard, so
 Esc closes it, or closes its open menu first.
 
-Each recording is a project folder with an `input.json` holding cursor travel, clicks and
-keystrokes when permitted. A finished recording appears as a deck card, then opens in a
-trim viewer with export.
+One recording runs at a time. While it runs, the tray's Record item reads Stop Recording,
+and a second start from a shortcut, the command line, an `easyshot://` link or the capture
+bar shows "A recording is already running" and opens no picker.
+
+Each recording is a project folder in `$XDG_DATA_HOME/easyshot/recordings/` with an
+`input.json` holding cursor travel, clicks and keystrokes when permitted. A finished
+recording appears as a deck card, then opens in a trim viewer with export. Saving the card
+and exporting from the trim viewer both write an `.mp4` to `easyshot` inside your Videos
+folder (usually `~/Videos/easyshot/`), with a dated name that never replaces an earlier file.
 
 During a full-display recording the control bar can appear in the video. Your compositor
 has no equivalent of the macOS setting that hides it.
@@ -288,6 +295,7 @@ whole screen.
 | Recordings | `$XDG_DATA_HOME/easyshot/recordings/` |
 | Logs and crash reports | `$XDG_STATE_HOME/easyshot/log/`, `crash/` |
 | Default save folder | `Screenshots` inside your Pictures folder |
+| Saved recordings and video exports | `easyshot` inside your Videos folder |
 
 If a file was made by a newer easyshot, it opens read-only and is never changed.
 
@@ -295,6 +303,11 @@ If easyshot crashes, it writes `crash/<time>.txt` with its version, the features
 built with, the providers it chose, a backtrace and its last 200 log lines. The next time it
 starts, a notification offers "Open crash report", which opens the file in your default
 text viewer. The report stays on your machine; nothing is uploaded.
+
+When a save or capture notice shows as a desktop notification, it says where the file went.
+Clicking it opens the file; it also offers Show in folder, which asks your file manager to
+show the file (or opens its folder), and a capture's notice offers Edit, which opens it in
+the editor. Whether the buttons show depends on your notification server.
 
 ## When your compositor lacks something
 

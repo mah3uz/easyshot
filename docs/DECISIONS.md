@@ -133,6 +133,20 @@ What was rejected beyond that, and why: not recorded.
 
 ## Deliberate behaviour choices
 
+- **One gate for every recording start.** `Recordings::admit` refuses while a recording runs
+  or one is starting (between the request and the recorder running, countdown and area pick
+  included). The capture coordinator asks it before selecting anything, so a refused `record`
+  route never freezes the screen or opens a picker. Rejected: checking only when the recorder
+  starts, which let the picker and countdown run first; making a second `record` stop the
+  running one, which turns a mistaken press into a lost take.
+- **Videos go to the XDG videos folder.** Saved recordings and trim exports are written to
+  `easyshot` inside the Videos folder with dated, never-overwriting names; project folders
+  stay in the data directory. Rejected: the screenshot save folder, which put videos among
+  pictures; a fixed `trimmed.mp4` beside the project, which no one finds and each export
+  overwrote.
+- **Recording defaults: system sound on, microphone off.** A silent recording surprised the
+  first user; the microphone stays opt-in.
+
 1. **Undo.** No entry is pushed for a press that changes nothing: `mark_undo` is deferred
    until the first mutation of the gesture. Typing in a text shape creates one undo entry
    per editing session. Rejected: an entry per press. Reason not recorded.

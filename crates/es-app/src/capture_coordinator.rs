@@ -49,6 +49,7 @@ pub trait DirectCapture {
 pub type Pipeline = Rc<dyn Fn(CaptureRequest, Selection, &mut App) -> Task<Result<()>>>;
 pub type Countdown = Rc<dyn Fn(&mut App) -> Task<Result<()>>>;
 pub type Hook = Rc<dyn Fn(&mut App)>;
+pub type Gate = Rc<dyn Fn(CaptureRequest, &mut App) -> Result<()>>;
 
 #[derive(Default, Clone)]
 struct Hooks {
@@ -58,6 +59,7 @@ struct Hooks {
     countdown: Option<Countdown>,
     before_capture: Option<Hook>,
     scroll_stop: Option<Hook>,
+    gate: Option<Gate>,
 }
 
 struct Inner {
@@ -162,6 +164,11 @@ impl CaptureCoordinator {
         self.inner.hooks.borrow_mut().before_capture = Some(hook);
     }
 
+    /// Refuses a request before it waits, selects or captures anything.
+    pub fn set_gate(&self, gate: Gate) {
+        self.inner.hooks.borrow_mut().gate = Some(gate);
+    }
+
     /// Finishes the running scroll capture.
     pub fn set_scroll_stop(&self, hook: Hook) {
         self.inner.hooks.borrow_mut().scroll_stop = Some(hook);
@@ -170,6 +177,13 @@ impl CaptureCoordinator {
     /// Runs `job` once every earlier request has finished.
     pub fn submit(&self, job: JobId, request: CaptureRequest, cx: &mut App) {
         let inner = self.inner.clone();
+        let gate = inner.hooks.borrow().gate.clone();
+        if let Some(gate) = gate
+            && let Err(e) = gate(request, cx)
+        {
+            inner.jobs.report(job, &Err(e));
+            return;
+        }
         if request.kind == CaptureKind::Scroll && inner.scrolling.get() {
             let stop = inner.hooks.borrow().scroll_stop.clone();
             if let Some(stop) = stop {

@@ -15,7 +15,7 @@ pub use autostart::{autostart_enabled, autostart_file, set_autostart, set_autost
 pub use bus::Labels;
 pub use files::{move_to_trash, show_in_file_manager, show_items, spawn_reaped};
 pub use noop::{RecordingNotifier, RecordingShortcuts, RecordingSound, RecordingTray};
-pub use notify::DesktopNotifier;
+pub use notify::{DEFAULT_ACTION, DesktopNotifier};
 pub use portal::{PortalAppearance, PortalFilePicker, PortalShortcuts, portal_trigger};
 #[cfg(feature = "sound")]
 pub use sound::RodioSound;

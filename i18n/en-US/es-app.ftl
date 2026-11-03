@@ -5,7 +5,13 @@
 
 ## Toasts
 toast-saved = Saved
+toast-saved-message = Saved to { $path }
 toast-recording-saved = Recording saved!
+toast-recording-saved-message = Saved to { $path }
+toast-video-exported = Video exported
+toast-video-exported-message = Saved to { $path }
+toast-recording-busy = A recording is already running
+toast-recording-busy-message = Stop it from the tray or the recording controls first.
 toast-recording-save-failed = Couldn't save recording
 toast-copy-failed = Copy Failed
 toast-capture-save-failed = Couldn’t save capture
@@ -48,6 +54,9 @@ toast-update-available = Update Available
 toast-update-available-message = Version { $version } is available
 
 ## Notifications
+notice-open = Open
+notice-show-in-folder = Show in folder
+notice-edit = Edit
 notify-export-complete = Export Complete
 notify-export-complete-body = { $file } has been saved.
 

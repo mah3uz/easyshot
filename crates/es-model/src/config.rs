@@ -175,7 +175,7 @@ impl Default for Recording {
         Self {
             save: false,
             mic: String::new(),
-            system_audio: false,
+            system_audio: true,
             keystrokes: false,
             start_delay: 0,
             open_editor_after: false,

@@ -202,7 +202,9 @@ fn save_card(
                     tracing::warn!(error = %e, "history");
                 }
                 deck.update(cx, |d, cx| d.saved(id, cx));
-                show_toast(Toast::new("toast-saved", IconName::Check), cx);
+                let toast = Toast::new("toast-saved", IconName::Check)
+                    .arg("path", saved.file.display().to_string());
+                show_toast(es_app::pipeline::capture_notice(toast, &saved.file), cx);
             }
             Err(e) => {
                 tracing::warn!(error = %e, "save from the deck");
@@ -216,7 +218,7 @@ fn save_card(
 
 /// Save and Edit on a recording's card; the other card actions do not apply to a video.
 pub fn video_cards(d: &ActionDeps, cx: &mut App) -> Subscription {
-    let (recordings, paths) = (d.recordings.clone(), d.paths.clone());
+    let recordings = d.recordings.clone();
     cx.subscribe(&d.deck, move |_, event: &DeckEvent, cx| {
         let DeckEvent::Requested { item, action } = event else {
             return;
@@ -228,13 +230,9 @@ pub fn video_cards(d: &ActionDeps, cx: &mut App) -> Subscription {
             DeckAction::Save => recordings.save_card(item.id, cx),
             DeckAction::Edit => {
                 #[cfg(feature = "player")]
-                let opened =
-                    super::recording::ui::open_player(item.file.clone(), paths.clone(), cx);
+                let opened = recordings.trim(item.file.clone(), cx);
                 #[cfg(not(feature = "player"))]
-                let opened: Result<(), Error> = {
-                    let _ = &paths;
-                    Err(Error::Unsupported)
-                };
+                let opened: Result<(), Error> = Err(Error::Unsupported);
                 if let Err(e) = opened {
                     tracing::warn!(error = %e, "trim viewer");
                     show_toast(Toast::error("toast-unsupported"), cx);

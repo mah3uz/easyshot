@@ -1,9 +1,10 @@
 use crate::strings::loader;
-use es_desktop::{Notification, Notifier, Urgency};
+use es_desktop::{DEFAULT_ACTION, Notification, NotificationId, Notifier, Urgency};
 use es_model::platform::OutputId;
 use gpui::{App, BorrowAppContext, Global};
 use i18n_embed::fluent::FluentLanguageLoader;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
@@ -13,6 +14,11 @@ pub use gpui_component::IconName;
 pub type FluentArgs = HashMap<&'static str, String>;
 
 pub const TOAST_DURATION: Duration = Duration::from_millis(2500);
+
+pub const EDIT_ACTION: &str = "edit";
+pub const SHOW_IN_FOLDER_ACTION: &str = "show-in-folder";
+
+const REMEMBERED_NOTICES: usize = 32;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToastStyle {
@@ -29,6 +35,10 @@ pub struct Toast {
     /// 2.5 s by default.
     pub duration: Duration,
     pub output: Option<OutputId>,
+    /// The saved file; a notification shown instead of the toast opens it.
+    pub file: Option<PathBuf>,
+    /// The notification also offers to open `file` in the editor.
+    pub edit: bool,
 }
 
 impl Toast {
@@ -40,6 +50,8 @@ impl Toast {
             style: ToastStyle::Normal,
             duration: TOAST_DURATION,
             output: None,
+            file: None,
+            edit: false,
         }
     }
 
@@ -57,6 +69,16 @@ impl Toast {
 
     pub fn on(mut self, output: OutputId) -> Self {
         self.output = Some(output);
+        self
+    }
+
+    pub fn file(mut self, file: PathBuf) -> Self {
+        self.file = Some(file);
+        self
+    }
+
+    pub fn editable(mut self) -> Self {
+        self.edit = true;
         self
     }
 }
@@ -145,9 +167,54 @@ impl ToastSink for Arc<MemorySink> {
     }
 }
 
+struct Sent {
+    id: NotificationId,
+    file: PathBuf,
+    edit: bool,
+}
+
 struct ToastRouter {
     sink: Box<dyn ToastSink>,
     notifier: Arc<dyn Notifier>,
+    sent: VecDeque<Sent>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NoticeAction {
+    Open(PathBuf),
+    ShowInFolder(PathBuf),
+    Edit(PathBuf),
+}
+
+fn notice_actions(t: &Toast) -> Vec<(String, String)> {
+    if t.file.is_none() {
+        return Vec::new();
+    }
+    let l = loader();
+    let mut actions = vec![
+        (DEFAULT_ACTION.to_owned(), l.get("notice-open")),
+        (
+            SHOW_IN_FOLDER_ACTION.to_owned(),
+            l.get("notice-show-in-folder"),
+        ),
+    ];
+    if t.edit {
+        actions.push((EDIT_ACTION.to_owned(), l.get("notice-edit")));
+    }
+    actions
+}
+
+/// What a click on a notification that stood in for a toast asks for; `None` when it is not one.
+pub fn notice_action(id: NotificationId, action: &str, cx: &App) -> Option<NoticeAction> {
+    let router = cx.try_global::<ToastRouter>()?;
+    let sent = router.sent.iter().find(|s| s.id == id)?;
+    let file = sent.file.clone();
+    match action {
+        DEFAULT_ACTION => Some(NoticeAction::Open(file)),
+        SHOW_IN_FOLDER_ACTION => Some(NoticeAction::ShowInFolder(file)),
+        EDIT_ACTION if sent.edit => Some(NoticeAction::Edit(file)),
+        _ => None,
+    }
 }
 
 impl Global for ToastRouter {}
@@ -156,6 +223,7 @@ pub fn install_toasts(sink: impl ToastSink + 'static, notifier: Arc<dyn Notifier
     cx.set_global(ToastRouter {
         sink: Box::new(sink),
         notifier,
+        sent: VecDeque::new(),
     });
 }
 
@@ -180,11 +248,25 @@ pub fn show_toast(t: Toast, cx: &mut App) {
         body: request.message.unwrap_or_default(),
         icon: None,
         image: None,
-        actions: Vec::new(),
+        actions: notice_actions(&t),
         urgency,
         timeout: Some(request.duration),
     };
-    if let Err(error) = notifier.notify(note) {
-        tracing::warn!(%error, "toast notification failed");
+    match notifier.notify(note) {
+        Ok(id) => {
+            if let Some(file) = t.file {
+                cx.update_global(|router: &mut ToastRouter, _| {
+                    if router.sent.len() == REMEMBERED_NOTICES {
+                        router.sent.pop_front();
+                    }
+                    router.sent.push_back(Sent {
+                        id,
+                        file,
+                        edit: t.edit,
+                    });
+                });
+            }
+        }
+        Err(error) => tracing::warn!(%error, "toast notification failed"),
     }
 }

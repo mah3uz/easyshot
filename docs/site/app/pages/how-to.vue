@@ -248,10 +248,10 @@ useHead({
 
         <!-- 7 -->
         <HowStep :n="7" id="record" title="Record your screen">
-          <p>Press <kbd>Super</kbd> <kbd>Shift</kbd> <kbd>5</kbd>, pick an area, a display or a window, and turn on system audio or the microphone if you want them. After the countdown a small bar lets you stop, pause, restart or discard.</p>
+          <p>Press <kbd>Super</kbd> <kbd>Shift</kbd> <kbd>5</kbd>, pick an area, a display or a window, system sound is recorded unless you turn it off, and the microphone only if you choose one. After the countdown a small bar lets you stop, pause, restart or discard.</p>
           <CodeBlock prompt code="easyshot record          # start
 easyshot record stop     # stop and open the trim viewer" />
-          <p>The recording appears as a deck card and opens in the trim viewer, where you cut it and export it.</p>
+          <p>The recording appears as a deck card and opens in the trim viewer, where you cut it and export it. Saved recordings and exports go to <code>~/Videos/easyshot/</code>. One recording runs at a time.</p>
         </HowStep>
 
         <!-- 8 -->

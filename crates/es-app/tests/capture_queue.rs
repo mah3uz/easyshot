@@ -209,6 +209,26 @@ fn a_cancelled_selection_is_a_silent_cancelled_job(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+fn a_gated_request_finishes_refused_before_anything_is_selected(cx: &mut TestAppContext) {
+    let rig = rig();
+    rig.coordinator
+        .set_gate(Rc::new(|request, _| match request.kind {
+            CaptureKind::RecordingArea => Err(Error::Internal("the recording is busy".into())),
+            _ => Ok(()),
+        }));
+    let refused = rig.submit(cx, CaptureKind::RecordingArea);
+    cx.run_until_parked();
+    assert!(rig.log().is_empty(), "no picker opens and nothing freezes");
+    let finished = rig.finished();
+    assert_eq!(finished.len(), 1);
+    assert_eq!(finished[0].0, refused);
+    assert_ne!(finished[0].1, JobStatus::Ok);
+    rig.submit(cx, CaptureKind::Region);
+    cx.run_until_parked();
+    assert_eq!(rig.log(), ["select Region"], "other captures pass the gate");
+}
+
+#[gpui::test]
 fn the_picker_hides_before_selection_and_a_timed_capture_counts_down_first(
     cx: &mut TestAppContext,
 ) {

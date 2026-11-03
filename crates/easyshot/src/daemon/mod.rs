@@ -5,6 +5,7 @@ mod crash;
 #[cfg(feature = "test-hooks")]
 mod inject;
 mod look;
+mod notices;
 mod pickers;
 mod recording;
 mod recovery;
@@ -312,6 +313,8 @@ fn start(
 
     let test_mode = test_mode_requested();
     let sound = shutter::player(test_mode);
+    let files: Arc<dyn es_shell::gallery::GalleryFiles> =
+        Arc::new(DesktopFiles::new(Endpoint::session()));
     let wiring = Wiring::new(
         paths.clone(),
         settings.clone(),
@@ -322,7 +325,7 @@ fn start(
         } else {
             Rc::new(pickers::PortalChooser(backend.clone()))
         },
-        Arc::new(DesktopFiles::new(Endpoint::session())),
+        files.clone(),
         if test_mode {
             pickers::declining_folder_picker()
         } else {
@@ -413,6 +416,11 @@ fn start(
         select_area: Rc::new(move |cx| area_flow.run(SelectMode::Region, cx)),
     });
     wiring.set_recordings(recordings.clone());
+    let gate = recordings.clone();
+    coordinator.set_gate(Rc::new(move |request, cx| match request.kind {
+        CaptureKind::Recording | CaptureKind::RecordingArea => gate.admit(cx),
+        _ => Ok(()),
+    }));
     let rec = recordings.clone();
     let shutter_settings = settings.clone();
     coordinator.set_pipeline(Rc::new(move |request, selection, cx| match request.kind {
@@ -446,9 +454,21 @@ fn start(
         &BackendNotifier(backend.clone()),
         &labels(),
     )));
+    let editor = wiring.clone();
     let handlers = EventHandlers {
-        notification_action: Some(Rc::new(move |(id, action), _| {
-            crash::on_action(&crash_notice, &crash::open_with_default_app, id, &action)
+        notification_action: Some(Rc::new(move |(id, action), cx| {
+            crash::on_action(&crash_notice, &crash::open_with_default_app, id, &action);
+            let edit = |file: &std::path::Path, cx: &mut App| {
+                if let Err(e) = editor.open_editor_for(file, cx) {
+                    tracing::warn!(error = %e, "edit from a notification");
+                }
+            };
+            let answers = notices::Answers {
+                open: &crash::open_with_default_app,
+                files: files.as_ref(),
+                edit: &edit,
+            };
+            notices::on_action(id, &action, &answers, cx);
         })),
         appearance: Some({
             let settings = settings.clone();

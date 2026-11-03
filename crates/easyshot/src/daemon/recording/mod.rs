@@ -23,7 +23,7 @@ use es_record::project::{CommandRunner, ProjectFolder};
 use es_record::{Clock, RecordSource, RecordSpec, Recorder, RecorderEvent, RecordingHandle};
 use es_store::Paths;
 use gpui::{App, AppContext as _, Entity, Subscription, Task};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
@@ -42,7 +42,7 @@ pub trait Shown {
 pub trait RecordingUi {
     fn show(&self, recorded: &Recorded, bar: &Entity<ControlBar>, cx: &mut App) -> Box<dyn Shown>;
     fn tray(&self, state: Option<RecordingTrayState>, cx: &mut App);
-    fn open_trim(&self, video: std::path::PathBuf, cx: &mut App);
+    fn open_trim(&self, video: std::path::PathBuf, template: String, cx: &mut App);
 }
 
 pub type RecorderFor = Rc<dyn Fn(&str) -> Result<Arc<dyn Recorder>>>;
@@ -86,6 +86,16 @@ struct Session {
 struct Inner {
     deps: Deps,
     active: RefCell<Option<Session>>,
+    starting: Cell<bool>,
+}
+
+/// Held from the moment a start is asked for until the recorder runs or the start gives up.
+struct Claim(Recordings);
+
+impl Drop for Claim {
+    fn drop(&mut self) {
+        self.0.0.starting.set(false);
+    }
 }
 
 #[derive(Clone)]
@@ -100,6 +110,13 @@ fn io_error(e: &es_record::Error) -> Error {
 
 fn busy() -> Error {
     Error::Internal("the recording is busy".into())
+}
+
+/// A save notice that says where the file went and opens it when clicked.
+fn saved_toast(title_id: &'static str, file: &std::path::Path) -> Toast {
+    Toast::new(title_id, IconName::Check)
+        .arg("path", file.display().to_string())
+        .file(file.to_path_buf())
 }
 
 fn none_running() -> Error {
@@ -149,11 +166,32 @@ impl Recordings {
         Recordings(Rc::new(Inner {
             deps,
             active: RefCell::new(None),
+            starting: Cell::new(false),
         }))
     }
 
     pub fn is_recording(&self) -> bool {
         self.0.active.borrow().is_some()
+    }
+
+    /// Recording, or between asking to start and the recorder running.
+    pub fn is_busy(&self) -> bool {
+        self.is_recording() || self.0.starting.get()
+    }
+
+    /// The one gate every start passes, before any selection or countdown shows.
+    pub fn admit(&self, cx: &mut App) -> Result<()> {
+        if self.is_busy() {
+            show_toast(Toast::new("toast-recording-busy", IconName::Info), cx);
+            return Err(busy());
+        }
+        Ok(())
+    }
+
+    fn claim(&self, cx: &mut App) -> Result<Claim> {
+        self.admit(cx)?;
+        self.0.starting.set(true);
+        Ok(Claim(self.clone()))
     }
 
     /// The request a `record` route makes: the configured defaults for the chosen target.
@@ -190,14 +228,16 @@ impl Recordings {
 
     /// From the capture bar: an area target is chosen first, then the delay runs, then recording starts.
     pub fn with_request(&self, request: RecordingRequest, cx: &mut App) -> Task<Result<()>> {
+        let claim = match self.claim(cx) {
+            Ok(claim) => claim,
+            Err(e) => return Task::ready(Err(e)),
+        };
         if !matches!(request.target, RecordingTarget::Area) {
-            return self.launch(
-                Start {
-                    request,
-                    area: None,
-                },
-                cx,
-            );
+            let start = Start {
+                request,
+                area: None,
+            };
+            return self.run(claim, start, cx);
         }
         let selected = (self.0.deps.select_area)(cx);
         let me = self.clone();
@@ -206,17 +246,22 @@ impl Recordings {
                 output, logical, ..
             } => {
                 let area = Some((output, logical));
-                cx.update(|cx| me.launch(Start { request, area }, cx)).await
+                cx.update(|cx| me.run(claim, Start { request, area }, cx))
+                    .await
             }
             _ => Err(Error::Cancelled),
         })
     }
 
-    /// Runs the start delay, which is never part of the video, then starts.
     pub fn launch(&self, start: Start, cx: &mut App) -> Task<Result<()>> {
-        if self.is_recording() {
-            return Task::ready(Err(busy()));
+        match self.claim(cx) {
+            Ok(claim) => self.run(claim, start, cx),
+            Err(e) => Task::ready(Err(e)),
         }
+    }
+
+    /// Runs the start delay, which is never part of the video, then starts.
+    fn run(&self, claim: Claim, start: Start, cx: &mut App) -> Task<Result<()>> {
         let secs = start.request.delay_secs;
         let me = self.clone();
         let delay = (secs > 0).then(|| (self.0.deps.countdown)(secs, cx));
@@ -224,18 +269,28 @@ impl Recordings {
             if let Some(delay) = delay {
                 delay.await?;
             }
-            cx.update(|cx| me.start(start, cx))
+            cx.update(|cx| me.install(claim, start, cx))
         })
     }
 
     pub fn start(&self, start: Start, cx: &mut App) -> Result<()> {
-        if self.is_recording() {
-            return Err(busy());
-        }
+        let claim = self.claim(cx)?;
+        self.install(claim, start, cx)
+    }
+
+    fn install(&self, claim: Claim, start: Start, cx: &mut App) -> Result<()> {
         let session = self.begin(start, cx)?;
         *self.0.active.borrow_mut() = Some(session);
+        drop(claim);
         self.tick(cx);
         Ok(())
+    }
+
+    #[cfg(feature = "player")]
+    pub fn trim(&self, video: std::path::PathBuf, cx: &mut App) -> Result<()> {
+        let config = self.0.deps.settings.read(cx).config();
+        let template = config.general.file_name_template.clone();
+        ui::open_player(video, self.0.deps.paths.clone(), template, cx)
     }
 
     fn begin(&self, start: Start, cx: &mut App) -> Result<Session> {
@@ -428,7 +483,8 @@ impl Recordings {
                 match completed {
                     Ok(done) => {
                         if cfg.recording.open_editor_after {
-                            deps.ui.open_trim(done.item.file.clone(), cx);
+                            let template = cfg.general.file_name_template.clone();
+                            deps.ui.open_trim(done.item.file.clone(), template, cx);
                         }
                         me.show_card(done.item, cfg.recording.save, cx)
                     }
@@ -492,19 +548,20 @@ impl Recordings {
             return;
         };
         let config = deps.settings.read(cx).config().clone();
-        let runner = deps.runner.clone();
+        let (runner, paths) = (deps.runner.clone(), deps.paths.clone());
         let deck = deps.deck.clone();
         cx.spawn(async move |cx| {
             let saved = cx
                 .background_executor()
                 .spawn(async move {
-                    finish::save_mp4(&video, &config, OffsetDateTime::now_utc(), runner.as_ref())
+                    let now = OffsetDateTime::now_utc();
+                    finish::save_mp4(&video, &paths, &config, now, runner.as_ref())
                 })
                 .await;
             cx.update(|cx| match saved {
                 Ok(path) => {
                     tracing::info!(file = %path.display(), "recording saved");
-                    show_toast(Toast::new("toast-recording-saved", IconName::Check), cx);
+                    show_toast(saved_toast("toast-recording-saved", &path), cx);
                     deck.update(cx, |d, cx| d.saved(id, cx));
                 }
                 Err(e) => {

@@ -77,7 +77,14 @@ pub fn menu(input: &TrayInput) -> TrayModel {
         action("tray-region", fl!("tray-region"), Route::CaptureRegion),
         action("tray-screen", fl!("tray-screen"), Route::CaptureFullscreen),
         action("tray-window", fl!("tray-window"), Route::CaptureWindow),
-        action("tray-record", fl!("tray-record"), Route::Record),
+        match input.recording {
+            None => action("tray-record", fl!("tray-record"), Route::Record),
+            Some(_) => item(
+                "tray-record-stop",
+                fl!("tray-record-stop"),
+                Some(Route::RecordStop),
+            ),
+        },
         action(
             "tray-scrolling",
             fl!("tray-scrolling"),

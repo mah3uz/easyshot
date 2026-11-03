@@ -41,7 +41,7 @@ pin = false
 [recording]
 save = false
 mic = ""
-system_audio = false
+system_audio = true
 keystrokes = false
 start_delay = 0
 open_editor_after = false

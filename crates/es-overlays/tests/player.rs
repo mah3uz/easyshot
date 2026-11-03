@@ -76,7 +76,10 @@ struct Rig {
 fn open(dir: &Path, video: &Path, commands: Arc<dyn CommandRunner>) -> Rig {
     let config = PlayerConfig {
         video: video.to_path_buf(),
-        output: dir.join("trimmed.mp4"),
+        output: {
+            let out = dir.join("trimmed.mp4");
+            std::rc::Rc::new(move || out.clone())
+        },
         audio: AudioOut::Silent,
         paths: Paths::rooted(&dir.join("root")),
         commands,

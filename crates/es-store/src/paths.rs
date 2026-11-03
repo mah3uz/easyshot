@@ -10,6 +10,7 @@ pub struct Paths {
     data: PathBuf,
     state: PathBuf,
     cache: PathBuf,
+    videos: PathBuf,
 }
 
 impl Paths {
@@ -26,6 +27,7 @@ impl Paths {
                 .unwrap_or_else(|| dirs.data_local_dir())
                 .to_path_buf(),
             cache: dirs.cache_dir().to_path_buf(),
+            videos: default_videos_dir().unwrap_or_else(|| dirs.data_dir().join("videos")),
         })
     }
 
@@ -35,6 +37,7 @@ impl Paths {
             data: root.join("data"),
             state: root.join("state"),
             cache: root.join("cache"),
+            videos: root.join("videos"),
         }
     }
 
@@ -76,6 +79,11 @@ impl Paths {
 
     pub fn recordings_dir(&self) -> PathBuf {
         self.data.join("recordings")
+    }
+
+    /// Finished recordings and video exports; project data stays in `recordings_dir`.
+    pub fn videos_dir(&self) -> PathBuf {
+        self.videos.clone()
     }
 
     pub fn recovery_dir(&self) -> PathBuf {
@@ -136,6 +144,15 @@ pub fn default_save_dir() -> Option<PathBuf> {
         .map(Path::to_path_buf)
         .unwrap_or_else(|| dirs.home_dir().join("Pictures"));
     Some(pictures.join("Screenshots"))
+}
+
+fn default_videos_dir() -> Option<PathBuf> {
+    let dirs = UserDirs::new()?;
+    let videos = dirs
+        .video_dir()
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| dirs.home_dir().join("Videos"));
+    Some(videos.join("easyshot"))
 }
 
 pub fn save_dir(config: &Config) -> Option<PathBuf> {

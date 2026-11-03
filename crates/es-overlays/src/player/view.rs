@@ -23,7 +23,8 @@ pub(super) const STRIP_HEIGHT: Pixels = px(44.);
 
 pub struct PlayerConfig {
     pub video: PathBuf,
-    pub output: PathBuf,
+    /// Asked once per export, so each export can get a name of its own.
+    pub output: std::rc::Rc<dyn Fn() -> PathBuf>,
     pub audio: AudioOut,
     pub paths: Paths,
     pub commands: Arc<dyn CommandRunner>,
@@ -318,7 +319,7 @@ impl PlayerWindow {
         self.pause();
         let job = ExportJob {
             input: self.config.video.clone(),
-            output: self.config.output.clone(),
+            output: (self.config.output)(),
             trim: self.trim,
             mode: self.mode,
             remove_audio: self.remove_audio,

@@ -18,3 +18,6 @@
 - The Settings window: Home, General, Capture, Overlay, Recording, Shortcuts and About, saved as you change them. "System" theme and Reduce Motion follow your desktop.
 - Settings > Shortcuts writes a bind snippet for Hyprland, sway or niri and checks which keys are already bound.
 - The capture bar takes the keyboard when it opens, so Esc closes it, and opening it again from its key, the tray or `easyshot capture-bar` closes it.
+- Screen recording, one at a time: the tray's Record item becomes Stop Recording while one runs, and system sound is recorded unless you turn it off.
+- Saved recordings and trim exports go to `~/Videos/easyshot/` with dated names, and each save notice says where.
+- Notifications you can click: open the file, show it in its folder, or edit a capture.

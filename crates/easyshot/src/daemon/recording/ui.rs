@@ -74,13 +74,13 @@ impl Shown for LayerShown {
 }
 
 impl RecordingUi for LayerUi {
-    fn open_trim(&self, video: std::path::PathBuf, cx: &mut App) {
+    fn open_trim(&self, video: std::path::PathBuf, template: String, cx: &mut App) {
         #[cfg(feature = "player")]
-        if let Err(e) = open_player(video, self.paths.clone(), cx) {
+        if let Err(e) = open_player(video, self.paths.clone(), template, cx) {
             tracing::warn!(error = %e, "trim viewer");
         }
         #[cfg(not(feature = "player"))]
-        let _ = (video, cx, &self.paths);
+        let _ = (video, template, cx, &self.paths);
     }
 
     fn show(&self, recorded: &Recorded, bar: &Entity<ControlBar>, cx: &mut App) -> Box<dyn Shown> {
@@ -172,10 +172,20 @@ pub fn countdown(surfaces: Rc<LayerShellSurfaces>) -> Countdown {
 }
 
 #[cfg(feature = "player")]
-pub fn open_player(video: std::path::PathBuf, paths: es_store::Paths, cx: &mut App) -> Result<()> {
-    use es_overlays::player::{AudioOut, PlayerConfig, PlayerWindow, SystemFfmpeg};
+pub fn open_player(
+    video: std::path::PathBuf,
+    paths: es_store::Paths,
+    template: String,
+    cx: &mut App,
+) -> Result<()> {
+    use es_app::toast::show_toast;
+    use es_overlays::player::{AudioOut, PlayerConfig, PlayerEvent, PlayerWindow, SystemFfmpeg};
     use std::sync::Arc;
-    let output = video.with_file_name("trimmed.mp4");
+    let videos = paths.clone();
+    let output = Rc::new(move || {
+        super::finish::video_target(&videos, &template, time::OffsetDateTime::now_utc())
+            .unwrap_or_else(|_| videos.videos_dir().join("export.mp4"))
+    });
     let config = PlayerConfig {
         video,
         output,
@@ -188,7 +198,15 @@ pub fn open_player(video: std::path::PathBuf, paths: es_store::Paths, cx: &mut A
         app_id: Some(es_protocol::PLAYER_APP_ID.into()),
         ..Default::default()
     };
-    cx.open_window(options, |_, cx| cx.new(|cx| PlayerWindow::new(config, cx)))
-        .map(|_| ())
-        .map_err(|e| Error::Protocol(e.to_string()))
+    cx.open_window(options, |_, cx| {
+        let player = cx.new(|cx| PlayerWindow::new(config, cx));
+        cx.subscribe(&player, |_, event: &PlayerEvent, cx| {
+            let PlayerEvent::Exported(file) = event;
+            show_toast(super::saved_toast("toast-video-exported", file), cx);
+        })
+        .detach();
+        player
+    })
+    .map(|_| ())
+    .map_err(|e| Error::Protocol(e.to_string()))
 }

@@ -229,11 +229,18 @@ fn while_recording_the_controls_and_clock_come_first_with_a_red_dot() {
             "---"
         ]
     );
+    let record_at = IDLE_ORDER
+        .iter()
+        .position(|id| *id == "tray-record")
+        .unwrap();
+    let mut live_order = IDLE_ORDER.to_vec();
+    live_order[record_at] = "tray-record-stop";
     assert_eq!(
         &ids(&items)[6..],
-        IDLE_ORDER,
-        "the normal menu follows unchanged"
+        live_order,
+        "the normal menu follows, its Record item now stopping, so no second recording can start"
     );
+    assert_eq!(items[6 + record_at].route, Some(Route::RecordStop));
     assert_eq!(items[0].label.as_deref(), Some("Recording 01:23"));
     assert!(!items[0].enabled);
     let routes: Vec<_> = items[1..5].iter().map(|i| i.route.clone()).collect();

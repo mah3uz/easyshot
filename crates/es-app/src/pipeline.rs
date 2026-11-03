@@ -485,7 +485,8 @@ async fn finish(
                 match copied.await {
                     Ok(()) => cx.update(|cx| {
                         if !plan.contains(&Step::ShowPreview) {
-                            show_toast(Toast::new("toast-copied", IconName::Copy), cx);
+                            let toast = Toast::new("toast-copied", IconName::Copy);
+                            show_toast(capture_notice(toast, &kept), cx);
                         }
                     }),
                     Err(e) => keep(cx.update(|cx| fail(e, Op::Copy, cx))),
@@ -510,10 +511,23 @@ async fn finish(
             }
         }
     }
-    if saved.is_some() && !plan.contains(&Step::ShowPreview) && !plan.contains(&Step::Copy) {
-        cx.update(|cx| show_toast(Toast::new("toast-saved", IconName::Check), cx));
+    if let Some(file) = &saved
+        && !plan.contains(&Step::ShowPreview)
+        && !plan.contains(&Step::Copy)
+    {
+        let toast =
+            Toast::new("toast-saved", IconName::Check).arg("path", file.display().to_string());
+        cx.update(|cx| show_toast(capture_notice(toast, file), cx));
     }
     first.map_or(Ok(()), Err)
+}
+
+/// A notification shown for a capture opens the file, or the editor on it.
+pub fn capture_notice(toast: Toast, file: &std::path::Path) -> Toast {
+    if file.as_os_str().is_empty() {
+        return toast;
+    }
+    toast.file(file.to_path_buf()).editable()
 }
 
 fn reported(task: Task<Result<Selection>>, op: Op, cx: &mut App) -> Task<Result<Selection>> {
