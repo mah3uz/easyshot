@@ -138,6 +138,10 @@ fn a_recorder_that_cannot_use_a_device_or_area_says_so_in_plain_words() {
     for (error, title) in [
         (Error::AudioDeviceMissing, "toast-recording-no-audio-device"),
         (Error::AreaOffMonitor, "toast-recording-area-off-monitor"),
+        (
+            Error::WindowUnreachable,
+            "toast-recording-window-unreachable",
+        ),
     ] {
         assert_eq!(recording_start_title(&error), title);
         let request = ToastRequest::resolve(&Toast::error(title));

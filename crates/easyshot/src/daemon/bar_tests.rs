@@ -88,6 +88,7 @@ fn recordings(cx: &mut TestAppContext, recorder_missing: bool) -> (Recordings, t
             runner: Arc::new(NoTools),
             countdown: Rc::new(|_, cx| cx.spawn(async move |_| std::future::pending().await)),
             select_area: Rc::new(|_| Task::ready(Err(Error::Cancelled))),
+            focus_window: Rc::new(|_, _| Task::ready(Err(Error::WindowUnreachable))),
             input: super::recording::input::Inputs {
                 open: Rc::new(|| Err(es_model::recording::InputAccess::Denied)),
                 sources: es_record::input::Sources {
@@ -139,4 +140,30 @@ fn a_start_that_fails_after_admission_still_shows_the_generic_toast(cx: &mut Tes
     cx.update(|cx| start_recording(&recordings, request(0), cx));
     cx.run_until_parked();
     assert_eq!(titles(&sink), ["Something went wrong"]);
+}
+
+#[gpui::test]
+fn a_window_that_cannot_be_brought_onto_a_screen_says_so_and_records_nothing(
+    cx: &mut TestAppContext,
+) {
+    let (recordings, _dir) = recordings(cx, false);
+    let sink = MemorySink::new();
+    cx.update(|cx| install_toasts(sink.clone(), Arc::new(Silent), cx));
+    let window = es_model::platform::WindowInfo {
+        id: es_model::platform::WindowId("w".into()),
+        app_id: "app".into(),
+        title: "t".into(),
+        pid: None,
+        logical: None,
+        output: None,
+        workspace: Some("2".into()),
+        floating: false,
+        focus_rank: None,
+    };
+    let mut asked = request(0);
+    asked.target = RecordingTarget::Window(window);
+    cx.update(|cx| start_recording(&recordings, asked, cx));
+    cx.run_until_parked();
+    assert_eq!(titles(&sink), ["Couldn\u{2019}t start recording"]);
+    assert!(!recordings.is_recording());
 }

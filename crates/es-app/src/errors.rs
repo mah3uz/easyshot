@@ -29,6 +29,8 @@ pub enum Error {
     AudioDeviceMissing,
     #[error("the capture area is not on any monitor")]
     AreaOffMonitor,
+    #[error("the window could not be brought onto a screen")]
+    WindowUnreachable,
     #[error("parse error at line {line}, column {col}: {message}")]
     Parse {
         line: usize,
@@ -127,6 +129,7 @@ pub fn recording_start_title(error: &Error) -> &'static str {
     match error {
         Error::AudioDeviceMissing => "toast-recording-no-audio-device",
         Error::AreaOffMonitor => "toast-recording-area-off-monitor",
+        Error::WindowUnreachable => "toast-recording-window-unreachable",
         _ => "toast-error-generic",
     }
 }

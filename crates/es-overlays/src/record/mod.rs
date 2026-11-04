@@ -1,11 +1,13 @@
 pub mod bar;
 pub mod control;
+pub mod groups;
 pub mod options;
 pub mod placement;
 pub mod session;
 
 pub use bar::{BarEvent, CaptureBar};
 pub use control::{Confirm, ControlBar, ControlEvent};
+pub use groups::{WindowGroup, window_groups};
 pub use options::{
     OptionsEvent, RecordingDefaults, RecordingOptions, RecordingRequest, RecordingTarget,
 };

@@ -2,6 +2,7 @@
 use super::fake::FakeRecorder;
 use super::*;
 use es_app::deck::{DeckItem, DeckPolicy};
+use es_model::platform::WindowInfo;
 use es_record::project::CommandRunner;
 use es_record::{Clock, recovery};
 use es_store::ConfigFile;
@@ -77,7 +78,14 @@ struct Rig {
     log: Rc<RefCell<Log>>,
     paths: Paths,
     input: Rc<FakeInput>,
+    focus: Rc<FakeFocus>,
     _dir: tempfile::TempDir,
+}
+
+#[derive(Default)]
+struct FakeFocus {
+    asked: RefCell<Vec<String>>,
+    fails: Cell<bool>,
 }
 
 #[derive(Default)]
@@ -140,6 +148,8 @@ fn rig_with_tools(cx: &mut TestAppContext, mut recorder: FakeRecorder, missing: 
     let (countdown_done, countdown_wait) = async_channel::unbounded::<()>();
     let input = Rc::new(FakeInput::default());
     let opener = input.clone();
+    let focus = Rc::new(FakeFocus::default());
+    let focusing = focus.clone();
     recorder.clock = Some(clock.clone());
     let (counted, picked) = (starts.clone(), picks.clone());
     let (recordings, deck) = cx.update(|cx| {
@@ -166,6 +176,17 @@ fn rig_with_tools(cx: &mut TestAppContext, mut recorder: FakeRecorder, missing: 
             select_area: Rc::new(move |_| {
                 picked.set(picked.get() + 1);
                 Task::ready(Err(Error::Cancelled))
+            }),
+            focus_window: Rc::new(move |w, _| {
+                focusing.asked.borrow_mut().push(w.id.0.clone());
+                if focusing.fails.get() {
+                    return Task::ready(Err(Error::WindowUnreachable));
+                }
+                let logical = Some(Rect::new(0.0, 0.0, 100.0, 80.0));
+                Task::ready(Ok(WindowInfo {
+                    logical,
+                    ..w.clone()
+                }))
             }),
             input: input::Inputs {
                 open: Rc::new(move || {
@@ -194,6 +215,7 @@ fn rig_with_tools(cx: &mut TestAppContext, mut recorder: FakeRecorder, missing: 
         log,
         paths,
         input,
+        focus,
         _dir: dir,
     }
 }
@@ -549,3 +571,5 @@ fn an_area_reaches_the_recorder_in_global_logical_points_on_an_offset_output() {
         "recorders place regions in the global layout, as slurp prints them"
     );
 }
+
+mod focus;

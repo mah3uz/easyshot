@@ -518,3 +518,56 @@ fn a_bar_without_a_recorder_disables_recording_and_says_why() {
 }
 
 mod placement;
+
+fn placed(id: &str, workspace: Option<&str>, shown: bool) -> WindowInfo {
+    WindowInfo {
+        id: WindowId(id.into()),
+        workspace: workspace.map(str::to_owned),
+        logical: shown.then(|| Rect::new(0., 0., 10., 10.)),
+        ..window(id)
+    }
+}
+
+#[test]
+fn windows_group_by_workspace_with_the_ones_on_screen_first() {
+    use es_overlays::record::window_groups;
+    let windows = [
+        placed("a", Some("10"), false),
+        placed("b", Some("2"), false),
+        placed("c", Some("3"), true),
+        placed("d", Some("10"), false),
+        placed("e", None, false),
+        placed("f", Some("mail"), false),
+    ];
+    let groups = window_groups(&windows);
+    let names: Vec<_> = groups.iter().map(|g| g.workspace.as_deref()).collect();
+    assert_eq!(
+        names,
+        [None, Some("3"), Some("2"), Some("10"), Some("mail")]
+    );
+    assert!(groups[1].shown && !groups[2].shown);
+    assert_eq!(groups[3].windows, [0, 3], "list order inside a group");
+}
+
+#[test]
+fn the_window_menu_has_a_header_per_workspace_and_picks_the_right_window() {
+    let mut s = Surface::open(WIDTH as f32, 480., |_| {
+        RecordingOptions::new(vec![output("A", 0., 1280., 720.)], devices())
+    });
+    let (events, _sub) = s.record::<OptionsEvent>();
+    let view = s.view.clone();
+    let windows = vec![
+        placed("far", Some("2"), false),
+        placed("near", Some("1"), true),
+    ];
+    s.app
+        .cx
+        .update(|cx| view.update(cx, |o, cx| o.set_windows(windows, cx)));
+    s.click(WINDOW_X, ROW_Y);
+    // Rows: header 1, near, header 2, far, refresh.
+    s.click(LESS_X, menu_row(3));
+    assert!(matches!(
+        events.borrow().last(),
+        Some(OptionsEvent::Start(r)) if matches!(&r.target, RecordingTarget::Window(w) if w.id.0 == "far")
+    ));
+}

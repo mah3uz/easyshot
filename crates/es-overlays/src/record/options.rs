@@ -1,4 +1,5 @@
 use super::bar::{captioned, divider};
+use super::groups::window_groups;
 use crate::capture::strings::fl;
 use es_geom::{Rect, Size};
 use es_model::platform::{OutputId, OutputInfo, WindowInfo};
@@ -224,11 +225,18 @@ impl RecordingOptions {
                 })
                 .collect(),
             Menu::Window => {
-                let mut rows: Vec<_> = self
-                    .windows
-                    .iter()
-                    .enumerate()
-                    .map(|(i, w)| {
+                let mut rows = Vec::new();
+                for group in window_groups(&self.windows) {
+                    if let Some(name) = group.workspace {
+                        let header = if group.shown {
+                            fl!("rec-windows-workspace-shown", name = name)
+                        } else {
+                            fl!("rec-windows-workspace", name = name)
+                        };
+                        rows.push((header, false, None));
+                    }
+                    for i in group.windows {
+                        let w = &self.windows[i];
                         let text = if w.title.is_empty() {
                             fl!("rec-window-item-app-only", app = w.app_id.clone())
                         } else {
@@ -238,9 +246,9 @@ impl RecordingOptions {
                                 title = w.title.clone()
                             )
                         };
-                        (text, false, Some(Pick::Window(i)))
-                    })
-                    .collect();
+                        rows.push((text, false, Some(Pick::Window(i))));
+                    }
+                }
                 if rows.is_empty() {
                     rows.push((fl!("rec-windows-empty"), false, None));
                 }

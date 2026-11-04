@@ -3,6 +3,7 @@ mod card;
 #[cfg(any(test, feature = "test-hooks"))]
 pub mod fake;
 mod finish;
+mod focus;
 pub mod input;
 mod target;
 #[cfg(test)]
@@ -34,6 +35,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
 
+pub use focus::{FocusWindow, from_backend as focus_from_backend};
 pub use ui::LayerUi;
 
 const TRAY_TICK: Duration = Duration::from_secs(1);
@@ -72,6 +74,7 @@ pub struct Deps {
     pub runner: Arc<dyn CommandRunner>,
     pub countdown: Countdown,
     pub select_area: AreaSelector,
+    pub focus_window: FocusWindow,
     pub input: input::Inputs,
 }
 
@@ -254,11 +257,17 @@ impl Recordings {
     }
 
     /// Runs the start delay, which is never part of the video, then starts.
-    fn run(&self, claim: Claim, start: Start, cx: &mut App) -> Task<Result<()>> {
+    fn run(&self, claim: Claim, mut start: Start, cx: &mut App) -> Task<Result<()>> {
         let secs = start.request.delay_secs;
         let me = self.clone();
-        let delay = (secs > 0).then(|| (self.0.deps.countdown)(secs, cx));
+        let focus =
+            focus::off_screen(&start.request.target).map(|w| (self.0.deps.focus_window)(w, cx));
+        let mut delay = (secs > 0 && focus.is_none()).then(|| (self.0.deps.countdown)(secs, cx));
         cx.spawn(async move |cx| {
+            if let Some(focus) = focus {
+                start.request.target = RecordingTarget::Window(focus.await?);
+                delay = (secs > 0).then(|| cx.update(|cx| (me.0.deps.countdown)(secs, cx)));
+            }
             if let Some(delay) = delay {
                 delay.await?;
             }

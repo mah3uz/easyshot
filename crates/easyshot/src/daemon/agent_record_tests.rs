@@ -139,6 +139,9 @@ fn rig_for(agent: AgentCfg, cx: &mut TestAppContext) -> Rig {
             runner: Arc::new(NoTools),
             countdown: Rc::new(|_, cx| cx.spawn(async move |_| Ok(()))),
             select_area: Rc::new(|_| Task::ready(Err(es_app::errors::Error::Cancelled))),
+            focus_window: Rc::new(|_, _| {
+                Task::ready(Err(es_app::errors::Error::WindowUnreachable))
+            }),
             input: Inputs {
                 open: Rc::new(|| Err(es_model::recording::InputAccess::Denied)),
                 sources: es_record::input::Sources {

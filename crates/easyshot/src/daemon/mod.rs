@@ -384,7 +384,7 @@ fn start(
     wiring.set_bar_sources(bar::BarSources {
         windows: {
             let backend = backend.clone();
-            Rc::new(move || backend.windows.snapshot())
+            Rc::new(move || backend.windows.all())
         },
         devices: bar::devices_from(if test_mode {
             Rc::new(bar::NoAudio)
@@ -460,6 +460,7 @@ fn start(
             let coordinator = coordinator.clone();
             Rc::new(move |cx| coordinator.select_area(cx))
         },
+        focus_window: recording::focus_from_backend(backend.clone()),
         input: recording::input::for_system(Arc::new(es_record::SystemClock::default()), backend),
     });
     wiring.set_recordings(recordings.clone(), cx);
