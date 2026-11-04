@@ -232,6 +232,7 @@ More in the manual: [Recording](MANUAL.md#recording).
 - Lists every action on Shortcuts: click a key field and press a key to set it.
 - Shows the command your compositor runs for each global shortcut.
 - Checks which keys are already bound and which run something else.
+- Explains options whose names say little in a tooltip (overlay layouts, codecs, containers, agent consent), and names each key field's clear button in one.
 - Shows the version, the website, the source and the issue tracker on About, and Show Onboarding Again.
 - Sets the editor's arrow-key steps and its zoom anchor in `config.toml`.
 - Controls agent access, consent, scope and secret hiding on Agents.

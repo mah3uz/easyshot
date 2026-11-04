@@ -141,3 +141,42 @@ fn bind_records_a_key_and_stores_an_editor_override() {
         "global keys are not editor overrides"
     );
 }
+
+#[test]
+fn long_chords_and_conflicts_at_the_default_and_minimum_width() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = dir.path().join("config.kdl");
+    std::fs::write(
+        &config,
+        "binds {\n    Mod+Ctrl+Alt+Shift+S { spawn \"sh\" \"-c\" \"grim -g \\\"$(slurp -d)\\\" - | swappy -f - -o ~/Pictures/latest.png\"; }\n    Mod+Shift+3 { spawn \"grim\"; }\n}\n",
+    )
+    .unwrap();
+    for (size, name) in [
+        (es_shell::settings::WINDOW_SIZE, "default"),
+        (es_shell::settings::MIN_SIZE, "minimum"),
+    ] {
+        long_chords_at(size, name, &config);
+    }
+}
+
+fn long_chords_at(size: (f32, f32), size_name: &str, config: &Path) {
+    let mut fx = fixture_sized(size, Caps::BIND_CHECK, Some(niri_binds(config)), |_| {});
+    fx.update(|v, cx| v.show(Page::Shortcuts, cx));
+    fx.record("capture-bar", "super-ctrl-alt-shift-s");
+    fx.record("gallery", "super-ctrl-alt-shift-backspace");
+    fx.record("capture-fullscreen", "super-shift-3");
+    fx.update(|v, cx| v.check_binds(cx));
+    let view = fx.view.clone();
+    fx.app.until("the check", |cx| {
+        view.read(cx).bind_status("capture-bar").is_some()
+    });
+    assert!(matches!(
+        fx.read(|v, _| v.bind_status("capture-bar").cloned()),
+        Some(BindStatus::Conflict(_))
+    ));
+    for (mode, name) in [(ThemeMode::Dark, "dark"), (ThemeMode::Light, "light")] {
+        fx.app.cx.update(|cx| theme::set_mode(mode, cx));
+        fx.update(|_, cx| cx.notify());
+        fx.shot(&format!("settings-shortcuts-long-{size_name}-{name}"));
+    }
+}

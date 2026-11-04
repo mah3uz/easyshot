@@ -42,6 +42,15 @@ struct Fixture {
 }
 
 fn fixture(caps: Caps, binds: Option<Arc<dyn BindHelper>>, prepare: impl FnOnce(&Path)) -> Fixture {
+    fixture_sized(es_shell::settings::WINDOW_SIZE, caps, binds, prepare)
+}
+
+fn fixture_sized(
+    (w, h): (f32, f32),
+    caps: Caps,
+    binds: Option<Arc<dyn BindHelper>>,
+    prepare: impl FnOnce(&Path),
+) -> Fixture {
     let dir = tempfile::tempdir().unwrap();
     let paths = Paths::rooted(dir.path());
     paths.ensure_all().unwrap();
@@ -54,7 +63,6 @@ fn fixture(caps: Caps, binds: Option<Arc<dyn BindHelper>>, prepare: impl FnOnce(
     let access = Rc::new(Cell::new(InputAccess::Granted));
     let seen = access.clone();
     let mut view = None;
-    let (w, h) = es_shell::settings::WINDOW_SIZE;
     let app = Headless::open(Assets, es_ui::init, w, h, |window, cx| {
         let settings = cx.new(|_| SettingsModel::new(file));
         let deps = SettingsDeps {

@@ -5,7 +5,7 @@ use gpui::{
     RenderOnce, SharedString, StatefulInteractiveElement, Styled, Window, div,
     prelude::FluentBuilder, px, transparent_black,
 };
-use gpui_component::Icon;
+use gpui_component::{Icon, tooltip::Tooltip};
 
 use crate::{
     a11y::{Accessible, Role},
@@ -19,6 +19,7 @@ use crate::{
 pub struct Segment {
     label: SharedString,
     icon: Option<IconName>,
+    help: Option<SharedString>,
 }
 
 impl Segment {
@@ -26,6 +27,7 @@ impl Segment {
         Self {
             label: label.into(),
             icon: None,
+            help: None,
         }
     }
 
@@ -34,7 +36,14 @@ impl Segment {
         Self {
             label: label.into(),
             icon: Some(icon),
+            help: None,
         }
+    }
+
+    /// A tooltip for an option whose label alone does not say what it does.
+    pub fn help(mut self, help: impl Into<SharedString>) -> Self {
+        self.help = Some(help.into());
+        self
     }
 }
 
@@ -150,6 +159,10 @@ impl RenderOnce for Segmented {
                 .aria_size_of_set(count)
                 .when(interactive && !on && pinned(i) == Interaction::Rest, |d| {
                     d.hover(move |s| s.bg(hover_fill))
+                })
+                .when_some(segment.help, |d, help| {
+                    d.aria_description(help.clone())
+                        .tooltip(move |window, cx| Tooltip::new(help.clone()).build(window, cx))
                 })
                 .map(|d| match segment.icon {
                     Some(icon) => d.child(Icon::new(icon).size(px(14.)).flex_none()),

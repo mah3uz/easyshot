@@ -18,6 +18,32 @@ fn text(s: String) -> Option<SharedString> {
     Some(s.into())
 }
 
+/// Tooltips for the options of a choice row, in option order, where the labels alone are unclear.
+fn option_help(id: &str) -> Vec<String> {
+    match id {
+        "overlay-layout" => vec![
+            fl!("overlay-layout-standard-help"),
+            fl!("overlay-layout-sharing-help"),
+            fl!("overlay-layout-minimal-help"),
+        ],
+        "codec" => vec![
+            fl!("recording-export-codec-h264-help"),
+            fl!("recording-export-codec-hevc-help"),
+            fl!("recording-export-codec-av1-help"),
+        ],
+        "container" => vec![
+            fl!("recording-export-container-mkv-help"),
+            fl!("recording-export-container-mp4-help"),
+        ],
+        "agents-consent" => vec![
+            fl!("agents-consent-once-help"),
+            fl!("agents-consent-always-ask-help"),
+            fl!("agents-consent-never-ask-help"),
+        ],
+        _ => Vec::new(),
+    }
+}
+
 impl SettingsWindow {
     pub(super) fn toggle_row(
         &self,
@@ -57,10 +83,17 @@ impl SettingsWindow {
         let width =
             (longest as f32 * SEGMENT_CHAR + SEGMENT_PAD).max(SEGMENT_MIN) * options.len() as f32;
         let this = cx.entity().downgrade();
+        let mut help_for = option_help(id).into_iter();
         let control = Segmented::new(
             id,
             title.clone(),
-            options.into_iter().map(|(_, label)| Segment::text(label)),
+            options.into_iter().map(|(_, label)| {
+                let segment = Segment::text(label);
+                match help_for.next() {
+                    Some(help) => segment.help(help),
+                    None => segment,
+                }
+            }),
         )
         .selected(selected)
         .on_select(move |i, _, cx| {

@@ -1,8 +1,9 @@
 use es_protocol::{Modifiers, Trigger};
 use gpui::{
     Context, EventEmitter, FocusHandle, Focusable, InteractiveElement, IntoElement, KeyDownEvent,
-    KeyUpEvent, Keystroke, ModifiersChangedEvent, MouseButton, ParentElement, Render, SharedString,
-    StatefulInteractiveElement, Styled, Subscription, Window, div, prelude::FluentBuilder, px,
+    KeyUpEvent, Keystroke, ModifiersChangedEvent, MouseButton, ParentElement, Pixels, Render,
+    SharedString, StatefulInteractiveElement, Styled, Subscription, TextRun, Window, div, font,
+    prelude::FluentBuilder, px,
 };
 
 use crate::{
@@ -13,10 +14,12 @@ use crate::{
     },
     fl,
     icons::IconName,
-    theme::tokens,
-    tokens::Typeset,
+    theme::{UI_FONT, tokens},
+    tokens::{TextStyle, Typeset},
 };
 
+const PAD: f32 = 6.;
+const CLEAR: f32 = 16.;
 const MODIFIER_KEYS: [&str; 5] = ["shift", "control", "alt", "platform", "function"];
 
 /// The field never adopts what it records: the caller may refuse a trigger, then answers with `set_trigger`.
@@ -69,6 +72,44 @@ fn held_label(modifiers: Modifiers, spoken: bool) -> Option<String> {
         (partial.label(), "+A")
     };
     text.strip_suffix(tail).map(str::to_owned)
+}
+
+/// Every field is as wide as the longest chord, so a column of them lines up and no chord is cut short.
+fn field_width(style: TextStyle, window: &Window) -> Pixels {
+    let longest = Trigger {
+        modifiers: Modifiers::all(),
+        key: "Backspace".to_owned(),
+    };
+    let run = TextRun {
+        len: 0,
+        font: gpui::Font {
+            weight: style.weight,
+            features: style.features(),
+            ..font(UI_FONT)
+        },
+        color: gpui::black(),
+        background_color: None,
+        underline: None,
+        strikethrough: None,
+    };
+    let widest = [
+        longest.label(),
+        fl!("controls-shortcut-placeholder"),
+        fl!("controls-shortcut-press"),
+    ]
+    .into_iter()
+    .map(|text| {
+        let run = TextRun {
+            len: text.len(),
+            ..run.clone()
+        };
+        window
+            .text_system()
+            .shape_line(text.into(), style.size, &[run], None)
+            .width
+    })
+    .fold(Pixels::ZERO, |a, b| if b > a { b } else { a });
+    (widest + px(PAD * 2. + CLEAR)).ceil()
 }
 
 pub struct ShortcutField {
@@ -263,9 +304,9 @@ impl Render for ShortcutField {
             .relative()
             .flex()
             .items_center()
-            .min_w(px(124.))
+            .w(field_width(t.type_scale.value, window))
             .h(m.control_height)
-            .px(px(6.))
+            .px(px(PAD))
             .rounded(m.field_radius)
             .border(m.hairline)
             .border_color(t.border)
@@ -313,6 +354,7 @@ impl Render for ShortcutField {
                     .flex()
                     .justify_center()
                     .truncate()
+                    .when(clearable, |d| d.mr(px(CLEAR)))
                     .text_color(if self.recording {
                         t.text_secondary
                     } else if empty {
@@ -338,7 +380,7 @@ impl Render for ShortcutField {
                                 IconName::CircleX,
                                 fl!("controls-shortcut-clear"),
                             )
-                            .size(px(16.), px(12.))
+                            .size(px(CLEAR), px(12.))
                             .on_click(cx.listener(|this, _, _, cx| this.clear(cx))),
                         ),
                 )

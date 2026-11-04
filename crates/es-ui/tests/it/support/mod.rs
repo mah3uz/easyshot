@@ -151,3 +151,24 @@ pub fn blur(app: &mut App) {
         .expect("window is open");
     app.settle();
 }
+
+/// Rests the pointer at a point and reports whether anything new is drawn once the tooltip delay has passed.
+pub fn tooltip_shows_at(app: &mut App, x: f32, y: f32) -> bool {
+    let tick = std::time::Duration::from_millis(1);
+    send(
+        app,
+        PlatformInput::MouseMove(MouseMoveEvent {
+            position: point(px(x), px(y)),
+            pressed_button: None,
+            modifiers: Default::default(),
+        }),
+    );
+    app.cx.advance_clock(es_ui::motion::HOVER_FILL.duration);
+    app.settle();
+    let resting = app.screenshot("tooltip-probe-resting");
+    app.cx.advance_clock(
+        es_ui::motion::TOOLTIP_DELAY.saturating_sub(es_ui::motion::HOVER_FILL.duration) + tick,
+    );
+    app.settle();
+    app.screenshot("tooltip-probe-after") != resting
+}

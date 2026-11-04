@@ -213,6 +213,14 @@ pub struct TextStyle {
 }
 
 impl TextStyle {
+    pub fn features(&self) -> FontFeatures {
+        if self.tabular {
+            FontFeatures(Arc::new(vec![("tnum".into(), 1)]))
+        } else {
+            FontFeatures::default()
+        }
+    }
+
     const fn new(size: f32, weight: FontWeight) -> Self {
         Self {
             size: px(size),
@@ -250,7 +258,7 @@ pub trait Typeset: Styled + Sized {
     fn typeset(self, style: TextStyle) -> Self {
         let this = self.text_size(style.size).font_weight(style.weight);
         if style.tabular {
-            this.font_features(FontFeatures(Arc::new(vec![("tnum".into(), 1)])))
+            this.font_features(style.features())
         } else {
             this
         }

@@ -80,6 +80,17 @@ pub fn row(
     control: impl IntoElement,
     cx: &App,
 ) -> AnyElement {
+    row_with(title, help, None, control, cx)
+}
+
+/// A row with an element under its help text, where it can use the full text column.
+pub fn row_with(
+    title: impl Into<SharedString>,
+    help: Option<SharedString>,
+    below: Option<AnyElement>,
+    control: impl IntoElement,
+    cx: &App,
+) -> AnyElement {
     let t = tokens(cx);
     h_flex()
         .min_h(px(ROW_MIN_HEIGHT))
@@ -98,7 +109,8 @@ pub fn row(
                         .text_color(t.text)
                         .child(title.into()),
                 )
-                .when_some(help, |d, help| d.child(caption(help, cx))),
+                .when_some(help, |d, help| d.child(caption(help, cx)))
+                .children(below),
         )
         .child(div().flex_none().child(control))
         .into_any_element()

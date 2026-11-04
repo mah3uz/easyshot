@@ -158,3 +158,32 @@ fn a_hover_fill_fades_in_over_its_token_and_out_again_even_under_reduce_motion()
         assert_eq!(fill_at(&mut app), rest, "the fill leaves with the pointer");
     }
 }
+
+struct Options;
+
+impl Render for Options {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        use es_ui::components::{Segment, Segmented};
+        div().w(px(200.)).child(Segmented::new(
+            "codec",
+            "Codec",
+            [
+                Segment::text("AV1").help("The smallest files."),
+                Segment::text("MP4"),
+            ],
+        ))
+    }
+}
+
+#[test]
+fn an_option_with_help_shows_it_on_hover_and_one_without_shows_nothing() {
+    let (mut app, _) = open(120., |_, _| Options);
+    assert!(
+        !tooltip_shows_at(&mut app, 150., 12.),
+        "an option whose label says enough has no tooltip"
+    );
+    assert!(
+        tooltip_shows_at(&mut app, 50., 12.),
+        "an option with help shows it after the delay"
+    );
+}

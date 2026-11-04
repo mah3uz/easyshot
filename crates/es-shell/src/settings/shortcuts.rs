@@ -1,6 +1,6 @@
 use super::binds::{BindStatus, compositor_trigger, status, trigger_string};
 use super::setup::{self, route_of};
-use super::widgets::{group, row, status_mark};
+use super::widgets::{group, row, row_with, status_mark};
 use super::{ClipboardSink, SettingsWindow};
 use crate::strings::{fl, loader};
 use es_backend::{BindHelper, BindSyntax, Trigger as CompositorTrigger};
@@ -14,12 +14,14 @@ use es_ui::{
 };
 use gpui::{
     AnyElement, AppContext, Context, Entity, InteractiveElement, IntoElement, ParentElement,
-    Styled, Subscription, Window, div, px,
+    SharedString, StatefulInteractiveElement, Styled, Subscription, Window, div, px,
 };
-use gpui_component::{ActiveTheme, h_flex};
+use gpui_component::{ActiveTheme, h_flex, tooltip::Tooltip, v_flex};
 use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::sync::Arc;
+
+const INCLUDE_GAP: f32 = 4.;
 
 pub struct ShortcutRow {
     pub entry: &'static ShortcutEntry,
@@ -427,6 +429,7 @@ impl SettingsWindow {
             .id("include-line")
             .accessible(Role::Code, fl!("shortcuts-include-a11y"))
             .mx(px(16.))
+            .mt(px(INCLUDE_GAP))
             .mb(px(12.))
             .p(px(10.))
             .rounded(px(8.))
@@ -434,13 +437,15 @@ impl SettingsWindow {
             .font_family(cx.theme().mono_font_family.clone())
             .text_size(px(12.))
             .child(line);
-        let mut rows = vec![row(
-            syntax_name(binds.syntax()),
-            Some(fl!("shortcuts-compositor-help", file = file).into()),
-            buttons,
-            cx,
-        )];
-        rows.push(code.into_any_element());
+        let explained = v_flex()
+            .child(row(
+                syntax_name(binds.syntax()),
+                Some(fl!("shortcuts-compositor-help", file = file).into()),
+                buttons,
+                cx,
+            ))
+            .child(code);
+        let mut rows = vec![explained.into_any_element()];
         let included = match &s.included {
             Some(Ok(true)) => Some(status_mark(true, fl!("shortcuts-included"), cx)),
             Some(Ok(false)) => Some(status_mark(false, fl!("shortcuts-not-found"), cx)),
@@ -490,22 +495,24 @@ impl SettingsWindow {
                 Some(BindStatus::Bound) => {
                     Some(status_mark(true, fl!("shortcuts-status-bound"), cx).into_any_element())
                 }
-                Some(BindStatus::Conflict(command)) => Some(
-                    div()
-                        .max_w(px(160.))
-                        .truncate()
-                        .text_size(px(11.))
-                        .text_color(t.destructive)
-                        .child(fl!("shortcuts-status-conflict", command = command.clone()))
-                        .into_any_element(),
-                ),
+                Some(BindStatus::Conflict(command)) => {
+                    let text: SharedString =
+                        fl!("shortcuts-status-conflict", command = command.clone()).into();
+                    let full = text.clone();
+                    Some(
+                        div()
+                            .id(SharedString::from(format!("conflict-{}", r.entry.id)))
+                            .line_clamp(2)
+                            .text_size(px(11.))
+                            .text_color(t.destructive)
+                            .tooltip(move |window, cx| Tooltip::new(full.clone()).build(window, cx))
+                            .child(text)
+                            .into_any_element(),
+                    )
+                }
                 None => None,
             };
-            let control = h_flex()
-                .gap(px(10.))
-                .children(mark)
-                .child(div().w(px(150.)).child(r.field.clone()));
-            let row_el = row(title, route.map(Into::into), control, cx);
+            let row_el = row_with(title, route.map(Into::into), mark, r.field.clone(), cx);
             groups[group_of(r.entry.id)].push(row_el);
         }
         for (i, rows) in groups.into_iter().enumerate() {

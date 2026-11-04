@@ -1,9 +1,12 @@
 use crate::support;
 
+use std::{cell::RefCell, rc::Rc};
+
 use es_protocol::{Modifiers, Trigger};
 use es_ui::components::{ShortcutField, ShortcutFieldEvent};
 use gpui::{
-    AppContext, Context, Entity, IntoElement, ParentElement, Render, Styled, Window, div, px,
+    AppContext, Bounds, Context, Entity, IntoElement, ParentElement, Pixels, Render, Styled,
+    TextRun, Window, div, px,
 };
 use support::*;
 
@@ -18,11 +21,18 @@ impl Render for Blank {
 struct ShortcutHost {
     field: Entity<ShortcutField>,
     events: Vec<ShortcutFieldEvent>,
+    drawn: Rc<RefCell<Option<Bounds<Pixels>>>>,
 }
 
 impl Render for ShortcutHost {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
-        div().w(px(150.)).child(self.field.clone())
+        let drawn = self.drawn.clone();
+        div()
+            .flex()
+            .on_children_prepainted(move |bounds, _, _| {
+                *drawn.borrow_mut() = bounds.first().copied();
+            })
+            .child(self.field.clone())
     }
 }
 
@@ -34,7 +44,7 @@ struct Recorder {
 
 impl Recorder {
     fn new() -> Self {
-        let (mut app, host) = open(60., |window, cx| {
+        let (mut app, host) = open(120., |window, cx| {
             let field = cx.new(|cx| {
                 let mut f = ShortcutField::new("Capture area", window, cx);
                 f.set_trigger(Trigger::parse("Super+Shift+4").ok(), cx);
@@ -47,6 +57,7 @@ impl Recorder {
             ShortcutHost {
                 field,
                 events: Vec::new(),
+                drawn: Rc::default(),
             }
         });
         let field = app.cx.update(|cx| host.read(cx).field.clone());
@@ -58,6 +69,29 @@ impl Recorder {
         self.app
             .cx
             .update(|cx| host.update(cx, |host, _| std::mem::take(&mut host.events)))
+    }
+
+    fn bounds(&mut self) -> Bounds<Pixels> {
+        self.app.settle();
+        let host = self.host.clone();
+        self.app
+            .cx
+            .update(|cx| *host.read(cx).drawn.borrow())
+            .expect("the field is drawn")
+    }
+
+    fn set(&mut self, trigger: &str) {
+        let field = self.field.clone();
+        let trigger = Trigger::parse(trigger).ok();
+        self.app
+            .cx
+            .update(|cx| field.update(cx, |f, cx| f.set_trigger(trigger, cx)));
+        self.app.settle();
+    }
+
+    fn clear_button(&mut self) -> (f32, f32) {
+        let b = self.bounds();
+        (f32::from(b.right()) - 3. - 8., f32::from(b.center().y))
     }
 
     fn recording(&mut self) -> bool {
@@ -183,7 +217,8 @@ fn recorder_clears_on_bare_delete_only_for_global_shortcuts() {
 #[test]
 fn recorder_clear_button_clears_without_recording() {
     let mut r = Recorder::new();
-    click(&mut r.app, 150. - 3. - 8., 12.);
+    let (x, y) = r.clear_button();
+    click(&mut r.app, x, y);
     assert_eq!(r.events(), vec![ShortcutFieldEvent::Cleared]);
     assert!(!r.recording(), "the clear button does not start recording");
 }
@@ -262,5 +297,62 @@ fn recorder_lifecycle_is_balanced_on_every_exit() {
         transitions,
         [false, true, false, true, false, true, false],
         "every start is matched by exactly one stop"
+    );
+}
+
+fn label_width(app: &mut App, text: String) -> Pixels {
+    let style = es_ui::tokens::TYPE.value;
+    let run = TextRun {
+        len: text.len(),
+        font: gpui::Font {
+            weight: style.weight,
+            features: style.features(),
+            ..gpui::font(es_ui::theme::UI_FONT)
+        },
+        color: gpui::black(),
+        background_color: None,
+        underline: None,
+        strikethrough: None,
+    };
+    let handle = app.window.into();
+    app.cx
+        .update_window(handle, |_, window, _| {
+            window
+                .text_system()
+                .shape_line(text.into(), style.size, &[run], None)
+                .width
+        })
+        .expect("window is open")
+}
+
+#[test]
+fn every_field_is_one_width_and_fits_the_longest_chord_beside_its_clear_button() {
+    let mut r = Recorder::new();
+    r.set("Super+Shift+4");
+    let short = r.bounds().size.width;
+    let longest = "Super+Ctrl+Alt+Shift+Backspace";
+    r.set(longest);
+    assert_eq!(r.shown(), longest);
+    let long = r.bounds().size.width;
+    assert_eq!(
+        short, long,
+        "a column of fields lines up whatever they hold"
+    );
+    let text = label_width(&mut r.app, longest.to_owned());
+    let clear = px(16.);
+    let margins = px(2. * 4.);
+    assert!(
+        long >= text + clear + margins,
+        "the chord ({text:?}) and the clear button fit inside {long:?} with no ellipsis"
+    );
+}
+
+#[test]
+fn the_clear_button_names_itself_in_a_tooltip() {
+    let mut r = Recorder::new();
+    let (x, y) = r.clear_button();
+    assert!(
+        tooltip_shows_at(&mut r.app, x, y),
+        "an icon-only button says what it does on hover"
     );
 }
