@@ -4,7 +4,7 @@ pub mod redact;
 mod states;
 mod title_bar;
 
-pub(crate) use states::{busy, done};
+pub(crate) use states::{busy, done, flashed};
 
 use std::time::Duration;
 
@@ -574,7 +574,7 @@ impl Render for EditorWindow {
             .bg(t.window)
             .text_color(t.text)
             .font_family(UI_FONT)
-            .child(self.title_bar(cx))
+            .child(self.title_bar(window, cx))
             .child(self.tool_row(&t))
             .child(
                 div()
@@ -586,7 +586,7 @@ impl Render for EditorWindow {
                         d.child(self.inspector_column(&t, window, cx))
                     }),
             )
-            .child(self.footer(cx))
+            .child(self.footer(window, cx))
             .children(self.redact_toast_view(&t, cx))
             .children(dialog)
     }

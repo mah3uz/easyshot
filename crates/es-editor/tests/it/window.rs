@@ -449,3 +449,72 @@ fn screenshots_dark_light_and_saved() {
     let (mut app, _) = launch(Some(styled("website.png")), ThemeMode::Light);
     app.screenshot("window-light");
 }
+
+/// The title bar's right half, where Save sits, with the window drawn afresh.
+fn save_slot(app: &mut App, name: &str) -> image::RgbaImage {
+    let handle = app.window.into();
+    app.cx
+        .update_window(handle, |_, window, _| window.refresh())
+        .unwrap();
+    let frame = app.screenshot(name);
+    if let Some(dir) = std::env::var_os("EASYSHOT_PICTURES") {
+        std::fs::create_dir_all(&dir).unwrap();
+        frame
+            .save(std::path::Path::new(&dir).join(format!("{name}.png")))
+            .unwrap();
+    }
+    let scale = frame.width() as f32 / WIDTH;
+    let bar = (f32::from(es_editor::window::TITLE_BAR_HEIGHT) * scale) as u32;
+    let w = frame.width();
+    image::imageops::crop_imm(&frame, w / 2, 0, w / 2, bar).to_image()
+}
+
+fn flash(mode: ThemeMode, tag: &str) {
+    use es_ui::motion::FLASH as FADE;
+    let (mut app, editor) = launch(Some(sample()), mode);
+    let before = save_slot(&mut app, &format!("editor-flash-{tag}-0-before"));
+    let saved = |app: &mut App| {
+        app.cx
+            .update(|cx| editor.update(cx, |w, cx| w.request(Job::Save, cx)));
+        app.cx
+            .update(|cx| editor.update(cx, |w, cx| w.finish(Job::Save, Ok(()), cx)));
+        app.settle();
+    };
+    saved(&mut app);
+    let start = save_slot(&mut app, &format!("editor-flash-{tag}-1-start"));
+    wait(&mut app, FADE.duration / 4);
+    let rising = save_slot(&mut app, &format!("editor-flash-{tag}-2-mid"));
+    wait(&mut app, FLASH / 2);
+    let held = save_slot(&mut app, &format!("editor-flash-{tag}-3-held"));
+    assert!(
+        start != rising && rising != held,
+        "Saved fades in over its first moments"
+    );
+    wait(&mut app, FLASH / 2 - FADE.duration / 2);
+    let leaving = save_slot(&mut app, &format!("editor-flash-{tag}-4-leaving"));
+    assert!(leaving != held, "Saved fades out before its hold ends");
+    wait(&mut app, FADE.duration / 4);
+    let back = save_slot(&mut app, &format!("editor-flash-{tag}-5-back"));
+    assert!(back != before, "Save comes back faint");
+    wait(&mut app, FADE.duration);
+    let end = save_slot(&mut app, &format!("editor-flash-{tag}-6-end"));
+    assert!(end == before, "and ends as it began");
+
+    app.cx
+        .update(|cx| es_ui::motion::set_reduce_motion(true, cx));
+    saved(&mut app);
+    assert!(
+        save_slot(&mut app, &format!("editor-flash-{tag}-reduced")) == held,
+        "with Reduce Motion Saved shows whole at once"
+    );
+}
+
+#[test]
+fn saved_fades_in_and_out_around_its_hold_dark() {
+    flash(ThemeMode::Dark, "dark");
+}
+
+#[test]
+fn saved_fades_in_and_out_around_its_hold_light() {
+    flash(ThemeMode::Light, "light");
+}

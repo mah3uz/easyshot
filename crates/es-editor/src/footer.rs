@@ -6,15 +6,17 @@ use es_ui::{
     tokens::Typeset,
 };
 use gpui::{
-    AnyElement, Context, InteractiveElement, IntoElement, ParentElement, Styled, div,
+    AnyElement, Context, InteractiveElement, IntoElement, ParentElement, Styled, Window, div,
     prelude::FluentBuilder, px,
 };
 
 use crate::strings::fl;
-use crate::window::{CHROME_PADDING_X, EditorWindow, FOOTER_HEIGHT, Job, Progress, busy, done};
+use crate::window::{
+    CHROME_PADDING_X, EditorWindow, FOOTER_HEIGHT, Job, Progress, busy, done, flashed,
+};
 
 impl EditorWindow {
-    pub(crate) fn footer(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    pub(crate) fn footer(&self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let t = tokens(cx).clone();
         let ready = self.session().is_some();
         let low_res = self.low_res && ready;
@@ -60,12 +62,16 @@ impl EditorWindow {
                 })
             })
             .child(div().flex_1())
-            .child(self.crop_badge(cx).unwrap_or_else(|| self.copy_control(cx)))
+            .child(
+                self.crop_badge(cx)
+                    .unwrap_or_else(|| self.copy_control(window, cx)),
+            )
     }
 
-    fn copy_control(&self, cx: &mut Context<Self>) -> AnyElement {
+    fn copy_control(&self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         let t = tokens(cx).clone();
-        match self.progress(Job::Copy) {
+        let progress = self.progress(Job::Copy);
+        let control = match progress {
             Progress::Busy => busy("copy", fl!("editor-copying-a11y"), false, &t),
             Progress::Done => done("copy", fl!("editor-copied"), &t),
             Progress::Idle => EditorButton::new("copy")
@@ -77,6 +83,7 @@ impl EditorWindow {
                     w.request(Job::Copy, cx);
                 }))
                 .into_any_element(),
-        }
+        };
+        flashed("copy-flash", progress, control, window, cx)
     }
 }

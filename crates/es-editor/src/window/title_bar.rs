@@ -5,18 +5,22 @@ use es_ui::{
     tokens::Typeset,
 };
 use gpui::{
-    AnyElement, Context, InteractiveElement, IntoElement, MouseButton, ParentElement, Styled, div,
-    px,
+    AnyElement, Context, InteractiveElement, IntoElement, MouseButton, ParentElement, Styled,
+    Window, div, px,
 };
 use gpui_component::TitleBar;
 
-use super::{EditorWindow, Job, Progress, TITLE_BAR_HEIGHT, busy, done};
+use super::{EditorWindow, Job, Progress, TITLE_BAR_HEIGHT, busy, done, flashed};
 use crate::strings::fl;
 
 const HISTORY_BUTTON: gpui::Pixels = px(28.);
 
 impl EditorWindow {
-    pub(super) fn title_bar(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    pub(super) fn title_bar(
+        &self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
         let t = tokens(cx).clone();
         let history = Capsule::new("history", fl!("editor-history-a11y"))
             .child(
@@ -49,15 +53,16 @@ impl EditorWindow {
                 side().justify_end().pr(px(12.)).child(
                     hold("actions-hold")
                         .gap(px(8.))
-                        .child(self.save_control(cx))
+                        .child(self.save_control(window, cx))
                         .child(self.export_control(cx)),
                 ),
             )
     }
 
-    fn save_control(&self, cx: &mut Context<Self>) -> AnyElement {
+    fn save_control(&self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         let t = tokens(cx).clone();
-        match self.progress(Job::Save) {
+        let progress = self.progress(Job::Save);
+        let control = match progress {
             Progress::Busy => busy("save", fl!("editor-saving-a11y"), false, &t),
             Progress::Done => done("save", fl!("editor-save-flash"), &t),
             Progress::Idle => EditorButton::new("save")
@@ -69,7 +74,8 @@ impl EditorWindow {
                     w.request(Job::Save, cx);
                 }))
                 .into_any_element(),
-        }
+        };
+        flashed("save-flash", progress, control, window, cx)
     }
 
     fn export_control(&self, cx: &mut Context<Self>) -> AnyElement {

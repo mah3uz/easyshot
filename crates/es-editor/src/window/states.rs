@@ -2,11 +2,12 @@ use es_ui::{
     a11y::{Accessible, Role},
     components::{ButtonKind, DotGridBackground, EditorButton},
     icons::IconName,
+    motion::{Easing, FLASH, FLASH_HOLD, Transition, reduce_motion, since_change},
     tokens::{Tokens, Typeset},
 };
 use gpui::{
-    AnyElement, InteractiveElement, IntoElement, ParentElement, SharedString, Styled, div,
-    prelude::FluentBuilder, px,
+    AnyElement, App, InteractiveElement, IntoElement, ParentElement, SharedString, Styled, Window,
+    div, prelude::FluentBuilder, px,
 };
 use gpui_component::{Icon, Sizable, spinner::Spinner};
 
@@ -117,5 +118,41 @@ pub(crate) fn done(id: &'static str, label: String, t: &Tokens) -> AnyElement {
         .accessible(Role::Status, label.clone())
         .child(Icon::new(IconName::CircleCheck).size(px(16.)).flex_none())
         .child(label)
+        .into_any_element()
+}
+
+const HELD: Transition = Transition {
+    duration: FLASH_HOLD,
+    easing: Easing::Linear,
+    fade: true,
+};
+
+/// The done label fades in and, at the end of its hold, out again; the button it gave way to
+/// then fades back in.
+pub(crate) fn flashed(
+    key: &'static str,
+    progress: super::Progress,
+    control: AnyElement,
+    window: &mut Window,
+    cx: &mut App,
+) -> AnyElement {
+    let done = progress == super::Progress::Done;
+    let held = since_change(key, done, HELD, window, cx);
+    let opacity = if !FLASH.plays(reduce_motion(cx)) {
+        1.0
+    } else {
+        let at = held * FLASH_HOLD.as_secs_f32() / FLASH.duration.as_secs_f32();
+        let shown = FLASH.easing.at(at);
+        if done {
+            let left = (FLASH_HOLD.as_secs_f32() / FLASH.duration.as_secs_f32()) - at;
+            shown.min(FLASH.easing.at(left))
+        } else {
+            shown
+        }
+    };
+    div()
+        .flex_none()
+        .opacity(opacity)
+        .child(control)
         .into_any_element()
 }
