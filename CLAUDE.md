@@ -17,6 +17,8 @@ and nowhere else.
 - `docs/MANUAL.md` — everything a user meets: behaviour, keys, settings, the CLI, files,
   limits, per-compositor notes, troubleshooting. The only user document. Written plainly,
   to the reader as "you".
+- `docs/FEATURES.md` — the one-line list of every feature, in plain words, for the website,
+  linking to `docs/MANUAL.md`. Updated in the same commit as a change a user would notice.
 - `docs/ARCHITECTURE.md` — the crate graph, threads, the data flow from hotkey to deck
   card, the invariants, what has been run where, how to build and test. Authoritative.
 - `docs/DESIGN.md` — why the interface looks and behaves as it does.
@@ -32,7 +34,7 @@ and nowhere else.
 - `README.md` — the front page: a summary with links. Change it only when a headline
   feature changes.
 - `docs/site/` — the website and how-to guide (`docs/site/README.md` says how it is built).
-  It describes what `docs/MANUAL.md` says: a change a user would notice updates both.
+  It describes what `docs/MANUAL.md` says: a change a user would notice updates both, and `docs/FEATURES.md`.
 - `crates/<name>/README.md` — one crate's responsibility and what it may and must not
   depend on.
 
