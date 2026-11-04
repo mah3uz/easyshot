@@ -25,6 +25,10 @@ pub fn loader() -> &'static FluentLanguageLoader {
     &LOADER
 }
 
+pub(crate) fn line(text: impl std::fmt::Display) -> String {
+    fl!("cli-line", text = text.to_string())
+}
+
 macro_rules! fl {
     ($message_id:literal) => {
         i18n_embed_fl::fl!($crate::strings::loader(), $message_id)

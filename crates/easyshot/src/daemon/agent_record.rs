@@ -119,24 +119,80 @@ impl Runner {
                 .background_executor()
                 .spawn(async move { ((sources.outputs)(), (sources.windows)()) })
                 .await;
-            cx.update(|cx| me.begin(&spec, &scope, &seen.0, &seen.1, cx))
-                .unwrap_or_else(|fail| fail.reply(ReplyKind::Recording))
+            let (outputs, windows) = seen;
+            let prepared = cx.update(|cx| me.prepare(&spec, &scope, &outputs, &windows, cx));
+            let result = match prepared {
+                Ok(Prepared::Ready(chosen)) => cx.update(|cx| me.begin(&spec, chosen, cx)),
+                Ok(Prepared::Focusing(chosen, focus)) => {
+                    match me.focused(chosen, &scope, focus).await {
+                        Ok(chosen) => cx.update(|cx| me.begin(&spec, chosen, cx)),
+                        Err(fail) => Err(fail),
+                    }
+                }
+                Err(fail) => Err(fail),
+            };
+            result.unwrap_or_else(|fail| fail.reply(ReplyKind::Recording))
         })
     }
 
-    fn begin(
+    fn prepare(
         &self,
         spec: &RecordSpec,
         scope: &Scope,
         outputs: &[OutputInfo],
         windows: &[WindowInfo],
         cx: &mut App,
-    ) -> Result<AgentReply, Fail> {
+    ) -> Result<Prepared, Fail> {
         check_caps(self.sources.caps, &spec.target)?;
         let chosen = resolve(&spec.target, scope, outputs, windows)?;
+        self.ensure_free()?;
+        let RecordingTarget::Window(window) = &chosen.target else {
+            return Ok(Prepared::Ready(chosen));
+        };
+        if window.logical.is_some() {
+            return Ok(Prepared::Ready(chosen));
+        }
+        let focus = self.recordings.focus_window(window, cx);
+        Ok(Prepared::Focusing(chosen, focus))
+    }
+
+    fn ensure_free(&self) -> Result<(), Fail> {
         if self.recordings.is_busy() {
             return Err(Fail::new(ErrorCode::InvalidArguments, BUSY).hint(hints::recording_busy()));
         }
+        Ok(())
+    }
+
+    /// The window as it is once shown, checked against the scope again since it has moved.
+    async fn focused(
+        &self,
+        mut chosen: Chosen,
+        scope: &Scope,
+        focus: Task<es_app::errors::Result<WindowInfo>>,
+    ) -> Result<Chosen, Fail> {
+        let unreachable = |why: &str| {
+            Fail::new(ErrorCode::Failed, why).hint(hints::window_unreachable(&chosen.text))
+        };
+        let shown = focus.await.map_err(|e| {
+            tracing::warn!(error = %e, "agent window not brought forward");
+            unreachable("easyshot could not switch to that window's workspace")
+        })?;
+        if shown.logical.is_none() {
+            return Err(unreachable("that window did not appear on a screen"));
+        }
+        if !scope.allows_window(&shown) {
+            return Err(Fail::new(
+                ErrorCode::AccessDenied,
+                "that window is outside what agents may capture",
+            )
+            .hint(hints::outside_scope()));
+        }
+        chosen.target = RecordingTarget::Window(shown);
+        Ok(chosen)
+    }
+
+    fn begin(&self, spec: &RecordSpec, chosen: Chosen, cx: &mut App) -> Result<AgentReply, Fail> {
+        self.ensure_free()?;
         self.recordings.admit(cx).map_err(|_| {
             Fail::new(ErrorCode::Unsupported, "no screen recorder is installed")
                 .hint(hints::no_recorder())
@@ -327,6 +383,11 @@ fn info_of(id: &str, kept: &Kept, path: &Path) -> RecordingInfo {
     }
 }
 
+enum Prepared {
+    Ready(Chosen),
+    Focusing(Chosen, Task<es_app::errors::Result<WindowInfo>>),
+}
+
 #[derive(Debug)]
 struct Chosen {
     target: RecordingTarget,
@@ -356,12 +417,6 @@ fn resolve(
                 "window {} is outside what agents may capture; change it with `easyshot agent config set` or in Settings › Agents",
                 info.id.0
             )));
-        }
-        if info.logical.is_none() {
-            return Err(Fail::new(
-                ErrorCode::Unsupported,
-                "this desktop does not tell easyshot where that window is",
-            ));
         }
         let text = describe(target);
         return Ok(Chosen {

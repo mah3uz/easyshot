@@ -236,6 +236,42 @@ fn a_missing_session_bus_is_also_daemon_unavailable() {
     assert!(err.contains("session bus"), "{err}");
 }
 
+fn catalogue(id: &str) -> String {
+    crate::strings::loader().get(id)
+}
+
+#[test]
+fn the_plain_cli_error_lines_come_from_the_catalogue() {
+    let dir = tempfile::tempdir().unwrap();
+    let bus = PrivateBus::start();
+    let (_, _, err) = run_cli(&["gallery"], &env(&bus, dir.path()));
+    assert_eq!(
+        err,
+        format!("easyshot: {}\n", catalogue("cli-daemon-not-running"))
+    );
+
+    let mut off = env(&bus, dir.path());
+    off.endpoint = Endpoint::session().on_address("unix:path=/nonexistent/easyshot-bus");
+    let (_, _, err) = run_cli(&["gallery"], &off);
+    assert!(
+        err.starts_with("easyshot: cannot talk to the session bus: "),
+        "{err}"
+    );
+
+    let server = serve(&bus, 1, JobStatus::Cancelled, "");
+    let (_, _, err) = run_cli(&["record"], &env(&bus, dir.path()));
+    assert_eq!(err, format!("easyshot: {}\n", catalogue("cli-cancelled")));
+    server.finish();
+
+    let mut probe = env(&bus, dir.path());
+    probe.standalone_report = Box::new(|| Err(anyhow::anyhow!("boom")));
+    let (_, _, err) = run_cli(&["doctor"], &probe);
+    assert!(
+        err.starts_with("easyshot: the standalone probe failed: boom"),
+        "{err}"
+    );
+}
+
 #[test]
 fn doctor_prefers_the_running_daemon() {
     let bus = PrivateBus::start();

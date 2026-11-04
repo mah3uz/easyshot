@@ -10,8 +10,8 @@ use es_ui::icons::IconName;
 use es_ui::theme::{UI_FONT, tokens};
 use gpui::{
     AnyElement, Context, EventEmitter, FontWeight, InteractiveElement as _, IntoElement,
-    ParentElement as _, Render, StatefulInteractiveElement as _, Styled as _, Window, div,
-    prelude::FluentBuilder as _, px,
+    ParentElement as _, Render, ScrollHandle, StatefulInteractiveElement as _, Styled as _, Window,
+    div, point, prelude::FluentBuilder as _, px,
 };
 use gpui_component::Icon;
 
@@ -20,6 +20,8 @@ const PAD: f64 = 20.0;
 const GAP: f64 = 16.0;
 const ROW: f64 = 26.0;
 const MAX_DELAY: u32 = 60;
+const SCREEN_SHARE: f64 = 0.6;
+const MIN_MENU_ROWS: f64 = 4.0;
 const BASE_HEIGHT: f64 = PAD + 18.0 + 2.0 + 15.0 + GAP + 52.0 + GAP + 28.0 + PAD;
 
 #[derive(Debug, Clone)]
@@ -92,6 +94,7 @@ pub struct RecordingOptions {
     system_audio: bool,
     delay: u32,
     menu: Option<Menu>,
+    scroll: ScrollHandle,
 }
 
 impl EventEmitter<OptionsEvent> for RecordingOptions {}
@@ -109,6 +112,7 @@ impl RecordingOptions {
             system_audio: false,
             delay: 0,
             menu: None,
+            scroll: ScrollHandle::new(),
         }
     }
 
@@ -151,9 +155,47 @@ impl RecordingOptions {
         let menu = if rows == 0 {
             0.0
         } else {
-            rows as f64 * ROW + 8.0 + GAP
+            self.menu_height(rows) + GAP
         };
         Size::new(WIDTH, BASE_HEIGHT + menu)
+    }
+
+    fn menu_height(&self, rows: usize) -> f64 {
+        let screen = self
+            .outputs
+            .iter()
+            .map(|o| o.logical.height())
+            .fold(f64::INFINITY, f64::min);
+        let room = (screen * SCREEN_SHARE - BASE_HEIGHT - GAP).max(MIN_MENU_ROWS * ROW + 8.0);
+        (rows as f64 * ROW + 8.0).min(room)
+    }
+
+    pub fn menu_offset(&self) -> f64 {
+        -f64::from(self.scroll.offset().y)
+    }
+
+    /// Scrolls the open menu for Up, Down, PageUp, PageDown, Home and End; false when the key is
+    /// not one of them or no menu is open.
+    pub fn scroll_menu(&mut self, key: &str, cx: &mut Context<Self>) -> bool {
+        let Some(menu) = self.menu else {
+            return false;
+        };
+        let page = self.menu_height(self.rows(menu).len()) - 8.0 - ROW;
+        let now = self.menu_offset();
+        let to = match key {
+            "up" => now - ROW,
+            "down" => now + ROW,
+            "pageup" => now - page,
+            "pagedown" => now + page,
+            "home" => 0.0,
+            "end" => f64::MAX,
+            _ => return false,
+        };
+        let to = to.clamp(0.0, f64::from(self.scroll.max_offset().y));
+        self.scroll
+            .set_offset(point(self.scroll.offset().x, px(-(to as f32))));
+        cx.notify();
+        true
     }
 
     fn resized(&mut self, cx: &mut Context<Self>) {
@@ -163,6 +205,7 @@ impl RecordingOptions {
 
     fn toggle_menu(&mut self, menu: Menu, cx: &mut Context<Self>) {
         self.menu = (self.menu != Some(menu)).then_some(menu);
+        self.scroll.set_offset(point(px(0.), px(0.)));
         self.resized(cx);
     }
 
@@ -285,6 +328,9 @@ impl RecordingOptions {
             .flex()
             .flex_col()
             .p(px(4.))
+            .max_h(px(self.menu_height(self.rows(menu).len()) as f32))
+            .overflow_y_scroll()
+            .track_scroll(&self.scroll)
             .rounded(px(8.))
             .bg(t.dropdown)
             .border_1()

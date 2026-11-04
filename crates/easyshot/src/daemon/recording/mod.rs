@@ -21,7 +21,7 @@ use es_app::toast::{IconName, Toast, show_toast};
 use es_desktop::RecordingTrayState;
 use es_geom::Rect;
 use es_model::CaptureKind as StoredKind;
-use es_model::platform::{OutputId, OutputInfo};
+use es_model::platform::{OutputId, OutputInfo, WindowInfo};
 use es_overlays::record::{
     ControlBar, ControlEvent, Phase, Recorded, RecordingRequest, RecordingTarget,
 };
@@ -171,6 +171,10 @@ impl Recordings {
 
     pub fn is_recording(&self) -> bool {
         self.0.active.borrow().is_some()
+    }
+
+    pub fn focus_window(&self, w: &WindowInfo, cx: &mut App) -> Task<Result<WindowInfo>> {
+        (self.0.deps.focus_window)(w, cx)
     }
 
     /// Recording, or between asking to start and the recorder running.

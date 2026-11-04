@@ -119,6 +119,17 @@ struct Rig {
 }
 
 fn rig_for(agent: AgentCfg, cx: &mut TestAppContext) -> Rig {
+    let unreachable: crate::daemon::recording::FocusWindow =
+        Rc::new(|_, _| Task::ready(Err(es_app::errors::Error::WindowUnreachable)));
+    rig_with(agent, sources(), unreachable, cx)
+}
+
+fn rig_with(
+    agent: AgentCfg,
+    sources: Sources,
+    focus_window: crate::daemon::recording::FocusWindow,
+    cx: &mut TestAppContext,
+) -> Rig {
     let gate = GateRig::new(agent, cx);
     let dir = tempfile::tempdir().unwrap();
     let paths = Paths::rooted(dir.path());
@@ -139,9 +150,7 @@ fn rig_for(agent: AgentCfg, cx: &mut TestAppContext) -> Rig {
             runner: Arc::new(NoTools),
             countdown: Rc::new(|_, cx| cx.spawn(async move |_| Ok(()))),
             select_area: Rc::new(|_| Task::ready(Err(es_app::errors::Error::Cancelled))),
-            focus_window: Rc::new(|_, _| {
-                Task::ready(Err(es_app::errors::Error::WindowUnreachable))
-            }),
+            focus_window,
             input: Inputs {
                 open: Rc::new(|| Err(es_model::recording::InputAccess::Denied)),
                 sources: es_record::input::Sources {
@@ -155,12 +164,12 @@ fn rig_for(agent: AgentCfg, cx: &mut TestAppContext) -> Rig {
             cx,
             &recordings,
             &coordinator,
-            sources(),
+            sources.clone(),
             &gate.access,
             &gate.settings,
         );
         let handler = handler_full(
-            sources(),
+            sources,
             jobs.clone(),
             gate.gate.clone(),
             None,
@@ -563,3 +572,6 @@ async fn audio_and_options_reach_the_recording(cx: &mut TestAppContext) {
     let started = rig.ask(RecordRoute::Start(spec), cx);
     assert_eq!(started["ok"], true, "{started}");
 }
+
+#[path = "agent_record_focus_tests.rs"]
+mod focus;

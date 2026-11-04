@@ -1,4 +1,5 @@
 use crate::cli::Request;
+use crate::strings::{fl, line};
 use crate::{doctor, doctor_summary};
 use anyhow::Result;
 use es_desktop::dbus::{Client, ClientError, Endpoint, Launch};
@@ -42,7 +43,7 @@ pub fn execute(
             Request::Annotate(call) => crate::agent::run_annotate(&call, out, err),
             Request::AgentMcp => crate::agent::serve_mcp(env, err),
             Request::Daemon | Request::Completions(_) => {
-                let _ = writeln!(err, "easyshot: handled by main, not sent");
+                let _ = writeln!(err, "{}", line(fl!("cli-handled-by-main")));
                 EXIT_ERROR
             }
         }
@@ -69,23 +70,23 @@ pub(crate) fn launch_with(spawn_daemon: bool, wait: Duration) -> Launch {
 fn client_failure(e: &ClientError, err: &mut dyn Write) -> i32 {
     match e {
         ClientError::DaemonUnavailable => {
-            let _ = writeln!(
-                err,
-                "easyshot: the daemon is not running. Start it with `easyshot daemon` \
-                 or `systemctl --user start easyshot.service`."
-            );
+            let _ = writeln!(err, "{}", line(fl!("cli-daemon-not-running")));
             EXIT_NO_DAEMON
         }
         ClientError::DaemonGone => {
-            let _ = writeln!(err, "easyshot: the daemon went away before it finished.");
+            let _ = writeln!(err, "{}", line(fl!("cli-daemon-gone")));
             EXIT_NO_DAEMON
         }
         ClientError::Bus(_) | ClientError::Fdo(_) => {
-            let _ = writeln!(err, "easyshot: cannot talk to the session bus: {e}");
+            let _ = writeln!(
+                err,
+                "{}",
+                line(fl!("cli-session-bus", error = e.to_string()))
+            );
             EXIT_NO_DAEMON
         }
         _ => {
-            let _ = writeln!(err, "easyshot: {e}");
+            let _ = writeln!(err, "{}", line(e));
             EXIT_ERROR
         }
     }
@@ -111,11 +112,11 @@ async fn send(
                 EXIT_OK
             }
             JobStatus::Cancelled => {
-                let _ = writeln!(err, "easyshot: cancelled");
+                let _ = writeln!(err, "{}", line(fl!("cli-cancelled")));
                 EXIT_CANCELLED
             }
             JobStatus::Error => {
-                let _ = writeln!(err, "easyshot: {}", outcome.result);
+                let _ = writeln!(err, "{}", line(&outcome.result));
                 EXIT_ERROR
             }
         },
@@ -144,7 +145,11 @@ async fn doctor(
         None => match (env.standalone_report)() {
             Ok(raw) => raw,
             Err(e) => {
-                let _ = writeln!(err, "easyshot: the standalone probe failed: {e:#}");
+                let _ = writeln!(
+                    err,
+                    "{}",
+                    line(fl!("cli-probe-failed", error = format!("{e:#}")))
+                );
                 return EXIT_ERROR;
             }
         },
@@ -160,10 +165,14 @@ async fn doctor(
     if bundle {
         match doctor::write_report_bundle(&raw, env.log_dir.as_deref(), &env.bundle_dir, env.now) {
             Ok(path) => {
-                let _ = writeln!(err, "easyshot: wrote {}", path.display());
+                let _ = writeln!(
+                    err,
+                    "{}",
+                    line(fl!("cli-wrote", path = path.display().to_string()))
+                );
             }
             Err(e) => {
-                let _ = writeln!(err, "easyshot: {e:#}");
+                let _ = writeln!(err, "{}", line(format!("{e:#}")));
                 return EXIT_ERROR;
             }
         }

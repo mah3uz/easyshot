@@ -35,6 +35,10 @@ pub(super) fn no_recorder() -> String {
     fl!("agent-hint-no-recorder")
 }
 
+pub(super) fn window_unreachable(window: &str) -> String {
+    fl!("agent-hint-window-unreachable", window = window)
+}
+
 pub(super) fn ffmpeg_missing() -> String {
     fl!("agent-hint-ffmpeg-missing")
 }

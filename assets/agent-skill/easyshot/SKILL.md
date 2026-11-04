@@ -106,6 +106,8 @@ recording's `id`; the user sees the recording bar and can stop it), do the thing
 
 - Targets are as for `capture`. Options: `--audio system|mic|both|none`, `--fps 30|60`,
   `--keystrokes`, `--max-seconds N` (1 to 600, default 120).
+- A `--window` on another workspace is switched to first; if that fails, `start` answers
+  `failed` and `error.hint` says to ask the user to switch to it.
 - Only one recording runs at a time; if the user's own recording is running, `start` exits 4.
   Never touch a recording you did not start.
 - A recording ends by itself after `--max-seconds` and when access ends; `stop` still returns

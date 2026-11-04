@@ -531,6 +531,7 @@ fn a_bar_without_a_recorder_disables_recording_and_says_why() {
 }
 
 mod control_bar;
+mod menu;
 mod placement;
 
 fn placed(id: &str, workspace: Option<&str>, shown: bool) -> WindowInfo {

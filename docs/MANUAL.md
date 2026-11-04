@@ -384,7 +384,8 @@ gpu-screen-recorder or wf-recorder, nothing starts: you get a notice that names 
 Arch package to install.
 
 The recording panel's Window menu lists every open window, grouped by workspace, with the
-workspaces on screen first. Choosing a window on another workspace switches to it, waits up to a
+workspaces on screen first. With many windows the menu stops at about 60% of the screen's height
+and scrolls with the wheel or Up, Down, Page Up, Page Down, Home and End. Choosing a window on another workspace switches to it, waits up to a
 second for it to appear on a monitor, and then starts as usual; if easyshot cannot switch to
 it, you get a notice and nothing records. Switching works on Hyprland, sway and niri
 (Hyprland and niri unverified); on a desktop that cannot focus a window by command, only
@@ -642,7 +643,8 @@ Commands:
 
 - `agent record start` starts recording one target and prints the recording's id. Give exactly
   one of `--output NAME`, `--geometry "x,y WxH"`, `--window <id|app_id|title>` or
-  `--fullscreen`. It records as you would from the capture bar, with the control bar and the
+  `--fullscreen`. A window on another workspace is switched to first, as in the recording
+  panel; if easyshot cannot reach it the command fails with `failed` and a hint. It records as you would from the capture bar, with the control bar and the
   tray indicator showing, so you can see that a recording is running and stop it yourself. It
   never touches a recording you started: if one is running the command exits 4.
   - `--audio system|mic|both|none` (default: your recording settings), `--fps 30|60`

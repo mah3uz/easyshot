@@ -39,6 +39,16 @@ pub(super) fn font_choices(installed: &[String]) -> Vec<FontFamily> {
         .collect()
 }
 
+fn choices_of(families: Vec<FontFamily>) -> Vec<FontChoice> {
+    families
+        .into_iter()
+        .map(|family| FontChoice {
+            title: family_title(&family, true).into(),
+            family,
+        })
+        .collect()
+}
+
 pub(super) fn family_title(family: &FontFamily, installed: bool) -> String {
     match family {
         FontFamily::Pro => fl!("editor-font-pro"),
@@ -77,13 +87,7 @@ impl ToolOptions {
             .position(|f| f == current)
             .map(|row| IndexPath::default().row(row));
         let searchable = families.len() > SEARCH_AFTER;
-        let choices: Vec<FontChoice> = families
-            .into_iter()
-            .map(|family| FontChoice {
-                title: family_title(&family, true).into(),
-                family,
-            })
-            .collect();
+        let choices = choices_of(families);
         let list = cx.new(|cx| {
             SelectState::new(SearchableVec::new(choices), selected, window, cx)
                 .searchable(searchable)
@@ -105,6 +109,43 @@ impl ToolOptions {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use gpui::TestAppContext;
+    use gpui_component::{IndexPath, searchable_list::SearchableListDelegate as _};
+
+    fn shown(list: &SearchableVec<FontChoice>) -> Vec<String> {
+        (0..list.items_count(0))
+            .filter_map(|row| list.item(IndexPath::default().row(row)))
+            .map(|c| c.title.to_string())
+            .collect()
+    }
+
+    // The select's search box hands its text to `perform_search`; typed characters cannot
+    // reach that box in a headless window.
+    #[gpui::test]
+    fn searching_the_font_list_keeps_the_families_whose_name_holds_the_text(
+        cx: &mut TestAppContext,
+    ) {
+        let installed: Vec<String> = ["Cantarell", "DejaVu Serif", "Noto Serif", "Fira Code"]
+            .map(String::from)
+            .to_vec();
+        let window = cx.add_empty_window();
+        window.update(|window, cx| {
+            let mut list = SearchableVec::new(choices_of(font_choices(&installed)));
+            assert_eq!(shown(&list).len(), 7);
+
+            drop(list.perform_search("serif", window, cx));
+            assert_eq!(shown(&list), ["DejaVu Serif", "Noto Serif"]);
+
+            drop(list.perform_search("FIRA", window, cx));
+            assert_eq!(shown(&list), ["Fira Code"]);
+
+            drop(list.perform_search("no such family", window, cx));
+            assert!(shown(&list).is_empty());
+
+            drop(list.perform_search("", window, cx));
+            assert_eq!(shown(&list).len(), 7);
+        });
+    }
 
     #[test]
     fn the_bundled_families_come_before_the_installed_ones_in_their_given_order() {

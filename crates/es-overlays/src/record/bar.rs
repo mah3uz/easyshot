@@ -183,6 +183,13 @@ impl CaptureBar {
     }
 
     fn key(&mut self, event: &KeyDownEvent, cx: &mut Context<Self>) {
+        if self.popup == Some(Popup::Options)
+            && self
+                .options
+                .update(cx, |o, cx| o.scroll_menu(&event.keystroke.key, cx))
+        {
+            return;
+        }
         if event.keystroke.key == "escape" {
             match self.popup {
                 Some(_) => self.set_popup(None, cx),

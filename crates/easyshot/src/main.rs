@@ -88,7 +88,7 @@ fn main() -> ExitCode {
     let request = match cli.request() {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("easyshot: {e}");
+            eprintln!("{}", strings::line(e));
             return ExitCode::from(run::EXIT_ERROR as u8);
         }
     };
@@ -99,7 +99,7 @@ fn main() -> ExitCode {
         return match print_registration(shell) {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
-                eprintln!("easyshot: {e}");
+                eprintln!("{}", strings::line(e));
                 ExitCode::from(run::EXIT_ERROR as u8)
             }
         };
@@ -161,7 +161,7 @@ fn daemon_main() -> ExitCode {
     match daemon::run(daemon::DaemonArgs) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
-            eprintln!("easyshot: {e:#}");
+            eprintln!("{}", strings::line(format!("{e:#}")));
             ExitCode::from(run::EXIT_ERROR as u8)
         }
     }
@@ -169,6 +169,6 @@ fn daemon_main() -> ExitCode {
 
 #[cfg(not(feature = "gui"))]
 fn daemon_main() -> ExitCode {
-    eprintln!("easyshot: this build has no GUI; rebuild with the `gui` feature to run the daemon");
+    eprintln!("{}", strings::line(strings::fl!("cli-no-gui")));
     ExitCode::from(run::EXIT_ERROR as u8)
 }
