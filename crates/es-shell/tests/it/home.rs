@@ -8,6 +8,7 @@ use es_shell::home::{self, HomeDeps, HomeEvent, HomeWindow, OpenPicker, Tab};
 use es_shell::settings::{ClipboardSink, Page, SettingsDeps};
 use es_store::ConfigFile;
 use es_testkit::Headless;
+use es_ui::motion::{STEP_CHANGE, set_reduce_motion};
 use es_ui::tokens::ThemeMode;
 use gpui::{
     AppContext, Entity, ExternalPaths, FileDropEvent, MouseButton, MouseDownEvent, MouseUpEvent,
@@ -136,7 +137,16 @@ impl Rig {
         }
     }
 
-    fn picture(&mut self, name: &str) {
+    fn frame(&mut self, name: &str) -> image::RgbaImage {
+        let handle = self.app.window.into();
+        self.app
+            .cx
+            .update_window(handle, |_, window, _| window.refresh())
+            .unwrap();
+        self.picture(name)
+    }
+
+    fn picture(&mut self, name: &str) -> image::RgbaImage {
         let image = self.app.screenshot(name);
         if let Some(dir) = std::env::var_os("EASYSHOT_PICTURES") {
             std::fs::create_dir_all(&dir).unwrap();
@@ -144,6 +154,7 @@ impl Rig {
                 .save(Path::new(&dir).join(format!("{name}.png")))
                 .unwrap();
         }
+        image
     }
 
     fn wait_for_thumbnails(&mut self) {
@@ -263,4 +274,57 @@ fn home_pictures_dark() {
 #[test]
 fn home_pictures_light() {
     pictures(ThemeMode::Light, "light");
+}
+
+/// The frame below the tab bar, whose labels change colour at once.
+fn content(frame: &image::RgbaImage) -> image::RgbaImage {
+    let top = (home::TAB_BAR_HEIGHT * frame.width() as f32 / home::WINDOW_SIZE.0) as u32;
+    image::imageops::crop_imm(frame, 0, top, frame.width(), frame.height() - top).to_image()
+}
+
+fn tab_slide(mode: ThemeMode, tag: &str) {
+    let mut rig = rig(mode, Tab::Gallery);
+    rig.wait_for_thumbnails();
+    let before = rig.frame(&format!("home-tab-slide-{tag}-0-before"));
+    let home = rig.home.clone();
+    let show = |rig: &mut Rig, tab: Tab| {
+        rig.app
+            .cx
+            .update(|cx| home.update(cx, |h, cx| h.show(tab, cx)));
+        rig.app.settle();
+    };
+    show(&mut rig, Tab::Settings);
+    assert_eq!(rig.tab().0, Tab::Settings, "the tab changes at once");
+    let start = rig.frame(&format!("home-tab-slide-{tag}-1-start"));
+    assert!(
+        content(&start) == content(&before),
+        "the gallery is still in place as the switch starts"
+    );
+    rig.app.cx.advance_clock(STEP_CHANGE.duration / 2);
+    let mid = rig.frame(&format!("home-tab-slide-{tag}-2-mid"));
+    rig.app.cx.advance_clock(STEP_CHANGE.duration);
+    let end = rig.frame(&format!("home-tab-slide-{tag}-3-end"));
+    assert!(
+        content(&mid) != content(&before) && mid != end,
+        "half way both tabs are moving"
+    );
+
+    show(&mut rig, Tab::Gallery);
+    rig.app.cx.advance_clock(STEP_CHANGE.duration);
+    rig.app.cx.update(|cx| set_reduce_motion(true, cx));
+    show(&mut rig, Tab::Settings);
+    assert!(
+        rig.frame(&format!("home-tab-slide-{tag}-reduced")) == end,
+        "with Reduce Motion Settings shows whole at once"
+    );
+}
+
+#[test]
+fn switching_tabs_slides_the_content_by_tab_order_dark() {
+    tab_slide(ThemeMode::Dark, "dark");
+}
+
+#[test]
+fn switching_tabs_slides_the_content_by_tab_order_light() {
+    tab_slide(ThemeMode::Light, "light");
 }

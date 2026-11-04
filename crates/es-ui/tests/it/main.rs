@@ -4,6 +4,7 @@ mod gallery;
 mod hello;
 mod panels;
 mod picks;
+mod segmented_motion;
 mod shortcut_field;
 mod support;
 mod tokens;

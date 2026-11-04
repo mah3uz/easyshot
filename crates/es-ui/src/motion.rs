@@ -92,6 +92,12 @@ pub const CROP_COMMIT: Transition = moves(220, Easing::Snappy);
 pub const PAGE_CHANGE: Transition = moves(180, Easing::EaseOut);
 pub const PAGE_RISE: Pixels = px(8.);
 pub const STEP_CHANGE: Transition = moves(200, Easing::EaseOut);
+pub const COUNTDOWN_IN: Transition = moves(420, Easing::Snappy);
+pub const COUNTDOWN_IN_REDUCED: Transition = fades(120, Easing::Linear);
+pub const COUNTDOWN_ENTRY_SCALE: f32 = 0.82;
+pub const COUNTDOWN_OUT: Transition = moves(300, Easing::Snappy);
+pub const COUNTDOWN_OUT_REDUCED: Transition = fades(120, Easing::Linear);
+pub const DIGIT_ROLL: Transition = moves(300, Easing::Snappy);
 pub const TOOLTIP_DELAY: Duration = Duration::from_millis(160);
 pub const TOOLTIP_WARM: Duration = Duration::from_millis(500);
 
@@ -183,6 +189,47 @@ pub fn since_change<T: PartialEq + 'static>(
         s.since
     });
     progress(since, window, cx)
+}
+
+struct Tween {
+    to: f32,
+    from: f32,
+    since: Option<Clocked>,
+}
+
+impl Tween {
+    fn at(&self, cx: &App) -> f32 {
+        self.since
+            .map_or(self.to, |c| self.from + (self.to - self.from) * c.value(cx))
+    }
+}
+
+/// `target` for the element `key`, eased over `transition` from wherever it was drawn when the
+/// target last changed; the first value shows at once.
+pub fn tween(
+    key: impl Into<ElementId>,
+    target: f32,
+    transition: Transition,
+    window: &mut Window,
+    cx: &mut App,
+) -> f32 {
+    let state = window.use_keyed_state(key, cx, |_, _| Tween {
+        to: target,
+        from: target,
+        since: None,
+    });
+    let (at, moving) = state.update(cx, |s, cx| {
+        if s.to != target {
+            s.from = s.at(cx);
+            s.to = target;
+            s.since = Clocked::start(transition, cx);
+        }
+        (s.at(cx), s.since.is_some_and(|c| c.linear(cx) < 1.0))
+    });
+    if moving {
+        window.request_animation_frame();
+    }
+    at
 }
 
 struct Hover {
@@ -331,6 +378,11 @@ mod tests {
             "the popover grows, which is movement"
         );
         assert!(!SECTION_EXPAND.plays(true));
+        assert!(
+            COUNTDOWN_IN_REDUCED.plays(true) && COUNTDOWN_OUT_REDUCED.plays(true),
+            "the countdown keeps a short fade in and out"
+        );
+        assert!(!COUNTDOWN_IN.plays(true) && !COUNTDOWN_OUT.plays(true) && !DIGIT_ROLL.plays(true));
         assert!(
             !CROSSFADE.plays(true) && !FILL_SWITCH.plays(true) && !COMPOSITE_FADE.plays(true),
             "a cross-fade over 120 ms is too long to keep"

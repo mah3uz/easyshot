@@ -8,6 +8,7 @@ use es_testkit::Headless;
 use es_ui::{
     assets::Assets,
     motion::{PAGE_CHANGE, set_reduce_motion},
+    tokens::ThemeMode,
 };
 use gpui::{AppContext, Entity};
 use gpui_component::Root;
@@ -19,13 +20,17 @@ impl ClipboardSink for NoClipboard {
     fn copy(&self, _: String, _: &mut gpui::App) {}
 }
 
-fn open(dir: &std::path::Path) -> (Headless<Root>, Entity<SettingsWindow>) {
+fn open(dir: &std::path::Path, mode: ThemeMode) -> (Headless<Root>, Entity<SettingsWindow>) {
     let paths = Paths::rooted(dir);
     paths.ensure_all().unwrap();
     let file = ConfigFile::load(&paths.config_file()).unwrap();
     let mut view = None;
     let (w, h) = es_shell::settings::WINDOW_SIZE;
-    let app = Headless::open(Assets, es_ui::init, w, h, |window, cx| {
+    let init = move |cx: &mut gpui::App| {
+        es_ui::init(cx);
+        es_ui::theme::set_mode(mode, cx);
+    };
+    let app = Headless::open(Assets, init, w, h, |window, cx| {
         let deps = SettingsDeps {
             settings: cx.new(|_| SettingsModel::new(file)),
             history: None,
@@ -49,30 +54,48 @@ fn frame(app: &mut Headless<Root>, name: &str) -> image::RgbaImage {
     app.cx
         .update_window(handle, |_, window, _| window.refresh())
         .unwrap();
-    app.screenshot(name)
+    let image = app.screenshot(name);
+    if let Some(dir) = std::env::var_os("EASYSHOT_PICTURES") {
+        std::fs::create_dir_all(&dir).unwrap();
+        image
+            .save(std::path::Path::new(&dir).join(format!("{name}.png")))
+            .unwrap();
+    }
+    image
 }
 
-#[test]
-fn a_page_rises_and_fades_in_over_its_token_and_reduce_motion_shows_it_at_once() {
+/// The frame right of the sidebar, whose selection moves at once.
+fn pane(frame: &image::RgbaImage) -> image::RgbaImage {
+    let left = (es_shell::settings::SIDEBAR_WIDTH * frame.width() as f32
+        / es_shell::settings::WINDOW_SIZE.0) as u32;
+    image::imageops::crop_imm(frame, left, 0, frame.width() - left, frame.height()).to_image()
+}
+
+fn page_change(mode: ThemeMode, tag: &str) {
     let dir = tempfile::tempdir().unwrap();
-    let (mut app, view) = open(dir.path());
+    let (mut app, view) = open(dir.path(), mode);
     let show = |app: &mut Headless<Root>, page: Page| {
         app.cx
             .update(|cx| view.update(cx, |v, cx| v.show(page, cx)));
         app.settle();
     };
 
+    let before = frame(&mut app, &format!("settings-page-change-{tag}-0-before"));
     show(&mut app, Page::Capture);
     assert_eq!(
         app.cx.update(|cx| view.read(cx).page()),
         Page::Capture,
         "the page changes at once; only its drawing moves"
     );
-    let start = frame(&mut app, "settings-page-change-0");
+    let start = frame(&mut app, &format!("settings-page-change-{tag}-1-start"));
+    assert!(
+        pane(&start) == pane(&before),
+        "the old page is still whole as the change starts, so the pane never blinks empty"
+    );
     app.cx.advance_clock(PAGE_CHANGE.duration / 2);
-    let mid = frame(&mut app, "settings-page-change-1-mid");
+    let mid = frame(&mut app, &format!("settings-page-change-{tag}-2-mid"));
     app.cx.advance_clock(PAGE_CHANGE.duration / 2);
-    let end = frame(&mut app, "settings-page-change-2-end");
+    let end = frame(&mut app, &format!("settings-page-change-{tag}-3-end"));
     assert!(start != mid && mid != end && start != end);
 
     show(&mut app, Page::Home);
@@ -80,7 +103,17 @@ fn a_page_rises_and_fades_in_over_its_token_and_reduce_motion_shows_it_at_once()
     app.cx.update(|cx| set_reduce_motion(true, cx));
     show(&mut app, Page::Capture);
     assert!(
-        frame(&mut app, "settings-page-change-reduced") == end,
+        frame(&mut app, &format!("settings-page-change-{tag}-reduced")) == end,
         "with Reduce Motion the new page shows whole"
     );
+}
+
+#[test]
+fn the_old_page_fades_out_as_the_new_one_rises_and_reduce_motion_shows_it_at_once_dark() {
+    page_change(ThemeMode::Dark, "dark");
+}
+
+#[test]
+fn the_old_page_fades_out_as_the_new_one_rises_and_reduce_motion_shows_it_at_once_light() {
+    page_change(ThemeMode::Light, "light");
 }

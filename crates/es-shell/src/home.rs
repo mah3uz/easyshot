@@ -7,6 +7,7 @@ use es_ui::{
     a11y::{Accessible, Role},
     components::{ButtonKind, EditorButton, Segment, Segmented},
     icons::IconName,
+    motion::{Clocked, STEP_CHANGE, progress},
     theme::{UI_FONT, tokens},
 };
 use gpui::{
@@ -33,6 +34,10 @@ pub enum Tab {
 impl Tab {
     const ALL: [Tab; 2] = [Tab::Gallery, Tab::Settings];
 
+    fn index(self) -> usize {
+        Tab::ALL.iter().position(|t| *t == self).unwrap_or(0)
+    }
+
     pub fn title(self) -> String {
         match self {
             Tab::Gallery => fl!("home-window-gallery"),
@@ -58,6 +63,7 @@ pub struct HomeDeps {
 
 pub struct HomeWindow {
     tab: Tab,
+    tab_motion: Option<(Clocked, Tab)>,
     gallery: Entity<Gallery>,
     settings: Entity<SettingsWindow>,
     focus_gallery: bool,
@@ -81,6 +87,7 @@ impl HomeWindow {
         let settings = cx.new(|cx| SettingsWindow::new(deps.settings, window, cx));
         Self {
             tab: Tab::Gallery,
+            tab_motion: None,
             gallery,
             settings,
             focus_gallery: true,
@@ -121,6 +128,9 @@ impl HomeWindow {
 
     pub fn show(&mut self, tab: Tab, cx: &mut Context<Self>) {
         self.focus_gallery |= tab == Tab::Gallery && self.tab != tab;
+        if tab != self.tab {
+            self.tab_motion = Clocked::start(STEP_CHANGE, cx).map(|c| (c, self.tab));
+        }
         self.tab = tab;
         cx.notify();
     }
@@ -141,7 +151,7 @@ impl HomeWindow {
             fl!("home-window-tabs"),
             Tab::ALL.map(|tab| Segment::text(tab.title())),
         )
-        .selected(Tab::ALL.iter().position(|t| *t == self.tab).unwrap_or(0))
+        .selected(self.tab.index())
         .height(px(28.))
         .on_select({
             let view = view.clone();
@@ -185,10 +195,30 @@ impl Render for HomeWindow {
             self.gallery.read(cx).focus_handle(cx).focus(window, cx);
         }
         let t = tokens(cx);
-        let content = match self.tab {
+        let content = |tab: Tab| match tab {
             Tab::Gallery => self.gallery.clone().into_any_element(),
             Tab::Settings => self.settings.clone().into_any_element(),
         };
+        let (arrived, from) = match self.tab_motion {
+            Some((clock, from)) => (progress(Some(clock), window, cx), from),
+            None => (1.0, self.tab),
+        };
+        let toward = if self.tab.index() < from.index() {
+            -1.0
+        } else {
+            1.0
+        };
+        let width = window.viewport_size().width * toward;
+        let leaving = (arrived < 1.0 && from != self.tab).then(|| {
+            div()
+                .absolute()
+                .top_0()
+                .bottom_0()
+                .w_full()
+                .left(-width * arrived)
+                .opacity(1.0 - arrived)
+                .child(content(from))
+        });
         div()
             .size_full()
             .flex()
@@ -205,7 +235,18 @@ impl Render for HomeWindow {
                     .relative()
                     .flex_1()
                     .min_h_0()
-                    .child(div().absolute().inset_0().child(content)),
+                    .overflow_hidden()
+                    .children(leaving)
+                    .child(
+                        div()
+                            .absolute()
+                            .top_0()
+                            .bottom_0()
+                            .w_full()
+                            .left(width * (1.0 - arrived))
+                            .opacity(arrived)
+                            .child(content(self.tab)),
+                    ),
             )
     }
 }

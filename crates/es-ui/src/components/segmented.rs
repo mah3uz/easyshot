@@ -3,7 +3,7 @@ use std::rc::Rc;
 use gpui::{
     App, ElementId, InteractiveElement, IntoElement, KeyDownEvent, ParentElement, Pixels,
     RenderOnce, SharedString, StatefulInteractiveElement, Styled, Window, div,
-    prelude::FluentBuilder, px, transparent_black,
+    prelude::FluentBuilder, px, relative, transparent_black,
 };
 use gpui_component::{Icon, tooltip::Tooltip};
 
@@ -11,6 +11,7 @@ use crate::{
     a11y::{Accessible, Role},
     components::button::{Interaction, focus_halo, keyed_focus, shows_focus},
     icons::IconName,
+    motion::{STEP_CHANGE, tween},
     theme::tokens,
     tokens::{Appearance, Typeset},
 };
@@ -126,11 +127,22 @@ impl RenderOnce for Segmented {
             Appearance::Dark => transparent_black(),
         };
         let hover_fill = t.bordered_fill;
+        let share = 1.0 / count.max(1) as f32;
+        let thumb_at = tween(self.id.clone(), selected as f32, STEP_CHANGE, window, cx);
+        let thumb = div()
+            .absolute()
+            .top_0()
+            .bottom_0()
+            .left(relative(thumb_at * share))
+            .w(relative(share))
+            .rounded(segment_radius)
+            .border(m.hairline)
+            .border_color(selected_border)
+            .bg(t.selected_segment);
         let interactive = !self.disabled && self.on_select.is_some();
         let segments = self.segments.into_iter().enumerate().map(|(i, segment)| {
             let on = i == selected;
             let fill = match (on, pinned(i)) {
-                (true, _) => t.selected_segment,
                 (false, Interaction::Hover | Interaction::Pressed) => hover_fill,
                 _ => transparent_black(),
             };
@@ -145,12 +157,6 @@ impl RenderOnce for Segmented {
                 .justify_center()
                 .px(px(6.))
                 .rounded(segment_radius)
-                .border(m.hairline)
-                .border_color(if on {
-                    selected_border
-                } else {
-                    transparent_black()
-                })
                 .bg(fill)
                 .text_color(if on { t.text } else { t.text_secondary })
                 .accessible(Role::RadioButton, segment.label.clone())
@@ -203,7 +209,14 @@ impl RenderOnce for Segmented {
                     }
                 })
             })
-            .children(segments)
+            .child(
+                div()
+                    .relative()
+                    .flex()
+                    .size_full()
+                    .child(thumb)
+                    .children(segments),
+            )
             .when(ring, |d| d.child(focus_halo(&t, m.slider_radius)))
     }
 }

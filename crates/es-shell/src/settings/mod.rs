@@ -6,6 +6,7 @@ mod pages;
 pub mod setup;
 mod shortcuts;
 mod toggle;
+mod view;
 mod widgets;
 
 pub use binds::{BindStatus, compositor_trigger, from_backend, trigger_string};
@@ -25,12 +26,12 @@ use es_ui::{
     a11y::{Accessible, Role},
     components::{InspectorSlider, SliderEvent, ValueFormat},
     icons::IconName,
-    motion::{Clocked, PAGE_CHANGE, PAGE_RISE, progress},
+    motion::{Clocked, PAGE_CHANGE},
     theme::tokens,
 };
 use gpui::{
     App, AppContext, ClipboardItem, Context, Entity, EventEmitter, InteractiveElement, IntoElement,
-    ParentElement, Render, SharedString, StatefulInteractiveElement, Styled, Subscription, Window,
+    ParentElement, SharedString, StatefulInteractiveElement, Styled, Subscription, Window,
     WindowBounds, WindowHandle, WindowOptions, div, px, size,
 };
 use gpui_component::{
@@ -172,7 +173,7 @@ pub struct SettingsWindow {
     version: String,
     input_access: Rc<dyn Fn() -> InputAccess>,
     page: Page,
-    page_motion: Option<Clocked>,
+    page_motion: Option<(Clocked, Page)>,
     problem: Option<ConfigProblem>,
     save_failed: Option<String>,
     confirm_restore: Option<Page>,
@@ -324,7 +325,7 @@ impl SettingsWindow {
 
     pub fn show(&mut self, page: Page, cx: &mut Context<Self>) {
         if page != self.page {
-            self.page_motion = Clocked::start(PAGE_CHANGE, cx);
+            self.page_motion = Clocked::start(PAGE_CHANGE, cx).map(|c| (c, self.page));
         }
         self.page = page;
         self.confirm_restore = None;
@@ -497,43 +498,6 @@ trait WhenElse: Sized {
 }
 
 impl<T> WhenElse for T {}
-
-impl Render for SettingsWindow {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let mut children = self.banners(cx);
-        children.extend(match self.page {
-            Page::Home => self.render_home(window, cx),
-            Page::General => self.render_general(cx),
-            Page::Capture => self.render_capture(cx),
-            Page::Overlay => self.render_overlay(cx),
-            Page::Recording => self.render_recording(cx),
-            Page::Shortcuts => self.render_shortcuts(window, cx),
-            Page::Agents => self.render_agents(cx),
-            Page::About => self.render_about(cx),
-        });
-        let t = tokens(cx);
-        let arrived = progress(self.page_motion, window, cx);
-        h_flex()
-            .size_full()
-            .font_family(es_ui::theme::UI_FONT)
-            .bg(widgets::page_fill(t))
-            .child(self.render_sidebar(cx))
-            .child(
-                div()
-                    .id(SharedString::from(format!("page-{:?}", self.page)))
-                    .flex_1()
-                    .min_w_0()
-                    .h_full()
-                    .overflow_y_scroll()
-                    .child(
-                        widgets::page(self.page.title().into(), children, cx)
-                            .relative()
-                            .top(PAGE_RISE * (1.0 - arrived))
-                            .opacity(arrived),
-                    ),
-            )
-    }
-}
 
 pub fn open(deps: SettingsDeps, cx: &mut App) -> gpui::Result<WindowHandle<Root>> {
     let (w, h) = WINDOW_SIZE;
