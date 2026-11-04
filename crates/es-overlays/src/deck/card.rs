@@ -5,7 +5,7 @@ use es_geom::Size;
 use es_model::config::CardActions;
 use es_ui::a11y::{Accessible as _, Role};
 use es_ui::icons::IconName;
-use es_ui::motion::{CROSSFADE, DECK_HOVER, animate, since_change};
+use es_ui::motion::{CROSSFADE, DECK_HOVER, since_change, tween};
 use es_ui::theme::UI_FONT;
 use gpui::{
     AnyElement, App, AppContext as _, BoxShadow, ElementId, ExternalDragPayload, FileDragPaths,
@@ -108,7 +108,7 @@ pub struct Card {
     image: Option<Arc<RenderImage>>,
     layout: ToolLayout,
     scale: f32,
-    tools: Option<usize>,
+    tools: bool,
     share: bool,
     actions: CardActions,
     focus: FocusHandle,
@@ -132,7 +132,7 @@ impl Card {
             image,
             layout,
             scale,
-            tools: None,
+            tools: false,
             share: false,
             actions: CardActions::default(),
             focus,
@@ -140,9 +140,8 @@ impl Card {
         }
     }
 
-    /// `showing` counts each time the tools appear, so their fade replays.
-    pub fn tools(mut self, showing: Option<usize>) -> Self {
-        self.tools = showing;
+    pub fn tools(mut self, shown: bool) -> Self {
+        self.tools = shown;
         self
     }
 
@@ -293,15 +292,9 @@ impl RenderOnce for Card {
         };
         let loading_out = (loaded && loaded_in < 1.)
             .then(|| caption(fl!("deck-card-loading")).opacity(1. - loaded_in));
-        let tools = self.tools.filter(|_| !saving).map(|shown| {
-            animate(
-                self.tool_layer(),
-                self.id(&format!("fade-{shown}")),
-                DECK_HOVER,
-                cx,
-                |layer, t| layer.opacity(t),
-            )
-        });
+        let target = if self.tools && !saving { 1. } else { 0. };
+        let tools_in = tween(self.id("tools"), target, DECK_HOVER, window, cx);
+        let tools = (target > 0. || tools_in > 0.).then(|| self.tool_layer().opacity(tools_in));
         let open = self.on_action.clone();
         let keyed = self.on_action.clone();
         let dragged = DraggedCapture {

@@ -83,7 +83,6 @@ pub struct DeckView {
     focus: HashMap<Uuid, FocusHandle>,
     hovered: Option<Uuid>,
     cards: Vec<(Uuid, Rect)>,
-    showings: usize,
     focused: Option<Uuid>,
     _observe: Subscription,
 }
@@ -98,7 +97,6 @@ impl DeckView {
             focus: HashMap::new(),
             hovered: None,
             cards: Vec::new(),
-            showings: 0,
             focused: None,
             _observe: observe,
         };
@@ -160,9 +158,6 @@ impl DeckView {
                 .map(|(id, _)| *id)
         });
         if now != self.hovered {
-            if now.is_some() {
-                self.showings += 1;
-            }
             self.hovered = now;
             let deck = self.deck.clone();
             cx.defer(move |cx| deck.update(cx, |d, cx| d.set_hovered(now.is_some(), cx)));
@@ -296,7 +291,7 @@ impl Render for DeckView {
                         focus,
                         on_action,
                     )
-                    .tools(show.then_some(self.showings))
+                    .tools(show)
                     .share(self.settings.share)
                     .actions(self.settings.actions),
                 )

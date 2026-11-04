@@ -6,7 +6,7 @@ use es_model::CaptureKind;
 use es_overlays::deck::card::Card;
 use es_overlays::deck::layout::{CardSize, ToolLayout};
 use es_overlays::deck::view::load_thumbnail;
-use es_ui::motion::{CROSSFADE, set_reduce_motion};
+use es_ui::motion::{CROSSFADE, DECK_HOVER, Transition, set_reduce_motion};
 use gpui::{
     Context, FocusHandle, IntoElement, ParentElement as _, Render, RenderImage, Styled as _,
     Window, div, px, rgb,
@@ -22,6 +22,7 @@ const PAD: f32 = 16.;
 struct OneCard {
     item: DeckItem,
     image: Option<Arc<RenderImage>>,
+    tools: bool,
     focus: FocusHandle,
 }
 
@@ -35,7 +36,8 @@ impl Render for OneCard {
             CardSize::Small.control_scale(),
             self.focus.clone(),
             Rc::new(|_, _, _| {}),
-        );
+        )
+        .tools(self.tools);
         div().size_full().p(px(PAD)).bg(rgb(0x2a2d33)).child(card)
     }
 }
@@ -77,6 +79,7 @@ fn rig(image: bool, status: ItemStatus, reduce: bool) -> Rig {
         move |cx| OneCard {
             item,
             image: shown,
+            tools: false,
             focus: cx.focus_handle(),
         },
     );
@@ -106,9 +109,9 @@ impl Rig {
         self.s.app.screenshot(name)
     }
 
-    /// Frames at the start, halfway, three quarters of the way and at the end of the cross-fade.
-    fn frames(&mut self, name: &str) -> [RgbaImage; 4] {
-        let quarter = CROSSFADE.duration / 4;
+    /// Frames at the start, halfway, three quarters of the way and at the end of `fade`.
+    fn frames(&mut self, name: &str, fade: Transition) -> [RgbaImage; 4] {
+        let quarter = fade.duration / 4;
         let start = self.frame(&format!("{name}-0-start"));
         self.s.app.cx.advance_clock(quarter * 2);
         let mid = self.frame(&format!("{name}-1-mid"));
@@ -133,11 +136,11 @@ fn probe(image: &RgbaImage) -> u32 {
     brightness(image, w * 3 / 4, (h - 220) / 2 + 11)
 }
 
-fn assert_fades(frames: &[RgbaImage; 4], settled: &RgbaImage, what: &str) {
+fn assert_fades(frames: &[RgbaImage; 4], settled: &RgbaImage, what: &str, fade: Transition) {
     let [start, mid, late, end] = frames;
     let (a, m, z) = (probe(start), probe(mid), probe(end));
     let left = (m as f32 - z as f32) / (a as f32 - z as f32);
-    let expected = 1. - CROSSFADE.easing.at(0.5);
+    let expected = 1. - fade.easing.at(0.5);
     assert!(
         (left - expected).abs() < 0.03,
         "{what} has {left} of its fade left halfway, as its token says ({expected}): {a} -> {m} -> {z}"
@@ -155,13 +158,13 @@ fn a_loaded_thumbnail_cross_fades_in_over_the_loading_caption() {
     let loading = r.s.app.screenshot("deck-thumb-loading");
     let image = r.image.clone();
     r.change(move |v| v.image = Some(image));
-    let frames = r.frames("deck-thumb-fade");
+    let frames = r.frames("deck-thumb-fade", CROSSFADE);
     assert!(
         frames[0] == loading,
         "the picture starts where the caption was"
     );
     let settled = rig(true, ItemStatus::Idle, false).frame("deck-thumb-settled");
-    assert_fades(&frames, &settled, "the thumbnail");
+    assert_fades(&frames, &settled, "the thumbnail", CROSSFADE);
 
     let mut still = rig(false, ItemStatus::Idle, true);
     let image = still.image.clone();
@@ -178,19 +181,48 @@ fn the_saving_chip_cross_fades_in_and_out() {
     let idle = r.frame("deck-saving-idle");
     r.change(|v| v.item.status = ItemStatus::Saving);
     let saving = rig(true, ItemStatus::Saving, false).frame("deck-saving-settled");
-    let fading_in = r.frames("deck-saving-in");
+    let fading_in = r.frames("deck-saving-in", CROSSFADE);
     assert!(fading_in[0] == idle, "the chip starts unseen");
-    assert_fades(&fading_in, &saving, "the chip fading in");
+    assert_fades(&fading_in, &saving, "the chip fading in", CROSSFADE);
 
     r.change(|v| v.item.status = ItemStatus::Idle);
-    let fading_out = r.frames("deck-saving-out");
+    let fading_out = r.frames("deck-saving-out", CROSSFADE);
     assert!(fading_out[0] == saving, "the chip starts in full");
-    assert_fades(&fading_out, &idle, "the chip fading out");
+    assert_fades(&fading_out, &idle, "the chip fading out", CROSSFADE);
 
     let mut still = rig(true, ItemStatus::Idle, true);
     still.change(|v| v.item.status = ItemStatus::Saving);
     assert!(
         still.frame("deck-saving-reduced") == saving,
         "under Reduce Motion the chip shows at once"
+    );
+}
+
+#[test]
+fn the_hover_tools_fade_in_and_back_out() {
+    let mut r = rig(true, ItemStatus::Idle, false);
+    let rest = r.frame("deck-tools-rest");
+    r.change(|v| v.tools = true);
+    let shown = r.frames("deck-tools-in", DECK_HOVER);
+    assert!(shown[0] == rest, "the tools start unseen");
+    let mut settled = rig(true, ItemStatus::Idle, false);
+    settled.change(|v| v.tools = true);
+    settled.s.app.cx.advance_clock(DECK_HOVER.duration);
+    let full = settled.frame("deck-tools-settled");
+    assert_fades(&shown, &full, "the tools fading in", DECK_HOVER);
+
+    r.change(|v| v.tools = false);
+    let leaving = r.frames("deck-tools-out", DECK_HOVER);
+    assert!(leaving[0] == full, "the tools leave from in full");
+    assert_fades(&leaving, &rest, "the tools fading out", DECK_HOVER);
+
+    let mut still = rig(true, ItemStatus::Idle, true);
+    still.change(|v| v.tools = true);
+    let reduced = still.frames("deck-tools-reduced", DECK_HOVER);
+    assert_fades(
+        &reduced,
+        &full,
+        "a 120 ms fade carries no movement, so Reduce Motion keeps it",
+        DECK_HOVER,
     );
 }

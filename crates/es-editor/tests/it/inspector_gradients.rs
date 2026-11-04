@@ -240,3 +240,59 @@ fn user_gradients_follow_the_built_ins_in_the_grid() {
         app.screenshot(&format!("gradients-editor-copy-{tag}"));
     }
 }
+
+fn gradient_editor_frames(mode: ThemeMode, tag: &str, reduce: bool) -> Vec<image::RgbaImage> {
+    use es_ui::motion::FILL_SWITCH;
+    let (mut app, editor) = window(mode);
+    app.cx.update(|cx| set_reduce_motion(reduce, cx));
+    let body = app.cx.update(|cx| {
+        let inspector = editor.read(cx).inspector().unwrap();
+        let view = inspector
+            .read(cx)
+            .body(Section::Background)
+            .unwrap()
+            .clone();
+        view.downcast::<BackgroundBody>().unwrap()
+    });
+    let handle = app.window.into();
+    app.cx
+        .update_window(handle, |_, window, cx| {
+            body.update(cx, |b, cx| {
+                b.pick_gradient(4, cx);
+                b.edit_gradient(window, cx);
+            })
+        })
+        .unwrap();
+    let quarter = FILL_SWITCH.duration / 4;
+    ["0-start", "1-mid", "2-late", "3-end"]
+        .iter()
+        .enumerate()
+        .map(|(i, step)| {
+            if i > 0 {
+                app.cx
+                    .advance_clock(if i == 1 { quarter * 2 } else { quarter });
+            }
+            app.cx
+                .update_window(handle, |_, window, _| window.refresh())
+                .unwrap();
+            app.screenshot(&format!("gradient-editor-fade-{tag}-{step}"))
+        })
+        .collect()
+}
+
+#[test]
+fn the_gradient_editor_fades_in_and_arrives() {
+    for (mode, tag) in [(ThemeMode::Dark, "dark"), (ThemeMode::Light, "light")] {
+        let f = gradient_editor_frames(mode, tag, false);
+        assert!(
+            f[0] != f[1] && f[1] != f[2] && f[2] != f[3],
+            "the panel is still fading at every quarter"
+        );
+        let reduced = gradient_editor_frames(mode, &format!("{tag}-reduced"), true);
+        assert!(
+            reduced[0] == reduced[3],
+            "a 160 ms fade is skipped under Reduce Motion"
+        );
+        assert!(f[3] == reduced[3], "the fade ends on the panel in full");
+    }
+}

@@ -16,7 +16,6 @@ use gpui::{
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::time::Duration;
 use uuid::Uuid;
 use window_mode_support::{Surface, rgb as pixel};
 
@@ -503,7 +502,7 @@ fn pictures_of_the_deck_at_rest_and_hovered() {
         let (x, y) = ((c.x0 + 150.) as f32, (c.y0 + 100.) as f32);
         let rest = pixel(&r.s.app.screenshot("deck-probe"), x, y);
         r.point(x, y);
-        std::thread::sleep(Duration::from_millis(150));
+        r.s.app.cx.advance_clock(es_ui::motion::DECK_HOVER.duration);
         r.next_frame();
         let hovered = r.s.app.screenshot(&format!("deck-hover-{theme}"));
         let scrim = pixel(&hovered, x, y);

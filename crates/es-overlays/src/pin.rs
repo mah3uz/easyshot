@@ -7,7 +7,7 @@ use es_app::platform_ui::{
 use es_geom::{Point, Rect, Size};
 use es_ui::a11y::{Accessible as _, Role};
 use es_ui::icons::IconName;
-use es_ui::motion::{Easing, Transition, animate};
+use es_ui::motion::{Easing, Transition, tween};
 use es_ui::theme::{UI_FONT, tokens};
 use gpui::{
     App, AppContext as _, BoxShadow, Context, Entity, EventEmitter, InteractiveElement as _,
@@ -126,7 +126,6 @@ pub struct PinView {
     pointer: PointerGlobal,
     opacity: f32,
     hovered: bool,
-    showings: usize,
     menu: Option<gpui::Point<Pixels>>,
     press: Option<Press>,
 }
@@ -148,7 +147,6 @@ impl PinView {
             pointer,
             opacity: 1.,
             hovered: false,
-            showings: 0,
             menu: None,
             press: None,
         }
@@ -278,33 +276,35 @@ fn shadow(alpha: f32, blur: f32, y: f32) -> BoxShadow {
 }
 
 impl Render for PinView {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let size = self.size();
         let pad = px(SHADOW_PAD as f32);
         let view = cx.entity().downgrade();
-        let close = self.hovered.then(|| {
-            animate(
-                div()
-                    .id("pin-close-button")
-                    .accessible(Role::Button, fl!("pin-close"))
-                    .absolute()
-                    .top(px(CLOSE_PAD))
-                    .right(px(CLOSE_PAD))
-                    .size(px(CLOSE))
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .rounded_full()
-                    .bg(black(0.6))
-                    .cursor_pointer()
-                    .child(Icon::new(IconName::X).size(px(11.)).text_color(white(1.)))
-                    .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                    .on_click(cx.listener(|_, _, _, cx| cx.emit(PinEvent::Close))),
-                ("pin-close-fade", self.showings),
-                CLOSE_FADE,
-                cx,
-                |e, t| e.opacity(t),
-            )
+        let shown = tween(
+            "pin-close-fade",
+            if self.hovered { 1. } else { 0. },
+            CLOSE_FADE,
+            window,
+            cx,
+        );
+        let close = (self.hovered || shown > 0.).then(|| {
+            div()
+                .id("pin-close-button")
+                .accessible(Role::Button, fl!("pin-close"))
+                .absolute()
+                .top(px(CLOSE_PAD))
+                .right(px(CLOSE_PAD))
+                .size(px(CLOSE))
+                .flex()
+                .items_center()
+                .justify_center()
+                .rounded_full()
+                .bg(black(0.6))
+                .cursor_pointer()
+                .child(Icon::new(IconName::X).size(px(11.)).text_color(white(1.)))
+                .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                .on_click(cx.listener(|_, _, _, cx| cx.emit(PinEvent::Close)))
+                .opacity(shown)
         });
         let menu = self.menu.map(|at| self.menu(at, cx));
         div()
@@ -344,7 +344,6 @@ impl Render for PinView {
                     .on_hover(cx.listener(|v, hovered: &bool, _, cx| {
                         if v.hovered != *hovered {
                             v.hovered = *hovered;
-                            v.showings += usize::from(*hovered);
                             cx.notify();
                         }
                     }))

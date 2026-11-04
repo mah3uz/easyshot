@@ -22,6 +22,8 @@ const RADIUS: Pixels = px(14.);
 const PADDING_X: Pixels = px(16.);
 const PADDING_Y: Pixels = px(11.);
 const GAP: Pixels = px(10.);
+/// A settings row's space between its title and its control.
+const ACTION_GAP: Pixels = px(16.);
 const ICON_BOX: Pixels = px(32.);
 const GLYPH: Pixels = px(18.);
 const MAX_WIDTH: Pixels = px(380.);
@@ -166,10 +168,12 @@ impl RenderOnce for Toast {
             )
             .when_some(self.action, |d, (label, on_click)| {
                 d.child(
-                    EditorButton::new("toast-action")
-                        .label(label)
-                        .kind(ButtonKind::Bordered)
-                        .on_click(move |_, window, cx| on_click(window, cx)),
+                    div().flex_none().ml(ACTION_GAP - GAP).child(
+                        EditorButton::new("toast-action")
+                            .label(label)
+                            .kind(ButtonKind::Bordered)
+                            .on_click(move |_, window, cx| on_click(window, cx)),
+                    ),
                 )
             });
         if self.settled && !self.leaving {

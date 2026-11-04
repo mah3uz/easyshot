@@ -338,3 +338,52 @@ fn the_hover_close_button_closes_the_pin() {
         "pressing the button drags nothing"
     );
 }
+
+/// The close button's grey over the picture's orange, from the button's centre, each step `step` after the last.
+fn close_fade(r: &mut Rig, name: &str, step: std::time::Duration) -> Vec<[u8; 3]> {
+    let (x, y) = (PAD + PICTURE.width as f32 - 13., PAD + 13.);
+    (0..4)
+        .map(|i| {
+            if i > 0 {
+                r.s.app.cx.advance_clock(step);
+            }
+            let view = r.s.view.clone();
+            r.s.app.cx.update(|cx| view.update(cx, |_, cx| cx.notify()));
+            rgb(&r.s.app.screenshot(&format!("{name}-{i}")), x, y)
+        })
+        .collect()
+}
+
+#[test]
+fn the_close_button_fades_in_on_hover_and_back_out_on_leave() {
+    let quarter = std::time::Duration::from_millis(150) / 4;
+    let mut r = rig();
+    let picture = rgb(&r.s.app.screenshot("pin-close-rest"), PAD + 287., PAD + 13.);
+    r.s.hover(PAD + 100., PAD + 100., false);
+    let shown = close_fade(&mut r, "pin-close-in", quarter * 2);
+    assert!(near(shown[0], picture, 2), "the button starts unseen");
+    assert!(
+        !near(shown[1], picture, 20) && !near(shown[1], shown[3], 20),
+        "halfway it is part-seen: {shown:?}"
+    );
+    assert_eq!(shown[2], shown[3], "it has arrived when the fade is up");
+
+    r.s.hover(2., 2., false);
+    let leaving = close_fade(&mut r, "pin-close-out", quarter * 2);
+    assert!(near(leaving[0], shown[3], 2), "it leaves from in full");
+    assert!(
+        !near(leaving[1], picture, 20) && !near(leaving[1], shown[3], 20),
+        "halfway out it is still part-seen: {leaving:?}"
+    );
+    assert!(near(leaving[3], picture, 2), "and then it is gone");
+
+    r.s.app
+        .cx
+        .update(|cx| es_ui::motion::set_reduce_motion(true, cx));
+    r.s.hover(PAD + 100., PAD + 100., false);
+    let reduced = close_fade(&mut r, "pin-close-reduced", quarter);
+    assert!(
+        near(reduced[0], shown[3], 2),
+        "under Reduce Motion the 150 ms fade is skipped"
+    );
+}

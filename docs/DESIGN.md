@@ -93,9 +93,11 @@ is a fast start that settles softly, `cubic-bezier(.2, .8, .2, 1)`.
 | Deck: a card's picture fades in over "Loading preview…", and "Saving…" fades in and out | `CROSSFADE` | 150 ms, ease-out |
 | Editor: when a camera or blur change settles, the export-exact picture fades in over the one it replaces | `COMPOSITE_FADE` | 180 ms, ease-out |
 | Settings home: tiles and recent rows fill in under the pointer and fade back after it | `HOVER_FILL` | 120 ms fade, ease-out |
+| Deck: a card's tools fade in under the pointer and fade back out after it | `DECK_HOVER` | 120 ms fade, ease-out |
+| Pin: the close button fades in under the pointer and back out after it | `CLOSE_FADE` (pin) | 150 ms fade, ease-out |
 | Settings: the old page fades out while the new one rises 8 px into place and fades in | `PAGE_CHANGE` | 180 ms, ease-out |
 | Editor: the inspector switching to or from a tool's options rises 8 px into place and fades in | `PAGE_CHANGE` | 180 ms, ease-out |
-| Introduction: a step slides in from the side you are heading to | `STEP_CHANGE` | 200 ms, ease-out |
+| Introduction: the next step slides in from the side you are heading to as the last one slides out the other way, both fading | `STEP_CHANGE` | 200 ms, ease-out |
 | Home window: the new tab slides in from its side (Media Gallery left, Settings right) as the old one slides out the other way, both fading; the tab switcher's selection glides to the new tab on the same clock | `STEP_CHANGE` | 200 ms, ease-out |
 | Countdown: the dial, or the recording badge, grows from 82 % and fades in | `COUNTDOWN_IN` | 420 ms, snappy |
 | Countdown: each new second drops in from above as the last one falls away, both fading | `DIGIT_ROLL` | 300 ms, snappy |

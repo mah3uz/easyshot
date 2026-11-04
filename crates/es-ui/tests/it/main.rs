@@ -7,5 +7,6 @@ mod picks;
 mod segmented_motion;
 mod shortcut_field;
 mod support;
+mod toast;
 mod tokens;
 mod tooltips;

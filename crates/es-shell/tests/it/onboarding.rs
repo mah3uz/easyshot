@@ -456,6 +456,11 @@ fn the_shortcuts_step_draws_before_and_after_choosing_in_light_and_dark() {
     }
 }
 
+/// The page above the footer, whose buttons change with the step at once.
+fn page(frame: &image::RgbaImage) -> image::RgbaImage {
+    image::imageops::crop_imm(frame, 0, 0, frame.width(), frame.height() * 3 / 4).to_image()
+}
+
 fn frame(app: &mut App, name: &str) -> image::RgbaImage {
     let handle = app.window.into();
     app.cx
@@ -475,6 +480,7 @@ fn a_step_slides_and_fades_in_over_its_token_and_reduce_motion_shows_it_at_once(
     app.cx
         .update(|cx| es_ui::motion::set_reduce_motion(false, cx));
 
+    let welcome = page(&frame(&mut app, "onboarding-step-change-before"));
     go(&mut app, Step::Desktop);
     assert_eq!(
         app.cx.update(|cx| view.read(cx).step()),
@@ -482,11 +488,22 @@ fn a_step_slides_and_fades_in_over_its_token_and_reduce_motion_shows_it_at_once(
         "the step changes at once; only its drawing moves"
     );
     let start = frame(&mut app, "onboarding-step-change-0");
+    assert!(
+        page(&start) == welcome,
+        "the outgoing step is still whole where it sat when the change starts"
+    );
     app.cx.advance_clock(STEP_CHANGE.duration / 2);
     let mid = frame(&mut app, "onboarding-step-change-1-mid");
     app.cx.advance_clock(STEP_CHANGE.duration / 2);
     let end = frame(&mut app, "onboarding-step-change-2-end");
     assert!(start != mid && mid != end && start != end);
+    let left_half = |f: &image::RgbaImage| {
+        image::imageops::crop_imm(f, 0, 0, f.width() / 2, f.height() * 3 / 4).to_image()
+    };
+    assert!(
+        left_half(&mid) != left_half(&end),
+        "halfway, the outgoing step is still leaving across the left half"
+    );
 
     go(&mut app, Step::Welcome);
     app.cx.advance_clock(STEP_CHANGE.duration);

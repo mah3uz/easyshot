@@ -177,8 +177,8 @@ impl Onboarding {
         cx.stop_propagation();
     }
 
-    fn header(&self, t: &Tokens) -> Div {
-        let (icon, title, subtitle) = match self.step {
+    fn header(&self, step: Step, t: &Tokens) -> Div {
+        let (icon, title, subtitle) = match step {
             Step::Welcome => (
                 IconName::Easyshot,
                 fl!("onboarding-step1-title"),
@@ -509,6 +509,26 @@ impl Onboarding {
     }
 }
 
+impl Onboarding {
+    fn page(&self, step: Step, t: &Tokens, cx: &mut Context<Self>) -> Div {
+        let body = match step {
+            Step::Welcome => self.welcome(t),
+            Step::Desktop => self.desktop(t),
+            Step::Shortcuts => self.shortcuts_step(t, cx),
+            Step::Saving => self.saving(t, cx),
+            Step::Practice => self.practice(t, cx),
+        };
+        div()
+            .w_full()
+            .flex()
+            .flex_col()
+            .items_center()
+            .gap(px(28.))
+            .child(self.header(step, t))
+            .child(body)
+    }
+}
+
 impl Render for Onboarding {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let t = tokens(cx).clone();
@@ -521,14 +541,15 @@ impl Render for Onboarding {
         } else {
             1.
         };
-        let slide = window.viewport_size().width * toward * (1.0 - arrived);
-        let body = match self.step {
-            Step::Welcome => self.welcome(&t),
-            Step::Desktop => self.desktop(&t),
-            Step::Shortcuts => self.shortcuts_step(&t, cx),
-            Step::Saving => self.saving(&t, cx),
-            Step::Practice => self.practice(&t, cx),
-        };
+        let width = window.viewport_size().width;
+        let slide = width * toward * (1.0 - arrived);
+        let leaving = (arrived < 1.0 && from != self.step).then(|| {
+            self.page(from, &t, cx)
+                .absolute()
+                .top_0()
+                .left(-width * toward * arrived)
+                .opacity(1.0 - arrived)
+        });
         div()
             .id("onboarding")
             .track_focus(&self.focus)
@@ -555,15 +576,14 @@ impl Render for Onboarding {
                         div()
                             .w_full()
                             .max_w(px(PAGE_WIDTH))
-                            .flex()
-                            .flex_col()
-                            .items_center()
-                            .gap(px(28.))
                             .relative()
-                            .left(slide)
-                            .opacity(arrived)
-                            .child(self.header(&t))
-                            .child(body),
+                            .children(leaving)
+                            .child(
+                                self.page(self.step, &t, cx)
+                                    .relative()
+                                    .left(slide)
+                                    .opacity(arrived),
+                            ),
                     ),
             )
             .child(self.footer(&t, arrived, from, cx))
