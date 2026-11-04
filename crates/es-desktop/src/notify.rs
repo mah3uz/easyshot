@@ -26,57 +26,108 @@ trait Notifications {
     ) -> zbus::Result<u32>;
 
     fn get_capabilities(&self) -> zbus::Result<Vec<String>>;
-
-    #[zbus(signal)]
-    fn action_invoked(&self, id: u32, action_key: String) -> zbus::Result<()>;
 }
 
 /// The key a notification server sends when the notification itself is clicked.
 pub const DEFAULT_ACTION: &str = "default";
 
+const NAME: &str = "org.freedesktop.Notifications";
+
+type Capabilities = Arc<Mutex<Option<bool>>>;
+
 pub struct DesktopNotifier {
     proxy: NotificationsProxy<'static>,
     ours: Arc<Mutex<HashSet<u32>>>,
     actions: async_channel::Receiver<(NotificationId, String)>,
-    supports_actions: bool,
+    supports_actions: Capabilities,
     _conn: zbus::Connection,
 }
 
+async fn fetch_actions(proxy: &NotificationsProxy<'_>, known: &Capabilities) -> Option<bool> {
+    let found = proxy
+        .get_capabilities()
+        .await
+        .ok()
+        .map(|caps| caps.iter().any(|c| c == "actions"));
+    if let Ok(mut slot) = known.lock() {
+        *slot = found;
+    }
+    found
+}
+
 impl DesktopNotifier {
+    /// Sends nothing to the notification name: a call to an unowned name would start whichever
+    /// server D-Bus can activate and keep the user's own server from claiming it.
     pub async fn connect(endpoint: &Endpoint) -> Result<Self> {
         let conn = connect(endpoint).await?;
-        let proxy = NotificationsProxy::new(&conn).await.map_err(protocol)?;
-        let supports_actions = proxy
-            .get_capabilities()
+        let proxy = NotificationsProxy::builder(&conn)
+            .cache_properties(zbus::proxy::CacheProperties::No)
+            .build()
+            .await
+            .map_err(protocol)?;
+        let known: Capabilities = Arc::default();
+        let bus = zbus::fdo::DBusProxy::new(&conn).await.map_err(protocol)?;
+        let mut owners = bus
+            .receive_name_owner_changed_with_args(&[(0, NAME)])
+            .await
+            .map_err(protocol)?;
+        let rule = zbus::MatchRule::builder()
+            .msg_type(zbus::message::Type::Signal)
+            .interface(NAME)
+            .map_err(protocol)?
+            .member("ActionInvoked")
+            .map_err(protocol)?
+            .build();
+        let mut signals = zbus::MessageStream::for_match_rule(rule, &conn, None)
+            .await
+            .map_err(protocol)?;
+        if bus
+            .name_has_owner(NAME.try_into().map_err(protocol)?)
             .await
             .map_err(protocol)?
-            .iter()
-            .any(|c| c == "actions");
-        let mut signals = proxy.receive_action_invoked().await.map_err(protocol)?;
+        {
+            fetch_actions(&proxy, &known).await;
+        }
         let ours: Arc<Mutex<HashSet<u32>>> = Arc::default();
         let (tx, actions) = async_channel::unbounded();
         let seen = ours.clone();
         conn.executor()
             .spawn(
                 async move {
-                    while let Some(signal) = signals.next().await {
-                        let Ok(args) = signal.args() else { continue };
-                        let mine = seen.lock().is_ok_and(|s| s.contains(&args.id));
-                        if mine {
-                            let _ = tx
-                                .send((NotificationId(args.id), args.action_key.to_owned()))
-                                .await;
+                    while let Some(Ok(message)) = signals.next().await {
+                        let Ok((id, key)) = message.body().deserialize::<(u32, String)>() else {
+                            continue;
+                        };
+                        if seen.lock().is_ok_and(|s| s.contains(&id)) {
+                            let _ = tx.send((NotificationId(id), key)).await;
                         }
                     }
                 },
                 "es-notify-actions",
             )
             .detach();
+        let watch = (proxy.clone(), known.clone());
+        conn.executor()
+            .spawn(
+                async move {
+                    let (proxy, known) = watch;
+                    while let Some(change) = owners.next().await {
+                        let owned = change.args().is_ok_and(|a| a.new_owner.is_some());
+                        if owned {
+                            fetch_actions(&proxy, &known).await;
+                        } else if let Ok(mut slot) = known.lock() {
+                            *slot = None;
+                        }
+                    }
+                },
+                "es-notify-owner",
+            )
+            .detach();
         Ok(DesktopNotifier {
             proxy,
             ours,
             actions,
-            supports_actions,
+            supports_actions: known,
             _conn: conn,
         })
     }
@@ -98,7 +149,12 @@ impl Notifier for DesktopNotifier {
                 Value::from(image.to_string_lossy().into_owned()),
             );
         }
-        let flat: Vec<&str> = if self.supports_actions {
+        let known = self.supports_actions.lock().ok().and_then(|k| *k);
+        let actions = match known {
+            Some(known) => known,
+            None => block(fetch_actions(&self.proxy, &self.supports_actions)).unwrap_or(false),
+        };
+        let flat: Vec<&str> = if actions {
             n.actions
                 .iter()
                 .flat_map(|(id, label)| [id.as_str(), label.as_str()])
@@ -130,5 +186,7 @@ impl Notifier for DesktopNotifier {
 
     fn supports_actions(&self) -> bool {
         self.supports_actions
+            .lock()
+            .is_ok_and(|k| k.unwrap_or(false))
     }
 }

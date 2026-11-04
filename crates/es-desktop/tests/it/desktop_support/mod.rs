@@ -3,7 +3,9 @@
 use es_desktop::dbus::Endpoint;
 use std::io::{BufRead, BufReader};
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
+static CONFIGS: AtomicUsize = AtomicUsize::new(0);
 const CHILD: &str = "ES_TEST_CHILD";
 
 // Process-wide environment cannot be changed in-process, so the test re-runs itself with the variables set.
@@ -57,11 +59,27 @@ pub struct QuietBus {
 
 impl QuietBus {
     pub fn start() -> QuietBus {
-        let config = std::path::Path::new(env!("CARGO_TARGET_TMPDIR"))
-            .join(format!("quiet-bus-{}.conf", std::process::id()));
+        Self::start_with(None)
+    }
+
+    pub fn start_with_services(dir: &std::path::Path) -> QuietBus {
+        Self::start_with(Some(dir))
+    }
+
+    fn start_with(services: Option<&std::path::Path>) -> QuietBus {
+        let servicedir = services.map_or(String::new(), |d| {
+            format!("<servicedir>{}</servicedir>", d.display())
+        });
+        let config = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!(
+            "quiet-bus-{}-{}.conf",
+            std::process::id(),
+            CONFIGS.fetch_add(1, Ordering::Relaxed)
+        ));
         std::fs::write(
             &config,
-            r#"<busconfig><type>session</type><listen>unix:tmpdir=/tmp</listen><policy context="default"><allow send_destination="*" eavesdrop="true"/><allow eavesdrop="true"/><allow own="*"/></policy></busconfig>"#,
+            format!(
+                r#"<busconfig><type>session</type><listen>unix:tmpdir=/tmp</listen>{servicedir}<policy context="default"><allow send_destination="*" eavesdrop="true"/><allow eavesdrop="true"/><allow own="*"/></policy></busconfig>"#
+            ),
         )
         .expect("bus config");
         let mut child = Command::new("dbus-daemon")

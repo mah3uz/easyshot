@@ -288,3 +288,11 @@ What was rejected beyond that, and why: not recorded.
 35. **New text starts at size 24** (maintainer's decision, 2026-11-04, replacing 36 from
     2026-11-03): 36 was too large on everyday captures, the original 20 too small to read on a
     full-screen shot.
+36. **easyshot never starts a desktop service by touching it at startup** (maintainer's
+    decision, 2026-11-04): at login the daemon can start before the user's own notification
+    server has claimed `org.freedesktop.Notifications`, and any call to the unowned name makes
+    D-Bus activate whichever installed server it finds, which then keeps the name. The
+    notifier sends nothing to the name until it has an owner or a notification is shown, and
+    learns the server's capabilities then and whenever the owner changes. If no server runs
+    when a notification is shown, activating an installed one is fine. Rejected: a startup
+    `GetCapabilities` call, and retrying it after a delay.

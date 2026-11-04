@@ -174,6 +174,14 @@ providers and the probed tools, never set by hand.
 
 The recorder providers are gpu-screen-recorder, then wf-recorder.
 
+Startup never calls a method on a name that might only be activatable: the probe lists names
+and asks who owns them, and `DesktopNotifier::connect` sends nothing to
+`org.freedesktop.Notifications` unless it already has an owner. Capabilities, and so whether
+actions are offered, are read when the name gains an owner or at the first notification;
+`Caps::NOTIFY_ACTIONS` reflects what was known at startup and nothing reads it later, because
+the notifier decides per notification. `ActionInvoked` is matched on the interface, so it
+survives a change of server.
+
 The `wayland::*` providers are chosen by protocol globals, not compositor name. Any
 compositor with layer-shell and a capture protocol works without new code. Compositor
 modules add only what protocols cannot give: `hyprland/` (window rects and z-order, cursor
