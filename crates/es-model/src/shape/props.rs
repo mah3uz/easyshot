@@ -151,7 +151,7 @@ impl Default for ArrowProps {
     }
 }
 
-pub const DEFAULT_TEXT_SIZE: f64 = 36.0;
+pub const DEFAULT_TEXT_SIZE: f64 = 24.0;
 pub const DEFAULT_TEXT_PADDING: f64 = 8.0;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

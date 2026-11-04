@@ -73,7 +73,7 @@ mod tests {
         assert_eq!(s.swatch, Swatch::red());
         assert_eq!(
             (s.text_font_family, s.text_font_size),
-            (FontFamily::Pro, 36.0)
+            (FontFamily::Pro, 24.0)
         );
         assert!(s.text_bold && !s.text_italic && !s.text_underline);
         assert_eq!(s.text_align, TextAlign::Start);

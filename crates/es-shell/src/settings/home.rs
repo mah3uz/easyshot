@@ -16,6 +16,7 @@ use gpui::{
 };
 use gpui_component::{Icon, h_flex, v_flex};
 
+pub const WEBSITE_URL: &str = "https://easyshot.site";
 pub const SOURCE_URL: &str = "https://github.com/mah3uz/easyshot";
 pub const ISSUES_URL: &str = "https://github.com/mah3uz/easyshot/issues";
 
@@ -375,6 +376,12 @@ impl SettingsWindow {
             group(
                 Some(fl!("about-open-source").into()),
                 vec![
+                    row(
+                        fl!("about-website"),
+                        Some(fl!("about-website-help").into()),
+                        link("website", fl!("about-website-link"), WEBSITE_URL, cx),
+                        cx,
+                    ),
                     row(
                         fl!("about-source"),
                         Some(fl!("about-source-help").into()),

@@ -177,7 +177,7 @@ which mode is on, and its options switch it too. Pick the colour and the thickne
 options. Strokes stay on the image, and the editor and export show the same result. The
 Highlight tool, which dims everything outside an area, is separate.
 
-New text starts at size 36. Change the size in the Text options. While you type, a dashed box in the
+New text starts at size 24. Change the size in the Text options. While you type, a dashed box in the
 accent colour shows where the text goes, and an empty text shows a small box so you can see
 where you clicked. The box is only a guide: it is not saved or exported.
 
@@ -395,7 +395,7 @@ never edits your compositor config. Check reads your compositor's current binds 
 actions that are already bound, and keys that run something else, and shows whether the
 include line is found. Keys for editor actions are saved under `[shortcuts]`.
 
-About shows the version, links, and Show Onboarding Again.
+About shows the version, links to the website (easyshot.site), the source code and the issue tracker, and Show Onboarding Again.
 
 Editor settings that exist only in the config file:
 

@@ -329,7 +329,7 @@ mod tests {
             (Arrowhead::None, Arrowhead::Arrow)
         );
         let t = TextProps::default();
-        assert_eq!((t.font_size, t.w), (36.0, 16.0));
+        assert_eq!((t.font_size, t.w), (24.0, 16.0));
         assert!(t.is_bold && t.auto_size && !t.is_italic && !t.is_underline);
         assert_eq!(
             (t.font_family, t.align),

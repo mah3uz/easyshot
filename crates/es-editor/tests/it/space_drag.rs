@@ -199,7 +199,7 @@ fn a_move_with_no_button_held_ends_a_pan_whose_release_was_never_seen() {
 }
 
 #[test]
-fn a_new_text_box_starts_at_size_thirty_six() {
+fn a_new_text_box_starts_at_size_twenty_four() {
     let (mut app, session) = setup();
     set_tool(&mut app, &session, Tool::Text);
     let at = at_page(&app, &session, 700.0, 450.0);
@@ -208,7 +208,7 @@ fn a_new_text_box_starts_at_size_thirty_six() {
     let made = ids(&app, &session);
     let text = shape(&app, &session, *made.last().unwrap());
     match text.kind {
-        ShapeKind::Text(t) => assert_eq!(t.font_size, 36.0),
+        ShapeKind::Text(t) => assert_eq!(t.font_size, 24.0),
         other => panic!("{other:?}"),
     }
 }
