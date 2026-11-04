@@ -76,6 +76,9 @@ pub enum ReplyKind {
 pub struct ReplyError {
     pub code: ErrorCode,
     pub message: String,
+    /// One plain sentence for the person: what happened and what to do.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hint: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -282,9 +285,17 @@ impl AgentReply {
             error: Some(ReplyError {
                 code,
                 message: message.into(),
+                hint: None,
             }),
             ..AgentReply::ok(kind)
         }
+    }
+
+    pub fn hinted(mut self, hint: Option<String>) -> AgentReply {
+        if let Some(error) = &mut self.error {
+            error.hint = hint;
+        }
+        self
     }
 
     pub fn exit_code(&self) -> u8 {
@@ -450,6 +461,20 @@ mod tests {
             })
         );
         assert_eq!(reply.exit_code(), 5);
+    }
+
+    #[test]
+    fn a_hint_sits_inside_the_error_and_is_left_out_when_there_is_none() {
+        let plain = AgentReply::failed(ReplyKind::Windows, ErrorCode::NotFound, "no window 9");
+        assert!(value(&plain)["error"].get("hint").is_none());
+        let hinted = plain.hinted(Some("Open the window first.".into()));
+        assert_eq!(
+            value(&hinted)["error"],
+            json!({"code": "not_found", "message": "no window 9", "hint": "Open the window first."})
+        );
+        assert_eq!(AgentReply::from_json(&hinted.to_json()).unwrap(), hinted);
+        let ok = AgentReply::ok(ReplyKind::Outputs).hinted(Some("x".into()));
+        assert!(ok.error.is_none());
     }
 
     #[test]

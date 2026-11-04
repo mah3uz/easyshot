@@ -55,7 +55,15 @@ fn a_qr_code_is_read_and_placed_without_tesseract() {
 #[test]
 fn text_without_tesseract_and_without_a_code_is_unsupported_with_the_install_hint() {
     let blank = RgbaImage::from_pixel(120, 60, Rgba([255; 4]));
-    let Fail(code, message) = read(&blank, &["eng".into()], &without_tesseract()).unwrap_err();
+    let Fail(code, message, hint) =
+        read(&blank, &["eng".into()], &without_tesseract()).unwrap_err();
+    assert_eq!(
+        hint.as_deref(),
+        Some(
+            "Reading text needs Tesseract. Install it with \
+             `sudo pacman -S tesseract tesseract-data-eng`."
+        )
+    );
     assert_eq!(code, ErrorCode::Unsupported);
     assert!(message.contains("install the tesseract"), "{message}");
 }

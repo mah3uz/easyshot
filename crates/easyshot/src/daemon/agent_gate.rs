@@ -4,6 +4,7 @@ mod agent_settings;
 pub mod scope;
 
 use super::Sources;
+use super::hints;
 use es_app::agent_access::{
     AgentAccess, AgentAccessHandle, ChangeRequest, ConsentPrompt, ConsentRequest, Grant, Loosening,
     system_clock,
@@ -108,16 +109,20 @@ impl Gate {
             pid: caller.pid,
             comm: comm.clone(),
         };
-        let refused = move |code, message: &str| AgentReply::failed(kind, code, message);
+        let refused = move |code, message: &str, hint: Option<String>| {
+            AgentReply::failed(kind, code, message).hinted(hint)
+        };
         let early = if origin != Origin::DBus {
             Some(refused(
                 ErrorCode::AccessDenied,
                 "agent commands are accepted over D-Bus only",
+                None,
             ))
         } else if caller.uid != Some(self.uid) {
             Some(refused(
                 ErrorCode::AccessDenied,
                 "agent commands are accepted from your own user only",
+                None,
             ))
         } else {
             None
@@ -144,7 +149,7 @@ impl Gate {
         }
         let cfg = self.cfg(cx);
         if !cfg.enabled {
-            let reply = refused(ErrorCode::AccessOff, TURN_ON);
+            let reply = refused(ErrorCode::AccessOff, TURN_ON, Some(hints::access_off()));
             self.record(log, &reply, cx);
             return Task::ready(reply);
         }
@@ -174,17 +179,25 @@ impl Gate {
                     let allowed = asked.await;
                     let still_on = cx.update(|cx| gate.cfg(cx).enabled);
                     if !still_on {
-                        refused(ErrorCode::AccessOff, TURN_ON)
+                        refused(ErrorCode::AccessOff, TURN_ON, Some(hints::access_off()))
                     } else if !allowed {
-                        refused(ErrorCode::AccessDenied, REFUSED)
+                        refused(
+                            ErrorCode::AccessDenied,
+                            REFUSED,
+                            Some(hints::access_denied()),
+                        )
                     } else {
                         let mut reply = cx.update(|cx| work(&route, &scope, cx)).await;
                         scope.filter(&mut reply);
                         reply
                     }
                 }
-                Ok(Err(outside)) => refused(ErrorCode::AccessDenied, &outside),
-                Err(e) => refused(ErrorCode::Failed, &e.to_string()),
+                Ok(Err(outside)) => refused(
+                    ErrorCode::AccessDenied,
+                    &outside,
+                    Some(hints::outside_scope()),
+                ),
+                Err(e) => refused(ErrorCode::Failed, &e.to_string(), None),
             };
             cx.update(|cx| gate.record(log, &reply, cx));
             reply
@@ -238,7 +251,8 @@ impl Gate {
         let (gate, route) = (self.clone(), route.clone());
         cx.spawn(async move |cx| {
             if !asked.await {
-                return AgentReply::failed(kind, ErrorCode::AccessDenied, CANCELLED);
+                return AgentReply::failed(kind, ErrorCode::AccessDenied, CANCELLED)
+                    .hinted(Some(hints::change_cancelled()));
             }
             cx.update(|cx| match edited(&route, gate.cfg(cx)) {
                 Ok((key, next)) => gate.apply(kind, key, &next, cx),

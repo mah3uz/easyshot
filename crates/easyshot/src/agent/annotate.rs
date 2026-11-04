@@ -1,4 +1,5 @@
 use super::annotate_ops;
+use crate::hints;
 use clap::Args;
 use es_anno::{BuildContext, BundledText, Document, TextMeasure, build_draw_list};
 use es_geom::Size;
@@ -55,6 +56,7 @@ impl AnnotateArgs {
 pub(super) struct Failure {
     pub code: ErrorCode,
     pub message: String,
+    pub hint: Option<String>,
 }
 
 pub(super) struct Done {
@@ -68,6 +70,15 @@ fn invalid(message: impl Into<String>) -> Failure {
     Failure {
         code: ErrorCode::InvalidArguments,
         message: message.into(),
+        hint: None,
+    }
+}
+
+fn missing(path: &Path) -> Failure {
+    Failure {
+        code: ErrorCode::NotFound,
+        message: format!("{}: no such file", path.display()),
+        hint: Some(hints::file_missing(path)),
     }
 }
 
@@ -75,12 +86,14 @@ fn failed(message: impl Into<String>) -> Failure {
     Failure {
         code: ErrorCode::Failed,
         message: message.into(),
+        hint: None,
     }
 }
 
 impl Failure {
     pub(super) fn reply(&self) -> AgentReply {
         AgentReply::failed(ReplyKind::Annotate, self.code, self.message.clone())
+            .hinted(self.hint.clone())
     }
 }
 
@@ -145,10 +158,7 @@ fn read_ops(path: &Path) -> Result<String, Failure> {
     match read {
         Ok(_) if text.len() as u64 > MAX_OPS_BYTES => Err(invalid("the ops file is over 1 MiB")),
         Ok(_) => Ok(text),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(Failure {
-            code: ErrorCode::NotFound,
-            message: format!("{}: no such file", path.display()),
-        }),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(missing(path)),
         Err(e) => Err(invalid(format!("{}: {e}", path.display()))),
     }
 }
@@ -165,12 +175,15 @@ pub(super) fn perform(
     let base = match es_store::decode::open_image(image) {
         Ok(img) => img.to_rgba8(),
         Err(image::ImageError::IoError(e)) if e.kind() == std::io::ErrorKind::NotFound => {
+            return Err(missing(image));
+        }
+        Err(e) => {
+            let unreadable = !matches!(e, image::ImageError::IoError(_));
             return Err(Failure {
-                code: ErrorCode::NotFound,
-                message: format!("{}: no such file", image.display()),
+                hint: unreadable.then(|| hints::not_an_image(image)),
+                ..invalid(format!("{}: {e}", image.display()))
             });
         }
-        Err(e) => return Err(invalid(format!("{}: {e}", image.display()))),
     };
     let (document, count) = annotate_ops::build(ops, base.dimensions(), style).map_err(invalid)?;
     let (png, width, height) = render(&base, document)?;

@@ -579,7 +579,14 @@ one JSON object on standard output, errors included:
 {"ok":true,"kind":"outputs","outputs":[{"name":"DP-1","description":"Dell U2720Q","x":0,"y":0,"width":2560,"height":1440,"scale":1.5,"focused":true}]}
 {"ok":true,"kind":"capture","path":"/home/you/.local/share/easyshot/library/easyshot_2026-11-03-15-29-54.png","width":480,"height":300,"scale":1.5,"output":"DP-1"}
 {"ok":false,"kind":"windows","error":{"code":"unsupported","message":"this desktop gives easyshot no window list"}}
+{"ok":false,"kind":"capture","error":{"code":"not_found","message":"no window matches \"nosuchapp\"","hint":"No open window is called \"nosuchapp\". Open windows: Terminal (foot), Mozilla Firefox (firefox)."}}
 ```
+
+An error may carry `error.hint`: one plain sentence for you, saying what happened and what to
+do, such as the install command for a missing tool or the windows that are open. An agent
+passes it on to you as it is. `error.message` is the technical text for the agent, and the
+exit code and `error.code` do not change. Without `--json` the hint is printed under the
+message.
 
 A capture answer gives the size in pixels, not logical pixels, and `scale`, and `redaction`
 (see Hiding secrets); a window capture adds a `window` object like an entry of

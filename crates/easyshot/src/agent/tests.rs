@@ -133,9 +133,14 @@ fn no_daemon_is_a_json_error_with_exit_status_three() {
     );
     assert_eq!((code, err.as_str()), (3, ""));
     assert_eq!(one_json_object(&out)["error"]["code"], json!("no_daemon"));
+    assert_eq!(
+        one_json_object(&out)["error"]["hint"],
+        json!("easyshot isn't running. Start it with `systemctl --user start easyshot`.")
+    );
     let (code, out, err) = run_cli(&["agent", "list", "outputs"], &env(&bus, dir.path()));
     assert_eq!((code, out.as_str()), (3, ""));
     assert!(err.contains("not running"), "{err}");
+    assert!(err.contains("easyshot isn't running"), "{err}");
 }
 
 #[test]

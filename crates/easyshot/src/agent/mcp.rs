@@ -6,7 +6,7 @@ use crate::cli::{Cli, Request};
 use crate::run::{EXIT_ERROR, EXIT_OK, Env, launch_with};
 use clap::Parser;
 use es_desktop::dbus::Endpoint;
-use es_protocol::agent::{AgentReply, ErrorCode};
+use es_protocol::agent::AgentReply;
 use rmcp::model::{
     CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, Implementation,
     JsonObject, ListToolsResult, PaginatedRequestParams, ServerCapabilities, ServerConfig,
@@ -153,29 +153,18 @@ pub(super) fn failure(message: &str, structured: Option<Value>) -> CallToolResul
     result
 }
 
-fn hint(code: ErrorCode) -> &'static str {
-    match code {
-        ErrorCode::AccessOff => {
-            " Ask the user to turn agent access on in Settings > Agents, \
-             or to run `easyshot agent enable` themselves."
-        }
-        ErrorCode::AccessDenied => {
-            " The user denied this request. Do not retry without asking them."
-        }
-        ErrorCode::NoDaemon => " Ask the user to start the easyshot daemon.",
-        _ => "",
-    }
-}
-
 pub(super) fn refusal(reply: &AgentReply) -> Option<CallToolResult> {
     let value = serde_json::to_value(reply).unwrap_or(Value::Null);
     if let Some(error) = &reply.error {
-        let message = format!(
-            "{}: {}.{}",
+        let mut message = format!(
+            "{}: {}.",
             error.code.as_str(),
-            error.message.trim_end_matches('.'),
-            hint(error.code)
+            error.message.trim_end_matches('.')
         );
+        if let Some(hint) = &error.hint {
+            message.push(' ');
+            message.push_str(hint);
+        }
         return Some(failure(&message, Some(value)));
     }
     (!reply.ok).then(|| failure("failed: the daemon reported a failure", Some(value)))

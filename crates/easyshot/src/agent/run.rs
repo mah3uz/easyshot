@@ -77,7 +77,8 @@ pub(super) fn client_failure(kind: ReplyKind, e: &ClientError) -> AgentReply {
         ClientError::Rejected(reason) => (ErrorCode::InvalidArguments, reason.clone()),
         _ => (ErrorCode::Failed, e.to_string()),
     };
-    AgentReply::failed(kind, code, message)
+    let hint = (code == ErrorCode::NoDaemon).then(crate::hints::no_daemon);
+    AgentReply::failed(kind, code, message).hinted(hint)
 }
 
 fn print(json: bool, reply: &AgentReply, out: &mut dyn Write, err: &mut dyn Write) {
@@ -87,6 +88,9 @@ fn print(json: bool, reply: &AgentReply, out: &mut dyn Write, err: &mut dyn Writ
     }
     if let Some(e) = &reply.error {
         let _ = writeln!(err, "easyshot: {}", e.message);
+        if let Some(hint) = &e.hint {
+            let _ = writeln!(err, "{hint}");
+        }
         return;
     }
     for o in reply.outputs.iter().flatten() {

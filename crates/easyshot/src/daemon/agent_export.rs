@@ -1,3 +1,4 @@
+use super::hints;
 use es_protocol::agent::{
     AgentReply, ErrorCode, ExportInfo, ExportSpec, ReplyKind, extension_format,
 };
@@ -9,10 +10,10 @@ use es_record::recovery::probe_video;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
-struct Fail(ErrorCode, String);
+struct Fail(ErrorCode, String, Option<String>);
 
 fn fail(code: ErrorCode, message: impl Into<String>) -> Fail {
-    Fail(code, message.into())
+    Fail(code, message.into(), None)
 }
 
 pub(super) fn export(spec: &ExportSpec) -> AgentReply {
@@ -21,7 +22,9 @@ pub(super) fn export(spec: &ExportSpec) -> AgentReply {
             export: Some(Box::new(info)),
             ..AgentReply::ok(ReplyKind::Export)
         },
-        Err(Fail(code, message)) => AgentReply::failed(ReplyKind::Export, code, message),
+        Err(Fail(code, message, hint)) => {
+            AgentReply::failed(ReplyKind::Export, code, message).hinted(hint)
+        }
     }
 }
 
@@ -32,7 +35,11 @@ fn run(
 ) -> Result<ExportInfo, Fail> {
     check_input(&spec.input)?;
     if probe.run("ffprobe", &["-version".to_owned()]).is_err() {
-        return Err(fail(ErrorCode::Unsupported, "ffmpeg is not installed"));
+        return Err(Fail(
+            ErrorCode::Unsupported,
+            "ffmpeg is not installed".to_owned(),
+            Some(hints::ffmpeg_missing()),
+        ));
     }
     let source = probe_video(probe, &spec.input).ok_or_else(|| {
         fail(
@@ -73,9 +80,10 @@ fn check_input(input: &Path) -> Result<(), Fail> {
             ErrorCode::InvalidArguments,
             format!("{} is not a file", input.display()),
         )),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(fail(
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(Fail(
             ErrorCode::NotFound,
             format!("no video at {}", input.display()),
+            Some(crate::hints::file_missing(input)),
         )),
         Err(e) => Err(fail(ErrorCode::Failed, format!("{}: {e}", input.display()))),
     }

@@ -131,12 +131,66 @@ fn a_window_name_is_an_id_first_then_an_exact_app_id_then_an_exact_title() {
 #[test]
 fn a_name_that_fits_two_windows_is_refused_with_the_candidates_listed() {
     let windows = desk().0;
-    let Fail(code, message) = resolve_window(&windows, &selector("foot")).unwrap_err();
+    let Fail(code, message, hint) = resolve_window(&windows, &selector("foot")).unwrap_err();
     assert_eq!(code, ErrorCode::InvalidArguments);
+    assert_eq!(
+        hint.as_deref(),
+        Some(
+            "More than one window matches \"foot\": build (foot), logs (foot). \
+             Say which one you mean."
+        )
+    );
     assert!(message.contains("2 windows"), "{message}");
     assert!(message.contains("1 (foot, \"build\")"), "{message}");
     assert!(message.contains("2 (foot, \"logs\")"), "{message}");
     assert!(!message.contains("mpv"), "{message}");
+}
+
+#[test]
+fn a_name_that_fits_no_window_says_which_windows_are_open() {
+    let windows = desk().0;
+    let Fail(code, _, hint) = resolve_window(&windows, &selector("nosuchapp")).unwrap_err();
+    assert_eq!(code, ErrorCode::NotFound);
+    assert_eq!(
+        hint.as_deref(),
+        Some(
+            "No open window is called \"nosuchapp\". Open windows: build (foot), \
+             logs (foot), foot (mpv), 2 (firefox)."
+        )
+    );
+    let many: Vec<_> = (0..7)
+        .map(|i| window(&i.to_string(), "foot", "t"))
+        .collect();
+    let Fail(_, _, hint) = resolve_window(&many, &selector("nosuchapp")).unwrap_err();
+    assert!(hint.unwrap().ends_with("t (foot), …."));
+    let Fail(_, _, hint) = resolve_window(&[], &selector("nosuchapp")).unwrap_err();
+    assert_eq!(
+        hint.as_deref(),
+        Some("No open window is called \"nosuchapp\", and no windows are open.")
+    );
+}
+
+#[test]
+fn a_recorder_or_tesseract_failure_carries_the_hint_for_the_person() {
+    use es_app::errors::Error;
+    let hint = |e: Error| fail_of(e).2.unwrap();
+    assert_eq!(
+        hint(Error::TesseractMissing),
+        "Reading text needs Tesseract. Install it with `sudo pacman -S tesseract tesseract-data-eng`."
+    );
+    assert_eq!(
+        hint(Error::AudioDeviceMissing),
+        "The microphone or sound device wasn't found. Pick another in Settings › Recording, or turn the sound off."
+    );
+    assert_eq!(
+        hint(Error::AreaOffMonitor),
+        "The area to record isn't on any monitor. Choose an area inside one monitor."
+    );
+    assert_eq!(fail_of(Error::Unsupported).2, None);
+    assert_eq!(
+        super::hints::audio_device_missing(Some("alsa_input.usb-mic")),
+        "The sound device \"alsa_input.usb-mic\" wasn't found. Pick another in Settings › Recording, or turn the sound off."
+    );
 }
 
 #[test]
@@ -184,8 +238,12 @@ fn an_output_is_captured_whole_and_an_unknown_one_lists_the_real_ones() {
     let whole = shot_of("DP-1").unwrap();
     assert_eq!(whole.frame.size_px, (800, 600));
     assert_eq!(whole.kind, StoredKind::Fullscreen);
-    let Fail(code, message) = shot_of("HDMI-A-1").err().unwrap();
+    let Fail(code, message, hint) = shot_of("HDMI-A-1").err().unwrap();
     assert_eq!(code, ErrorCode::NotFound);
+    assert_eq!(
+        hint.as_deref(),
+        Some("No monitor is called \"HDMI-A-1\". Monitors: DP-1, DP-2.")
+    );
     assert!(message.contains("DP-1, DP-2"), "{message}");
 }
 
@@ -306,10 +364,11 @@ fn a_window_or_output_outside_the_scope_is_refused_where_the_capture_resolves_it
     let by_id = |id: &str| AgentTarget::Window(WindowSelector::id(id).unwrap());
     let mpv = only(&["mpv"], &[]);
     assert!(grab(&Screens, &desk(), &by_id("3"), &mpv).is_ok());
-    let Err(Fail(code, message)) = grab(&Screens, &desk(), &by_id("4"), &mpv) else {
+    let Err(Fail(code, message, hint)) = grab(&Screens, &desk(), &by_id("4"), &mpv) else {
         panic!("a firefox window the gate never saw was captured outside the scope");
     };
     assert_eq!(code, ErrorCode::AccessDenied, "{message}");
+    assert!(hint.unwrap().contains("Settings › Agents"));
     let other = Scope::new(&AgentCfg {
         allowed_outputs: vec!["NOT-THERE".into()],
         ..AgentCfg::default()
@@ -358,9 +417,13 @@ fn an_agent_capture_while_the_user_picks_is_told_busy_with_exit_4(cx: &mut TestA
     cx.update(|cx| coordinator.submit(jobs.allocate(), request, cx));
     cx.run_until_parked();
 
-    let Err(Fail(code, message)) = hold(&coordinator) else {
+    let Err(Fail(code, message, hint)) = hold(&coordinator) else {
         panic!("an agent captured the screen while the user was picking on it");
     };
+    assert_eq!(
+        hint.as_deref(),
+        Some("You're in the middle of a capture. Finish it or press Esc, and try again.")
+    );
     assert_eq!(code, ErrorCode::InvalidArguments);
     assert_eq!(code.exit_code(), 4);
     assert!(message.contains("busy"), "{message}");
@@ -455,7 +518,7 @@ fn the_agent_capture_path_itself_is_refused_while_the_user_picks(cx: &mut TestAp
         *slot.borrow_mut() = Some(shot.err());
     });
     cx.run_until_parked();
-    let Some(Some(Fail(code, message))) = answer.borrow_mut().take() else {
+    let Some(Some(Fail(code, message, ..))) = answer.borrow_mut().take() else {
         panic!("acquire went on to capture while the user was picking");
     };
     assert_eq!((code, code.exit_code()), (ErrorCode::InvalidArguments, 4));

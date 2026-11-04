@@ -1,10 +1,12 @@
 use super::Sources;
 use super::capture::{Fail, check_caps, fail_of, hold, resolve_window};
 use super::gate::scope::{Scope, describe};
+use super::hints;
 use crate::daemon::recording::agent::{Ended, Kept, Options};
 use crate::daemon::recording::{Recordings, Start};
 use es_app::agent_access::{AccessEvent, AgentAccess};
 use es_app::capture_coordinator::CaptureCoordinator;
+use es_app::errors::Error;
 use es_app::settings_model::SettingsModel;
 use es_geom::Rect;
 use es_model::platform::{OutputId, OutputInfo, WindowInfo};
@@ -118,7 +120,7 @@ impl Runner {
                 .spawn(async move { ((sources.outputs)(), (sources.windows)()) })
                 .await;
             cx.update(|cx| me.begin(&spec, &scope, &seen.0, &seen.1, cx))
-                .unwrap_or_else(|Fail(code, message)| failed(code, message))
+                .unwrap_or_else(|fail| fail.reply(ReplyKind::Recording))
         })
     }
 
@@ -133,11 +135,12 @@ impl Runner {
         check_caps(self.sources.caps, &spec.target)?;
         let chosen = resolve(&spec.target, scope, outputs, windows)?;
         if self.recordings.is_busy() {
-            return Err(Fail::new(ErrorCode::InvalidArguments, BUSY));
+            return Err(Fail::new(ErrorCode::InvalidArguments, BUSY).hint(hints::recording_busy()));
         }
-        self.recordings
-            .admit(cx)
-            .map_err(|_| Fail::new(ErrorCode::Unsupported, "no screen recorder is installed"))?;
+        self.recordings.admit(cx).map_err(|_| {
+            Fail::new(ErrorCode::Unsupported, "no screen recorder is installed")
+                .hint(hints::no_recorder())
+        })?;
         let start = Start {
             request: self.recordings.agent_request(chosen.target, spec.audio, cx),
             area: chosen.area,
@@ -147,7 +150,16 @@ impl Runner {
             },
         };
         drop(hold(&self.coordinator)?);
-        self.recordings.start(start, cx).map_err(fail_of)?;
+        let mic = start.request.mic.clone();
+        self.recordings.start(start, cx).map_err(|e| {
+            let missing = matches!(e, Error::AudioDeviceMissing);
+            let fail = fail_of(e);
+            if missing {
+                fail.hint(hints::audio_device_missing(mic.as_deref()))
+            } else {
+                fail
+            }
+        })?;
         let id = format!("rec-{}", &uuid::Uuid::new_v4().simple().to_string()[..8]);
         let (me, max) = (self.clone(), spec.max_seconds);
         let limit = cx.spawn(async move |cx| {
@@ -329,7 +341,7 @@ fn resolve(
     outputs: &[OutputInfo],
     windows: &[WindowInfo],
 ) -> Result<Chosen, Fail> {
-    let denied = |why: String| Fail::new(ErrorCode::AccessDenied, why);
+    let denied = |why: String| Fail::new(ErrorCode::AccessDenied, why).hint(hints::outside_scope());
     let names = || {
         outputs
             .iter()
@@ -363,6 +375,10 @@ fn resolve(
             ErrorCode::NotFound,
             format!("{what}; the outputs are {}", names()),
         )
+        .hint(hints::no_output(
+            &what,
+            &outputs.iter().map(|o| o.id.0.clone()).collect::<Vec<_>>(),
+        ))
     };
     let (output, checked, area) = match target {
         AgentTarget::Output(name) => {

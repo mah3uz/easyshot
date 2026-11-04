@@ -31,7 +31,7 @@ fn go(spec: &ExportSpec) -> Result<ExportInfo, Fail> {
 
 fn refused(spec: &ExportSpec) -> ErrorCode {
     match go(spec) {
-        Err(Fail(code, _)) => code,
+        Err(Fail(code, ..)) => code,
         Ok(done) => panic!("exported {}", done.path),
     }
 }
@@ -49,7 +49,7 @@ fn every_format_exports_at_the_size_and_trim_asked_for() {
             out: Some(out.clone()),
             ..spec(&input)
         })
-        .unwrap_or_else(|Fail(c, m)| panic!("{format}: {c:?} {m}"));
+        .unwrap_or_else(|Fail(c, m, ..)| panic!("{format}: {c:?} {m}"));
         assert_eq!(done.path, out.display().to_string());
         assert_eq!(done.format, format);
         assert_eq!((done.width, done.height), (854, 480), "{format}");
@@ -99,7 +99,7 @@ fn the_options_become_the_same_ffmpeg_arguments_the_trim_viewer_makes() {
         },
         10.,
     )
-    .unwrap_or_else(|Fail(c, m)| panic!("{c:?} {m}"));
+    .unwrap_or_else(|Fail(c, m, ..)| panic!("{c:?} {m}"));
     assert_eq!(
         job.options,
         ExportOptions {
@@ -140,10 +140,49 @@ fn a_trim_is_held_to_the_length_of_the_video() {
     assert_eq!(make("1..99").map(|j| j.trim.end()).ok(), Some(4.));
     for past in ["4..", "5..9", "3.95.."] {
         assert!(
-            matches!(make(past), Err(Fail(ErrorCode::InvalidArguments, _))),
+            matches!(make(past), Err(Fail(ErrorCode::InvalidArguments, ..))),
             "{past}"
         );
     }
+}
+
+struct NoTools;
+
+impl CommandRunner for NoTools {
+    fn run(&self, _: &str, _: &[String]) -> std::io::Result<std::process::Output> {
+        Err(std::io::ErrorKind::NotFound.into())
+    }
+}
+
+#[test]
+fn without_ffmpeg_the_reply_says_what_to_install() {
+    let dir = tempfile::tempdir().unwrap();
+    let input = dir.path().join("in.mp4");
+    std::fs::write(&input, "x").unwrap();
+    let Err(Fail(code, _, hint)) = run(&spec(&input), &NoTools, &SystemFfmpeg) else {
+        panic!("exported without ffmpeg");
+    };
+    assert_eq!(code, ErrorCode::Unsupported);
+    assert_eq!(
+        hint.as_deref(),
+        Some("Exporting needs ffmpeg. Install it with `sudo pacman -S ffmpeg`.")
+    );
+}
+
+#[test]
+fn a_missing_video_hint_names_the_path() {
+    let dir = tempfile::tempdir().unwrap();
+    let gone = dir.path().join("gone.mp4");
+    let Err(Fail(_, _, hint)) = run(&spec(&gone), &NoTools, &SystemFfmpeg) else {
+        panic!("exported a missing file");
+    };
+    assert_eq!(
+        hint,
+        Some(format!(
+            "There is no file at {}. Check the path and try again.",
+            gone.display()
+        ))
+    );
 }
 
 #[test]

@@ -120,7 +120,7 @@ fn a_missing_tesseract_lets_the_capture_through_unredacted_and_tells_the_user_on
 #[test]
 fn a_recognizer_that_fails_for_another_reason_fails_the_capture_rather_than_leaking_it() {
     let broken: Recognizer = Arc::new(|_, _| Err(es_ocr::Error::Timeout));
-    let Err(Fail(code, message)) = inspect(true, &frame(), &languages(), &broken) else {
+    let Err(Fail(code, message, ..)) = inspect(true, &frame(), &languages(), &broken) else {
         panic!("went through");
     };
     assert_eq!(code, ErrorCode::Failed);

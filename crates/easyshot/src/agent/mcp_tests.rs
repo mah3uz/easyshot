@@ -14,7 +14,7 @@ use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, DuplexStream, ReadHalf, WriteHalf};
 
 const OUTPUTS: &str = r#"{"ok":true,"kind":"outputs","outputs":[{"name":"HEADLESS-1","x":0,"y":0,"width":1280,"height":720,"scale":1,"focused":true}]}"#;
-const ACCESS_OFF: &str = r#"{"ok":false,"kind":"capture","error":{"code":"access_off","message":"agent access is off"}}"#;
+const ACCESS_OFF: &str = r#"{"ok":false,"kind":"capture","error":{"code":"access_off","message":"agent access is off","hint":"Agent access is off. Turn it on in Settings › Agents, or run `easyshot agent enable`."}}"#;
 
 fn args(value: &Value) -> serde_json::Map<String, Value> {
     value.as_object().cloned().unwrap_or_default()
@@ -322,8 +322,11 @@ async fn a_stdio_session_lists_tools_and_returns_a_small_image_and_the_daemons_e
     assert_eq!(refused["isError"], true);
     let message = refused["content"][0]["text"].as_str().unwrap();
     assert!(message.contains("access_off"), "{message}");
-    assert!(message.contains("Settings > Agents"), "{message}");
-    assert!(message.contains("easyshot agent enable"), "{message}");
+    assert_eq!(
+        message,
+        "access_off: agent access is off. Agent access is off. Turn it on in Settings › Agents, \
+         or run `easyshot agent enable`."
+    );
     assert_eq!(refused["structuredContent"]["error"]["code"], "access_off");
 
     let invalid = client.call("capture", json!({})).await;
@@ -429,4 +432,23 @@ async fn annotate_draws_on_a_file_without_the_daemon_and_returns_a_preview() {
         )
         .await;
     assert_eq!(relative["isError"], true);
+}
+
+#[test]
+fn a_refusal_is_the_message_and_its_hint_only_when_there_is_one() {
+    use es_protocol::agent::{AgentReply, ErrorCode, ReplyKind};
+    let text = |reply: &AgentReply| {
+        let refused = super::mcp::refusal(reply).unwrap();
+        serde_json::to_value(&refused).unwrap()["content"][0]["text"]
+            .as_str()
+            .unwrap()
+            .to_owned()
+    };
+    let plain = AgentReply::failed(ReplyKind::Capture, ErrorCode::NotFound, "no window matches");
+    assert_eq!(text(&plain), "not_found: no window matches.");
+    let hinted = plain.hinted(Some("Open the window first.".into()));
+    assert_eq!(
+        text(&hinted),
+        "not_found: no window matches. Open the window first."
+    );
 }

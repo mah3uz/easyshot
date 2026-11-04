@@ -39,6 +39,9 @@ time = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
 rustix = { workspace = true, features = ["process"], optional = true }
 clap.workspace = true
+i18n-embed.workspace = true
+i18n-embed-fl.workspace = true
+rust-embed.workspace = true
 clap_complete.workspace = true
 anyhow.workspace = true
 tokio.workspace = true

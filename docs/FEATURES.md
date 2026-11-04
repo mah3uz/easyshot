@@ -282,6 +282,7 @@ More in the manual: [Command line](MANUAL.md#command-line).
 - Prints exactly one JSON object with `--json`, errors included.
 - Uses a separate exit code for each kind of error.
 - Keeps agent access off until you turn it on, and asks you in a dialog first.
+- Tells you in one plain sentence, in `error.hint`, what went wrong and what to do when an agent command fails.
 - Shows, reads and changes access and settings with `agent enable`, `disable`, `status` and `config`.
 - Answers only your own user.
 - Asks for consent once per session by default, or every time, or never.

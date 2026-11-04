@@ -4,6 +4,8 @@ pub(super) mod capture;
 mod export;
 #[path = "agent_gate.rs"]
 pub(super) mod gate;
+#[path = "agent_hints.rs"]
+mod hints;
 #[path = "agent_ocr.rs"]
 mod ocr;
 #[path = "agent_record.rs"]

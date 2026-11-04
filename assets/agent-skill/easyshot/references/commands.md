@@ -65,7 +65,11 @@ meaning.
 {"ok":true,"kind":"annotate","path":"/tmp/marked.png","width":1280,"height":720,"ops":2}
 {"ok":true,"kind":"export","path":"/tmp/demo.gif","format":"gif","width":480,"height":270,"duration_ms":6000,"bytes":812345}
 {"ok":false,"kind":"windows","error":{"code":"unsupported","message":"this desktop gives easyshot no window list"}}
+{"ok":false,"kind":"capture","error":{"code":"not_found","message":"no window matches \"nosuchapp\"","hint":"No open window is called \"nosuchapp\". Open windows: Terminal (foot), Mozilla Firefox (firefox)."}}
 ```
+
+`error.hint` is optional: one plain sentence for the user, set where the cause is known. Tell
+the user that sentence as it is. `error.message` is the technical text for you.
 
 `kind` is `outputs`, `windows`, `capture`, `export`, `annotate`, `ocr`, `recording`, `access`, `config`, or
 `usage` when the command line itself could not be read.

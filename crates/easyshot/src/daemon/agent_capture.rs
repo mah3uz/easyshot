@@ -1,4 +1,5 @@
 use super::gate::{self as agent_gate, scope::Scope};
+use super::hints;
 use super::redact::{Redactor, inspect};
 use super::window_entry;
 use crate::daemon::capture::{Direct, cut, shoot};
@@ -37,11 +38,20 @@ pub struct Deps {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub(super) struct Fail(pub ErrorCode, pub String);
+pub(super) struct Fail(pub ErrorCode, pub String, pub Option<String>);
 
 impl Fail {
     pub(super) fn new(code: ErrorCode, message: impl Into<String>) -> Fail {
-        Fail(code, message.into())
+        Fail(code, message.into(), None)
+    }
+
+    pub(super) fn hint(mut self, hint: String) -> Fail {
+        self.2 = Some(hint);
+        self
+    }
+
+    pub(super) fn reply(self, kind: ReplyKind) -> AgentReply {
+        AgentReply::failed(kind, self.0, self.1).hinted(self.2)
     }
 }
 
@@ -50,15 +60,18 @@ pub(super) fn fail_of(e: Error) -> Fail {
         Error::Unsupported => Fail::new(ErrorCode::Unsupported, "this desktop cannot capture that"),
         Error::NotFound(what) => Fail::new(ErrorCode::NotFound, format!("no {what}")),
         Error::Cancelled => Fail::new(ErrorCode::Cancelled, "cancelled"),
-        Error::TesseractMissing => Fail::new(ErrorCode::Unsupported, super::ocr::INSTALL_HINT),
+        Error::TesseractMissing => Fail::new(ErrorCode::Unsupported, super::ocr::INSTALL_HINT)
+            .hint(hints::tesseract_missing()),
         Error::AudioDeviceMissing => Fail::new(
             ErrorCode::Failed,
             es_app::strings::loader().get("toast-recording-no-audio-device-message"),
-        ),
+        )
+        .hint(hints::audio_device_missing(None)),
         Error::AreaOffMonitor => Fail::new(
             ErrorCode::Failed,
             es_app::strings::loader().get("toast-recording-area-off-monitor-message"),
-        ),
+        )
+        .hint(hints::area_off_monitor()),
         other => Fail::new(ErrorCode::Failed, other.to_string()),
     }
 }
@@ -118,9 +131,7 @@ fn runner(deps: Rc<Deps>, redactor: Rc<Redactor>) -> CaptureRunner {
         cx.spawn(async move |cx| {
             run(&deps, &redactor, spec, &scope, cx)
                 .await
-                .unwrap_or_else(|Fail(code, message)| {
-                    AgentReply::failed(ReplyKind::Capture, code, message)
-                })
+                .unwrap_or_else(|fail| fail.reply(ReplyKind::Capture))
         })
     })
 }
@@ -229,6 +240,7 @@ pub(super) fn hold(coordinator: &CaptureCoordinator) -> Result<Claim, Fail> {
             ErrorCode::InvalidArguments,
             "busy: a capture is in progress",
         )
+        .hint(hints::capture_busy())
     })
 }
 
@@ -272,15 +284,9 @@ pub(super) fn grab(
     if !scope.is_open() && !matches!(target, AgentTarget::Window(_)) {
         scope
             .check(target, &outputs, &[])
-            .map_err(|m| Fail::new(ErrorCode::AccessDenied, m))?;
+            .map_err(|m| Fail::new(ErrorCode::AccessDenied, m).hint(hints::outside_scope()))?;
     }
-    let names = || {
-        outputs
-            .iter()
-            .map(|o| o.id.0.as_str())
-            .collect::<Vec<_>>()
-            .join(", ")
-    };
+    let names = || output_names(&outputs).join(", ");
     let crop =
         |output: &OutputId, area: Option<Rect>| cut(capture, output, area, None).map_err(fail_of);
     match target {
@@ -297,6 +303,7 @@ pub(super) fn grab(
                         ErrorCode::NotFound,
                         format!("no output named {name}; the outputs are {}", names()),
                     )
+                    .hint(hints::no_output(name.as_str(), &output_names(&outputs)))
                 })?;
             Ok(Shot {
                 frame: Arc::new(crop(&output.id, None)?),
@@ -360,6 +367,10 @@ pub(super) fn grab(
     }
 }
 
+fn output_names(outputs: &[es_model::platform::OutputInfo]) -> Vec<String> {
+    outputs.iter().map(|o| o.id.0.clone()).collect()
+}
+
 fn outside(what: &str) -> Fail {
     Fail::new(
         ErrorCode::AccessDenied,
@@ -367,6 +378,7 @@ fn outside(what: &str) -> Fail {
             "{what} is outside what agents may capture; change it with `easyshot agent config set` or in Settings › Agents"
         ),
     )
+    .hint(hints::outside_scope())
 }
 
 fn describe(w: &WindowInfo) -> String {
@@ -394,10 +406,10 @@ pub(super) fn resolve_window(
         ),
     };
     match found.as_slice() {
-        [] => Err(Fail::new(
-            ErrorCode::NotFound,
-            format!("no window matches {query:?}"),
-        )),
+        [] => Err(
+            Fail::new(ErrorCode::NotFound, format!("no window matches {query:?}"))
+                .hint(hints::no_window(query, windows)),
+        ),
         [one] => Ok((*one).clone()),
         many => Err(Fail::new(
             ErrorCode::InvalidArguments,
@@ -409,7 +421,8 @@ pub(super) fn resolve_window(
                     .collect::<Vec<_>>()
                     .join("; ")
             ),
-        )),
+        )
+        .hint(hints::ambiguous_window(query, many))),
     }
 }
 

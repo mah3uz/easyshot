@@ -208,6 +208,13 @@ fn every_agent_route_is_refused_while_access_is_off_and_says_how_to_turn_it_on(
         assert_eq!(code(&reply), &json!("access_off"), "{route:?}");
         let parsed = AgentReply::from_json(&reply.to_string()).unwrap();
         assert_eq!(parsed.exit_code(), 7);
+        assert_eq!(
+            reply["error"]["hint"],
+            json!(
+                "Agent access is off. Turn it on in Settings › Agents, or run \
+                 `easyshot agent enable`."
+            )
+        );
         assert!(
             reply["error"]["message"]
                 .as_str()
@@ -232,6 +239,10 @@ fn every_agent_route_is_refused_when_the_user_denies(cx: &mut TestAppContext) {
     for route in AgentRoute::ALL {
         let (_, reply) = rig.ask(&src.sources, route.clone(), Origin::DBus, Some(ME), cx);
         assert_eq!(code(&reply), &json!("access_denied"), "{route:?}");
+        assert_eq!(
+            reply["error"]["hint"],
+            json!("You didn't allow this request, so nothing was done.")
+        );
         assert_eq!(
             AgentReply::from_json(&reply.to_string())
                 .unwrap()

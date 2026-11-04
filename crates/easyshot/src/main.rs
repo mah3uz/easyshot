@@ -6,9 +6,11 @@ mod daemon;
 mod doctor;
 mod doctor_summary;
 mod doctor_tools;
+mod hints;
 mod run;
 #[cfg(test)]
 mod run_tests;
+mod strings;
 
 use clap::{CommandFactory, FromArgMatches};
 use cli::{Cli, Request};

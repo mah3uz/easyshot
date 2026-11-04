@@ -1,5 +1,6 @@
 use super::capture::{Deps, Fail, acquire, check_caps, fail_of};
 use super::gate::scope::Scope;
+use super::hints;
 use super::window_entry;
 use es_app::pipeline::frame_rgba;
 use es_geom::Rect;
@@ -58,9 +59,7 @@ pub fn runner(deps: Rc<Deps>, recognizer: Recognizer) -> OcrRunner {
         cx.spawn(async move |cx| {
             run(&deps, &recognizer, spec, &scope, cx)
                 .await
-                .unwrap_or_else(|Fail(code, message)| {
-                    AgentReply::failed(ReplyKind::Ocr, code, message)
-                })
+                .unwrap_or_else(|fail| fail.reply(ReplyKind::Ocr))
         })
     })
 }
@@ -142,10 +141,10 @@ fn load_image(path: &Path) -> Result<RgbaImage, Fail> {
             ));
         }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            return Err(Fail::new(
-                ErrorCode::NotFound,
-                format!("no file {}", path.display()),
-            ));
+            return Err(
+                Fail::new(ErrorCode::NotFound, format!("no file {}", path.display()))
+                    .hint(crate::hints::file_missing(path)),
+            );
         }
         Err(e) => {
             return Err(Fail::new(
@@ -167,7 +166,8 @@ fn load_image(path: &Path) -> Result<RgbaImage, Fail> {
         return Err(Fail::new(
             ErrorCode::InvalidArguments,
             format!("{} is not a PNG or JPEG image", path.display()),
-        ));
+        )
+        .hint(crate::hints::not_an_image(path)));
     }
     Ok(reader.decode().map_err(|e| failed(&e))?.to_rgba8())
 }
@@ -178,7 +178,9 @@ fn read(image: &RgbaImage, languages: &[String], recognizer: &Recognizer) -> Res
         ..OcrOptions::default()
     };
     let found = recognizer(image, &options).map_err(|e| match e {
-        es_ocr::Error::NotInstalled => Fail::new(ErrorCode::Unsupported, INSTALL_HINT),
+        es_ocr::Error::NotInstalled => {
+            Fail::new(ErrorCode::Unsupported, INSTALL_HINT).hint(hints::tesseract_missing())
+        }
         es_ocr::Error::Cancelled => Fail::new(ErrorCode::Cancelled, "cancelled"),
         other => Fail::new(ErrorCode::Failed, other.to_string()),
     })?;

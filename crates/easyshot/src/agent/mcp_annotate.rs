@@ -23,6 +23,7 @@ pub(super) async fn call(def: &ToolDef, args: &JsonObject) -> CallToolResult {
             return refused(&Failure {
                 code: ErrorCode::Failed,
                 message: e.to_string(),
+                hint: None,
             });
         }
     };

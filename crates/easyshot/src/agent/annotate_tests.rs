@@ -243,11 +243,24 @@ fn a_missing_image_is_not_found_and_a_text_file_is_not_an_image() {
         panic!("a missing image was accepted");
     };
     assert_eq!(f.code, ErrorCode::NotFound);
+    let gone = rig.path("nope.png");
+    assert_eq!(
+        f.hint,
+        Some(format!(
+            "There is no file at {}. Check the path and try again.",
+            gone.display()
+        ))
+    );
     std::fs::write(rig.path("notes.png"), "hello").unwrap();
     let Err(f) = perform(&rig.path("notes.png"), ops, &out, false, &style) else {
         panic!("a text file was accepted");
     };
     assert_eq!(f.code, ErrorCode::InvalidArguments);
+    assert!(
+        f.hint
+            .unwrap()
+            .ends_with("isn't an image easyshot can read. Use a PNG or JPEG file."),
+    );
 }
 
 #[test]

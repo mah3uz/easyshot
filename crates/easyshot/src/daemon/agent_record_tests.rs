@@ -274,6 +274,10 @@ async fn a_second_start_while_one_runs_is_invalid_arguments(cx: &mut TestAppCont
     let first = rig.start(AgentTarget::Fullscreen, 120, cx);
     let again = rig.start(AgentTarget::Fullscreen, 120, cx);
     assert_eq!(code(&again), "invalid_arguments", "{again}");
+    assert_eq!(
+        again["error"]["hint"],
+        "A recording is already running. Stop it, then try again."
+    );
     assert!(
         again["error"]["message"]
             .as_str()
@@ -376,6 +380,10 @@ async fn an_agent_recording_waits_for_no_capture_and_is_told_busy(cx: &mut TestA
     let claim = rig.coordinator.claim().unwrap();
     let busy = rig.start(AgentTarget::Fullscreen, 120, cx);
     assert_eq!(code(&busy), "invalid_arguments", "{busy}");
+    assert_eq!(
+        busy["error"]["hint"],
+        "You're in the middle of a capture. Finish it or press Esc, and try again."
+    );
     assert!(!rig.recording());
     drop(claim);
     rig.start(AgentTarget::Fullscreen, 120, cx);
@@ -436,7 +444,7 @@ fn the_window_or_output_that_is_resolved_is_the_one_the_scope_is_checked_against
     let window = |id: &str| AgentTarget::Window(WindowSelector::id(id).unwrap());
     let only_mpv = scoped(&["mpv"], &[]);
     assert!(resolve(&window("2"), &only_mpv, &outputs(), &desk()).is_ok());
-    let Err(Fail(code, why)) = resolve(&window("1"), &only_mpv, &outputs(), &desk()) else {
+    let Err(Fail(code, why, ..)) = resolve(&window("1"), &only_mpv, &outputs(), &desk()) else {
         panic!("a foot window was recorded outside the scope");
     };
     assert_eq!(code, ErrorCode::AccessDenied, "{why}");
