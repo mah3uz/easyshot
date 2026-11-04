@@ -102,6 +102,11 @@ const READERS: &[(&str, &str, &str)] = &[
         "capture.keep_in_deck_until_saved",
     ),
     (
+        "gallery.item_size",
+        "crates/es-shell/src/gallery/size.rs",
+        "item_size",
+    ),
+    (
         "overlay.layout",
         "crates/es-overlays/src/deck/view.rs",
         "overlay.layout",

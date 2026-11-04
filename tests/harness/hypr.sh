@@ -115,11 +115,12 @@ case "$cmd" in
         [ $# -gt 0 ] || die "usage: hypr.sh run -- CMD..."
         run "$@" ;;
     shot) [ -n "${1:-}" ] || die "usage: hypr.sh shot NAME"; shot "$1" ;;
+    ctl) hyprctl "$@" ;;
     platform)
         parse_scale "$@"
         trap down EXIT
         up
         cd "$REPO"
         run bash -c "source tests/harness/lib.sh && platform_tests" ;;
-    *) die "usage: hypr.sh up [--scale N] | down | run -- CMD... | shot NAME | platform [--scale N]" ;;
+    *) die "usage: hypr.sh up [--scale N] | down | run -- CMD... | shot NAME | ctl ARGS... | platform [--scale N]" ;;
 esac

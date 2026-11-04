@@ -37,14 +37,22 @@ fn inject(events: &str) {
     .unwrap();
 }
 
-fn hyprctl(args: &[&str]) -> String {
-    let out = Command::new("hyprctl").args(args).output().unwrap();
-    assert!(out.status.success(), "hyprctl {args:?}");
+// The compositor's control tool is reached through the harness, which owns every compositor-specific call.
+fn compositor_ctl(args: &[&str]) -> String {
+    let harness = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/harness/hypr.sh");
+    let out = Command::new("bash")
+        .arg(harness)
+        .arg("ctl")
+        .args(args)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "harness ctl {args:?}");
     String::from_utf8_lossy(&out.stdout).into_owned()
 }
 
 fn monitor() -> serde_json::Value {
-    let all: serde_json::Value = serde_json::from_str(&hyprctl(&["monitors", "-j"])).unwrap();
+    let all: serde_json::Value =
+        serde_json::from_str(&compositor_ctl(&["monitors", "-j"])).unwrap();
     all.as_array()
         .unwrap()
         .iter()
@@ -54,7 +62,8 @@ fn monitor() -> serde_json::Value {
 }
 
 fn page_pid() -> Option<i64> {
-    let clients: serde_json::Value = serde_json::from_str(&hyprctl(&["clients", "-j"])).unwrap();
+    let clients: serde_json::Value =
+        serde_json::from_str(&compositor_ctl(&["clients", "-j"])).unwrap();
     clients
         .as_array()?
         .iter()
@@ -113,7 +122,7 @@ fn open_page(root: &Path) -> Page {
          --ozone-platform=wayland '--app=file://{page}?step=60&every=300&anim=1&wait=4000'",
         root.join("chrome").display()
     );
-    hyprctl(&[
+    compositor_ctl(&[
         "dispatch",
         &format!("hl.dsp.exec_cmd(\"{exec}\", {{ workspace = \"{ws} silent\" }})"),
     ]);
