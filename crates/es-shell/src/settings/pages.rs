@@ -1,18 +1,15 @@
-use super::widgets::{group, row, switch};
+use super::widgets::{
+    FIELD_WIDTH, beside, group, note_row, row, segmented_width, stacked_row, switch,
+};
 use super::{Page, SettingsWindow, Toggle};
 use crate::strings::fl;
 use es_model::Config;
 use es_model::recording::InputAccess;
 use es_ui::components::{ButtonKind, EditorButton, InspectorSlider, Segment, Segmented};
 use gpui::{
-    AnyElement, Context, Entity, IntoElement, ParentElement, SharedString, Styled, div, px,
+    AnyElement, App, Context, Entity, IntoElement, ParentElement, SharedString, Styled, div, px,
 };
 use gpui_component::h_flex;
-
-const SEGMENT_CHAR: f32 = 6.5;
-const SEGMENT_PAD: f32 = 20.;
-const SEGMENT_MIN: f32 = 52.;
-const SEGMENTED_MAX: f32 = 380.;
 
 fn text(s: String) -> Option<SharedString> {
     Some(s.into())
@@ -75,13 +72,7 @@ impl SettingsWindow {
     ) -> AnyElement {
         let selected = options.iter().position(|(v, _)| v == current).unwrap_or(0);
         let values: Vec<T> = options.iter().map(|(v, _)| v.clone()).collect();
-        let longest = options
-            .iter()
-            .map(|(_, l)| l.chars().count())
-            .max()
-            .unwrap_or(0);
-        let width =
-            (longest as f32 * SEGMENT_CHAR + SEGMENT_PAD).max(SEGMENT_MIN) * options.len() as f32;
+        let width = segmented_width(options.iter().map(|(_, l)| l.as_str()));
         let this = cx.entity().downgrade();
         let mut help_for = option_help(id).into_iter();
         let control = Segmented::new(
@@ -102,8 +93,16 @@ impl SettingsWindow {
                     .ok();
             }
         });
-        let control = div().w(px(width.min(SEGMENTED_MAX))).child(control);
-        row(title, help.map(Into::into), control, cx)
+        if beside(width) {
+            row(
+                title,
+                help.map(Into::into),
+                div().w(px(width)).child(control),
+                cx,
+            )
+        } else {
+            stacked_row(title, help.map(Into::into), control.sized_by_label(), cx)
+        }
     }
 
     /// Where Keystrokes stands now, judged by the check a recording makes.
@@ -119,18 +118,20 @@ impl SettingsWindow {
         }
     }
 
-    pub(super) fn slider_row(&self, slider: &Entity<InspectorSlider>) -> AnyElement {
-        div()
-            .px(px(16.))
-            .py(px(6.))
-            .child(slider.clone())
-            .into_any_element()
+    pub(super) fn slider_row(&self, slider: &Entity<InspectorSlider>, cx: &App) -> AnyElement {
+        let title = slider.read(cx).label().clone();
+        row(
+            title,
+            None,
+            div().w(px(FIELD_WIDTH)).child(slider.clone()),
+            cx,
+        )
     }
 
     pub(super) fn restore_row(
         &self,
         page: Page,
-        help: Option<String>,
+        help: String,
         reset: fn(&mut Config),
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -166,13 +167,7 @@ impl SettingsWindow {
                 }))
                 .into_any_element()
         };
-        group(
-            None,
-            vec![row(help.unwrap_or_default(), None, control, cx)],
-            None,
-            cx,
-        )
-        .into_any_element()
+        group(None, vec![note_row(help, control, cx)], None, cx).into_any_element()
     }
 
     pub(super) fn render_capture(&mut self, cx: &mut Context<Self>) -> Vec<AnyElement> {
@@ -294,7 +289,7 @@ impl SettingsWindow {
             .into_any_element(),
             self.restore_row(
                 Page::Capture,
-                Some(fl!("capture-restore-help")),
+                fl!("capture-restore-help"),
                 |c| c.capture = Default::default(),
                 cx,
             ),
@@ -368,8 +363,8 @@ impl SettingsWindow {
                         Some(fl!("overlay-always-show-actions-help")),
                         cx,
                     ),
-                    self.slider_row(&self.sliders.margin),
-                    self.slider_row(&self.sliders.hide_after),
+                    self.slider_row(&self.sliders.margin, cx),
+                    self.slider_row(&self.sliders.hide_after, cx),
                 ],
                 text(fl!("overlay-behavior-footer")),
                 cx,
@@ -377,7 +372,7 @@ impl SettingsWindow {
             .into_any_element(),
             self.restore_row(
                 Page::Overlay,
-                Some(fl!("overlay-restore-help")),
+                fl!("overlay-restore-help"),
                 |c| c.overlay = Default::default(),
                 cx,
             ),
@@ -562,7 +557,7 @@ impl SettingsWindow {
             .into_any_element(),
             self.restore_row(
                 Page::Recording,
-                None,
+                fl!("recording-restore-help"),
                 |c| c.recording = Default::default(),
                 cx,
             ),

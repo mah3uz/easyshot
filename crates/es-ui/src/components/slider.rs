@@ -40,6 +40,7 @@ pub enum SliderEvent {
 
 pub struct InspectorSlider {
     label: SharedString,
+    label_in_track: bool,
     value: f64,
     range: RangeInclusive<f64>,
     format: ValueFormat,
@@ -106,6 +107,7 @@ impl InspectorSlider {
         let _field_events = cx.subscribe_in(&field, window, Self::on_field);
         let mut this = Self {
             label: label.into(),
+            label_in_track: true,
             value: value.clamp(*range.start(), *range.end()),
             range,
             format,
@@ -123,6 +125,16 @@ impl InspectorSlider {
         };
         this.sync_field(window, cx);
         this
+    }
+
+    pub fn label(&self) -> &SharedString {
+        &self.label
+    }
+
+    /// For a slider whose row already shows its name.
+    pub fn without_track_label(mut self) -> Self {
+        self.label_in_track = false;
+        self
     }
 
     pub fn value(&self) -> f64 {
@@ -441,17 +453,19 @@ impl Render for InspectorSlider {
             .aria_description(fl!("controls-slider-hint"))
             .child(base)
             .children(markers)
-            .child(
-                div()
-                    .absolute()
-                    .inset_0()
-                    .flex()
-                    .items_center()
-                    .px(LABEL_INSET)
-                    .typeset(t.type_scale.value)
-                    .text_color(t.text.opacity(0.85))
-                    .child(div().truncate().child(self.label.clone())),
-            )
+            .when(self.label_in_track, |d| {
+                d.child(
+                    div()
+                        .absolute()
+                        .inset_0()
+                        .flex()
+                        .items_center()
+                        .px(LABEL_INSET)
+                        .typeset(t.type_scale.value)
+                        .text_color(t.text.opacity(0.85))
+                        .child(div().truncate().child(self.label.clone())),
+                )
+            })
             .when(pressed, |d| d.child(focus_ring(&t, radius)))
             .when(!disabled, |d| {
                 d.track_focus(&self.track_focus)

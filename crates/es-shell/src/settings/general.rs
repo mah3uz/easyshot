@@ -1,4 +1,4 @@
-use super::widgets::{group, row};
+use super::widgets::{FIELD_WIDTH, group, row};
 use super::{Page, SettingsWindow, SettingsWindowEvent, Toggle};
 use crate::strings::fl;
 use es_protocol::Route;
@@ -45,7 +45,7 @@ impl SettingsWindow {
             cx,
         )];
         if jpeg {
-            format_rows.push(self.slider_row(&self.sliders.quality));
+            format_rows.push(self.slider_row(&self.sliders.quality, cx));
         }
         let look = if c.default_look.style.is_empty() {
             fl!("general-look-no-background")
@@ -132,7 +132,7 @@ impl SettingsWindow {
                     row(
                         fl!("general-file-name"),
                         None,
-                        Input::new(&self.file_name).w(px(240.)),
+                        Input::new(&self.file_name).w(px(FIELD_WIDTH)),
                         cx,
                     ),
                     self.toggle_row(
@@ -156,15 +156,15 @@ impl SettingsWindow {
                         None,
                         EditorButton::new("reset-look")
                             .label(fl!("general-look-reset-a11y"))
-                            .kind(ButtonKind::Plain)
+                            .kind(ButtonKind::Bordered)
                             .on_click(cx.listener(|this, _, _, cx| {
                                 this.edit(|c| c.default_look = Default::default(), cx)
                             })),
                         cx,
                     ),
-                    self.slider_row(&self.sliders.padding),
-                    self.slider_row(&self.sliders.radius),
-                    self.slider_row(&self.sliders.shadow),
+                    self.slider_row(&self.sliders.padding, cx),
+                    self.slider_row(&self.sliders.radius, cx),
+                    self.slider_row(&self.sliders.shadow, cx),
                 ],
                 text(fl!("general-look-footer")),
                 cx,
@@ -201,7 +201,7 @@ impl SettingsWindow {
             .into_any_element(),
             self.restore_row(
                 Page::General,
-                Some(fl!("general-restore-help")),
+                fl!("general-restore-help"),
                 |c| {
                     let keep = c.general.history_limit;
                     c.general = Default::default();

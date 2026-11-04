@@ -533,4 +533,5 @@ fn the_keystrokes_row_shows_off_working_denied_pending_and_not_built() {
     assert!(not_built.contains("this build"), "{not_built}");
 }
 
+mod layout;
 mod shortcuts;

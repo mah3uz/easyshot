@@ -11,9 +11,41 @@ use gpui::{
 use gpui_component::{Icon, Sizable, h_flex, switch::Switch, v_flex};
 
 pub const PAGE_MAX_WIDTH: f32 = 680.;
+const PAGE_PAD: f32 = 28.;
 const ROW_MIN_HEIGHT: f32 = 44.;
+const ROW_PAD: f32 = 16.;
+const ROW_GAP: f32 = 16.;
 const CARD_RADIUS: f32 = 12.;
 pub const ROW_TEXT: f32 = 13.;
+/// The widest control that sits beside its title; a wider one gets its own line under the title and help.
+pub const INLINE_CONTROL_MAX: f32 = 240.;
+
+pub const FIELD_WIDTH: f32 = INLINE_CONTROL_MAX;
+const SEGMENT_CHAR: f32 = 6.5;
+const SEGMENT_PAD: f32 = 20.;
+const SEGMENT_MIN: f32 = 52.;
+
+/// A segmented control's natural width: every segment as wide as the longest label needs.
+pub fn segmented_width<'a>(labels: impl IntoIterator<Item = &'a str>) -> f32 {
+    let (count, longest) = labels.into_iter().fold((0usize, 0usize), |(n, m), l| {
+        (n + 1, m.max(l.chars().count()))
+    });
+    (longest as f32 * SEGMENT_CHAR + SEGMENT_PAD).max(SEGMENT_MIN) * count as f32
+}
+
+pub fn beside(control_width: f32) -> bool {
+    control_width <= INLINE_CONTROL_MAX
+}
+
+/// The width of a row's content, inside its padding, in a window this wide.
+pub fn row_content_width(window_width: f32) -> f32 {
+    (window_width - super::SIDEBAR_WIDTH).min(PAGE_MAX_WIDTH) - 2. * (PAGE_PAD + ROW_PAD)
+}
+
+/// Room for the title and help beside a control this wide.
+pub fn title_column_width(window_width: f32, control_width: f32) -> f32 {
+    row_content_width(window_width) - ROW_GAP - control_width
+}
 
 pub fn card_fill(t: &Tokens) -> Hsla {
     match t.appearance {
@@ -83,6 +115,26 @@ pub fn row(
     row_with(title, help, None, control, cx)
 }
 
+fn text_column(
+    title: impl Into<SharedString>,
+    help: Option<SharedString>,
+    below: Option<AnyElement>,
+    cx: &App,
+) -> Div {
+    let t = tokens(cx);
+    v_flex()
+        .min_w_0()
+        .gap(px(2.))
+        .child(
+            div()
+                .text_size(px(ROW_TEXT))
+                .text_color(t.text)
+                .child(title.into()),
+        )
+        .when_some(help, |d, help| d.child(caption(help, cx)))
+        .children(below)
+}
+
 /// A row with an element under its help text, where it can use the full text column.
 pub fn row_with(
     title: impl Into<SharedString>,
@@ -91,27 +143,43 @@ pub fn row_with(
     control: impl IntoElement,
     cx: &App,
 ) -> AnyElement {
-    let t = tokens(cx);
     h_flex()
         .min_h(px(ROW_MIN_HEIGHT))
-        .px(px(16.))
+        .px(px(ROW_PAD))
         .py(px(11.))
-        .gap(px(16.))
+        .gap(px(ROW_GAP))
         .justify_between()
-        .child(
-            v_flex()
-                .flex_1()
-                .min_w_0()
-                .gap(px(2.))
-                .child(
-                    div()
-                        .text_size(px(ROW_TEXT))
-                        .text_color(t.text)
-                        .child(title.into()),
-                )
-                .when_some(help, |d, help| d.child(caption(help, cx)))
-                .children(below),
-        )
+        .child(text_column(title, help, below, cx).flex_1())
+        .child(div().flex_none().child(control))
+        .into_any_element()
+}
+
+/// A row whose control spans the full width on its own line under the title and help.
+pub fn stacked_row(
+    title: impl Into<SharedString>,
+    help: Option<SharedString>,
+    control: impl IntoElement,
+    cx: &App,
+) -> AnyElement {
+    v_flex()
+        .min_h(px(ROW_MIN_HEIGHT))
+        .px(px(ROW_PAD))
+        .py(px(11.))
+        .gap(px(10.))
+        .child(text_column(title, help, None, cx))
+        .child(div().w_full().child(control))
+        .into_any_element()
+}
+
+/// A row of explanation beside a control, set as help text since it is not a setting's name.
+pub fn note_row(note: impl Into<SharedString>, control: impl IntoElement, cx: &App) -> AnyElement {
+    h_flex()
+        .min_h(px(ROW_MIN_HEIGHT))
+        .px(px(ROW_PAD))
+        .py(px(11.))
+        .gap(px(ROW_GAP))
+        .justify_between()
+        .child(caption(note, cx).flex_1().min_w_0())
         .child(div().flex_none().child(control))
         .into_any_element()
 }
@@ -186,9 +254,9 @@ pub fn page(title: SharedString, children: Vec<AnyElement>, cx: &App) -> Div {
         .w_full()
         .max_w(px(PAGE_MAX_WIDTH))
         .mx_auto()
-        .px(px(28.))
+        .px(px(PAGE_PAD))
         .pt(px(20.))
-        .pb(px(28.))
+        .pb(px(PAGE_PAD))
         .gap(px(24.))
         .child(
             div()

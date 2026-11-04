@@ -199,6 +199,7 @@ recording-include-footer = The recording bar offers the same choices right befor
 recording-before = Before Recording
 recording-countdown = Countdown
 recording-countdown-help = Shown on screen before the capture begins.
+recording-restore-help = Resets only recording. Your videos, projects, and other settings are kept.
 recording-countdown-none = None
 recording-countdown-seconds =
     { $count ->
@@ -637,6 +638,8 @@ agents-revoke = Revoke
 agents-scope = What programs may capture
 agents-scope-outputs = Screens
 agents-scope-windows = Windows, by app id
+agents-scope-outputs-placeholder = Every screen
+agents-scope-windows-placeholder = Every window
 agents-scope-footer = Separate names with commas. Leave a field empty to allow every screen or window.
 agents-redact = Hide secrets in returned images
 agents-redact-help = Covers passwords and keys a program could read in a capture.

@@ -57,6 +57,7 @@ pub struct Segmented {
     segments: Vec<Segment>,
     selected: usize,
     height: Option<Pixels>,
+    by_label: bool,
     disabled: bool,
     glides: bool,
     preview: Option<(usize, Interaction)>,
@@ -75,6 +76,7 @@ impl Segmented {
             segments: segments.into_iter().collect(),
             selected: 0,
             height: None,
+            by_label: false,
             disabled: false,
             glides: false,
             preview: None,
@@ -84,6 +86,12 @@ impl Segmented {
 
     pub fn selected(mut self, index: usize) -> Self {
         self.selected = index;
+        self
+    }
+
+    /// Each segment as wide as its label, sharing the spare room, instead of all equal.
+    pub fn sized_by_label(mut self) -> Self {
+        self.by_label = true;
         self
     }
 
@@ -159,9 +167,10 @@ impl RenderOnce for Segmented {
                 _ => transparent_black(),
             };
             let on_select = self.on_select.clone();
+            let by_label = self.by_label;
             div()
                 .id(i)
-                .flex_1()
+                .map(|d| if by_label { d.flex_auto() } else { d.flex_1() })
                 .h_full()
                 .min_w_0()
                 .flex()

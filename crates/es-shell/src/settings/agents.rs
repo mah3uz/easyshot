@@ -1,5 +1,5 @@
 use super::SettingsWindow;
-use super::widgets::{caption, group, row, switch};
+use super::widgets::{FIELD_WIDTH, caption, group, row, switch};
 use crate::local_time::local_clock;
 use crate::strings::fl;
 use es_app::agent_access::{AccessEvent, AgentAccess, AgentAccessHandle, Grant};
@@ -71,25 +71,34 @@ impl Agents {
     ) -> Self {
         let access = cx.try_global::<AgentAccessHandle>().map(|h| h.0.clone());
         let mut subs = Vec::new();
-        let mut list = |values: &[String], set: fn(&mut Config, Vec<String>)| {
-            let joined = values.join(", ");
-            let input = cx.new(|cx| InputState::new(window, cx).default_value(joined));
-            subs.push(
-                cx.subscribe(&input, move |this, input, event: &InputEvent, cx| {
-                    if let InputEvent::Change = event {
-                        let value = names(&input.read(cx).value());
-                        this.edit(move |c| set(c, value), cx);
-                    }
-                }),
-            );
-            input
-        };
-        let outputs = list(&config.agent.allowed_outputs, |c, v| {
-            c.agent.allowed_outputs = v
-        });
-        let windows = list(&config.agent.allowed_windows, |c, v| {
-            c.agent.allowed_windows = v
-        });
+        let mut list =
+            |values: &[String], placeholder: String, set: fn(&mut Config, Vec<String>)| {
+                let joined = values.join(", ");
+                let input = cx.new(|cx| {
+                    InputState::new(window, cx)
+                        .placeholder(placeholder)
+                        .default_value(joined)
+                });
+                subs.push(
+                    cx.subscribe(&input, move |this, input, event: &InputEvent, cx| {
+                        if let InputEvent::Change = event {
+                            let value = names(&input.read(cx).value());
+                            this.edit(move |c| set(c, value), cx);
+                        }
+                    }),
+                );
+                input
+            };
+        let outputs = list(
+            &config.agent.allowed_outputs,
+            fl!("agents-scope-outputs-placeholder"),
+            |c, v| c.agent.allowed_outputs = v,
+        );
+        let windows = list(
+            &config.agent.allowed_windows,
+            fl!("agents-scope-windows-placeholder"),
+            |c, v| c.agent.allowed_windows = v,
+        );
         if let Some(access) = &access {
             subs.push(cx.subscribe(access, |_, _, _: &AccessEvent, cx| cx.notify()));
         }
@@ -170,7 +179,7 @@ impl SettingsWindow {
                     access.update(cx, |access, cx| access.revoke(cx));
                 }
             });
-        let field = |input: &Entity<InputState>| Input::new(input).w(px(240.));
+        let field = |input: &Entity<InputState>| Input::new(input).w(px(FIELD_WIDTH));
         let mut out = vec![
             group(
                 None,

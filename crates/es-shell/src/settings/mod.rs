@@ -13,6 +13,9 @@ pub use binds::{BindStatus, compositor_trigger, from_backend, trigger_string};
 pub use shortcuts::ShortcutRow;
 pub use toggle::Toggle;
 pub(crate) use widgets::status_mark;
+pub use widgets::{
+    INLINE_CONTROL_MAX, ROW_TEXT, beside, row_content_width, segmented_width, title_column_width,
+};
 
 use crate::strings::fl;
 use es_app::history::History;
@@ -197,7 +200,9 @@ fn slider(
     cx: &mut Context<SettingsWindow>,
     subscriptions: &mut Vec<Subscription>,
 ) -> Entity<InspectorSlider> {
-    let entity = cx.new(|cx| InspectorSlider::new(label, value, range, format, window, cx));
+    let entity = cx.new(|cx| {
+        InspectorSlider::new(label, value, range, format, window, cx).without_track_label()
+    });
     subscriptions.push(
         cx.subscribe(&entity, move |this, _, event: &SliderEvent, cx| {
             if let SliderEvent::Changed(v) = event {
