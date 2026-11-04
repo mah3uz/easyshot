@@ -23,7 +23,7 @@ impl ToolOptions {
         }
         if facets.text {
             patches.extend([
-                StylePatch::FontFamily(d.text_font_family),
+                StylePatch::FontFamily(d.text_font_family.clone()),
                 StylePatch::FontSize(d.text_font_size),
                 StylePatch::Bold(d.text_bold),
                 StylePatch::Italic(d.text_italic),

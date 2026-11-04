@@ -103,6 +103,7 @@ More in the manual: [Pinned screenshots](MANUAL.md#pinned-screenshots).
 - Gives arrows a head for each end: none, arrow, triangle, square, dot, diamond, inverted or bar.
 - Draws arrows and lines solid, dashed or dotted.
 - Sets text font, colour, size, bold, italic, underline and alignment.
+- Font list: the three bundled fonts first, then every installed font, searchable; a font that is not installed shows "(not installed)" and draws in Inter.
 - Gives text an optional background and a border 2, 3 or 5 px wide.
 - Sets the strength of blur and pixelate.
 - Dims everything outside an area with the Highlight tool.

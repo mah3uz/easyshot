@@ -99,7 +99,7 @@ Layer 0  pure data — no IO, no GPUI, no tokio/zbus/wayland
   es-protocol  Route + RouteArgs, SettingsPage, JobStatus, URL allowlist parser, D-Bus names,
                the shortcut catalogue
 Layer 1  pure compute
-  es-text      bundled fonts, cosmic-text layout, glyph outlines                         → es-geom
+  es-text      bundled and installed fonts by family name, cosmic-text layout, outlines  → es-geom
   es-anno      editor engine: state machine, undo, hit-test, crop, DrawList build        → es-geom, es-model, es-text
   es-render    tiny-skia DrawList painter, effects, beautify composer, image ops, export → es-geom, es-model, es-anno
   es-scroll    scroll stitching on plain BGRA frames                                     → es-geom

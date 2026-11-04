@@ -1,7 +1,7 @@
 use es_model::{
-    AgentRecord, AnnotationDocument, Envelope, FormatKind, Header, LastRegion, LastTarget,
-    Migrated, PresetLibrary, RecordingCapture, RecordingInput, RecordingProject, Recovery,
-    ShapeKind, State, StylePreset, Tool, migrate,
+    AgentRecord, AnnotationDocument, Envelope, FontFamily, FormatKind, Header, LastRegion,
+    LastTarget, Migrated, PresetLibrary, RecordingCapture, RecordingInput, RecordingProject,
+    Recovery, ShapeKind, State, StylePreset, Tool, migrate,
 };
 use serde::{Serialize, de::DeserializeOwned};
 use std::path::PathBuf;
@@ -110,7 +110,7 @@ fn a_v2_document_migrates_and_its_text_has_no_box() {
     let Migrated::Current(v) = migrate(FormatKind::Document, 2, value).unwrap() else {
         panic!("migrates");
     };
-    assert_eq!(v["version"], 3);
+    assert_eq!(v["version"], FormatKind::Document.version());
     let env: Envelope<AnnotationDocument> = serde_json::from_value(v).unwrap();
     assert_eq!(env.body.shapes.len(), 1);
     let old = r#"{"id":"00000000-0000-4000-8000-000000000031","x":0.0,"y":0.0,"rotation":0.0,"opacity":1.0,"kind":{"type":"text","text":"Hi"}}"#;
@@ -125,7 +125,7 @@ fn a_v2_document_migrates_and_its_text_has_no_box() {
 fn document_v3_keeps_a_text_box() {
     let src = fixture("document", "v3.json");
     let env: Envelope<AnnotationDocument> = serde_json::from_str(&src).unwrap();
-    assert_eq!(env.version, FormatKind::Document.version());
+    assert_eq!(env.version, 3);
     let ShapeKind::Text(t) = &env.body.shapes[0].kind else {
         panic!("text");
     };
@@ -135,6 +135,73 @@ fn document_v3_keeps_a_text_box() {
     let again: Envelope<AnnotationDocument> =
         serde_json::from_str(&serde_json::to_string(&env).unwrap()).unwrap();
     assert_eq!(again, env);
+}
+
+/// An installed family is tagged by name, so it can never collide with a bundled one.
+#[test]
+fn document_v4_names_an_installed_family_beside_a_bundled_one() {
+    assert_eq!(FormatKind::Document.version(), 4);
+    let src = fixture("document", "v4.json");
+    let env: Envelope<AnnotationDocument> = serde_json::from_str(&src).unwrap();
+    assert_eq!(env.version, FormatKind::Document.version());
+    let families: Vec<_> = env
+        .body
+        .shapes
+        .iter()
+        .map(|s| match &s.kind {
+            ShapeKind::Text(t) => t.font_family.clone(),
+            _ => panic!("text"),
+        })
+        .collect();
+    assert_eq!(
+        families,
+        [FontFamily::System("Noto Serif".into()), FontFamily::Compact]
+    );
+    let written = serde_json::to_value(&env).unwrap();
+    assert_eq!(
+        written["shapes"][0]["kind"]["font_family"],
+        serde_json::json!({"system": "Noto Serif"})
+    );
+    assert_eq!(written["shapes"][1]["kind"]["font_family"], "compact");
+    let again: Envelope<AnnotationDocument> = serde_json::from_value(written).unwrap();
+    assert_eq!(again, env);
+}
+
+#[test]
+fn a_v3_document_opens_as_the_version_with_its_bundled_family() {
+    let src = fixture("document", "v3.json");
+    let value: serde_json::Value = serde_json::from_str(&src).unwrap();
+    let Migrated::Current(v) = migrate(FormatKind::Document, 3, value).unwrap() else {
+        panic!("migrates");
+    };
+    assert_eq!(v["version"], 4);
+    let env: Envelope<AnnotationDocument> = serde_json::from_value(v).unwrap();
+    let ShapeKind::Text(t) = &env.body.shapes[0].kind else {
+        panic!("text");
+    };
+    assert_eq!(t.font_family, FontFamily::Pro);
+}
+
+#[test]
+fn the_saved_style_remembers_an_installed_family() {
+    assert_eq!(FormatKind::Style.version(), 2);
+    let s = StylePreset {
+        text_font_family: FontFamily::System("Noto Serif".into()),
+        ..StylePreset::default()
+    };
+    let env = Envelope::new(FormatKind::Style, s);
+    let written = serde_json::to_string(&env).unwrap();
+    let back: Envelope<StylePreset> = serde_json::from_str(&written).unwrap();
+    assert_eq!(back.version, 2);
+    assert_eq!(
+        back.body.text_font_family,
+        FontFamily::System("Noto Serif".into())
+    );
+    let value = serde_json::from_str(&fixture("style", "v1.json")).unwrap();
+    let Migrated::Current(v) = migrate(FormatKind::Style, 1, value).unwrap() else {
+        panic!("migrates");
+    };
+    assert_eq!(v["version"], 2);
 }
 
 #[test]

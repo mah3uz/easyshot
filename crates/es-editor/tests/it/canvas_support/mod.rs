@@ -195,6 +195,38 @@ pub fn opened(width: u32, height: u32, shapes: Vec<AnnoShape>, look: BackgroundS
 }
 
 pub fn open(width: f32, height: f32, doc: Opened) -> (App, EditorSession) {
+    open_with_text(width, height, doc, TEXT.clone())
+}
+
+/// The bundled families plus Nunito renamed "Pebble", a family that exists only in a test folder.
+pub fn pebble_text(test: &str) -> Arc<BundledText> {
+    let utf16 = |s: &str| -> Vec<u8> { s.encode_utf16().flat_map(u16::to_be_bytes).collect() };
+    let mut data = include_bytes!("../../../../../assets/fonts/Nunito[wght].ttf").to_vec();
+    for (from, to) in [
+        (b"Nunito".to_vec(), b"Pebble".to_vec()),
+        (utf16("Nunito"), utf16("Pebble")),
+    ] {
+        let mut i = 0;
+        while let Some(p) = data[i..].windows(from.len()).position(|w| w == from) {
+            data[i + p..i + p + from.len()].copy_from_slice(&to);
+            i += p + from.len();
+        }
+    }
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../target/test-fonts")
+        .join(format!("es-editor-{test}-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("Pebble.ttf"), data).unwrap();
+    let fonts = es_text::FontSet::bundled().with_dir(&dir);
+    Arc::new(BundledText::new(es_text::TextEngine::new(fonts)))
+}
+
+pub fn open_with_text(
+    width: f32,
+    height: f32,
+    doc: Opened,
+    text: Arc<BundledText>,
+) -> (App, EditorSession) {
     let slot: Rc<RefCell<Option<EditorSession>>> = Rc::default();
     let out = slot.clone();
     let app = Headless::open(
@@ -203,7 +235,7 @@ pub fn open(width: f32, height: f32, doc: Opened) -> (App, EditorSession) {
         width,
         height,
         move |_, cx| {
-            let session = EditorSession::new(doc, TEXT.clone(), cx);
+            let session = EditorSession::new(doc, text, cx);
             let canvas = cx.new(|cx| EditorCanvas::new(&session, cx));
             *out.borrow_mut() = Some(session);
             canvas

@@ -230,7 +230,7 @@ fn render(
     model: AnnotationDocument,
 ) -> Result<(Vec<u8>, u32, u32), Failure> {
     let look = model.background.clone();
-    let text = Arc::new(BundledText::bundled());
+    let text = Arc::new(BundledText::installed());
     let document = Document::new(model, Box::new(Shared(text.clone())));
     let list = build_draw_list(&document, &BuildContext::new(&*text));
     let (w, h) = base.dimensions();

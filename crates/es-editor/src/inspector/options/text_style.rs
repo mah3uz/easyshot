@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use es_anno::{CurrentStyle, StylePatch};
-use es_model::{FontFamily, TextAlign};
+use es_model::TextAlign;
 use es_ui::{
     a11y::{Accessible, Role},
     components::{Segment, Segmented},
@@ -11,29 +11,21 @@ use es_ui::{
 };
 use gpui::{
     App, Context, Div, FontWeight, InteractiveElement, IntoElement, ParentElement, Pixels,
-    SharedString, StatefulInteractiveElement, Styled, WeakEntity, div, px,
+    SharedString, StatefulInteractiveElement, Styled, WeakEntity, Window, div, px,
 };
+use gpui_component::select::Select;
 
-use super::{Control, ToolOptions, section, swatches::swatches, text_box};
+use super::{
+    Control, ToolOptions, font_picker::family_title, section, swatches::swatches, text_box,
+};
 use crate::strings::fl;
-use crate::toolbar::{
-    menus::{choice_menu, menu_trigger},
-    track,
-};
+use crate::toolbar::track;
 
-const FAMILIES: [FontFamily; 3] = [FontFamily::Pro, FontFamily::Compact, FontFamily::Rounded];
 const ALIGNS: [TextAlign; 3] = [TextAlign::Start, TextAlign::Middle, TextAlign::End];
 const STEP_WIDTH: Pixels = px(24.);
 const SIZE_FIELD_WIDTH: Pixels = px(30.);
 const EMPHASIS_WIDTH: Pixels = px(90.);
-
-fn family_title(family: FontFamily) -> String {
-    match family {
-        FontFamily::Pro => fl!("editor-font-pro"),
-        FontFamily::Compact => fl!("editor-font-compact"),
-        FontFamily::Rounded => fl!("editor-font-rounded"),
-    }
-}
+const FONT_MENU_HEIGHT: Pixels = px(320.);
 
 type Apply = Rc<dyn Fn(StylePatch, &mut App)>;
 
@@ -177,32 +169,23 @@ fn emphasis(
 }
 
 pub(super) fn content(
-    page: &ToolOptions,
+    page: &mut ToolOptions,
     style: &CurrentStyle,
+    window: &mut Window,
     cx: &mut Context<ToolOptions>,
 ) -> Div {
     let weak = cx.entity().downgrade();
     let t = tokens(cx).clone();
     let apply = applier(weak.clone());
-    let family_apply = apply.clone();
-    let family = choice_menu(
-        menu_trigger(
-            "font-family",
-            fl!("editor-font-family-help"),
-            None,
-            Some(family_title(style.font_family).into()),
-            false,
-            cx,
-        )
-        .w_full()
-        .bg(t.track),
-        FAMILIES
-            .iter()
-            .map(|&f| (f, family_title(f), None))
-            .collect(),
-        Some(style.font_family),
-        Rc::new(move |f, _, cx| family_apply(StylePatch::FontFamily(f), cx)),
-    );
+    let installed = page.doc.read(cx).text().has_family(&style.font_family);
+    let list = page.font_list(&style.font_family, window, cx);
+    let family = Select::new(&list)
+        .id("font-family")
+        .placeholder(family_title(&style.font_family, installed))
+        .search_placeholder(fl!("editor-font-search"))
+        .accessibility_label(fl!("editor-font-family-help"))
+        .menu_max_h(FONT_MENU_HEIGHT)
+        .w_full();
     let align_apply = apply.clone();
     let align = Segmented::new(
         "align",

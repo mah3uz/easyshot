@@ -16,7 +16,7 @@ impl Editor {
         let props = TextProps {
             swatch: c.swatch.clone(),
             font_size: c.font_size,
-            font_family: c.font_family,
+            font_family: c.font_family.clone(),
             is_bold: c.bold,
             is_italic: c.italic,
             is_underline: c.underline,

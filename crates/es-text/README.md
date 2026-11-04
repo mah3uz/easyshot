@@ -1,6 +1,6 @@
 # es-text
 
-Bundled fonts, cosmic-text layout, glyph outlines, TextMeasure port.
+Bundled and installed fonts (resolved by family name, a missing one drawn in the default bundled family), cosmic-text layout, glyph outlines, TextMeasure port.
 
 May depend on: es-geom.
 

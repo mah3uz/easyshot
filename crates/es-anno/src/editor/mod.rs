@@ -242,7 +242,7 @@ impl Editor {
         match &shape.kind {
             ShapeKind::Redaction(p) => self.current.redaction_density = p.density,
             ShapeKind::Text(p) => {
-                self.current.font_family = p.font_family;
+                self.current.font_family = p.font_family.clone();
                 self.current.font_size = p.font_size;
                 self.current.bold = p.is_bold;
                 self.current.italic = p.is_italic;

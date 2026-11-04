@@ -31,7 +31,7 @@ corner; colours are `#rrggbb` or `#rrggbbaa`. Fields in brackets are optional.
 |---|---|
 | `arrow` | `from` `[x,y]`, `to` `[x,y]` (at least 1 px apart), [`color`], [`width` 0.5 to the longest edge], [`head`: `none`, `arrow`, `triangle`, `square`, `dot`, `diamond`, `inverted`, `bar`] |
 | `rect`, `ellipse` | `x`, `y`, `w`, `h`, [`color`], [`width`], [`fill` true/false] |
-| `text` | `x`, `y`, `text` (1 to 2000 characters), [`size` 4 to 2000], [`color`], [`background` colour behind the text] |
+| `text` | `x`, `y`, `text` (1 to 2000 characters), [`size` 4 to 2000], [`color`], [`background` colour behind the text], [`font`: `pro`, `compact`, `rounded` or an installed family's name; one not installed draws in `pro`] |
 | `counter` | `x`, `y`, [`n` 1 to 9999; numbers count up from 1 when left out], [`color`] |
 | `highlight` | `x`, `y`, `w`, `h`, [`color`] |
 | `blur`, `pixelate` | `x`, `y`, `w`, `h`, [`amount` 0 to 1] |

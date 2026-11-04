@@ -2115,6 +2115,7 @@ dependencies = [
  "rayon",
  "rust-embed",
  "serde",
+ "serde_json",
  "smallvec",
  "tempfile",
  "thiserror 2.0.21",

@@ -165,6 +165,12 @@ the font, colour, size, bold, italic, underline and alignment, and a background 
 border for the text box (None or a colour; a border is 2, 3 or 5 px wide); Blur and Pixelate offer the
 strength; the Highlighter offers colour, width and its mode. The Highlight tool has no
 options, and neither does Select with nothing selected, so both show the usual inspector.
+The font list has the three bundled fonts (Inter, Inter Tight, Nunito) first, then every font
+installed on your system in alphabetical order, with a search field when the list is long.
+The export draws exactly the font the editor shows. If a document uses a font that is not
+installed on this computer, its text draws in Inter and the font list names the font with
+"(not installed)"; the document keeps the font, so it draws in that font again where it is
+installed.
 With the Select tool, selecting shapes shows the options of the first one, with a button to
 delete the selection. A change applies to new shapes and to the selection, as one
 undo step.

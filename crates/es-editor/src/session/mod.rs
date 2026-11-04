@@ -88,7 +88,7 @@ impl EditorSession {
         };
         let loading = cx
             .background_executor()
-            .spawn(async move { Ok::<_, Error>((load(&display)?, BundledText::bundled())) });
+            .spawn(async move { Ok::<_, Error>((load(&display)?, BundledText::installed())) });
         cx.spawn(async move |cx| {
             let (opened, text) = loading.await?;
             Ok(cx.update(|cx| Self::with_style_paths(opened, Arc::new(text), style_paths, cx)))
@@ -137,7 +137,7 @@ impl EditorSession {
             let baseline = reopened.document.unwrap_or_default();
             opened.document = entry.document;
             let session = journal::session_of(&journal).unwrap_or_default();
-            Ok::<_, Error>((opened, baseline, session, staged, BundledText::bundled()))
+            Ok::<_, Error>((opened, baseline, session, staged, BundledText::installed()))
         });
         cx.spawn(async move |cx| {
             let (opened, baseline, session, staged, text) = loading.await?;

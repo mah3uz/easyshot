@@ -3,8 +3,13 @@
 use crate::canvas_support;
 
 use canvas_support::*;
-use es_anno::{BuildContext, DrawItem, build_draw_list};
+use es_anno::{BuildContext, BundledText, DrawItem, build_draw_list};
+use es_editor::EditorSession;
 use es_geom::{Affine, FillRule};
+use es_model::{
+    AnnoShape, AnnotationDocument, Envelope, FontFamily, FormatKind, Migrated, ShapeKind,
+    TextProps, migrate,
+};
 use es_render::paint::{ClipShape, paint_draw_list};
 use image::RgbaImage;
 use kurbo::Shape;
@@ -75,20 +80,36 @@ fn delta_e(a: [u8; 4], b: [u8; 4]) -> f64 {
     ((p[0] - q[0]).powi(2) + (p[1] - q[1]).powi(2) + (p[2] - q[2]).powi(2)).sqrt()
 }
 
-#[test]
-fn the_canvas_at_100_percent_matches_the_export_pixel_for_pixel() {
-    let (w, h) = (1200u32, 640u32);
-    let (mut app, session) = open(
-        700.0,
-        400.0,
-        opened(w, h, every_kind(false, true), Default::default()),
+fn export_pixels(document: &es_anno::Document, text: &BundledText, w: u32, h: u32) -> Pixmap {
+    let mut list = build_draw_list(document, &BuildContext::new(text));
+    list.items = without_text_shadow(list.items);
+    let source = base(w, h);
+    let snapshot = Pixmap::from_vec(source.into_raw(), IntSize::from_wh(w, h).unwrap()).unwrap();
+    let mut export = snapshot.clone();
+    paint_draw_list(
+        &list,
+        &mut export,
+        Affine::IDENTITY,
+        ClipShape::page(f64::from(w), f64::from(h)),
+        &snapshot,
     );
+    export
+}
+
+/// The share of image pixels where the canvas at 100 % and the export differ by more than dE 3.
+fn canvas_against_export(
+    app: &mut App,
+    session: &EditorSession,
+    w: u32,
+    h: u32,
+    name: &str,
+) -> f64 {
     app.cx.update(|cx| {
         session
             .viewport
             .update(cx, |v, cx| v.set_percent(100.0, cx))
     });
-    let shot = app.screenshot("parity-canvas");
+    let shot = app.screenshot(name);
     let origin = app
         .cx
         .update(|cx| session.viewport.read(cx).viewport().origin);
@@ -98,24 +119,10 @@ fn the_canvas_at_100_percent_matches_the_export_pixel_for_pixel() {
         0.0,
         "the image sits on whole device pixels"
     );
-
-    let list = app.cx.update(|cx| {
+    let export = app.cx.update(|cx| {
         let doc = session.doc.read(cx);
-        build_draw_list(doc.editor().doc(), &BuildContext::new(&**TEXT))
+        export_pixels(doc.editor().doc(), doc.text(), w, h)
     });
-    let mut list = list;
-    list.items = without_text_shadow(list.items);
-    let source = base(w, h);
-    let snapshot =
-        Pixmap::from_vec(source.clone().into_raw(), IntSize::from_wh(w, h).unwrap()).unwrap();
-    let mut export = snapshot.clone();
-    paint_draw_list(
-        &list,
-        &mut export,
-        Affine::IDENTITY,
-        ClipShape::page(f64::from(w), f64::from(h)),
-        &snapshot,
-    );
 
     let mut diff = RgbaImage::new(w, h);
     let mut off = 0usize;
@@ -134,11 +141,81 @@ fn the_canvas_at_100_percent_matches_the_export_pixel_for_pixel() {
     }
     let share = off as f64 / f64::from(w * h);
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/screenshots");
-    diff.save(dir.join("parity-diff.png")).unwrap();
+    diff.save(dir.join(format!("{name}-diff.png"))).unwrap();
     eprintln!(
-        "parity: {off} of {} pixels ({:.3} %) differ by more than dE 3",
+        "{name}: {off} of {} pixels ({:.3} %) differ by more than dE 3",
         w * h,
         share * 100.0
     );
+    share
+}
+
+#[test]
+fn the_canvas_at_100_percent_matches_the_export_pixel_for_pixel() {
+    let (w, h) = (1200u32, 640u32);
+    let (mut app, session) = open(
+        700.0,
+        400.0,
+        opened(w, h, every_kind(false, true), Default::default()),
+    );
+    let share = canvas_against_export(&mut app, &session, w, h, "parity-canvas");
     assert!(share <= 0.02, "{:.3} % of pixels differ", share * 100.0);
+}
+
+fn pebble_document() -> AnnotationDocument {
+    let shape = AnnoShape::new(
+        60.0,
+        60.0,
+        ShapeKind::Text(TextProps {
+            text: "Installed fonts export as drawn".into(),
+            font_size: 48.0,
+            font_family: FontFamily::System("Pebble".into()),
+            swatch: swatch(0.1, 0.1, 0.12),
+            ..TextProps::default()
+        }),
+    );
+    let doc = AnnotationDocument {
+        shapes: vec![shape],
+        ..AnnotationDocument::default()
+    };
+    let file = serde_json::to_string(&Envelope::new(FormatKind::Document, doc)).unwrap();
+    let value: serde_json::Value = serde_json::from_str(&file).unwrap();
+    let Migrated::Current(value) = migrate(FormatKind::Document, 4, value).unwrap() else {
+        panic!("the current version");
+    };
+    serde_json::from_value::<Envelope<AnnotationDocument>>(value)
+        .unwrap()
+        .body
+}
+
+/// A re-opened document in an installed family draws the same in the canvas and the export.
+#[test]
+fn an_installed_family_reopens_and_exports_as_the_canvas_draws_it() {
+    let (w, h) = (1000u32, 200u32);
+    let reopened = pebble_document();
+    let text = pebble_text("parity");
+    assert!(text.has_family(&FontFamily::System("Pebble".into())));
+    let mut look = opened(w, h, Vec::new(), Default::default());
+    look.document = reopened.clone();
+    let (mut app, session) = open_with_text(700.0, 200.0, look, text.clone());
+    let share = canvas_against_export(&mut app, &session, w, h, "parity-installed-font");
+    // Text covers much of this short page, so its edge antialiasing weighs more than on the full scene.
+    assert!(share <= 0.03, "{:.3} % of pixels differ", share * 100.0);
+
+    let drawn = es_anno::Document::new(reopened.clone(), Box::new(SharedText(text.clone())));
+    let bundled_only = es_anno::Document::new(reopened, Box::new(SharedText(TEXT.clone())));
+    assert!(!TEXT.has_family(&FontFamily::System("Pebble".into())));
+    assert_ne!(
+        export_pixels(&drawn, &text, w, h).data(),
+        export_pixels(&bundled_only, &TEXT, w, h).data(),
+        "where the family is missing the text falls back to the default family"
+    );
+}
+
+struct SharedText(std::sync::Arc<BundledText>);
+
+impl es_anno::TextMeasure for SharedText {
+    fn measure(&self, props: &TextProps) -> es_geom::Size {
+        es_anno::TextMeasure::measure(&*self.0, props)
+    }
 }

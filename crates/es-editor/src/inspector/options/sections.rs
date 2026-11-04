@@ -53,7 +53,7 @@ pub(super) fn content(
     cx: &mut Context<ToolOptions>,
 ) -> Div {
     if f.text {
-        return text_style::content(page, style, cx);
+        return text_style::content(page, style, window, cx);
     }
     let t = tokens(cx).clone();
     let weak = cx.entity().downgrade();

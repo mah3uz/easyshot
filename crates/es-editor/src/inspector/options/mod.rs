@@ -1,4 +1,5 @@
 pub mod crop;
+mod font_picker;
 mod reset;
 mod sections;
 pub(crate) mod swatches;
@@ -73,6 +74,7 @@ pub struct ToolOptions {
     style: Entity<StyleStore>,
     open: bool,
     strength: Option<Entity<InspectorSlider>>,
+    fonts: Option<font_picker::FontPicker>,
     gestures: u64,
     dragging: Option<GestureId>,
     drawn: Drawn<Control>,
@@ -98,6 +100,7 @@ impl ToolOptions {
             style: session.style.clone(),
             open: false,
             strength: None,
+            fonts: None,
             gestures: 0,
             dragging: None,
             drawn: Drawn::default(),

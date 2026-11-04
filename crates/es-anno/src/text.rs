@@ -21,6 +21,20 @@ impl BundledText {
         Self::new(TextEngine::bundled())
     }
 
+    /// The bundled families and every installed one; reads the system's font folders.
+    pub fn installed() -> Self {
+        Self::new(TextEngine::installed())
+    }
+
+    pub fn installed_families(&self) -> Vec<String> {
+        self.engine().installed_families().to_vec()
+    }
+
+    /// False when the family is not installed here and draws in the default family.
+    pub fn has_family(&self, family: &shape::FontFamily) -> bool {
+        self.engine().has_family(&self::family(family))
+    }
+
     /// The same layout the glyph outlines come from, for caret and selection geometry.
     pub fn layout(&self, props: &TextProps) -> Arc<TextLayout> {
         self.engine()
@@ -35,13 +49,18 @@ impl BundledText {
     }
 }
 
+fn family(family: &shape::FontFamily) -> FontFamily {
+    match family {
+        shape::FontFamily::Pro => FontFamily::Pro,
+        shape::FontFamily::Compact => FontFamily::Compact,
+        shape::FontFamily::Rounded => FontFamily::Rounded,
+        shape::FontFamily::System(name) => FontFamily::System(name.clone()),
+    }
+}
+
 fn style(props: &TextProps) -> TextStyle {
     TextStyle {
-        family: match props.font_family {
-            shape::FontFamily::Pro => FontFamily::Pro,
-            shape::FontFamily::Compact => FontFamily::Compact,
-            shape::FontFamily::Rounded => FontFamily::Rounded,
-        },
+        family: family(&props.font_family),
         size: props.font_size,
         bold: props.is_bold,
         italic: props.is_italic,

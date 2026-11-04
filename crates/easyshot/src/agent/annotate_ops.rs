@@ -70,6 +70,7 @@ struct Text {
     size: Option<f64>,
     color: Option<String>,
     background: Option<String>,
+    font: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -313,7 +314,9 @@ fn shape(scope: &Scope, op: Op, doc: &AnnotationDocument) -> Result<AnnoShape, S
                 text: t.text,
                 swatch: scope.color("color", t.color.as_deref(), &style.swatch)?,
                 font_size,
-                font_family: style.text_font_family,
+                font_family: t
+                    .font
+                    .map_or_else(|| style.text_font_family.clone(), font_family),
                 is_bold: style.text_bold,
                 is_italic: style.text_italic,
                 is_underline: style.text_underline,
@@ -450,4 +453,14 @@ fn background_settings(b: &Background, size: (f64, f64)) -> Result<BackgroundSet
         look.shadow = s;
     }
     Ok(look)
+}
+
+/// A bundled family by its picker name, any other name as an installed family.
+fn font_family(name: String) -> es_model::FontFamily {
+    match name.to_lowercase().as_str() {
+        "pro" | "inter" => es_model::FontFamily::Pro,
+        "compact" | "inter tight" => es_model::FontFamily::Compact,
+        "rounded" | "nunito" => es_model::FontFamily::Rounded,
+        _ => es_model::FontFamily::System(name),
+    }
 }

@@ -1,0 +1,17 @@
+{
+  "format": "easyshot.document",
+  "version": 4,
+  "base_image_file_name": "easyshot_2026-01-01-093000.base.png",
+  "shapes": [
+    {
+      "id": "00000000-0000-4000-8000-000000000041",
+      "x": 40.0, "y": 60.0, "rotation": 0.0, "opacity": 1.0,
+      "kind": {"type": "text", "text": "Installed", "font_family": {"system": "Noto Serif"}}
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000042",
+      "x": 40.0, "y": 120.0, "rotation": 0.0, "opacity": 1.0,
+      "kind": {"type": "text", "text": "Bundled", "font_family": "compact"}
+    }
+  ]
+}

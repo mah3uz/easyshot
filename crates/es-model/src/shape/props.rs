@@ -42,13 +42,15 @@ pub enum Arrowhead {
     Bar,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FontFamily {
     #[default]
     Pro,
     Compact,
     Rounded,
+    /// An installed family, by the name its font files give it.
+    System(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]

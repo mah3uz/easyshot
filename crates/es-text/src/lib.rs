@@ -7,12 +7,13 @@ pub use engine::{LINE_HEIGHT_MULTIPLE, MIN_WIDTH, TextEngine, line_height};
 pub use fonts::{BUNDLED, FontSet};
 pub use layout::{LineBox, Outline, PlacedGlyph, TextLayout};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub enum FontFamily {
     #[default]
     Pro,
     Compact,
     Rounded,
+    System(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -23,7 +24,7 @@ pub enum TextAlign {
     End,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TextStyle {
     pub family: FontFamily,
     pub size: f64,

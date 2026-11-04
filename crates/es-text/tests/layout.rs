@@ -5,9 +5,9 @@ use kurbo::Shape;
 
 const FAMILIES: [FontFamily; 3] = [FontFamily::Pro, FontFamily::Compact, FontFamily::Rounded];
 
-fn style(family: FontFamily, size: f64, bold: bool) -> TextStyle {
+fn style(family: &FontFamily, size: f64, bold: bool) -> TextStyle {
     TextStyle {
-        family,
+        family: family.clone(),
         size,
         bold,
         ..TextStyle::default()
@@ -19,7 +19,7 @@ fn line_height_is_135_percent_of_the_font_size() {
     let mut e = TextEngine::bundled();
     for family in FAMILIES {
         for size in [12.0, 24.0, 48.0] {
-            let l = e.measure("x", &style(family, size, false), None);
+            let l = e.measure("x", &style(&family, size, false), None);
             assert_eq!(l.lines[0].height, size * 1.35);
             assert_eq!(l.size.height, (size * 1.35).ceil());
         }
@@ -29,7 +29,7 @@ fn line_height_is_135_percent_of_the_font_size() {
 #[test]
 fn empty_text_keeps_one_unrounded_line_and_minimum_width() {
     let mut e = TextEngine::bundled();
-    let l = e.measure("", &style(FontFamily::Pro, 48.0, true), None);
+    let l = e.measure("", &style(&FontFamily::Pro, 48.0, true), None);
     assert_eq!((l.size.width, l.size.height), (16.0, 48.0 * 1.35));
     assert_eq!(l.lines.len(), 1);
 }
@@ -39,7 +39,7 @@ fn auto_width_is_ceil_of_widest_line_plus_one() {
     let mut e = TextEngine::bundled();
     let l = e.measure(
         "Hello, World\nhi",
-        &style(FontFamily::Pro, 48.0, false),
+        &style(&FontFamily::Pro, 48.0, false),
         None,
     );
     let widest = l.lines.iter().map(|x| x.width).fold(0.0, f64::max);
@@ -59,10 +59,10 @@ fn golden_auto_widths() {
         (FontFamily::Rounded, 48.0, false, 277.0),
     ];
     for (family, size, bold, width) in golden {
-        let l = e.measure("Hello, World", &style(family, size, bold), None);
+        let l = e.measure("Hello, World", &style(&family, size, bold), None);
         assert_eq!(
-            (family, size, bold, l.size.width),
-            (family, size, bold, width)
+            (&family, size, bold, l.size.width),
+            (&family, size, bold, width)
         );
     }
 }
@@ -71,12 +71,12 @@ fn golden_auto_widths() {
 fn wrapped_width_is_floor_of_the_box_and_text_flows_into_lines() {
     let mut e = TextEngine::bundled();
     let text = "Hello world this is wrapped text";
-    let l = e.measure(text, &style(FontFamily::Pro, 48.0, false), Some(200.7));
+    let l = e.measure(text, &style(&FontFamily::Pro, 48.0, false), Some(200.7));
     assert_eq!(l.size.width, 200.0);
     assert_eq!(l.lines.len(), 5);
     assert_eq!(l.size.height, (5.0 * 48.0 * 1.35_f64).ceil());
     assert!(l.lines.iter().all(|x| x.width <= 200.0));
-    let narrow = e.measure(text, &style(FontFamily::Pro, 12.0, false), Some(3.0));
+    let narrow = e.measure(text, &style(&FontFamily::Pro, 12.0, false), Some(3.0));
     assert_eq!(narrow.size.width, 16.0);
 }
 
@@ -84,8 +84,8 @@ fn wrapped_width_is_floor_of_the_box_and_text_flows_into_lines() {
 fn bold_is_wider_than_regular_in_every_family() {
     let mut e = TextEngine::bundled();
     for family in FAMILIES {
-        let regular = e.measure("Hello, World", &style(family, 48.0, false), None);
-        let bold = e.measure("Hello, World", &style(family, 48.0, true), None);
+        let regular = e.measure("Hello, World", &style(&family, 48.0, false), None);
+        let bold = e.measure("Hello, World", &style(&family, 48.0, true), None);
         assert!(bold.size.width > regular.size.width, "{family:?}");
         let (ro, bo) = (e.outline(&regular), e.outline(&bold));
         assert_ne!(ro.path, bo.path, "{family:?}");
@@ -96,8 +96,8 @@ fn bold_is_wider_than_regular_in_every_family() {
 fn italic_changes_the_glyph_shapes() {
     let mut e = TextEngine::bundled();
     for family in FAMILIES {
-        let upright = e.measure("Hxl", &style(family, 48.0, false), None);
-        let mut s = style(family, 48.0, false);
+        let upright = e.measure("Hxl", &style(&family, 48.0, false), None);
+        let mut s = style(&family, 48.0, false);
         s.italic = true;
         let slanted = e.measure("Hxl", &s, None);
         assert_ne!(
@@ -111,7 +111,7 @@ fn italic_changes_the_glyph_shapes() {
 #[test]
 fn underline_sits_below_the_baseline_on_every_nonempty_line() {
     let mut e = TextEngine::bundled();
-    let mut s = style(FontFamily::Pro, 48.0, false);
+    let mut s = style(&FontFamily::Pro, 48.0, false);
     s.underline = true;
     let l = e.measure("Hi\n\nthere", &s, None);
     let o = e.outline(&l);
@@ -132,7 +132,7 @@ fn outlines_are_not_empty_and_stay_inside_the_measured_box() {
     let mut e = TextEngine::bundled();
     for family in FAMILIES {
         for align in [TextAlign::Start, TextAlign::Middle, TextAlign::End] {
-            let mut s = style(family, 36.0, true);
+            let mut s = style(&family, 36.0, true);
             s.align = align;
             for wrap in [None, Some(180.0)] {
                 let l = e.measure("Quick brown fox\njumps over", &s, wrap);
@@ -151,7 +151,7 @@ fn outlines_are_not_empty_and_stay_inside_the_measured_box() {
 #[test]
 fn alignment_positions_lines_inside_the_box() {
     let mut e = TextEngine::bundled();
-    let mut s = style(FontFamily::Pro, 24.0, false);
+    let mut s = style(&FontFamily::Pro, 24.0, false);
     let text = "wide line here\nhi";
     let mut at = |e: &mut TextEngine, a| {
         s.align = a;
@@ -170,7 +170,7 @@ fn alignment_positions_lines_inside_the_box() {
 #[test]
 fn repeated_measure_hits_the_cache_and_returns_the_same_layout() {
     let mut e = TextEngine::bundled();
-    let s = style(FontFamily::Compact, 30.0, false);
+    let s = style(&FontFamily::Compact, 30.0, false);
     let a = e.measure("cached", &s, None);
     let b = e.measure("cached", &s, None);
     assert!(Arc::ptr_eq(&a, &b));
@@ -185,7 +185,7 @@ fn repeated_measure_hits_the_cache_and_returns_the_same_layout() {
 #[test]
 fn cache_evicts_the_least_recently_used_layout() {
     let mut e = TextEngine::bundled();
-    let s = style(FontFamily::Pro, 12.0, false);
+    let s = style(&FontFamily::Pro, 12.0, false);
     let first = e.measure("0", &s, None);
     for i in 1..512 {
         e.measure(&i.to_string(), &s, None);
@@ -199,7 +199,7 @@ fn cache_evicts_the_least_recently_used_layout() {
 #[test]
 fn caret_and_hit_test_round_trip() {
     let mut e = TextEngine::bundled();
-    let l = e.measure("abc\ndef", &style(FontFamily::Pro, 24.0, false), None);
+    let l = e.measure("abc\ndef", &style(&FontFamily::Pro, 24.0, false), None);
     for i in [0, 1, 2, 3, 4, 5, 6, 7] {
         let (line, x) = l.caret_x(i);
         let y = l.lines[line].top + 1.0;

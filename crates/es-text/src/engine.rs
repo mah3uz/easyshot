@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use cosmic_text::{
@@ -6,10 +7,10 @@ use cosmic_text::{
 use kurbo::{BezPath, Rect, Size};
 use swash::zeno::Command;
 
-use crate::fonts::{FontSet, attrs};
+use crate::fonts::{FontSet, attrs, installed_families, resolve};
 use crate::layout::{LineBox, Outline, PlacedGlyph, TextLayout};
 use crate::lru::Lru;
-use crate::{TextAlign, TextStyle};
+use crate::{FontFamily, TextAlign, TextStyle};
 
 pub const MIN_WIDTH: f64 = 16.0;
 pub const LINE_HEIGHT_MULTIPLE: f64 = 1.35;
@@ -19,7 +20,7 @@ const OUTLINE_CACHE: usize = 256;
 #[derive(Clone, PartialEq, Eq, Hash)]
 struct Key {
     text: String,
-    family: crate::FontFamily,
+    family: FontFamily,
     size: u64,
     bold: bool,
     italic: bool,
@@ -32,7 +33,7 @@ impl Key {
     fn new(text: &str, style: &TextStyle, wrap: Option<f64>) -> Self {
         Self {
             text: text.to_owned(),
-            family: style.family,
+            family: style.family.clone(),
             size: style.size.to_bits(),
             bold: style.bold,
             italic: style.italic,
@@ -45,6 +46,8 @@ impl Key {
 
 pub struct TextEngine {
     fonts: FontSystem,
+    known: HashSet<String>,
+    installed: Vec<String>,
     swash: SwashCache,
     layouts: Lru<Key, Arc<TextLayout>>,
     outlines: Lru<Key, Arc<Outline>>,
@@ -56,8 +59,12 @@ pub fn line_height(style: &TextStyle) -> f64 {
 
 impl TextEngine {
     pub fn new(fonts: FontSet) -> Self {
+        let fonts = fonts.into_system();
+        let (known, installed) = installed_families(fonts.db());
         Self {
-            fonts: fonts.into_system(),
+            fonts,
+            known,
+            installed,
             swash: SwashCache::new(),
             layouts: Lru::new(LAYOUT_CACHE),
             outlines: Lru::new(OUTLINE_CACHE),
@@ -66,6 +73,23 @@ impl TextEngine {
 
     pub fn bundled() -> Self {
         Self::new(FontSet::bundled())
+    }
+
+    pub fn installed() -> Self {
+        Self::new(FontSet::installed())
+    }
+
+    /// Installed families by name, sorted, without the bundled ones.
+    pub fn installed_families(&self) -> &[String] {
+        &self.installed
+    }
+
+    /// False for an installed family this font set lacks, which draws in the default family.
+    pub fn has_family(&self, family: &FontFamily) -> bool {
+        match family {
+            FontFamily::System(name) => self.known.contains(name),
+            _ => true,
+        }
     }
 
     pub fn cached_layouts(&self) -> usize {
@@ -97,7 +121,11 @@ impl TextEngine {
         let lh = line_height(style);
         let mut buffer = Buffer::new(&mut self.fonts, Metrics::new(size as f32, lh as f32));
         let mut b = buffer.borrow_with(&mut self.fonts);
-        let attrs = attrs(style.family, style.bold, style.italic);
+        let attrs = attrs(
+            resolve(&style.family, &self.known),
+            style.bold,
+            style.italic,
+        );
         match wrap {
             Some(w) => {
                 b.set_wrap(Wrap::WordOrGlyph);
@@ -226,7 +254,7 @@ impl TextEngine {
             size: Size::new(box_w, height),
             lines,
             glyphs,
-            style: *style,
+            style: style.clone(),
             text: text.to_owned(),
             wrap,
             underline,
