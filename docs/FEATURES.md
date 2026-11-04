@@ -306,7 +306,8 @@ More in the manual: [Files](MANUAL.md#files).
 - Shows a list of windows when the compositor gives no window positions.
 - Leaves out Auto Scroll when the compositor cannot send input; manual scrolling still works.
 - Saves an export to your save folder and tells you where when there is no file picker.
-- Opens the capture bar at start when there is no tray.
+- Waits for your panel's tray at login, adds its icon when the panel appears and again if the panel restarts.
+- Opens the capture bar at start only if no tray has appeared within 10 seconds.
 - Greys out Record with an install hint when there is no recorder.
 - Reads only QR codes when Tesseract is missing.
 - Gives its windows app IDs for compositor rules: `dev.easyshot.app`, plus `.editor`, `.onboarding` and `.player`.
