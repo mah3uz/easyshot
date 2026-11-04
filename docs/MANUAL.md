@@ -108,13 +108,13 @@ the command line, the tray, the capture bar and `easyshot://` links all follow t
 - While you are still picking (selecting an area, a window, a colour or text), another mode
   takes over on the same frozen screen: from region to window, for example, without a second
   freeze. Fullscreen takes the frozen screen under the pointer, and Previous closes the
-  picker and captures the previous target. The same mode again closes the picker.
-- Once a capture is under way (a timed capture's countdown, a scrolling capture, or saving
-  and processing), a new one is refused and a toast says "A capture is in progress". The
+  picker and captures the previous target. The mode the picker shows closes it.
+- Once a capture is under way (a timed capture's countdown, a recording's start delay, a scrolling
+  capture, or saving and processing), a new one is refused and a toast says "A capture is in progress". The
   scrolling-capture shortcut still stops a running scrolling capture.
 - Screenshots work while a recording runs.
-- The capture bar's area recording picks its area under the same rule; while it is picking,
-  other captures are refused.
+- The capture bar's area recording picks its area like any other capture: another mode
+  takes it over, and the region mode closes it.
 
 The screen always freezes during a capture. There is no option to turn that off.
 

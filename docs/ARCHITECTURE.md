@@ -260,13 +260,18 @@ as a missing wallpaper. `es_store::wallpapers::read` reads only a regular file o
   running scroll capture, saving and processing), and nothing is queued. A request while
   Picking takes the pick over through `SelectionFlow::switch` on the same frames (a new
   mode switches the view, fullscreen takes the frozen output, previous closes the picker
-  and grabs afresh); the same request closes it. A request while Committed is refused
-  with the "A capture is in progress" toast, except a second scroll trigger, which stops
-  the scroll. The replacing job is the one told the outcome. Agent captures and the
-  capture bar's recording-area pick take a `Claim`, which refuses while anything runs and
-  holds off everything else; agents get `invalid_arguments` "busy". A recording releases
-  the coordinator once its selection reaches the recording pipeline, so screenshots run
-  during a recording, and `Recordings::admit` still refuses a second start. Window
+  and grabs afresh); a request for the mode the flow shows now (`SelectionFlow::showing`)
+  closes it. The replaced job is answered Cancelled at takeover (`Jobs::answer`), and its
+  cancel no longer reaches the work; the replacing job is told the outcome. A request
+  while Committed is refused with the "A capture is in progress" toast, except a second
+  scroll trigger, which stops the scroll. The capture bar's recording-area pick is an
+  ordinary pick of kind `Area`, handed back to the bar unless another request takes it
+  over. A capture that closed the bar, and a Previous takeover that closed the picker,
+  wait `UNMAP_SETTLE` before freezing or grabbing. Agent captures and agent recording
+  starts take a `Claim`, which refuses while anything runs; agents get
+  `invalid_arguments` "busy". A recording holds the coordinator through its start delay
+  and releases it once the recorder runs, so screenshots run during a recording, and
+  `Recordings::admit` still refuses a second start. Window
   routes go to the `Windows` registry, which focuses an existing settings, gallery or
   editor window instead of opening a second; `Jobs` owns `job_id -> (Task, cancel)`.
 - es-app defines the seam traits and registries. Higher crates register implementations at
