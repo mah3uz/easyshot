@@ -58,6 +58,7 @@ pub struct Segmented {
     selected: usize,
     height: Option<Pixels>,
     disabled: bool,
+    glides: bool,
     preview: Option<(usize, Interaction)>,
     on_select: Option<SelectHandler>,
 }
@@ -75,6 +76,7 @@ impl Segmented {
             selected: 0,
             height: None,
             disabled: false,
+            glides: false,
             preview: None,
             on_select: None,
         }
@@ -92,6 +94,12 @@ impl Segmented {
 
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
+        self
+    }
+
+    /// Slides the selection to a newly picked segment instead of moving it at once.
+    pub fn glide(mut self) -> Self {
+        self.glides = true;
         self
     }
 
@@ -128,7 +136,11 @@ impl RenderOnce for Segmented {
         };
         let hover_fill = t.bordered_fill;
         let share = 1.0 / count.max(1) as f32;
-        let thumb_at = tween(self.id.clone(), selected as f32, STEP_CHANGE, window, cx);
+        let thumb_at = if self.glides {
+            tween(self.id.clone(), selected as f32, STEP_CHANGE, window, cx)
+        } else {
+            selected as f32
+        };
         let thumb = div()
             .absolute()
             .top_0()

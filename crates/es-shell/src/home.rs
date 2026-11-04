@@ -152,6 +152,7 @@ impl HomeWindow {
             Tab::ALL.map(|tab| Segment::text(tab.title())),
         )
         .selected(self.tab.index())
+        .glide()
         .height(px(28.))
         .on_select({
             let view = view.clone();

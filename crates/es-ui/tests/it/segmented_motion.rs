@@ -17,7 +17,8 @@ impl Render for Host {
                 "Tabs",
                 ["One", "Two", "Three", "Four"].map(Segment::text),
             )
-            .selected(self.selected),
+            .selected(self.selected)
+            .glide(),
         )
     }
 }
