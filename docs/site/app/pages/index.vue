@@ -19,7 +19,7 @@ const faq = [
   },
   {
     q: 'How do I install it?',
-    a: 'Packages for the AUR (<code>easyshot</code> and <code>easyshot-bin</code>), Debian/Ubuntu (.deb), Fedora (.rpm) and Nix come with the first release. Until then, build it with <code>cargo build --release -p easyshot</code>, or on Arch run <code>just install</code> from a checkout. See <a class="text-accent underline" href="/#install">Install</a>.',
+    a: 'There are two AUR packages, <code>easyshot</code> and <code>easyshot-bin</code>, which are not published yet, and no packages for other distributions. Build it with <code>cargo build --release -p easyshot</code>, or on Arch run <code>just install</code> from a checkout. See <a class="text-accent underline" href="/#install">Install</a>.',
   },
   {
     q: 'How do I set the keyboard shortcuts?',
@@ -117,7 +117,7 @@ useHead({
             View on GitHub
           </a>
         </div>
-        <p class="rise text-[13px] text-fg-3" style="--d: 0.4s">For Linux on Wayland · AUR, .deb, .rpm and Nix</p>
+        <p class="rise text-[13px] text-fg-3" style="--d: 0.4s">For Linux on Wayland · Arch packages (AUR)</p>
       </div>
 
       <div class="container-x mt-16 sm:mt-20">
@@ -158,7 +158,7 @@ useHead({
             <h2 class="text-[clamp(34px,5vw,56px)] leading-[1.05]">Mark it up.<br />Make it beautiful.</h2>
           </div>
           <p v-reveal="0.1" class="text-lg text-fg-2">
-            A full editor with 12 tools opens right after the capture. Point things out, hide what is private, then put it
+            A full editor with 13 tools opens right after the capture. Point things out, hide what is private, then put it
             on a background that is ready to share. Try the controls below.
           </p>
         </div>
@@ -264,7 +264,7 @@ useHead({
           <span class="eyebrow"><Icon name="download" :size="15" />Install</span>
           <h2 class="text-[clamp(32px,4.4vw,50px)] leading-[1.05]">Get it your way.</h2>
           <p class="text-lg text-fg-2">
-            easyshot ships for the AUR, as .deb and .rpm packages, and for Nix. The package starts the background service
+            easyshot comes as two Arch (AUR) packages, or you can build it from source. The package starts the background service
             for you; then add your key binds and press one.
           </p>
           <NuxtLink to="/how-to" class="group mt-2 inline-flex w-fit items-center gap-1.5 font-semibold text-accent">

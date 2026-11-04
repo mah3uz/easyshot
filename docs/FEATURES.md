@@ -85,10 +85,21 @@ More in the manual: [After a capture](MANUAL.md#after-a-capture).
 - Keeps a screenshot on top of other windows.
 - Move a pin by dragging it.
 - Resize a pin by scrolling; the top-left corner stays where it is.
-- Close a pin with the button that shows when you hover.
+- Close a pin with the button that fades in when you hover.
 - Copy or close a pin from its menu.
 
 More in the manual: [Pinned screenshots](MANUAL.md#pinned-screenshots).
+
+## The tray menu
+
+- Lists Region, Screen, Window, Record, Scrolling Capture, OCR and Pick Color, with your global shortcut beside each one you set.
+- Shows Recent Captures: your eight newest screenshots and eight newest recordings, saved or not, and opens one with a click.
+- Offers Media Gallery, Settings and Quit.
+- Offers Unpin All Windows while a screenshot is pinned.
+- Shows Stop Recording, Pause, Restart and Discard with the elapsed time while a recording runs, and a red dot on the icon.
+- Shows a Revoke row and a badge on the icon while an agent has access.
+
+More in the manual: [The tray menu](MANUAL.md#the-tray-menu).
 
 ## The editor
 
@@ -131,6 +142,7 @@ More in the manual: [Pinned screenshots](MANUAL.md#pinned-screenshots).
 - Moves annotations with the pixels under them when you crop, rotate or flip.
 - Undoes crop, rotate and flip, keeping the last 16 image steps.
 - Adds a background of a colour, one of 24 gradients or a wallpaper.
+- Offers seven built-in wallpapers, or any image of your own, with the last 24 you chose kept in Recent.
 - Makes your own gradients: two to four colours, any angle, a name; edit, rename or delete them, and edit a copy of a built-in one.
 - Adjusts padding, corners, shadow, shadow style and alignment.
 - Sets the shape of the whole picture: Free, 1:1, 4:3, 3:2 or 16:9, shown once there is a background.
@@ -230,6 +242,9 @@ More in the manual: [Recording](MANUAL.md#recording).
 ## Settings
 
 - Has Home, General, Capture, Overlay, Recording, Shortcuts, Agents and About pages.
+- Follows your desktop's light or dark choice with the System theme, or stays Light or Dark.
+- Follows your desktop's animation setting as Reduce Motion: with it, every transition happens at once.
+- Eases windows, pages, cards, tooltips and editor controls into place; tooltips open after a short rest and at once on the next control.
 - Applies every change at once and saves it to `config.toml`.
 - Applies edits you make to `config.toml` by hand while easyshot runs.
 - Shows a toast naming keys in `config.toml` that easyshot does not know, such as a misspelt one.
@@ -268,9 +283,9 @@ More in the manual: [Settings](MANUAL.md#settings).
 - Picks a colour with `color-picker`.
 - Controls recording with `record` and its `area`, `stop`, `pause`, `restart` and `discard` actions.
 - Toggles the capture bar with `capture-bar` and opens the gallery with `gallery`.
-- Runs `restore-last` and `pin-last` for the last capture.
+- Puts the latest capture back on the deck with `restore-last`, and pins it with `pin-last`.
 - Removes every pin with `unpin-all`.
-- Edits the clipboard image with `edit-clipboard`.
+- Opens the image on the clipboard in the editor with `edit-clipboard`.
 - Opens Settings on a page with `settings [page]`.
 - Hides the deck, saves all cards or closes all cards with `deck toggle`, `save-all` and `close-all`.
 - Quits the daemon with `quit` and runs it in the foreground with `daemon`.

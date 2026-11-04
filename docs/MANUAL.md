@@ -11,7 +11,7 @@ and keeps a history.
 
 - A Wayland compositor. Version 1 targets Hyprland 0.57+, sway 1.12 and niri 26.04. Any
   compositor with layer-shell and a capture protocol should work for basic capture.
-  river, labwc and COSMIC come later; KDE and GNOME are not supported in version 1.
+  river, labwc and COSMIC have not been tried; KDE and GNOME are not supported in version 1.
 - Tesseract for reading text (OCR). Without it, OCR still reads QR codes; when the region
   has none, it shows "Text recognition needs Tesseract" and how to install it.
 - gpu-screen-recorder or wf-recorder for recording; easyshot uses gpu-screen-recorder when
@@ -156,6 +156,24 @@ A pin is a screenshot that stays on top of other windows. Drag to move it. Scrol
 it; the top-left corner stays fixed. Hover for a close button. The context menu has Copy
 and Close.
 
+## The tray menu
+
+The tray icon holds the same actions as the keys, so everything is one click away:
+
+- Region, Screen, Window, Record, Scrolling Capture, OCR and Pick Color. A global shortcut you
+  set in Settings > Shortcuts is written beside its item; an item whose action has no key shows
+  none. While a recording runs, Record reads Stop Recording, and the top of the menu shows the
+  elapsed time with Stop Recording, Pause (Resume), Restart and Discard. The icon carries a red
+  dot while recording and changes while paused. Without a recorder installed, Record is greyed
+  out and reads "Record (install wf-recorder)".
+- Recent Captures, with Screenshots and Recordings under it: your eight newest of each, newest
+  first, saved or not. A screenshot opens in the editor and a recording in the trim viewer.
+  An empty list reads "No screenshots yet" or "No recordings yet".
+- Media Gallery.
+- Unpin All Windows, which is there only while a screenshot is pinned.
+- While an agent has access, a row such as "Agent access until 14:05 — Revoke" (see Consent).
+- Settings, Quit, and the version, greyed.
+
 ## The editor
 
 The editor has 13 tools. You can select, move, resize and rotate shapes, bind arrows to
@@ -233,6 +251,12 @@ steps, and drops the oldest sooner when they would hold more than 768 MiB of pix
 Beautify options: background (colour, one of 24 gradients or your own, wallpaper), padding, corners, shadow and
 its style, alignment, canvas shape, camera 3D, progressive blur, border, watermark and
 presets.
+
+The background's fill library has three tabs: Color, Gradient and Wallpaper. Wallpaper has
+Recent and Built-in lists. Built-in is seven wallpapers that come with easyshot. The + tile in
+Recent opens your desktop's file chooser to pick any image of your own; the last 24 you chose
+are listed, newest first. A wallpaper whose file has moved or gone is marked "missing", and
+saving a look that uses it asks you to choose it again.
 
 Your own gradients follow the 24 built-in ones in the Gradient grid. The + tile after them
 starts a new gradient from the one selected. Under the grid, Edit gradient changes the
@@ -322,7 +346,7 @@ of the window moves between them. Easyshot in your application menu, a bare `eas
 an `easyshot://home` link open it, on the gallery the first time. `easyshot gallery` and the tray's Media
 Gallery open it on the gallery; `easyshot settings [page]`, the tray's Settings and an
 `easyshot://settings` link open it on Settings, at that page when you name one: `home`,
-`general`, `capture`, `overlay`, `recording`, `shortcuts` or `about`. There is
+`general`, `capture`, `overlay`, `recording`, `shortcuts`, `agents` or `about`. There is
 only one Home window: opening it again brings it to the front and switches to the tab you
 asked for, or keeps the tab it shows when you asked for none.
 
@@ -467,6 +491,30 @@ Pages: Home, General, Capture, Overlay, Recording, Shortcuts, Agents, About. Age
 described under Agent use. Sharing is not part of
 version 1.
 
+General, Appearance, Theme is System, Light or Dark. System follows your desktop's light or dark
+choice, as the settings portal reports it, and changes when you change it. There is no Reduce
+Motion switch in easyshot: it follows your desktop's "enable animations" setting (the
+`org.gnome.desktop.interface` key the portal reports) and changes with it.
+
+### Motion
+
+Interface changes ease into place; with Reduce Motion they happen at once:
+
+- The Home window slides between Media Gallery and Settings with the selected tab gliding
+  across; a Settings page rises into place as the last fades out; the Settings home tiles fill in
+  softly under the pointer; the introduction's steps slide past each other.
+- The countdown dial springs in and each second rolls down into place.
+- Deck cards fade their picture and "Saving…" label in and out, and fade their tools in and out
+  with the pointer; a pin's close button does the same.
+- In the editor, Saved and Copied fade in and out; a crop grows into the new view; crop Reset
+  and a new aspect ease the frame into place and Cancel widens it to the whole image as it
+  fades; a preset, a first background, a canvas shape or an alignment draws its way in; the
+  blur Direction row, the low-resolution notice and a preset's delete button ease in and out;
+  the focus pad's knob grows as you drag it and glides home on a double-click; the swatches of a
+  newly picked fill library fade in.
+- The recording control bar fades in from the capture bar.
+- Tooltips open after a short rest, and at once when you move straight to the next control.
+
 Settings are stored in `config.toml`; see Files. You can edit it by hand. While easyshot
 runs it watches the file and applies your edits at once, without a restart, and a later change
 in Settings keeps them. If the file has a syntax error, easyshot keeps running on the last
@@ -549,8 +597,11 @@ Commands:
   `--timed [N]`, and `capture timed` is `capture region --timed`
 - `ocr [--single-line]`, `color-picker`
 - `record [area|stop|pause|restart|discard]`
-- `capture-bar`, `gallery`, `restore-last`, `pin-last`, `unpin-all`, `edit-clipboard`,
-  `settings [page]`, `deck toggle|save-all|close-all`, `quit`
+- `capture-bar`, `gallery`, `settings [page]`, `deck toggle|save-all|close-all`, `quit`
+- `restore-last` puts your latest capture back on the deck as a card, saved or not, and says so
+  if there is none; `pin-last` pins that capture on the screen; `unpin-all` closes every pin;
+  `edit-clipboard` opens the image on the clipboard (PNG, JPEG, WebP, GIF, BMP or TIFF) in the
+  editor, and says so if the clipboard holds no image.
 - `doctor [--json | --raw] [--bundle]` asks the daemon, or probes by itself when it is not
   running. It prints a short summary: your compositor; each thing easyshot can do, marked
   with a check or a cross and, for a cross, one line on what it means for you; the provider
