@@ -383,7 +383,7 @@ fn mode_of(view: View) -> SelectMode {
         View::Text => SelectMode::Text,
         View::Window => SelectMode::Window,
         View::Color => SelectMode::Color,
-        View::Scroll => SelectMode::Scroll,
+        View::Scroll | View::ScrollWindow => SelectMode::Scroll,
     }
 }
 
