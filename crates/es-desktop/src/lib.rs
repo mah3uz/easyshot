@@ -14,7 +14,9 @@ mod tray_icon;
 pub use apps::{app_name, app_name_in};
 pub use autostart::{autostart_enabled, autostart_file, set_autostart, set_autostart_in};
 pub use bus::Labels;
-pub use files::{move_to_trash, show_in_file_manager, show_items, spawn_reaped};
+pub use files::{
+    move_to_trash, restore_from_trash, show_in_file_manager, show_items, spawn_reaped,
+};
 pub use login::{follow_login_session, watch_login_session};
 pub use noop::{RecordingNotifier, RecordingShortcuts, RecordingSound, RecordingTray};
 pub use notify::{DEFAULT_ACTION, DesktopNotifier};

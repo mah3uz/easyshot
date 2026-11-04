@@ -7,12 +7,14 @@ mod bus;
 mod capture;
 mod config_watch;
 mod crash;
+mod deck_delete;
 #[cfg(feature = "test-hooks")]
 mod inject;
 mod live_settings;
 mod look;
 mod notices;
 mod pickers;
+mod preview_window;
 mod recorder;
 mod recording;
 mod recovery;
@@ -489,7 +491,7 @@ fn start(
         recordings: recordings.clone(),
     };
     let mut subscriptions = vec![
-        routes::deck_events(&action_deps, clipboard, cx),
+        routes::deck_events(&deck, &history, &wiring, &pins, paths, clipboard, cx),
         routes::video_cards(&action_deps, cx),
         live_settings::install(&settings, &deck, &deck_surface, &history, cx),
         tray_feed.follow_access(cx),

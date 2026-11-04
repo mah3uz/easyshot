@@ -34,6 +34,7 @@ pub const EDITOR_APP_ID: &str = app_id!("editor");
 pub const SETTINGS_APP_ID: &str = app_id!("settings");
 pub const GALLERY_APP_ID: &str = app_id!("gallery");
 pub const ONBOARDING_APP_ID: &str = app_id!("onboarding");
+pub const PREVIEW_APP_ID: &str = app_id!("preview");
 pub const PLAYER_APP_ID: &str = app_id!("player");
 pub const ICON_NAME: &str = app_id!();
 

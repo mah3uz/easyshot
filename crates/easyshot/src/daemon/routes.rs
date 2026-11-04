@@ -1,3 +1,4 @@
+use super::deck_delete::{Deletion, delete_card};
 use super::recording::Recordings;
 use super::windows::Wiring;
 use es_app::agent_access::AgentAccessHandle;
@@ -9,6 +10,7 @@ use es_app::history::History;
 use es_app::pipeline::THUMB_SIZE;
 use es_app::platform_ui::ClipboardSink;
 use es_app::toast::{IconName, Toast, show_toast};
+use es_app::windows::{WindowKey, WindowKind};
 use es_model::HistoryEntry;
 use es_model::platform::ClipItem;
 use es_overlays::pin::Pins;
@@ -153,14 +155,24 @@ fn copy_card(file: &std::path::Path, clipboard: &Rc<dyn ClipboardSink>, cx: &mut
 }
 
 /// Card actions, and dropping the staged files of a card that was let go of.
-pub fn deck_events(d: &ActionDeps, clipboard: Rc<dyn ClipboardSink>, cx: &mut App) -> Subscription {
-    let (paths, pins, wiring, history) = (
-        d.paths.clone(),
-        d.pins.clone(),
-        d.wiring.clone(),
-        d.history.clone(),
-    );
-    cx.subscribe(&d.deck, move |deck, event: &DeckEvent, cx| match event {
+pub fn deck_events(
+    deck: &Entity<Deck>,
+    history: &Entity<History>,
+    wiring: &Rc<Wiring>,
+    pins: &Rc<Pins>,
+    paths: &Paths,
+    clipboard: Rc<dyn ClipboardSink>,
+    cx: &mut App,
+) -> Subscription {
+    let (paths, pins, wiring, history) =
+        (paths.clone(), pins.clone(), wiring.clone(), history.clone());
+    let deletion = Deletion {
+        deck: deck.clone(),
+        history: history.clone(),
+        files: wiring.files.clone(),
+        paths: paths.clone(),
+    };
+    cx.subscribe(deck, move |deck, event: &DeckEvent, cx| match event {
         DeckEvent::Removed { item, why } => {
             if why.discards() && item.staged {
                 let (paths, id) = (paths.clone(), item.id);
@@ -204,7 +216,18 @@ pub fn deck_events(d: &ActionDeps, clipboard: Rc<dyn ClipboardSink>, cx: &mut Ap
                     .detach();
                 }
             }
-            DeckAction::Dismiss | DeckAction::Share | DeckAction::Preview | DeckAction::Delete => {}
+            DeckAction::Preview => {
+                if let Err(e) =
+                    wiring
+                        .windows
+                        .open(WindowKind::Preview, WindowKey::Path(item.file.clone()), cx)
+                {
+                    tracing::warn!(error = %e, "preview from the deck");
+                    show_toast(Toast::error("toast-preview-failed"), cx);
+                }
+            }
+            DeckAction::Delete => delete_card(&deletion, item.clone(), cx),
+            DeckAction::Dismiss | DeckAction::Share => {}
         },
     })
 }

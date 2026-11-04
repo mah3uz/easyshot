@@ -103,6 +103,7 @@ mod harness {
                         style: ToastStyle::Normal,
                         duration: TOAST_DURATION * 2,
                         output: None,
+                        undo: None,
                     },
                     cx,
                 );

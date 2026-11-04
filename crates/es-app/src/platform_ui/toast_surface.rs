@@ -23,10 +23,12 @@ struct ToastHost {
     toast: ToastRequest,
     leaving: bool,
     region: Rc<Cell<Option<Bounds<Pixels>>>>,
+    shown: Rc<RefCell<Option<Shown>>>,
 }
 
 impl Render for ToastHost {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        let (id, shown) = (self.id, self.shown.clone());
         let t = &self.toast;
         let style = match t.style {
             ToastStyle::Normal => CardStyle::Normal,
@@ -40,6 +42,13 @@ impl Render for ToastHost {
         }
         if let Some(icon) = card_icon(t.icon.clone()) {
             card = card.icon(icon);
+        }
+        if let Some((label, undo)) = t.undo.clone() {
+            card = card.action(label, move |_, cx| {
+                undo.run(cx);
+                let shown = shown.clone();
+                cx.defer(move |cx| close(&shown, id, cx));
+            });
         }
         let region = self.region.clone();
         div().size_full().flex().justify_center().pt(TOP_GAP).child(
@@ -108,6 +117,7 @@ impl ToastSurface {
             toast,
             leaving: false,
             region: Rc::default(),
+            shown: self.shown.clone(),
         });
         handle.set_content(host.clone().into(), cx);
         *self.shown.borrow_mut() = Some(Shown { id, handle, host });

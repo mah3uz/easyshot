@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{rc::Rc, time::Duration};
 
 use gpui::{
     App, BoxShadow, ElementId, InteractiveElement, IntoElement, ParentElement, Pixels, RenderOnce,
@@ -14,6 +14,8 @@ use crate::{
     theme::tokens,
     tokens::Typeset,
 };
+
+use super::button::{ButtonKind, EditorButton};
 
 pub const TOAST_DURATION: Duration = Duration::from_millis(2500);
 const RADIUS: Pixels = px(14.);
@@ -32,6 +34,8 @@ pub enum ToastStyle {
     Error,
 }
 
+type ActionHandler = Rc<dyn Fn(&mut Window, &mut App)>;
+
 /// The card only: whoever shows it places it, keeps it for [`TOAST_DURATION`], then marks it leaving for [`TOAST_OUT`].
 #[derive(IntoElement)]
 pub struct Toast {
@@ -42,6 +46,7 @@ pub struct Toast {
     style: ToastStyle,
     leaving: bool,
     settled: bool,
+    action: Option<(SharedString, ActionHandler)>,
 }
 
 impl Toast {
@@ -54,7 +59,18 @@ impl Toast {
             style: ToastStyle::Normal,
             leaving: false,
             settled: false,
+            action: None,
         }
+    }
+
+    /// A button on the card, such as Undo.
+    pub fn action(
+        mut self,
+        label: impl Into<SharedString>,
+        on_click: impl Fn(&mut Window, &mut App) + 'static,
+    ) -> Self {
+        self.action = Some((label.into(), Rc::new(on_click)));
+        self
     }
 
     pub fn message(mut self, message: impl Into<SharedString>) -> Self {
@@ -147,7 +163,15 @@ impl RenderOnce for Toast {
                                 .child(message),
                         )
                     }),
-            );
+            )
+            .when_some(self.action, |d, (label, on_click)| {
+                d.child(
+                    EditorButton::new("toast-action")
+                        .label(label)
+                        .kind(ButtonKind::Bordered)
+                        .on_click(move |_, window, cx| on_click(window, cx)),
+                )
+            });
         if self.settled && !self.leaving {
             card.into_any_element()
         } else if self.leaving {

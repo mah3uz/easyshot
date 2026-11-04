@@ -1,7 +1,7 @@
 use crate::bus::{connect, protocol};
 use crate::dbus::Endpoint;
 use crate::{Error, Result};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[zbus::proxy(
     interface = "org.freedesktop.FileManager1",
@@ -17,6 +17,23 @@ pub fn move_to_trash(path: &Path) -> Result<()> {
         return Err(Error::NotFound(path.display().to_string()));
     }
     trash::delete(path).map_err(|e| Error::Protocol(e.to_string()))
+}
+
+/// Puts back the newest Trash item that came from each of `paths`.
+pub fn restore_from_trash(paths: &[PathBuf]) -> Result<()> {
+    let listed = trash::os_limited::list().map_err(|e| Error::Protocol(e.to_string()))?;
+    let mut newest: Vec<trash::TrashItem> = Vec::new();
+    for path in paths {
+        let found = listed
+            .iter()
+            .filter(|item| item.original_path() == *path)
+            .max_by_key(|item| item.time_deleted);
+        match found {
+            Some(item) => newest.push(item.clone()),
+            None => return Err(Error::NotFound(path.display().to_string())),
+        }
+    }
+    trash::os_limited::restore_all(newest).map_err(|e| Error::Protocol(e.to_string()))
 }
 
 fn file_uri(path: &Path) -> String {

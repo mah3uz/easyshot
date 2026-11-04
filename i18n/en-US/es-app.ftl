@@ -49,6 +49,13 @@ toast-ocr-empty-message = Try selecting a clearer text area.
 toast-copied = Copied
 toast-copied-color = { $hex } copied to clipboard
 toast-copied-text = Text copied to clipboard
+toast-undo = Undo
+toast-deleted = Moved to the Trash
+toast-discarded = Capture deleted
+toast-delete-failed = Couldn’t delete the capture
+toast-undo-failed = Couldn’t restore the capture
+toast-undo-failed-message = It is still in the Trash.
+toast-preview-failed = Can’t preview that capture
 
 ## Notifications
 notice-open = Open

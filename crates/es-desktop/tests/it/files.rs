@@ -3,7 +3,9 @@ use crate::desktop_support;
 
 use dbus_support::run;
 use desktop_support::{QuietBus, isolated, serve_on};
-use es_desktop::{autostart_file, move_to_trash, set_autostart_in, show_items, spawn_reaped};
+use es_desktop::{
+    autostart_file, move_to_trash, restore_from_trash, set_autostart_in, show_items, spawn_reaped,
+};
 use std::path::Path;
 
 struct FileManager {
@@ -58,6 +60,40 @@ fn trash_moves_the_file_out_of_its_folder_into_the_trash() {
             move_to_trash(&file).expect("trash");
             assert!(!file.exists());
             assert!(data.join("Trash/files/shot-to-trash.png").exists());
+        },
+    );
+}
+
+#[test]
+fn a_trashed_file_comes_back_to_where_it_was() {
+    let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join("restore-test");
+    let data = root.join("data");
+    let data_arg = data.to_str().expect("utf-8 path").to_owned();
+    let file = root.join("shot-to-restore.png");
+    let sidecar = root.join("shot-to-restore.esdoc");
+    isolated(
+        "files::a_trashed_file_comes_back_to_where_it_was",
+        &[("XDG_DATA_HOME", &data_arg)],
+        || {
+            let _ = std::fs::remove_dir_all(&root);
+            std::fs::create_dir_all(&data).expect("data dir");
+            for f in [&file, &sidecar] {
+                std::fs::write(f, f.to_string_lossy().as_bytes()).expect("write");
+                move_to_trash(f).expect("trash");
+                assert!(!f.exists());
+            }
+            restore_from_trash(&[file.clone(), sidecar.clone()]).expect("restore");
+            assert_eq!(
+                std::fs::read(&file).expect("file"),
+                file.to_string_lossy().as_bytes()
+            );
+            assert!(sidecar.exists());
+            assert!(!data.join("Trash/files/shot-to-restore.png").exists());
+            let gone = restore_from_trash(&[root.join("never-trashed.png")]);
+            assert!(
+                matches!(gone, Err(es_desktop::Error::NotFound(_))),
+                "{gone:?}"
+            );
         },
     );
 }

@@ -4,7 +4,9 @@ use es_model::platform::OutputId;
 use gpui::{App, BorrowAppContext, Global};
 use i18n_embed::fluent::FluentLanguageLoader;
 use std::collections::{HashMap, VecDeque};
+use std::fmt;
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
@@ -15,7 +17,11 @@ pub type FluentArgs = HashMap<&'static str, String>;
 
 pub const TOAST_DURATION: Duration = Duration::from_millis(2500);
 
+/// Long enough to notice the toast and press Undo.
+pub const UNDO_DURATION: Duration = Duration::from_secs(8);
+
 pub const EDIT_ACTION: &str = "edit";
+pub const UNDO_ACTION: &str = "undo";
 pub const SHOW_IN_FOLDER_ACTION: &str = "show-in-folder";
 
 const REMEMBERED_NOTICES: usize = 32;
@@ -24,6 +30,34 @@ const REMEMBERED_NOTICES: usize = 32;
 pub enum ToastStyle {
     Normal,
     Error,
+}
+
+/// What pressing Undo on a toast, or on the notification standing in for it, does.
+#[derive(Clone)]
+pub struct ToastUndo(Rc<dyn Fn(&mut App)>);
+
+impl ToastUndo {
+    pub fn new(undo: impl Fn(&mut App) + 'static) -> Self {
+        Self(Rc::new(undo))
+    }
+
+    pub fn run(&self, cx: &mut App) {
+        (self.0)(cx);
+    }
+}
+
+impl PartialEq for ToastUndo {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl Eq for ToastUndo {}
+
+impl fmt::Debug for ToastUndo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("ToastUndo")
+    }
 }
 
 #[derive(Clone)]
@@ -39,6 +73,7 @@ pub struct Toast {
     pub file: Option<PathBuf>,
     /// The notification also offers to open `file` in the editor.
     pub edit: bool,
+    pub undo: Option<ToastUndo>,
 }
 
 impl Toast {
@@ -52,6 +87,7 @@ impl Toast {
             output: None,
             file: None,
             edit: false,
+            undo: None,
         }
     }
 
@@ -81,6 +117,13 @@ impl Toast {
         self.edit = true;
         self
     }
+
+    /// Adds an Undo button, and keeps the toast up for [`UNDO_DURATION`].
+    pub fn undoable(mut self, undo: impl Fn(&mut App) + 'static) -> Self {
+        self.undo = Some(ToastUndo::new(undo));
+        self.duration = UNDO_DURATION;
+        self
+    }
 }
 
 /// A toast with its strings looked up, ready for a surface to draw.
@@ -92,6 +135,8 @@ pub struct ToastRequest {
     pub style: ToastStyle,
     pub duration: Duration,
     pub output: Option<OutputId>,
+    /// The label of the Undo button and what it does.
+    pub undo: Option<(String, ToastUndo)>,
 }
 
 impl ToastRequest {
@@ -118,6 +163,7 @@ impl ToastRequest {
             style: toast.style,
             duration: toast.duration,
             output: toast.output.clone(),
+            undo: toast.undo.clone().map(|undo| (l.get("toast-undo"), undo)),
         }
     }
 }
@@ -134,11 +180,13 @@ pub struct MemorySink {
 }
 
 impl MemorySink {
+    #[allow(clippy::arc_with_non_send_sync)] // see `without_surface`
     pub fn new() -> Arc<Self> {
         Arc::default()
     }
 
     /// A sink that has no surface, so every toast falls back to a notification.
+    #[allow(clippy::arc_with_non_send_sync)] // a request holds the Undo closure, which stays on the UI thread
     pub fn without_surface() -> Arc<Self> {
         Arc::new(Self {
             hidden: true,
@@ -169,8 +217,9 @@ impl ToastSink for Arc<MemorySink> {
 
 struct Sent {
     id: NotificationId,
-    file: PathBuf,
+    file: Option<PathBuf>,
     edit: bool,
+    undo: Option<ToastUndo>,
 }
 
 struct ToastRouter {
@@ -184,13 +233,17 @@ pub enum NoticeAction {
     Open(PathBuf),
     ShowInFolder(PathBuf),
     Edit(PathBuf),
+    Undo(ToastUndo),
 }
 
 fn notice_actions(t: &Toast) -> Vec<(String, String)> {
+    let l = loader();
+    if t.undo.is_some() {
+        return vec![(UNDO_ACTION.to_owned(), l.get("toast-undo"))];
+    }
     if t.file.is_none() {
         return Vec::new();
     }
-    let l = loader();
     let mut actions = vec![
         (DEFAULT_ACTION.to_owned(), l.get("notice-open")),
         (
@@ -208,7 +261,10 @@ fn notice_actions(t: &Toast) -> Vec<(String, String)> {
 pub fn notice_action(id: NotificationId, action: &str, cx: &App) -> Option<NoticeAction> {
     let router = cx.try_global::<ToastRouter>()?;
     let sent = router.sent.iter().find(|s| s.id == id)?;
-    let file = sent.file.clone();
+    if action == UNDO_ACTION {
+        return sent.undo.clone().map(NoticeAction::Undo);
+    }
+    let file = sent.file.clone()?;
     match action {
         DEFAULT_ACTION => Some(NoticeAction::Open(file)),
         SHOW_IN_FOLDER_ACTION => Some(NoticeAction::ShowInFolder(file)),
@@ -254,15 +310,16 @@ pub fn show_toast(t: Toast, cx: &mut App) {
     };
     match notifier.notify(note) {
         Ok(id) => {
-            if let Some(file) = t.file {
+            if t.file.is_some() || t.undo.is_some() {
                 cx.update_global(|router: &mut ToastRouter, _| {
                     if router.sent.len() == REMEMBERED_NOTICES {
                         router.sent.pop_front();
                     }
                     router.sent.push_back(Sent {
                         id,
-                        file,
+                        file: t.file,
                         edit: t.edit,
+                        undo: t.undo,
                     });
                 });
             }

@@ -2,6 +2,7 @@ use super::bar::{BarSources, NoAudio, devices_from, new_bar};
 use super::pickers::{Declining, declining_folder_picker};
 use super::reopen_recovered;
 use super::windows::{Wiring, onboarding_input, open_file, open_practice};
+use deck_actions_tests::NoFiles;
 use es_app::capture_coordinator::CaptureCoordinator;
 use es_app::deck::{Deck, DeckPolicy};
 use es_app::dispatcher::{Action, RouteDispatcher};
@@ -41,17 +42,6 @@ struct NoClipboard;
 impl ClipboardSink for NoClipboard {
     fn copy(&self, _: Vec<ClipItem>, _: &mut App) -> Task<Result<()>> {
         Task::ready(Ok(()))
-    }
-}
-
-struct NoFiles;
-
-impl GalleryFiles for NoFiles {
-    fn show_in_folder(&self, _: PathBuf) -> BoxFuture<'static, FileResult> {
-        Box::pin(async { Ok(()) })
-    }
-    fn trash(&self, _: &Path) -> FileResult {
-        Ok(())
     }
 }
 
@@ -140,6 +130,14 @@ impl BindHelper for Lines {
 }
 
 fn rig_with(cx: &mut TestAppContext, binds: Option<Arc<dyn BindHelper>>) -> Rig {
+    rig_files(cx, binds, Arc::new(NoFiles))
+}
+
+fn rig_files(
+    cx: &mut TestAppContext,
+    binds: Option<Arc<dyn BindHelper>>,
+    files: Arc<dyn GalleryFiles>,
+) -> Rig {
     let dir = tempfile::tempdir().unwrap();
     let paths = Paths::rooted(dir.path());
     paths.ensure_all().unwrap();
@@ -160,7 +158,7 @@ fn rig_with(cx: &mut TestAppContext, binds: Option<Arc<dyn BindHelper>>) -> Rig 
             history.clone(),
             Rc::new(NoClipboard),
             Rc::new(Declining),
-            Arc::new(NoFiles),
+            files,
             declining_folder_picker(),
             Caps::empty(),
             binds,
@@ -586,6 +584,7 @@ fn open_editor_with(
 }
 
 mod capture_bar_tests;
+mod deck_actions_tests;
 mod editor_config_tests;
 mod low_res_tests;
 mod registration_tests;

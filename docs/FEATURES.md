@@ -67,6 +67,8 @@ More in the manual: [Capturing](MANUAL.md#capturing).
 - Shows each capture as a card in a floating preview deck of up to 5 cards.
 - Offers hover actions on a card, in slots you can set up.
 - Lets you choose which actions a card shows in Settings › Overlay › Card Actions.
+- Opens a card's Preview in a plain window with the image fitted; click or Z toggles 100%, Space or Esc closes it.
+- Moves a card's capture to the Trash with Delete, and a toast's Undo puts it back and returns the card.
 - Turns Save into Show in Folder on a card that was already saved automatically.
 - Lets you drag a card into another app or a file manager as a copy.
 - Removes cards on their own, pausing while you hover over one.

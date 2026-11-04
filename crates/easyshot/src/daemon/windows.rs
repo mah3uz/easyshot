@@ -73,11 +73,11 @@ impl WindowHandle for Handle {
     }
 }
 
-fn handle(window: impl Into<AnyWindowHandle>) -> Rc<dyn WindowHandle> {
+pub(super) fn handle(window: impl Into<AnyWindowHandle>) -> Rc<dyn WindowHandle> {
     Rc::new(Handle(window.into()))
 }
 
-fn opened<T>(result: anyhow::Result<T>) -> Result<T> {
+pub(super) fn opened<T>(result: anyhow::Result<T>) -> Result<T> {
     result.map_err(|e| Error::Protocol(format!("cannot open the window: {e}")))
 }
 
@@ -160,6 +160,8 @@ impl Wiring {
             WindowKind::Onboarding,
             Rc::new(move |_, cx| open_onboarding(&w, cx)),
         );
+        self.windows
+            .register(WindowKind::Preview, Rc::new(super::preview_window::open));
         let w = self.clone();
         self.windows.register(
             WindowKind::CaptureBar,

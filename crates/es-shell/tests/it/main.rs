@@ -3,6 +3,7 @@ mod gallery_size;
 mod gallery_support;
 mod home;
 mod onboarding;
+mod preview;
 mod settings;
 mod settings_agents;
 mod settings_motion;

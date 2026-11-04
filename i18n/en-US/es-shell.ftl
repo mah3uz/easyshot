@@ -547,6 +547,7 @@ gallery-date-full-pattern = MMM d, yyyy, HH:mm
 
 ## Home window
 home-window-title = { -app-name }
+preview-window-title = { $name }
 home-window-tabs = Sections
 home-window-gallery = Media Gallery
 home-window-settings = Settings

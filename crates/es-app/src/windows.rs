@@ -11,6 +11,7 @@ pub enum WindowKind {
     Editor,
     CaptureBar,
     Onboarding,
+    Preview,
 }
 
 impl WindowKind {

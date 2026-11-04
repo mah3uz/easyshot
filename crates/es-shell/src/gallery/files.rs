@@ -11,6 +11,11 @@ pub trait GalleryFiles: Send + Sync {
     fn show_in_folder(&self, file: PathBuf) -> BoxFuture<'static, FileResult>;
     fn trash(&self, file: &Path) -> FileResult;
 
+    /// Puts files moved to the Trash back where they were.
+    fn restore(&self, _files: &[PathBuf]) -> FileResult {
+        Err("restoring from the Trash is not supported".into())
+    }
+
     /// A PNG of the video's first frame, at most `size` pixels each way; `None` when it cannot be made.
     fn video_frame(&self, _file: &Path, _size: u32) -> Option<Vec<u8>> {
         None
@@ -67,6 +72,10 @@ impl GalleryFiles for DesktopFiles {
 
     fn trash(&self, file: &Path) -> FileResult {
         es_desktop::move_to_trash(file).map_err(|e| e.to_string())
+    }
+
+    fn restore(&self, files: &[PathBuf]) -> FileResult {
+        es_desktop::restore_from_trash(files).map_err(|e| e.to_string())
     }
 
     fn video_frame(&self, file: &Path, size: u32) -> Option<Vec<u8>> {

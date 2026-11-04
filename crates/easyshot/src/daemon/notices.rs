@@ -25,6 +25,7 @@ pub fn on_action(id: NotificationId, action: &str, answers: &Answers, cx: &mut A
                 })
                 .detach();
         }
+        Some(NoticeAction::Undo(undo)) => undo.run(cx),
         None => {}
     }
 }

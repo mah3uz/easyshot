@@ -133,6 +133,13 @@ opens the editor. Each capture also appears as a card in a floating preview deck
   the top middle of the card and Delete at the bottom middle. In `config.toml` they are the
   `[overlay.actions]` table (`copy`, `save`, `edit`, `pin`, `share`, `preview`, `delete`);
   a table with every action off reads as the defaults;
+- Preview opens the capture in a plain window, fitted to the window. Click it or press Z to
+  switch between fitted and 100%, and press Space or Esc to close it. The card stays on the
+  deck, and there are no editing tools;
+- Delete moves the capture, with its annotations, to the desktop Trash and shows a toast with
+  an Undo button for 8 seconds; Undo puts the files back and the card returns to the deck.
+  A capture that was never saved is discarded the same way and Undo returns the card. Neither
+  action appears on a recording's card;
 - drag a card out into another app or a file manager, which gets a copy of the file;
 - cards disappear on their own, and pause while you hover over them;
 - Save All and Clear All.
