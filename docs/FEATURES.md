@@ -177,6 +177,7 @@ More in the manual: [The Home window](MANUAL.md#the-home-window) and [History an
 - Highlights the area being recorded.
 - Opens and closes the capture bar with `easyshot capture-bar`, its key or the tray.
 - Closes the capture bar with Esc, or closes its open menu first.
+- Leaves your keyboard free while the capture bar is open: click another app and type there.
 - Records one thing at a time, and says "A recording is already running" if you start another.
 - Shows Stop Recording in the tray while a recording runs.
 - Keeps each recording as its own project folder.
@@ -194,6 +195,7 @@ More in the manual: [The Home window](MANUAL.md#the-home-window) and [History an
 - Remembers your last export choices.
 - Puts the control bar for a whole-screen recording on another monitor, or in the bottom-right corner (and in the video) if there is only one.
 - Turns that control bar off in Settings; the tray's Stop Recording still works.
+- Never takes your keyboard with the recording control bar, so you keep typing in the app you record.
 
 More in the manual: [Recording](MANUAL.md#recording).
 
