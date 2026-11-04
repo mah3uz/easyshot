@@ -31,7 +31,7 @@ const faq = [
   },
   {
     q: 'What does recording need?',
-    a: 'gpu-screen-recorder (preferred) or wf-recorder. Without one, the tray's Record item is disabled and tells you what to install. Text capture needs Tesseract; QR codes are read without it.',
+    a: "gpu-screen-recorder (preferred) or wf-recorder. Without one, the tray's Record item is disabled and tells you what to install. Text capture needs Tesseract; QR codes are read without it.",
   },
 ]
 
