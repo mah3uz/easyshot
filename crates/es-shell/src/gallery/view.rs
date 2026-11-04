@@ -145,7 +145,7 @@ impl Gallery {
     }
 
     fn sync(&mut self, cx: &mut Context<Self>) {
-        self.items = model::local(self.history.read(cx).entries());
+        self.items = model::local(&self.paths, self.history.read(cx).entries());
         let items = &self.items;
         self.thumbs
             .retain(|file| items.iter().any(|i| i.file.as_path() == file));
@@ -265,15 +265,21 @@ impl Gallery {
         let Some(item) = self.item(id).cloned() else {
             return Ok(());
         };
-        let result = capture_files(&item.file)
-            .iter()
-            .try_for_each(|file| self.files.trash(file))
-            .and_then(|()| {
-                self.history
-                    .update(cx, |history, cx| history.remove(id, cx))
-                    .map(|_| ())
-                    .map_err(|e| e.to_string())
-            });
+        let result = if item.kind == MediaKind::Video {
+            self.files
+                .trash(item.project.as_deref().unwrap_or(&item.file))
+                .map(|()| self.history.update(cx, |h, cx| h.videos_changed(cx)))
+        } else {
+            capture_files(&item.file)
+                .iter()
+                .try_for_each(|file| self.files.trash(file))
+                .and_then(|()| {
+                    self.history
+                        .update(cx, |history, cx| history.remove(id, cx))
+                        .map(|_| ())
+                        .map_err(|e| e.to_string())
+                })
+        };
         if let Err(error) = &result {
             tracing::warn!(%error, "cannot move the capture to the Trash");
             self.error = Some(fl!("gallery-banner-error", error = error.clone()));
@@ -309,19 +315,20 @@ impl Gallery {
 
     /// Starts loading the thumbnails of items about to be drawn; each loads once.
     pub(super) fn request_thumbs(&mut self, range: std::ops::Range<usize>, cx: &mut Context<Self>) {
-        let wanted: Vec<PathBuf> = self.shown
+        let wanted: Vec<(PathBuf, MediaKind)> = self.shown
             [range.start.min(self.shown.len())..range.end.min(self.shown.len())]
             .iter()
-            .filter(|i| i.kind == MediaKind::Screenshot)
-            .map(|i| i.file.clone())
+            .map(|i| (i.file.clone(), i.kind))
             .collect();
-        for file in wanted {
+        for (file, kind) in wanted {
             if !self.thumbs.claim(&file) {
                 continue;
             }
-            let paths = self.paths.clone();
-            let source = file.clone();
-            let load = cx.background_spawn(async move { thumbs::load(&paths, &source) });
+            let (paths, files, source) = (self.paths.clone(), self.files.clone(), file.clone());
+            let load =
+                cx.background_spawn(
+                    async move { thumbs::load(&paths, files.as_ref(), kind, &source) },
+                );
             cx.spawn(async move |this, cx| {
                 let image = load.await;
                 let _ = this.update(cx, |this, cx| {

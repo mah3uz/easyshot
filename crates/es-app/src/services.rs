@@ -70,3 +70,11 @@ impl Services {
         (services, finished)
     }
 }
+
+/// Tells the gallery and the tray that a video was saved, exported or deleted; a no-op before services exist.
+pub fn videos_changed(cx: &mut gpui::App) {
+    let Some(history) = cx.try_global::<Services>().map(|s| s.history.clone()) else {
+        return;
+    };
+    history.update(cx, |h, cx| h.videos_changed(cx));
+}

@@ -45,6 +45,33 @@ pub fn ensure(paths: &Paths, image: &Path, size: u32) -> crate::Result<PathBuf> 
     Ok(thumb)
 }
 
+/// A video's thumbnail from a still of it; `frame` returns an encoded image and runs only on a cache miss.
+pub fn ensure_video(
+    paths: &Paths,
+    video: &Path,
+    size: u32,
+    frame: impl FnOnce(&Path) -> Option<Vec<u8>>,
+) -> crate::Result<PathBuf> {
+    let modified = std::fs::metadata(video)
+        .and_then(|m| m.modified())
+        .map_err(crate::error::io(video))?;
+    let thumb = thumb_path(paths, video, modified, size);
+    if thumb.is_file() {
+        return Ok(thumb);
+    }
+    let invalid = |e: std::io::Error| crate::error::io(video)(e);
+    let bytes = frame(video).ok_or_else(|| invalid(std::io::Error::other("no frame")))?;
+    let small = image::load_from_memory(&bytes)
+        .map_err(|e| invalid(std::io::Error::other(e)))?
+        .thumbnail(size, size);
+    let mut png = Vec::new();
+    small
+        .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+        .map_err(|e| invalid(std::io::Error::other(e)))?;
+    crate::atomic::write_atomic(&thumb, &png)?;
+    Ok(thumb)
+}
+
 /// A video's thumbnail strip, named like a thumbnail so a re-recorded file never serves a stale strip.
 pub fn strip_path_for(paths: &Paths, video: &Path, tiles: u32, height: u32) -> Option<PathBuf> {
     let thumb = thumb_path_for(paths, video, height)?;

@@ -5,5 +5,6 @@ mod config_file;
 mod deck;
 mod history;
 mod json_files;
+mod media;
 mod naming;
 mod temp;

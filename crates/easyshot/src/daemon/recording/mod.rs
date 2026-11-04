@@ -509,6 +509,7 @@ impl Recordings {
                 me.end_session(cx);
                 match completed {
                     Ok(done) => {
+                        es_app::services::videos_changed(cx);
                         me.ended(&agent::Ended::kept(&done, cfg.recording.save), cx);
                         if cfg.recording.open_editor_after {
                             let template = cfg.general.file_name_template.clone();

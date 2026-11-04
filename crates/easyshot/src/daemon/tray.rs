@@ -1,5 +1,4 @@
 use std::cell::Cell;
-use std::path::PathBuf;
 use std::rc::Rc;
 
 use es_app::agent_access::{AccessEvent, AgentAccess, AgentAccessHandle};
@@ -8,6 +7,7 @@ use es_app::history::{History, HistoryEvent};
 use es_app::settings_model::SettingsModel;
 use es_desktop::RecordingTrayState;
 use es_shell::tray::{self, TrayInput};
+use es_store::Paths;
 use gpui::{App, Entity, Subscription};
 
 pub struct TrayFeed {
@@ -15,7 +15,7 @@ pub struct TrayFeed {
     has_pins: Rc<dyn Fn() -> bool>,
     history: Entity<History>,
     settings: Entity<SettingsModel>,
-    videos: PathBuf,
+    paths: Paths,
     recorder_missing: bool,
     recording: Cell<Option<RecordingTrayState>>,
 }
@@ -26,7 +26,7 @@ impl TrayFeed {
         has_pins: Rc<dyn Fn() -> bool>,
         history: Entity<History>,
         settings: Entity<SettingsModel>,
-        videos: PathBuf,
+        paths: Paths,
         recorder_missing: bool,
     ) -> Rc<Self> {
         Rc::new(TrayFeed {
@@ -34,7 +34,7 @@ impl TrayFeed {
             has_pins,
             history,
             settings,
-            videos,
+            paths,
             recorder_missing,
             recording: Cell::new(None),
         })
@@ -52,7 +52,7 @@ impl TrayFeed {
         TrayInput {
             shortcuts: tray::shortcuts(&self.settings.read(cx).config().global_shortcuts),
             screenshots,
-            recordings: tray::recent_recordings(&self.videos),
+            recordings: tray::recent_recordings(&self.paths),
             has_pins: (self.has_pins)(),
             recorder_missing: self.recorder_missing,
             recording: self.recording.get(),

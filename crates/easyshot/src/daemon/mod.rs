@@ -337,7 +337,7 @@ fn start(
         },
         history.clone(),
         settings.clone(),
-        paths.videos_dir(),
+        paths.clone(),
         recorder_missing,
     );
     pins.set_on_change({

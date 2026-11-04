@@ -288,8 +288,10 @@ fn the_clock_rolls_into_hours() {
 #[test]
 fn recent_recordings_lists_only_videos_newest_first() {
     let dir = tempfile::tempdir().expect("temp dir");
+    let paths = es_store::Paths::rooted(dir.path());
+    std::fs::create_dir_all(paths.videos_dir()).expect("videos dir");
     let write = |name: &str, age: u64| {
-        let file = dir.path().join(name);
+        let file = paths.videos_dir().join(name);
         std::fs::write(&file, b"x").expect("write");
         let when = std::time::SystemTime::now() - Duration::from_secs(age);
         std::fs::File::options()
@@ -301,12 +303,14 @@ fn recent_recordings_lists_only_videos_newest_first() {
     write("old.mp4", 100);
     write("new.webm", 10);
     write("notes.txt", 1);
-    let names: Vec<_> = tray::recent_recordings(dir.path())
+    let names: Vec<_> = tray::recent_recordings(&paths)
         .into_iter()
         .map(|r| r.name)
         .collect();
     assert_eq!(names, ["new.webm", "old.mp4"]);
-    assert!(tray::recent_recordings(&dir.path().join("missing")).is_empty());
+    assert!(
+        tray::recent_recordings(&es_store::Paths::rooted(&dir.path().join("missing"))).is_empty()
+    );
 }
 
 #[test]

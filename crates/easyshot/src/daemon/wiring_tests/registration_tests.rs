@@ -63,6 +63,7 @@ fn dispatch_all(
         | Action::RecordRestart
         | Action::RecordDiscard
         | Action::RevokeAgent
+        | Action::OpenVideo(_)
         | Action::Quit => Ok(()),
     }));
     let mut sent = Vec::new();
@@ -146,7 +147,7 @@ fn the_tray_feed_follows_the_deck_and_history(cx: &mut TestAppContext) {
             Rc::new(|| false),
             rig.history.clone(),
             rig.settings.clone(),
-            rig.paths.videos_dir(),
+            rig.paths.clone(),
             false,
         );
         let follow = feed.follow(&rig.deck, cx);

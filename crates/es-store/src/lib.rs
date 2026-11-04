@@ -13,6 +13,7 @@ pub mod export;
 pub mod history;
 pub mod json;
 pub mod library;
+pub mod media;
 pub mod naming;
 pub mod paths;
 pub mod presets;

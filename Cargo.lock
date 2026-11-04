@@ -2278,6 +2278,7 @@ dependencies = [
  "es-geom",
  "es-model",
  "es-protocol",
+ "es-record",
  "es-store",
  "es-testkit",
  "es-ui",

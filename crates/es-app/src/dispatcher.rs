@@ -7,10 +7,11 @@ use es_model::capture::CaptureVariant;
 use es_protocol::{AgentRoute, Route, SettingsPage, TimedMode};
 use gpui::App;
 use std::cell::RefCell;
+use std::path::PathBuf;
 use std::rc::Rc;
 
 /// Routes whose work belongs to a crate above es-app.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
     DeckToggle,
     DeckSaveAll,
@@ -25,6 +26,7 @@ pub enum Action {
     RecordDiscard,
     RevokeAgent,
     ShowHome(HomeTab),
+    OpenVideo(PathBuf),
     Quit,
 }
 
@@ -90,6 +92,9 @@ fn target(route: Route) -> Target {
         Route::CaptureBar => Target::Window(WindowKind::CaptureBar, WindowKey::Single),
         Route::Home => Target::Home(None),
         Route::Gallery => Target::Home(Some(HomeTab::Gallery)),
+        Route::Open(path) if es_store::media::is_video(&path) => {
+            Target::Action(Action::OpenVideo(path))
+        }
         Route::Open(path) => Target::Window(WindowKind::Editor, WindowKey::Path(path)),
         Route::Settings(page) => Target::Home(Some(HomeTab::Settings(page))),
         Route::RestoreLast => Target::Action(Action::RestoreLast),

@@ -126,6 +126,78 @@ fn arrow_keys_move_by_one_cell_and_by_one_grid_row() {
 }
 
 #[test]
+fn an_unsaved_recording_is_a_video_with_its_duration_and_trashing_it_takes_its_folder() {
+    let mut rig = rig();
+    let unsaved = rig.read(|g| {
+        g.shown()
+            .iter()
+            .find(|i| i.project.is_some())
+            .cloned()
+            .unwrap()
+    });
+    assert_eq!(unsaved.kind, MediaKind::Video);
+    assert_eq!(unsaved.duration_secs, Some(75.));
+    let folder = unsaved.project.clone().unwrap();
+
+    rig.update(|g, cx| g.trash(unsaved.id, cx)).unwrap();
+
+    assert_eq!(*rig.files.trashed.lock().unwrap(), vec![folder]);
+    assert_eq!(rig.read(|g| g.count(Category::Videos)), VIDEOS - 1);
+}
+
+#[test]
+fn a_video_that_appears_after_the_window_opened_is_listed_once_the_library_changes() {
+    let mut rig = rig();
+    std::fs::write(rig.paths.videos_dir().join("exported.mp4"), b"v").unwrap();
+    assert_eq!(rig.read(|g| g.count(Category::Videos)), VIDEOS);
+
+    let history = rig.history.clone();
+    rig.app
+        .cx
+        .update(|cx| history.update(cx, |h, cx| h.videos_changed(cx)));
+    rig.app.settle();
+
+    assert_eq!(rig.read(|g| g.count(Category::Videos)), VIDEOS + 1);
+}
+
+#[test]
+fn the_first_frame_comes_from_ffmpeg_through_the_runner_and_a_missing_ffmpeg_gives_none() {
+    use es_record::project::CommandRunner;
+    use std::os::unix::process::ExitStatusExt;
+    use std::process::{ExitStatus, Output};
+    struct Fake(std::io::Result<Vec<u8>>, std::sync::Mutex<Vec<String>>);
+    impl CommandRunner for Fake {
+        fn run(&self, program: &str, args: &[String]) -> std::io::Result<Output> {
+            self.1
+                .lock()
+                .unwrap()
+                .push(format!("{program} {}", args.join(" ")));
+            match &self.0 {
+                Ok(png) => Ok(Output {
+                    status: ExitStatus::from_raw(0),
+                    stdout: png.clone(),
+                    stderr: Vec::new(),
+                }),
+                Err(_) => Err(std::io::Error::new(std::io::ErrorKind::NotFound, "ffmpeg")),
+            }
+        }
+    }
+    let file = std::path::Path::new("/v/a.mp4");
+    let found = Fake(Ok(vec![1, 2, 3]), Default::default());
+    assert_eq!(
+        es_shell::gallery::files::first_frame(&found, file, 128),
+        Some(vec![1, 2, 3])
+    );
+    let ran = found.1.lock().unwrap()[0].clone();
+    assert!(ran.starts_with("ffmpeg ") && ran.contains("/v/a.mp4"));
+    let missing = Fake(Err(std::io::ErrorKind::NotFound.into()), Default::default());
+    assert_eq!(
+        es_shell::gallery::files::first_frame(&missing, file, 128),
+        None
+    );
+}
+
+#[test]
 fn enter_opens_and_edit_hands_the_file_to_the_app() {
     let mut rig = rig();
     let seen: Rc<RefCell<Vec<GalleryEvent>>> = Rc::default();

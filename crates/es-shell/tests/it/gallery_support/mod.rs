@@ -1,7 +1,6 @@
 #![allow(dead_code, clippy::unwrap_used, clippy::expect_used)]
 
 use es_app::history::History;
-use es_model::{CaptureKind, HistoryEntry};
 use es_shell::gallery::{self, FileResult, Gallery, GalleryFiles};
 use es_store::Paths;
 use es_testkit::Headless;
@@ -16,7 +15,6 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
 use tempfile::TempDir;
-use uuid::Uuid;
 
 pub const SCREENSHOTS: usize = 180;
 pub const VIDEOS: usize = 20;
@@ -117,33 +115,36 @@ pub fn library(dir: &Path, count: usize) -> Paths {
     paths
 }
 
-pub fn video_entries(dir: &Path, count: usize) -> Vec<HistoryEntry> {
-    let folder = dir.join("Videos");
+/// Videos in the videos folder; the last two are an unsaved recording project, with a duration.
+pub fn videos(paths: &Paths, count: usize) {
+    let folder = paths.videos_dir();
     std::fs::create_dir_all(&folder).unwrap();
-    (0..count)
-        .map(|k| {
-            let i = SCREENSHOTS + k;
-            let file = folder.join(format!("Recording {k:02}.mp4"));
-            std::fs::write(&file, b"not decoded").unwrap();
-            HistoryEntry {
-                id: Uuid::new_v4(),
-                created_at: age(i).into(),
-                kind: CaptureKind::Region,
-                name: format!("Recording {k:02}"),
-                file,
-                export_path: None,
-                pixel_size: (1920, 1080),
-                has_annotations: false,
-                share_url: None,
-            }
-        })
-        .collect()
+    for k in 0..count {
+        let when = age(SCREENSHOTS + k);
+        let file = if k + 2 >= count {
+            let dir = paths
+                .recordings_dir()
+                .join(format!("Recording {k:02}.easyshotrec"));
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.join("capture.json"), r#"{"duration_secs":75.0}"#).unwrap();
+            dir.join("screen.mkv")
+        } else {
+            folder.join(format!("Recording {k:02}.mp4"))
+        };
+        std::fs::write(&file, b"not decoded").unwrap();
+        File::options()
+            .write(true)
+            .open(&file)
+            .unwrap()
+            .set_modified(when)
+            .unwrap();
+    }
 }
 
-pub fn rig_with(screenshots: usize, videos: usize, mode: ThemeMode, w: f32, h: f32) -> Rig {
+pub fn rig_with(screenshots: usize, videos_count: usize, mode: ThemeMode, w: f32, h: f32) -> Rig {
     let dir = tempfile::tempdir().unwrap();
     let paths = library(dir.path(), screenshots);
-    let videos = video_entries(dir.path(), videos);
+    videos(&paths, videos_count);
     let trash_dir = dir.path().join("Trash");
     std::fs::create_dir_all(&trash_dir).unwrap();
     let files = Arc::new(FakeFiles {
@@ -162,11 +163,6 @@ pub fn rig_with(screenshots: usize, videos: usize, mode: ThemeMode, w: f32, h: f
         h,
         move |window, cx| {
             let history = cx.new(|_| History::open(&root_paths, 0).unwrap());
-            history.update(cx, |h, cx| {
-                for entry in videos {
-                    h.add(entry, cx).unwrap();
-                }
-            });
             let (root, gallery) =
                 gallery::root(history.clone(), root_paths, root_files, window, cx);
             *sink.borrow_mut() = Some((gallery, history));

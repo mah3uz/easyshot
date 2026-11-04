@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use crate::gallery_support::{FakeFiles, SCREENSHOTS, VIDEOS, library, video_entries};
+use crate::gallery_support::{FakeFiles, SCREENSHOTS, VIDEOS, library, videos};
 use es_app::history::History;
 use es_app::settings_model::SettingsModel;
 use es_backend::Caps;
@@ -34,7 +34,7 @@ struct Rig {
 fn rig(mode: ThemeMode, tab: Tab) -> Rig {
     let dir = tempfile::tempdir().unwrap();
     let paths = library(dir.path(), SCREENSHOTS);
-    let videos = video_entries(dir.path(), VIDEOS);
+    videos(&paths, VIDEOS);
     let config = ConfigFile::load(&paths.config_file()).unwrap();
     let files = Arc::new(FakeFiles {
         trash_dir: dir.path().join("Trash"),
@@ -53,11 +53,6 @@ fn rig(mode: ThemeMode, tab: Tab) -> Rig {
         h,
         move |window, cx| {
             let history = cx.new(|_| History::open(&paths, 0).unwrap());
-            history.update(cx, |h, cx| {
-                for entry in videos {
-                    h.add(entry, cx).unwrap();
-                }
-            });
             let deps = HomeDeps {
                 history: history.clone(),
                 paths: paths.clone(),

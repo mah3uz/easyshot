@@ -46,7 +46,7 @@ fn tray_rig(rig: &Rig, missing: bool, cx: &mut TestAppContext) -> TrayRig {
             },
             rig.history.clone(),
             rig.settings.clone(),
-            rig.paths.videos_dir(),
+            rig.paths.clone(),
             missing,
         );
         let follow = feed.follow(&rig.deck, cx);
@@ -139,6 +139,28 @@ fn saved_videos_fill_the_trays_recent_recordings(cx: &mut TestAppContext) {
         tray.recent("tray-recent-recordings"),
         vec!["clip.mp4".to_owned()]
     );
+}
+
+#[gpui::test]
+fn a_video_saved_or_recorded_after_the_menu_was_built_reaches_it_on_the_library_event(
+    cx: &mut TestAppContext,
+) {
+    let rig = rig(cx);
+    let tray = tray_rig(&rig, false, cx);
+    cx.update(|cx| tray.feed.refresh(cx));
+    assert!(tray.recent("tray-recent-recordings").is_empty());
+
+    std::fs::create_dir_all(rig.paths.videos_dir()).unwrap();
+    std::fs::write(rig.paths.videos_dir().join("saved.mp4"), b"v").unwrap();
+    let project = rig.paths.recordings_dir().join("unsaved.easyshotrec");
+    std::fs::create_dir_all(&project).unwrap();
+    std::fs::write(project.join("screen.mkv"), b"v").unwrap();
+    std::fs::write(project.join("capture.json"), r#"{"duration_secs":3.0}"#).unwrap();
+    cx.update(|cx| rig.history.update(cx, |h, cx| h.videos_changed(cx)));
+
+    let mut shown = tray.recent("tray-recent-recordings");
+    shown.sort();
+    assert_eq!(shown, vec!["saved.mp4".to_owned(), "unsaved".to_owned()]);
 }
 
 #[gpui::test]

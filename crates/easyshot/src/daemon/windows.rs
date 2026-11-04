@@ -297,6 +297,9 @@ fn open_home(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>> {
         .detach();
         let on_gallery = w.clone();
         cx.subscribe(&gallery, move |_, event: &GalleryEvent, cx| match event {
+            GalleryEvent::Open(file) if es_store::media::is_video(file) => {
+                on_gallery.dispatch(Route::Open(file.clone()), cx)
+            }
             GalleryEvent::Open(file) => cx.open_with_system(file),
             GalleryEvent::Edit(file) => {
                 if let Err(e) = on_gallery.open_editor_for(file, cx) {

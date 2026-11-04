@@ -203,6 +203,20 @@ fn art(t: &Tokens, item: &Item, thumb: Option<&Thumb>, size: f32, badge: f32) ->
                     .child(Icon::new(IconName::CirclePlay).size(px(badge))),
             )
         })
+        .when_some(item.duration_secs.filter(|_| size >= ART), |d, secs| {
+            d.child(
+                div()
+                    .absolute()
+                    .left(px(2.))
+                    .bottom(px(2.))
+                    .px(px(4.))
+                    .rounded(px(4.))
+                    .text_size(px(10.))
+                    .bg(hsla(0., 0., 0., 0.7))
+                    .text_color(hsla(0., 0., 1., 1.))
+                    .child(super::model::duration_text(secs)),
+            )
+        })
         .into_any_element()
 }
 
@@ -441,7 +455,14 @@ pub fn list_row(
                 .px(px(6.))
                 .truncate()
                 .text_color(secondary)
-                .child(kind_title(kind)),
+                .child(match item.duration_secs {
+                    Some(secs) => format!(
+                        "{} · {}",
+                        kind_title(kind),
+                        super::model::duration_text(secs)
+                    ),
+                    None => kind_title(kind),
+                }),
         )
         .on_click(move |event, window, cx| click(&view, id, event, window, cx))
         .context_menu(move |menu, _, _| item_menu(menu, &menu_view, id, kind))

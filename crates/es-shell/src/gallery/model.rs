@@ -1,5 +1,7 @@
 use es_model::HistoryEntry;
-use std::path::{Path, PathBuf};
+use es_store::Paths;
+use es_store::media::{self, MediaFile};
+use std::path::PathBuf;
 use time::OffsetDateTime;
 use uuid::Uuid;
 
@@ -26,19 +28,6 @@ impl Category {
 pub enum MediaKind {
     Screenshot,
     Video,
-}
-
-impl MediaKind {
-    pub fn of(file: &Path) -> Self {
-        let ext = file
-            .extension()
-            .and_then(|e| e.to_str())
-            .map(str::to_ascii_lowercase);
-        match ext.as_deref() {
-            Some("mp4" | "webm" | "mkv" | "mov") => MediaKind::Video,
-            _ => MediaKind::Screenshot,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -73,27 +62,45 @@ pub struct Item {
     pub file: PathBuf,
     pub created_at: OffsetDateTime,
     pub kind: MediaKind,
+    pub duration_secs: Option<f64>,
+    /// What moves to the Trash with the item: the recording folder of an unsaved video.
+    pub project: Option<PathBuf>,
 }
 
-impl Item {
-    pub fn from_entry(entry: &HistoryEntry) -> Self {
+impl From<MediaFile> for Item {
+    fn from(m: MediaFile) -> Self {
         Self {
-            id: entry.id,
-            name: entry.name.clone(),
-            file: entry.file.clone(),
-            created_at: entry.created_at,
-            kind: MediaKind::of(&entry.file),
+            id: m.id,
+            name: m.name,
+            file: m.file,
+            created_at: m.created_at,
+            kind: match m.kind {
+                media::MediaKind::Image => MediaKind::Screenshot,
+                media::MediaKind::Video => MediaKind::Video,
+            },
+            duration_secs: m.duration_secs,
+            project: m.project,
         }
     }
 }
 
-/// Only entries whose file is still on disk; a capture known only by its cloud link has no local view.
-pub fn local(entries: &[HistoryEntry]) -> Vec<Item> {
-    entries
-        .iter()
-        .filter(|e| e.file.is_file())
-        .map(Item::from_entry)
+/// The history's images and every video, newest first; a capture known only by its cloud link has no local view.
+pub fn local(paths: &Paths, entries: &[HistoryEntry]) -> Vec<Item> {
+    media::list(paths, entries)
+        .into_iter()
+        .filter(|m| m.file.is_file())
+        .map(Item::from)
         .collect()
+}
+
+/// `0:07`, `12:30`, `1:02:03`.
+pub fn duration_text(secs: f64) -> String {
+    let s = secs.max(0.).round() as u64;
+    if s >= 3600 {
+        format!("{}:{:02}:{:02}", s / 3600, s / 60 % 60, s % 60)
+    } else {
+        format!("{}:{:02}", s / 60, s % 60)
+    }
 }
 
 pub fn count(items: &[Item], category: Category) -> usize {

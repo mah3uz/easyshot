@@ -12,6 +12,7 @@ pub enum HistoryEvent {
     Renamed(Uuid),
     Annotated(PathBuf),
     LimitChanged,
+    VideosChanged,
 }
 
 pub struct History {
@@ -81,6 +82,12 @@ impl History {
         cx.emit(HistoryEvent::Annotated(file.to_path_buf()));
         cx.notify();
         Ok(())
+    }
+
+    /// A video was saved, exported or deleted; the gallery and the tray read the video folders again.
+    pub fn videos_changed(&mut self, cx: &mut Context<Self>) {
+        cx.emit(HistoryEvent::VideosChanged);
+        cx.notify();
     }
 
     fn announce_removed(&self, gone: &[HistoryEntry], cx: &mut Context<Self>) {

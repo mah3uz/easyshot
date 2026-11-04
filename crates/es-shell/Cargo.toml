@@ -17,6 +17,7 @@ es-store.workspace = true
 es-desktop.workspace = true
 es-backend.workspace = true
 es-app.workspace = true
+es-record.workspace = true
 es-ui.workspace = true
 gpui.workspace = true
 gpui-component.workspace = true

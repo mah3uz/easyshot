@@ -96,6 +96,16 @@ pub fn revoke_agent(cx: &mut App) {
     access.update(cx, |access, cx| access.revoke(cx));
 }
 
+fn open_video(d: &ActionDeps, file: std::path::PathBuf, cx: &mut App) -> Result<(), Error> {
+    #[cfg(feature = "player")]
+    return d.recordings.trim(file, cx);
+    #[cfg(not(feature = "player"))]
+    {
+        let _ = (d, file, cx);
+        Err(Error::Unsupported)
+    }
+}
+
 pub fn actions(d: ActionDeps) -> ActionHandler {
     Rc::new(move |action, cx| {
         match action {
@@ -108,6 +118,7 @@ pub fn actions(d: ActionDeps) -> ActionHandler {
             Action::RecordRestart => d.recordings.restart(cx)?,
             Action::RecordDiscard => d.recordings.discard(cx)?,
             Action::ShowHome(tab) => d.wiring.show_home(tab, cx),
+            Action::OpenVideo(file) => open_video(&d, file, cx)?,
             Action::UnpinAll => d.pins.unpin_all(cx),
             Action::RevokeAgent => revoke_agent(cx),
             Action::PinLast => {

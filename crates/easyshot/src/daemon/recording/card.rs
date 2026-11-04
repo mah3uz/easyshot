@@ -37,6 +37,7 @@ impl Recordings {
                     tracing::info!(file = %path.display(), "recording saved");
                     show_toast(saved_toast("toast-recording-saved", &path), cx);
                     deck.update(cx, |d, cx| d.saved(id, cx));
+                    es_app::services::videos_changed(cx);
                     me.ended(&Ended::Saved { card: id, path }, cx);
                 }
                 Err(e) => {

@@ -221,6 +221,7 @@ pub fn open_player(
         let player = cx.new(|cx| PlayerWindow::new(config, cx));
         cx.subscribe(&player, move |_, event: &PlayerEvent, cx| match event {
             PlayerEvent::Exported(file) => {
+                es_app::services::videos_changed(cx);
                 show_toast(super::saved_toast("toast-video-exported", file), cx);
             }
             PlayerEvent::Chosen(options) => {

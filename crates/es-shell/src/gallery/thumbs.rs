@@ -1,3 +1,5 @@
+use super::files::GalleryFiles;
+use super::model::MediaKind;
 use es_store::Paths;
 use gpui::RenderImage;
 use std::collections::HashMap;
@@ -51,8 +53,19 @@ impl Thumbs {
 }
 
 /// Runs off the main thread: reads the disk cache, filling it first when it has no entry.
-pub fn load(paths: &Paths, file: &Path) -> Option<Arc<RenderImage>> {
-    let thumb = es_store::thumbs::ensure(paths, file, THUMB_SIZE)
+pub fn load(
+    paths: &Paths,
+    files: &dyn GalleryFiles,
+    kind: MediaKind,
+    file: &Path,
+) -> Option<Arc<RenderImage>> {
+    let made = match kind {
+        MediaKind::Screenshot => es_store::thumbs::ensure(paths, file, THUMB_SIZE),
+        MediaKind::Video => es_store::thumbs::ensure_video(paths, file, THUMB_SIZE, |f| {
+            files.video_frame(f, THUMB_SIZE)
+        }),
+    };
+    let thumb = made
         .inspect_err(|e| tracing::debug!(error = %e, "no thumbnail"))
         .ok()?;
     let mut rgba = es_store::decode::open_image(&thumb).ok()?.into_rgba8();
