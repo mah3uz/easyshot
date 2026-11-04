@@ -15,7 +15,7 @@ use crate::{
     },
     fl,
     icons::IconName,
-    motion::{SECTION_EXPAND, animate, reduce_motion},
+    motion::{Clocked, SECTION_EXPAND, progress},
     theme::tokens,
     tokens::Typeset,
 };
@@ -42,18 +42,20 @@ struct Toggle {
 struct Motion {
     expanded: bool,
     generation: usize,
+    since: Option<Clocked>,
     closing: bool,
     height: Rc<Cell<Option<Pixels>>>,
 }
 
 impl Motion {
-    fn follow(&mut self, expanded: bool, reduce: bool, cx: &mut Context<Self>) {
+    fn follow(&mut self, expanded: bool, cx: &mut Context<Self>) {
         if self.expanded == expanded {
             return;
         }
         self.expanded = expanded;
         self.generation += 1;
-        self.closing = !expanded && SECTION_EXPAND.plays(reduce);
+        self.since = Clocked::start(SECTION_EXPAND, cx);
+        self.closing = !expanded && self.since.is_some();
         if self.closing {
             let generation = self.generation;
             cx.spawn(async move |this, cx| {
@@ -153,17 +155,19 @@ impl RenderOnce for DisclosureSection {
         let t = tokens(cx).clone();
         let m = t.metrics;
         let expanded = self.expanded;
-        let reduce = reduce_motion(cx);
         let state = window.use_keyed_state(self.id.clone(), cx, |_, _| Motion {
             expanded,
             generation: 0,
+            since: None,
             closing: false,
             height: Rc::default(),
         });
-        let (generation, closing, height) = state.update(cx, |motion, cx| {
-            motion.follow(expanded, reduce, cx);
-            (motion.generation, motion.closing, motion.height.clone())
+        let (since, closing, height) = state.update(cx, |motion, cx| {
+            motion.follow(expanded, cx);
+            (motion.since, motion.closing, motion.height.clone())
         });
+        let delta = progress(since, window, cx);
+        let open = if expanded { delta } else { 1. - delta };
 
         let focus = keyed_focus(&self.id, window, cx);
         let ring = shows_focus(&focus, self.preview, window);
@@ -224,23 +228,9 @@ impl RenderOnce for DisclosureSection {
         });
 
         let turn = |delta: f32| radians(-FRAC_PI_2 * (1. - delta));
-        let chevron_icon = Icon::new(IconName::ChevronDown).size(CHEVRON);
-        let chevron_icon = if generation == 0 {
-            chevron_icon
-                .rotate(turn(if expanded { 1. } else { 0. }))
-                .into_any_element()
-        } else {
-            animate(
-                chevron_icon,
-                ("chevron", generation),
-                SECTION_EXPAND,
-                cx,
-                move |icon, delta| {
-                    let delta = if expanded { delta } else { 1. - delta };
-                    icon.rotate(turn(delta))
-                },
-            )
-        };
+        let chevron_icon = Icon::new(IconName::ChevronDown)
+            .size(CHEVRON)
+            .rotate(turn(open));
         let chevron = div()
             .id("chevron")
             .flex()
@@ -289,29 +279,17 @@ impl RenderOnce for DisclosureSection {
                     .absolute()
                     .size_full(),
                 );
-            let clip = div()
+            div()
                 .w_full()
                 .flex()
                 .flex_col()
                 .overflow_hidden()
-                .child(content);
-            if generation == 0 {
-                return clip.into_any_element();
-            }
-            animate(
-                clip,
-                ("body", generation),
-                SECTION_EXPAND,
-                cx,
-                move |clip, delta| {
-                    let open = if expanded { delta } else { 1. - delta };
-                    let clip = clip.opacity(open);
-                    match height.get() {
-                        Some(h) if delta < 1. || !expanded => clip.h(h * open),
-                        _ => clip,
-                    }
-                },
-            )
+                .opacity(open)
+                .when_some(
+                    height.get().filter(|_| delta < 1. || !expanded),
+                    |clip, h| clip.h(h * open),
+                )
+                .child(content)
         });
 
         div()

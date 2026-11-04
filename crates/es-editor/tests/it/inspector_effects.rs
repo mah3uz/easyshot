@@ -448,26 +448,53 @@ fn fresh(rig: &mut Rig, name: &str) -> image::RgbaImage {
 #[test]
 fn the_direction_row_opens_with_a_directional_blur_and_closes_without_it() {
     use es_ui::motion::SECTION_EXPAND;
+    use std::time::Duration;
     let mut look = BackgroundSettings::default();
     look.progressive_blur.is_enabled = true;
     let mut rig = rig(ThemeMode::Light, look);
     rig.app
         .cx
         .update(|cx| es_ui::motion::set_reduce_motion(false, cx));
+    let pad_top = |rig: &mut Rig| f32::from(blur_bounds(rig, BlurControl::FocusPad).unwrap().top());
     let mode = blur_bounds(&mut rig, BlurControl::Mode).unwrap();
-    for (side, what) in [(0.75, "open"), (0.25, "close")] {
+    for (side, what, directional) in [(0.75, "open", true), (0.25, "close", false)] {
+        let before = pad_top(&mut rig);
         click(
             &mut rig,
             point(mode.left() + mode.size.width * side, mode.center().y),
         );
-        let start = fresh(&mut rig, &format!("blur-direction-{what}-0-start"));
-        rig.app.cx.advance_clock(SECTION_EXPAND.duration / 3);
-        let mid = fresh(&mut rig, &format!("blur-direction-{what}-1-mid"));
-        rig.app.cx.advance_clock(SECTION_EXPAND.duration);
-        let end = fresh(&mut rig, &format!("blur-direction-{what}-2-end"));
+        let mut tops = Vec::new();
+        for (step, wait) in [
+            ("0-start", Duration::ZERO),
+            ("1-mid", SECTION_EXPAND.duration / 3),
+            ("2-end", SECTION_EXPAND.duration),
+        ] {
+            rig.app.cx.advance_clock(wait);
+            fresh(&mut rig, &format!("blur-direction-{what}-{step}"));
+            tops.push(pad_top(&mut rig));
+        }
+        let (start, mid, end) = (tops[0], tops[1], tops[2]);
+        let mode_now = rig
+            .app
+            .cx
+            .update(|cx| rig.look.read(cx).settings().progressive_blur.mode);
+        assert_eq!(
+            mode_now == BlurMode::Directional,
+            directional,
+            "the click picks the mode that makes the Direction row {what}"
+        );
+        assert_eq!(
+            start, before,
+            "the Direction row starts to {what} from where it was"
+        );
         assert!(
-            start != mid && mid != end,
-            "the Direction row moves to {what}"
+            (start - mid) * (mid - end) > 0.,
+            "the focus pad below the Direction row is partway at {mid} between {start} and {end} as the row moves to {what}"
+        );
+        assert_eq!(
+            blur_bounds(&mut rig, BlurControl::Direction).is_some(),
+            directional,
+            "the Direction row is there only once open"
         );
     }
 }

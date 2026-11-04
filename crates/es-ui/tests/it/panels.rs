@@ -299,3 +299,60 @@ fn with_motion_on_a_folding_section_unmounts_once_its_close_has_played() {
         "once folded, the content leaves the tree and the Tab order"
     );
 }
+
+struct FoldAbove {
+    expanded: bool,
+    below: Rc<Cell<f32>>,
+}
+
+impl Render for FoldAbove {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        let below = self.below.clone();
+        div()
+            .w(px(WIDTH))
+            .child(
+                DisclosureSection::new("section", "Camera")
+                    .expanded(self.expanded)
+                    .child(div().h(px(80.))),
+            )
+            .child(
+                canvas(
+                    move |bounds, _, _| below.set(f32::from(bounds.top())),
+                    |_, _, _, _| {},
+                )
+                .size(px(10.)),
+            )
+    }
+}
+
+#[test]
+fn turning_reduce_motion_off_leaves_an_unfolded_section_open() {
+    let below = Rc::new(Cell::new(0.));
+    let (mut app, host) = open(300., |_, _| FoldAbove {
+        expanded: false,
+        below: below.clone(),
+    });
+    still(&mut app);
+    let folded = below.get();
+    app.cx.update(|cx| {
+        host.update(cx, |host, cx| {
+            host.expanded = true;
+            cx.notify();
+        })
+    });
+    app.settle();
+    let unfolded = below.get();
+    assert!(unfolded > folded + 80., "the section unfolds at once");
+
+    app.cx.update(|cx| motion::set_reduce_motion(false, cx));
+    let handle = app.window.into();
+    app.cx
+        .update_window(handle, |_, window, _| window.refresh())
+        .expect("window is open");
+    app.settle();
+    assert_eq!(
+        below.get(),
+        unfolded,
+        "the section does not fold up to play its earlier unfolding again"
+    );
+}
