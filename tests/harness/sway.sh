@@ -70,6 +70,6 @@ case "$cmd" in
         trap down EXIT
         up
         cd "$REPO"
-        run bash -c "source tests/harness/lib.sh && platform_tests" ;;
+        run bash -c "source tests/harness/lib.sh && platform_tests sway" ;;
     *) die "usage: sway.sh up | down | run -- CMD... | platform" ;;
 esac

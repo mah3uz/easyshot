@@ -14,8 +14,11 @@ state_dir() {
 
 # The platform_* tests need test mode: the test-hooks feature plus EASYSHOT_TEST=1 and an output name (set by the caller).
 platform_tests() {
+    local filter='test(/(^|::)platform_/)'
+    # The sway_harness tests refuse to run outside sway instead of skipping.
+    [ "${1:-}" = sway ] || filter="$filter and not test(/^sway_harness::/)"
     cargo nextest run -p es-backend -p easyshot --features es-backend/test-hooks,easyshot/test-hooks \
-        --run-ignored all --no-tests=pass -E 'test(/(^|::)platform_/)'
+        --run-ignored all --no-tests=pass -E "$filter"
 }
 
 wait_for() {
