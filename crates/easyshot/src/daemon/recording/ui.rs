@@ -118,7 +118,13 @@ impl RecordingUi for LayerUi {
         match control_bar(recorded, &outputs, size, whole_screen_bar) {
             Placement::On { output, origin } => {
                 let rect = Rect::from_origin_size(origin, (size.width, size.height));
-                match open(&self.surfaces, SurfaceRole::Bar, &output, rect, cx) {
+                match open(
+                    &self.surfaces,
+                    SurfaceRole::RecordControl,
+                    &output,
+                    rect,
+                    cx,
+                ) {
                     Ok(handle) => {
                         handle.set_content(bar.clone().into(), cx);
                         tracing::info!(

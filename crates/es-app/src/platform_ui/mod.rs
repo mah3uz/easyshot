@@ -23,6 +23,7 @@ pub enum SurfaceRole {
     Deck,
     Pin,
     Bar,
+    RecordControl,
     Highlight,
     Scroll,
     Consent,

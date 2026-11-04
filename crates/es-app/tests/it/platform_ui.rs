@@ -12,13 +12,14 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use uuid::Uuid;
 
-const ROLES: [SurfaceRole; 9] = [
+const ROLES: [SurfaceRole; 10] = [
     SurfaceRole::Overlay,
     SurfaceRole::Countdown,
     SurfaceRole::Toast,
     SurfaceRole::Deck,
     SurfaceRole::Pin,
     SurfaceRole::Bar,
+    SurfaceRole::RecordControl,
     SurfaceRole::Highlight,
     SurfaceRole::Scroll,
     SurfaceRole::Consent,
@@ -49,18 +50,38 @@ fn the_overlay_covers_its_whole_output_above_everything() {
 }
 
 #[test]
-fn the_capture_bar_grabs_the_keyboard_wherever_the_pointer_is_so_esc_reaches_it() {
+fn the_capture_bar_asks_for_the_keyboard_on_demand_and_never_locks_other_apps_out() {
     let (a, b) = (out("DP-1"), out("DP-2"));
     for pointer in [Some(&a), Some(&b), None] {
-        assert!(wants_exclusive(SurfaceRole::Bar, None, pointer, &a));
+        assert!(!wants_exclusive(SurfaceRole::Bar, None, pointer, &a));
     }
-    assert_eq!(
-        layer_options(SurfaceRole::Bar, true).keyboard_interactivity,
-        K::Exclusive
-    );
-    assert_eq!(
-        layer_options(SurfaceRole::Bar, false).keyboard_interactivity,
-        K::OnDemand
+    for exclusive in [true, false] {
+        assert_eq!(
+            layer_options(SurfaceRole::Bar, exclusive).keyboard_interactivity,
+            K::OnDemand
+        );
+    }
+}
+
+#[test]
+fn the_recording_control_bar_takes_no_keyboard_so_typing_goes_to_the_app_under_it() {
+    let a = out("DP-1");
+    assert!(!wants_exclusive(
+        SurfaceRole::RecordControl,
+        None,
+        Some(&a),
+        &a
+    ));
+    for exclusive in [true, false] {
+        assert_eq!(
+            layer_options(SurfaceRole::RecordControl, exclusive).keyboard_interactivity,
+            K::None
+        );
+    }
+    assert!(!passes_input_through(SurfaceRole::RecordControl));
+    assert_ne!(
+        namespace(SurfaceRole::RecordControl),
+        namespace(SurfaceRole::Bar)
     );
 }
 
@@ -76,7 +97,7 @@ fn the_consent_dialog_grabs_the_keyboard_so_esc_denies_and_typing_elsewhere_stop
 }
 
 #[test]
-fn only_an_overlay_under_the_pointer_or_the_bar_outside_test_mode_grabs_the_keyboard() {
+fn only_an_overlay_under_the_pointer_or_the_consent_dialog_outside_test_mode_grab_the_keyboard() {
     let (a, b) = (out("DP-1"), out("DP-2"));
     assert!(wants_exclusive(SurfaceRole::Overlay, None, Some(&a), &a));
     assert!(!wants_exclusive(SurfaceRole::Overlay, None, Some(&b), &a));
@@ -129,6 +150,7 @@ fn each_role_sits_on_its_layer_and_edges() {
         ),
         (SurfaceRole::Pin, Layer::Top, Anchor::TOP | Anchor::LEFT),
         (SurfaceRole::Bar, Layer::Top, Anchor::BOTTOM),
+        (SurfaceRole::RecordControl, Layer::Top, Anchor::BOTTOM),
         (
             SurfaceRole::Highlight,
             Layer::Overlay,

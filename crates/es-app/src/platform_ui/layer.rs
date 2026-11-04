@@ -16,13 +16,14 @@ pub fn namespace(role: SurfaceRole) -> &'static str {
         SurfaceRole::Deck => "easyshot-deck",
         SurfaceRole::Pin => "easyshot-pin",
         SurfaceRole::Bar => "easyshot-bar",
+        SurfaceRole::RecordControl => "easyshot-rec-control",
         SurfaceRole::Highlight => "easyshot-rec-highlight",
         SurfaceRole::Scroll => "easyshot-scroll",
         SurfaceRole::Consent => "easyshot-consent",
     }
 }
 
-/// `exclusive_keyboard` is honoured only for the overlay, the bar and the consent dialog; the caller decides it with [`wants_exclusive`].
+/// `exclusive_keyboard` is honoured only for the overlay and the consent dialog; the caller decides it with [`wants_exclusive`].
 pub fn layer_options(role: SurfaceRole, exclusive_keyboard: bool) -> LayerShellOptions {
     use KeyboardInteractivity as K;
     let all = Anchor::TOP | Anchor::BOTTOM | Anchor::LEFT | Anchor::RIGHT;
@@ -45,7 +46,8 @@ pub fn layer_options(role: SurfaceRole, exclusive_keyboard: bool) -> LayerShellO
             K::OnDemand,
         ),
         SurfaceRole::Pin => (Layer::Top, placed, free, K::OnDemand),
-        SurfaceRole::Bar => (Layer::Top, Anchor::BOTTOM, None, grab),
+        SurfaceRole::Bar => (Layer::Top, Anchor::BOTTOM, None, K::OnDemand),
+        SurfaceRole::RecordControl => (Layer::Top, Anchor::BOTTOM, None, K::None),
         SurfaceRole::Highlight | SurfaceRole::Scroll => (Layer::Overlay, placed, free, K::None),
         SurfaceRole::Consent => (Layer::Overlay, Anchor::empty(), None, grab),
     };
@@ -75,8 +77,7 @@ pub fn wants_exclusive(
     test_output.is_none()
         && match role {
             SurfaceRole::Overlay => pointer_output == Some(output),
-            // A compositor may hand an on-demand surface's focus back to the window under the pointer.
-            SurfaceRole::Bar | SurfaceRole::Consent => true,
+            SurfaceRole::Consent => true,
             _ => false,
         }
 }

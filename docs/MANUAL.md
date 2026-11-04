@@ -295,8 +295,9 @@ a recording with a microphone, or with no default output found, is made without 
 easyshot says so when it starts.
 
 The capture bar opens with `easyshot capture-bar`, its key, if you set one in Settings > Shortcuts, or the
-tray; opening it again by any of these closes it. While it is open it has the keyboard, so
-Esc closes it, or closes its open menu first.
+tray; opening it again by any of these closes it. It never locks the keyboard to itself, so you
+can click another app and type there while it is open; while it has the keyboard, Esc closes it, or
+closes its open menu first. The recording control bar never takes the keyboard.
 
 One recording runs at a time. While it runs, the tray's Record item reads Stop Recording,
 and a second start from a shortcut, the command line, an `easyshot://` link or the capture
