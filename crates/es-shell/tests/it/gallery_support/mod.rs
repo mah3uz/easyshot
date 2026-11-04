@@ -1,8 +1,9 @@
 #![allow(dead_code, clippy::unwrap_used, clippy::expect_used)]
 
 use es_app::history::History;
+use es_app::settings_model::SettingsModel;
 use es_shell::gallery::{self, FileResult, Gallery, GalleryFiles};
-use es_store::Paths;
+use es_store::{ConfigFile, Paths};
 use es_testkit::Headless;
 use es_ui::tokens::ThemeMode;
 use futures::future::BoxFuture;
@@ -42,12 +43,13 @@ impl GalleryFiles for FakeFiles {
     }
 }
 
-type Made = Rc<RefCell<Option<(Entity<Gallery>, Entity<History>)>>>;
+type Made = Rc<RefCell<Option<(Entity<Gallery>, Entity<History>, Entity<SettingsModel>)>>>;
 
 pub struct Rig {
     pub app: Headless<Root>,
     pub gallery: Entity<Gallery>,
     pub history: Entity<History>,
+    pub settings: Entity<SettingsModel>,
     pub files: Arc<FakeFiles>,
     pub paths: Paths,
     pub _dir: TempDir,
@@ -145,6 +147,12 @@ pub fn rig_with(screenshots: usize, videos_count: usize, mode: ThemeMode, w: f32
     let dir = tempfile::tempdir().unwrap();
     let paths = library(dir.path(), screenshots);
     videos(&paths, videos_count);
+    rig_in(dir, paths, mode, w, h)
+}
+
+/// Opens a gallery on a library already made, reading the config file there.
+pub fn rig_in(dir: TempDir, paths: Paths, mode: ThemeMode, w: f32, h: f32) -> Rig {
+    let config = ConfigFile::load(&paths.config_file()).unwrap();
     let trash_dir = dir.path().join("Trash");
     std::fs::create_dir_all(&trash_dir).unwrap();
     let files = Arc::new(FakeFiles {
@@ -163,17 +171,25 @@ pub fn rig_with(screenshots: usize, videos_count: usize, mode: ThemeMode, w: f32
         h,
         move |window, cx| {
             let history = cx.new(|_| History::open(&root_paths, 0).unwrap());
-            let (root, gallery) =
-                gallery::root(history.clone(), root_paths, root_files, window, cx);
-            *sink.borrow_mut() = Some((gallery, history));
+            let settings = cx.new(|_| SettingsModel::new(config));
+            let (root, gallery) = gallery::root(
+                history.clone(),
+                settings.clone(),
+                root_paths,
+                root_files,
+                window,
+                cx,
+            );
+            *sink.borrow_mut() = Some((gallery, history, settings));
             root
         },
     );
-    let (gallery, history) = made.borrow_mut().take().unwrap();
+    let (gallery, history, settings) = made.borrow_mut().take().unwrap();
     Rig {
         app,
         gallery,
         history,
+        settings,
         files,
         paths,
         _dir: dir,
@@ -200,6 +216,25 @@ impl Rig {
         self.app.cx.update(|cx| f(gallery.read(cx)))
     }
 
+    pub fn item_size(&mut self) -> u32 {
+        let gallery = self.gallery.clone();
+        self.app.cx.update(|cx| gallery.read(cx).item_size(cx))
+    }
+
+    pub fn set_item_size(&mut self, size: u32) {
+        self.update(|g, cx| g.set_item_size(size, cx));
+    }
+
+    /// Draws a frame, so the grid lays out its columns for the current size.
+    pub fn draw(&mut self) {
+        let handle = self.app.window.into();
+        self.app
+            .cx
+            .update_window(handle, |_, window, cx| window.draw(cx).clear(cx))
+            .unwrap();
+        self.app.settle();
+    }
+
     pub fn press(&mut self, key: &'static str) {
         let handle = self.app.window.into();
         let event = PlatformInput::KeyDown(KeyDownEvent {
@@ -220,6 +255,20 @@ impl Rig {
         let gallery = self.gallery.clone();
         self.app.until("thumbnails", |cx| {
             gallery.read(cx).thumbnails_ready() >= at_least
+        });
+    }
+
+    pub fn read_sharp(&mut self) -> usize {
+        let gallery = self.gallery.clone();
+        self.app
+            .cx
+            .update(|cx| gallery.read(cx).thumbnails_sharp(cx))
+    }
+
+    pub fn wait_for_sharp_thumbnails(&mut self, at_least: usize) {
+        let gallery = self.gallery.clone();
+        self.app.until("sharp thumbnails", |cx| {
+            gallery.read(cx).thumbnails_sharp(cx) >= at_least
         });
     }
 

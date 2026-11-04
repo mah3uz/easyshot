@@ -2,6 +2,7 @@ mod cells;
 pub mod files;
 pub mod model;
 mod render;
+mod size;
 pub mod thumbs;
 mod view;
 
@@ -11,6 +12,7 @@ pub use view::{Gallery, GalleryEvent};
 
 use crate::strings::fl;
 use es_app::history::History;
+use es_app::settings_model::SettingsModel;
 use es_store::Paths;
 use gpui::{
     App, AppContext, Bounds, Entity, Focusable, TitlebarOptions, WindowBounds, WindowHandle,
@@ -24,12 +26,13 @@ pub const WINDOW_MIN_SIZE: (f32, f32) = (780., 560.);
 
 pub fn root(
     history: Entity<History>,
+    settings: Entity<SettingsModel>,
     paths: Paths,
     files: Arc<dyn GalleryFiles>,
     window: &mut gpui::Window,
     cx: &mut App,
 ) -> (Entity<Root>, Entity<Gallery>) {
-    let gallery = cx.new(|cx| Gallery::new(history, paths, files, window, cx));
+    let gallery = cx.new(|cx| Gallery::new(history, settings, paths, files, window, cx));
     gallery.read(cx).focus_handle(cx).focus(window, cx);
     let root = cx.new(|cx| Root::new(gallery.clone(), window, cx));
     (root, gallery)
@@ -37,6 +40,7 @@ pub fn root(
 
 pub fn open(
     history: Entity<History>,
+    settings: Entity<SettingsModel>,
     paths: Paths,
     files: Arc<dyn GalleryFiles>,
     on_event: impl Fn(&GalleryEvent, &mut App) + 'static,
@@ -59,7 +63,7 @@ pub fn open(
         ..Default::default()
     };
     cx.open_window(options, |window, cx| {
-        let (root, gallery) = root(history, paths, files, window, cx);
+        let (root, gallery) = root(history, settings, paths, files, window, cx);
         cx.subscribe(&gallery, move |_, event, cx| on_event(event, cx))
             .detach();
         root

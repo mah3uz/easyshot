@@ -3,17 +3,20 @@ use super::model::{self, Category, Item, MediaKind, SortOrder, Step, ViewMode};
 use super::thumbs::{self, Thumbs};
 use crate::strings::fl;
 use es_app::history::History;
+use es_app::settings_model::SettingsModel;
 use es_store::Paths;
 use gpui::{
-    App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, ScrollStrategy,
-    Subscription, UniformListScrollHandle, Window,
+    App, AppContext, Bounds, Context, Entity, EventEmitter, FocusHandle, Focusable, Pixels,
+    ScrollStrategy, Subscription, UniformListScrollHandle, Window,
 };
 use gpui_component::{
     WindowExt,
     button::ButtonVariant,
     input::{InputEvent, InputState},
 };
+use std::cell::Cell;
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -25,6 +28,7 @@ pub enum GalleryEvent {
 
 pub struct Gallery {
     pub(super) history: Entity<History>,
+    pub(super) settings: Entity<SettingsModel>,
     pub(super) paths: Paths,
     pub(super) files: Arc<dyn GalleryFiles>,
     pub(super) items: Vec<Item>,
@@ -41,6 +45,9 @@ pub struct Gallery {
     pub(super) focus: FocusHandle,
     pub(super) grid_scroll: UniformListScrollHandle,
     pub(super) list_scroll: UniformListScrollHandle,
+    pub(super) size_focus: FocusHandle,
+    pub(super) size_track: Rc<Cell<Bounds<Pixels>>>,
+    pub(super) size_dragging: bool,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -55,6 +62,7 @@ impl Focusable for Gallery {
 impl Gallery {
     pub fn new(
         history: Entity<History>,
+        settings: Entity<SettingsModel>,
         paths: Paths,
         files: Arc<dyn GalleryFiles>,
         window: &mut Window,
@@ -69,8 +77,10 @@ impl Gallery {
             }
         });
         let on_history = cx.observe(&history, |this, _, cx| this.sync(cx));
+        let on_settings = cx.observe(&settings, |_, _, cx| cx.notify());
         let mut gallery = Self {
             history,
+            settings,
             paths,
             files,
             items: Vec::new(),
@@ -87,7 +97,10 @@ impl Gallery {
             focus: cx.focus_handle(),
             grid_scroll: UniformListScrollHandle::new(),
             list_scroll: UniformListScrollHandle::new(),
-            _subscriptions: vec![on_search, on_history],
+            size_focus: cx.focus_handle().tab_stop(true),
+            size_track: Rc::default(),
+            size_dragging: false,
+            _subscriptions: vec![on_search, on_history, on_settings],
         };
         gallery.sync(cx);
         gallery
@@ -126,6 +139,11 @@ impl Gallery {
         self.columns
     }
 
+    /// How far the icon grid is scrolled down, in pixels.
+    pub fn grid_scrolled(&self) -> f32 {
+        -self.grid_scroll.0.borrow().base_handle.offset().y.as_f32()
+    }
+
     pub fn error(&self) -> Option<&str> {
         self.error.as_deref()
     }
@@ -136,6 +154,27 @@ impl Gallery {
 
     pub fn thumbnails_ready(&self) -> usize {
         self.thumbs.ready()
+    }
+
+    /// Thumbnails cached sharp enough for the current item size.
+    pub fn thumbnails_sharp(&self, cx: &App) -> usize {
+        self.thumbs
+            .ready_at(model::thumb_pixels(self.item_size(cx)))
+    }
+
+    /// The icon view's preview side in pixels, from the config.
+    pub fn item_size(&self, cx: &App) -> u32 {
+        model::item_size(self.settings.read(cx).config().gallery.item_size)
+    }
+
+    pub fn set_item_size(&mut self, size: u32, cx: &mut Context<Self>) {
+        let size = model::item_size(size);
+        if size == self.item_size(cx) {
+            return;
+        }
+        self.settings
+            .update(cx, |s, cx| s.update(|c| c.gallery.item_size = size, cx));
+        cx.notify();
     }
 
     /// Drops entries whose file is gone and retries thumbnails that failed.
@@ -315,24 +354,27 @@ impl Gallery {
 
     /// Starts loading the thumbnails of items about to be drawn; each loads once.
     pub(super) fn request_thumbs(&mut self, range: std::ops::Range<usize>, cx: &mut Context<Self>) {
+        let pixels = match self.view {
+            ViewMode::Icons => model::thumb_pixels(self.item_size(cx)),
+            ViewMode::List => model::thumb_pixels(model::SIZE_MIN),
+        };
         let wanted: Vec<(PathBuf, MediaKind)> = self.shown
             [range.start.min(self.shown.len())..range.end.min(self.shown.len())]
             .iter()
             .map(|i| (i.file.clone(), i.kind))
             .collect();
         for (file, kind) in wanted {
-            if !self.thumbs.claim(&file) {
+            if !self.thumbs.claim(&file, pixels) {
                 continue;
             }
             let (paths, files, source) = (self.paths.clone(), self.files.clone(), file.clone());
-            let load =
-                cx.background_spawn(
-                    async move { thumbs::load(&paths, files.as_ref(), kind, &source) },
-                );
+            let load = cx.background_spawn(async move {
+                thumbs::load(&paths, files.as_ref(), kind, &source, pixels)
+            });
             cx.spawn(async move |this, cx| {
                 let image = load.await;
                 let _ = this.update(cx, |this, cx| {
-                    this.thumbs.finish(file, image);
+                    this.thumbs.finish(&file, pixels, image);
                     cx.notify();
                 });
             })

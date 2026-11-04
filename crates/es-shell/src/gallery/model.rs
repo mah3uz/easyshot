@@ -166,12 +166,49 @@ pub fn step(selected: Option<usize>, step: Step, columns: usize, len: usize) -> 
 pub const GRID_PADDING: f32 = 24.;
 pub const GRID_SPACING_X: f32 = 16.;
 pub const GRID_SPACING_Y: f32 = 24.;
-pub const CELL_MIN_WIDTH: f32 = 112.;
+pub const ART_PAD: f32 = 10.;
+pub const TITLE_HEIGHT: f32 = 36.;
+/// Room beside the art for a two-line name.
+const CELL_SLACK: f32 = 48.;
 
-/// Columns of at least the minimum cell width that fit the content width, gaps included.
-pub fn columns_for(content_width: f32) -> usize {
+pub const SIZE_MIN: u32 = 64;
+pub const SIZE_MAX: u32 = 256;
+pub const SIZE_STEP: u32 = 16;
+
+/// A hand-edited size outside the range draws at the nearest end.
+pub fn item_size(raw: u32) -> u32 {
+    raw.clamp(SIZE_MIN, SIZE_MAX)
+}
+
+/// One key press: to the next step mark in that direction.
+pub fn size_step(size: u32, bigger: bool) -> u32 {
+    let size = item_size(size);
+    let next = if bigger {
+        (size / SIZE_STEP + 1) * SIZE_STEP
+    } else {
+        (size - 1) / SIZE_STEP * SIZE_STEP
+    };
+    item_size(next)
+}
+
+pub fn row_height(size: u32) -> f32 {
+    size as f32 + 2. * ART_PAD + 4. + TITLE_HEIGHT + GRID_SPACING_Y
+}
+
+/// Twice the drawn size so a scaled display stays sharp, in three cached sizes so resizing rarely decodes again.
+pub fn thumb_pixels(size: u32) -> u32 {
+    match 2 * item_size(size) {
+        n if n <= 128 => 128,
+        n if n <= 256 => 256,
+        _ => 512,
+    }
+}
+
+/// Columns of at least the cell width for `size` that fit the content width, gaps included.
+pub fn columns_for(content_width: f32, size: u32) -> usize {
+    let cell = item_size(size) as f32 + CELL_SLACK;
     let inner = content_width - 2. * GRID_PADDING + GRID_SPACING_X;
-    ((inner / (CELL_MIN_WIDTH + GRID_SPACING_X)).floor() as usize).max(1)
+    ((inner / (cell + GRID_SPACING_X)).floor() as usize).max(1)
 }
 
 #[cfg(test)]
@@ -189,10 +226,44 @@ mod tests {
     }
 
     #[test]
-    fn a_column_needs_its_minimum_width_and_a_gap() {
-        assert_eq!(columns_for(48. + 112.), 1);
-        assert_eq!(columns_for(48. + 112. * 2. + 16.), 2);
-        assert_eq!(columns_for(48. + 112. * 2. + 15.), 1);
-        assert_eq!(columns_for(10.), 1);
+    fn a_column_needs_its_cell_width_and_a_gap() {
+        assert_eq!(columns_for(48. + 112., 64), 1);
+        assert_eq!(columns_for(48. + 112. * 2. + 16., 64), 2);
+        assert_eq!(columns_for(48. + 112. * 2. + 15., 64), 1);
+        assert_eq!(columns_for(48. + 304. * 2. + 16., 256), 2);
+        assert_eq!(columns_for(10., 256), 1);
+    }
+
+    #[test]
+    fn the_default_window_shows_six_columns_at_the_smallest_size_and_two_at_the_largest() {
+        let content = 1080. - super::super::render::SIDEBAR_WIDTH;
+        let at = |size| columns_for(content, size);
+        assert_eq!(at(SIZE_MIN), 6);
+        assert_eq!(at(96), 5);
+        assert_eq!(at(192), 3);
+        assert_eq!(at(SIZE_MAX), 2);
+        assert_eq!(at(1000), 2, "an out-of-range size is clamped");
+        assert!((SIZE_MIN..=SIZE_MAX).all(|s| at(s) >= at(s + 1)));
+    }
+
+    #[test]
+    fn key_steps_land_on_step_marks_and_stop_at_the_ends() {
+        assert_eq!(size_step(96, true), 112);
+        assert_eq!(size_step(100, true), 112);
+        assert_eq!(size_step(100, false), 96);
+        assert_eq!(size_step(96, false), 80);
+        assert_eq!(size_step(SIZE_MAX, true), SIZE_MAX);
+        assert_eq!(size_step(SIZE_MIN, false), SIZE_MIN);
+        assert_eq!(size_step(5, true), 80);
+    }
+
+    #[test]
+    fn thumbnails_are_cached_at_twice_the_drawn_size_or_more() {
+        for size in SIZE_MIN..=SIZE_MAX {
+            assert!(thumb_pixels(size) >= 2 * size, "{size}");
+        }
+        assert_eq!(thumb_pixels(SIZE_MIN), 128);
+        assert_eq!(thumb_pixels(96), 256);
+        assert_eq!(thumb_pixels(SIZE_MAX), 512);
     }
 }

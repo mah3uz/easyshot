@@ -1,4 +1,5 @@
 mod gallery;
+mod gallery_size;
 mod gallery_support;
 mod home;
 mod onboarding;

@@ -68,7 +68,16 @@ impl EventEmitter<HomeEvent> for HomeWindow {}
 
 impl HomeWindow {
     pub fn new(deps: HomeDeps, window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let gallery = cx.new(|cx| Gallery::new(deps.history, deps.paths, deps.files, window, cx));
+        let gallery = cx.new(|cx| {
+            Gallery::new(
+                deps.history,
+                deps.settings.settings.clone(),
+                deps.paths,
+                deps.files,
+                window,
+                cx,
+            )
+        });
         let settings = cx.new(|cx| SettingsWindow::new(deps.settings, window, cx));
         Self {
             tab: Tab::Gallery,

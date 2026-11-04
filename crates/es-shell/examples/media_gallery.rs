@@ -1,7 +1,8 @@
 use es_app::history::History;
+use es_app::settings_model::SettingsModel;
 use es_desktop::dbus::Endpoint;
 use es_shell::gallery::{self, DesktopFiles, GalleryEvent};
-use es_store::Paths;
+use es_store::{ConfigFile, Paths};
 use gpui::AppContext;
 use std::sync::Arc;
 
@@ -18,9 +19,13 @@ fn main() {
                 Ok(history) => cx.new(|_| history),
                 Err(error) => return eprintln!("cannot read the library: {error}"),
             };
+            let settings = match ConfigFile::load(&paths.config_file()) {
+                Ok(file) => cx.new(|_| SettingsModel::new(file)),
+                Err(error) => return eprintln!("cannot read the config: {error}"),
+            };
             let files = Arc::new(DesktopFiles::new(Endpoint::session()));
             let on_event = |event: &GalleryEvent, _: &mut gpui::App| eprintln!("{event:?}");
-            if let Err(error) = gallery::open(history, paths, files, on_event, cx) {
+            if let Err(error) = gallery::open(history, settings, paths, files, on_event, cx) {
                 eprintln!("cannot open the gallery: {error}");
             }
             cx.activate(true);

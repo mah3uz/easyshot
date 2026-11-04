@@ -102,7 +102,7 @@ fn each_sort_order_orders_the_items_it_names() {
 fn arrow_keys_move_by_one_cell_and_by_one_grid_row() {
     let mut rig = rig();
     let columns = rig.read(|g| g.columns());
-    assert_eq!(columns, 6, "1080 px window, 210 px sidebar, 112 px cells");
+    assert_eq!(columns, 5, "1080 px window, 210 px sidebar, 96 px previews");
     let at = |rig: &mut Rig| rig.read(|g| g.selected_index());
 
     rig.press("right");
@@ -285,12 +285,12 @@ fn a_file_deleted_behind_the_gallery_reports_it_instead_of_opening() {
 
 fn pictures(mode: es_ui::tokens::ThemeMode, tag: &str) {
     let mut rig = rig_with(SCREENSHOTS, VIDEOS, mode, 1080., 740.);
-    rig.wait_for_thumbnails(30);
+    rig.wait_for_thumbnails(15);
     rig.press("right");
     rig.press("right");
     rig.picture(&format!("gallery-grid-{tag}"));
     rig.update(|g, cx| g.set_view(ViewMode::List, cx));
-    rig.wait_for_thumbnails(30);
+    rig.wait_for_thumbnails(15);
     rig.picture(&format!("gallery-list-{tag}"));
 
     let mut empty = rig_with(0, 0, mode, 1080., 740.);

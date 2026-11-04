@@ -1,4 +1,4 @@
-use super::model::{Item, MediaKind, SortOrder};
+use super::model::{self, ART_PAD, Item, MediaKind, SortOrder, TITLE_HEIGHT};
 use super::thumbs::Thumb;
 use super::view::Gallery;
 use crate::strings::fl;
@@ -21,11 +21,6 @@ use gpui_component::{
 };
 use uuid::Uuid;
 
-const ART: f32 = 64.;
-const ART_PAD: f32 = 10.;
-const TITLE_HEIGHT: f32 = 36.;
-pub const GRID_ROW_HEIGHT: f32 =
-    ART + 2. * ART_PAD + 4. + TITLE_HEIGHT + super::model::GRID_SPACING_Y;
 const LIST_ROW: f32 = 30.;
 const LIST_ART: f32 = 24.;
 const DATE_COLUMN: f32 = 140.;
@@ -166,14 +161,21 @@ fn click(
     });
 }
 
-fn art(t: &Tokens, item: &Item, thumb: Option<&Thumb>, size: f32, badge: f32) -> AnyElement {
+fn art(t: &Tokens, item: &Item, thumb: Option<&Thumb>, size: f32) -> AnyElement {
+    let grid = size >= model::SIZE_MIN as f32;
+    let badge = if grid {
+        (size * 0.16).clamp(18., 28.)
+    } else {
+        12.
+    };
+    let label = if size >= 160. { 12. } else { 10. };
     let placeholder = || {
         let icon = match item.kind {
             MediaKind::Screenshot => IconName::Image,
             MediaKind::Video => IconName::Video,
         };
         Icon::new(icon)
-            .size(px(size * 0.6))
+            .size(px((size * 0.6).min(72.)))
             .text_color(t.text_tertiary)
             .into_any_element()
     };
@@ -203,7 +205,7 @@ fn art(t: &Tokens, item: &Item, thumb: Option<&Thumb>, size: f32, badge: f32) ->
                     .child(Icon::new(IconName::CirclePlay).size(px(badge))),
             )
         })
-        .when_some(item.duration_secs.filter(|_| size >= ART), |d, secs| {
+        .when_some(item.duration_secs.filter(|_| grid), |d, secs| {
             d.child(
                 div()
                     .absolute()
@@ -211,16 +213,16 @@ fn art(t: &Tokens, item: &Item, thumb: Option<&Thumb>, size: f32, badge: f32) ->
                     .bottom(px(2.))
                     .px(px(4.))
                     .rounded(px(4.))
-                    .text_size(px(10.))
+                    .text_size(px(label))
                     .bg(hsla(0., 0., 0., 0.7))
                     .text_color(hsla(0., 0., 1., 1.))
-                    .child(super::model::duration_text(secs)),
+                    .child(model::duration_text(secs)),
             )
         })
         .into_any_element()
 }
 
-fn cell(gallery: &Gallery, item: &Item, cx: &mut Context<Gallery>) -> AnyElement {
+fn cell(gallery: &Gallery, item: &Item, size: f32, cx: &mut Context<Gallery>) -> AnyElement {
     let t = tokens(cx).clone();
     let id = item.id;
     let on = gallery.selected == Some(id);
@@ -254,7 +256,7 @@ fn cell(gallery: &Gallery, item: &Item, cx: &mut Context<Gallery>) -> AnyElement
                 .p(px(ART_PAD))
                 .rounded(px(8.))
                 .when(on, |d| d.bg(t.hover_fill))
-                .child(art(&t, item, gallery.thumbs.get(&item.file), ART, 18.))
+                .child(art(&t, item, gallery.thumbs.get(&item.file), size))
                 .when(on, |d| {
                     d.child(div().absolute().top(px(3.)).right(px(3.)).child(actions))
                 }),
@@ -292,19 +294,20 @@ pub fn grid_row(
     cx: &mut Context<Gallery>,
 ) -> AnyElement {
     let columns = gallery.columns;
+    let size = gallery.item_size(cx);
     let start = row * columns;
     let end = (start + columns).min(gallery.shown.len());
     let cells: Vec<AnyElement> = gallery.shown[start..end]
         .iter()
-        .map(|item| cell(gallery, item, cx))
+        .map(|item| cell(gallery, item, size as f32, cx))
         .collect();
     let spacers = columns - (end - start);
     div()
         .flex()
         .items_start()
-        .gap(px(super::model::GRID_SPACING_X))
+        .gap(px(model::GRID_SPACING_X))
         .w_full()
-        .h(px(GRID_ROW_HEIGHT))
+        .h(px(model::row_height(size)))
         .children(cells)
         .children((0..spacers).map(|_| div().flex_1().min_w_0()))
         .into_any_element()
@@ -429,7 +432,7 @@ pub fn list_row(
         .text_size(px(13.))
         .when(on, |d| d.bg(t.accent))
         .when(!on && index % 2 == 1, |d| d.bg(t.bordered_fill))
-        .child(art(&t, item, gallery.thumbs.get(&item.file), LIST_ART, 12.))
+        .child(art(&t, item, gallery.thumbs.get(&item.file), LIST_ART))
         .child(
             div()
                 .flex_1()
@@ -456,11 +459,7 @@ pub fn list_row(
                 .truncate()
                 .text_color(secondary)
                 .child(match item.duration_secs {
-                    Some(secs) => format!(
-                        "{} · {}",
-                        kind_title(kind),
-                        super::model::duration_text(secs)
-                    ),
+                    Some(secs) => format!("{} · {}", kind_title(kind), model::duration_text(secs)),
                     None => kind_title(kind),
                 }),
         )

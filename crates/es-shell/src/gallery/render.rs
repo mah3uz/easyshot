@@ -65,6 +65,13 @@ fn step_for(key: &str) -> Option<Step> {
 impl Gallery {
     fn on_key(&mut self, event: &KeyDownEvent, window: &mut Window, cx: &mut Context<Self>) {
         let key = event.keystroke.key.as_str();
+        if event.keystroke.modifiers.control
+            && self.view == ViewMode::Icons
+            && self.size_key(key, cx)
+        {
+            cx.stop_propagation();
+            return;
+        }
         if let Some(step) = step_for(key) {
             self.step(step, cx);
             cx.stop_propagation();
@@ -136,7 +143,7 @@ impl Gallery {
             .into_any_element()
     }
 
-    fn toolbar(&self, t: &Tokens, cx: &mut Context<Self>) -> AnyElement {
+    fn toolbar(&self, t: &Tokens, window: &Window, cx: &mut Context<Self>) -> AnyElement {
         let view = cx.entity().downgrade();
         let sort_view = view.clone();
         let current = self.sort;
@@ -200,6 +207,9 @@ impl Gallery {
                     .text_color(t.text)
                     .child(category_title(self.category)),
             )
+            .when(self.view == ViewMode::Icons, |d| {
+                d.child(self.size_slider(t, window, cx))
+            })
             .child(div().flex_none().w(px(76.)).child(switcher))
             .child(sort)
             .child(refresh)
@@ -290,7 +300,7 @@ impl Gallery {
         match self.view {
             ViewMode::Icons => {
                 let width = window.viewport_size().width.as_f32() - SIDEBAR_WIDTH;
-                self.set_columns(model::columns_for(width));
+                self.set_columns(model::columns_for(width, self.item_size(cx)));
                 let rows = self.shown.len().div_ceil(self.columns);
                 uniform_list(
                     "gallery-grid",
@@ -340,7 +350,8 @@ impl Render for Gallery {
         let banner = self.banner(&t, cx);
         let content = self.content(&t, window, cx);
         let sidebar = self.sidebar(&t, cx);
-        let toolbar = self.toolbar(&t, cx);
+        let toolbar = self.toolbar(&t, window, cx);
+        let wheel = self.wheel_zoom(cx);
         div()
             .size_full()
             .flex()
@@ -363,9 +374,11 @@ impl Render for Gallery {
                             .accessible(Role::Grid, category_title(self.category))
                             .track_focus(&self.focus)
                             .on_key_down(cx.listener(Self::on_key))
+                            .relative()
                             .flex_1()
                             .min_h_0()
-                            .child(content),
+                            .child(content)
+                            .when(self.view == ViewMode::Icons, |d| d.child(wheel)),
                     )
                     .child(self.status(&t)),
             )

@@ -317,6 +317,12 @@ Any other file raises a toast, "Can’t open that file", and nothing opens.
 Captures are kept in a history with retention, search, sorting, icon and list views, and a
 trash. The default limit is 100 entries.
 
+In the icon view, the slider in the toolbar sets the preview size, from 64 to 256 pixels; the
+largest shows two previews a row in a window of the default width. Ctrl+scroll over the grid
+changes it too, as do Ctrl+plus and Ctrl+minus, and Ctrl+0 goes back to the default of 96. The
+size is remembered in `config.toml` as `item_size` under `[gallery]`. The list view keeps its
+small icons.
+
 Videos are in the gallery too, under Videos and All Media: recordings you have not saved yet
 (the project folders in `$XDG_DATA_HOME/easyshot/recordings/`), saved recordings and trim
 exports (`~/Videos/easyshot/`). A video shows its first frame, a play badge and, for a

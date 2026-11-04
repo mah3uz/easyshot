@@ -15,6 +15,7 @@ pub struct Config {
     pub default_look: DefaultLook,
     pub editor: Editor,
     pub ocr: Ocr,
+    pub gallery: GalleryCfg,
     pub agent: AgentCfg,
     /// Editor-scope overrides: catalogue id to trigger.
     pub shortcuts: BTreeMap<String, String>,
@@ -34,6 +35,7 @@ impl Default for Config {
             default_look: DefaultLook::default(),
             editor: Editor::default(),
             ocr: Ocr::default(),
+            gallery: GalleryCfg::default(),
             agent: AgentCfg::default(),
             shortcuts: BTreeMap::new(),
             global_shortcuts: BTreeMap::new(),
@@ -255,6 +257,19 @@ impl Default for Ocr {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct GalleryCfg {
+    /// The side of an icon-view preview, in pixels.
+    pub item_size: u32,
+}
+
+impl Default for GalleryCfg {
+    fn default() -> Self {
+        Self { item_size: 96 }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -278,6 +293,7 @@ mod tests {
         assert_eq!(c.default_look.padding, 0.08);
         assert_eq!(c.editor.nudge_step_shift, 10);
         assert_eq!(c.ocr.languages, vec!["eng"]);
+        assert_eq!(c.gallery.item_size, 96);
     }
 
     #[test]
