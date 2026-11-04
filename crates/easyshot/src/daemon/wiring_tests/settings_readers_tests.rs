@@ -107,6 +107,41 @@ const READERS: &[(&str, &str, &str)] = &[
         "item_size",
     ),
     (
+        "overlay.actions.copy",
+        "crates/es-overlays/src/deck/layout.rs",
+        "actions.copy",
+    ),
+    (
+        "overlay.actions.save",
+        "crates/es-overlays/src/deck/layout.rs",
+        "actions.save",
+    ),
+    (
+        "overlay.actions.edit",
+        "crates/es-overlays/src/deck/layout.rs",
+        "actions.edit",
+    ),
+    (
+        "overlay.actions.pin",
+        "crates/es-overlays/src/deck/layout.rs",
+        "actions.pin",
+    ),
+    (
+        "overlay.actions.share",
+        "crates/es-overlays/src/deck/layout.rs",
+        "actions.share",
+    ),
+    (
+        "overlay.actions.preview",
+        "crates/es-overlays/src/deck/layout.rs",
+        "actions.preview",
+    ),
+    (
+        "overlay.actions.delete",
+        "crates/es-overlays/src/deck/layout.rs",
+        "actions.delete",
+    ),
+    (
         "overlay.layout",
         "crates/es-overlays/src/deck/view.rs",
         "overlay.layout",
