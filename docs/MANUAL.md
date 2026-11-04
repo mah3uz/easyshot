@@ -459,15 +459,22 @@ Commands:
 - `record [area|stop|pause|restart|discard]`
 - `capture-bar`, `gallery`, `restore-last`, `pin-last`, `unpin-all`, `edit-clipboard`,
   `settings [page]`, `deck toggle|save-all|close-all`, `quit`
-- `doctor [--json] [--bundle]` asks the daemon, or probes by itself when it is not running.
-  It lists each capability's chosen and rejected providers with the reason, the Wayland
-  globals, the portal interfaces and the missing tools. When the daemon is not running it
-  also says whether a tray watcher and a notification server are on your session bus, the
-  versions of `gpu-screen-recorder`, `wf-recorder`, `ffmpeg` (with the video encoders it
-  has) and `tesseract` (with its installed languages), and whether your settings file is
-  fine, missing, from a newer easyshot, or has an error. `--bundle` writes
-  `easyshot-doctor-<time>.tar` to the current directory with the report and your logs, and
-  no images. The logs hold file paths, so look through the bundle before you attach it to a
+- `doctor [--json | --raw] [--bundle]` asks the daemon, or probes by itself when it is not
+  running. It prints a short summary: your compositor; each thing easyshot can do, marked
+  with a check or a cross and, for a cross, one line on what it means for you; the provider
+  chosen for each job; and the tools you could install, with their package names. A
+  recorder tool is not listed as missing while another recorder is in use. Colour and the
+  check and cross glyphs appear only when the output is a terminal and `NO_COLOR` is not
+  set; otherwise it prints `ok` and `no` in plain ASCII. The summary also says whether
+  clicks and keys can be recorded and whether your settings file is fine, missing, from a
+  newer easyshot, or has an error. `--raw` prints the full report instead: every rejected
+  provider with its reason, the Wayland globals, the portal interfaces and the missing
+  tools. When the daemon is not running, `--raw` also says whether a tray watcher and a
+  notification server are on your session bus, and gives the versions of
+  `gpu-screen-recorder`, `wf-recorder`, `ffmpeg` (with the video encoders it has) and
+  `tesseract` (with its installed languages). `--json` prints the report as JSON.
+  `--bundle` writes `easyshot-doctor-<time>.tar` to the current directory with the report
+  and your logs, and no images. The logs hold file paths, so look through the bundle before you attach it to a
   public report. They never hold text read from your screenshots.
 - `daemon` runs the daemon in the foreground.
 

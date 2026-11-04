@@ -115,7 +115,13 @@ fn record_deck_and_doctor_complete_their_values() {
             &["toggle", "save-all", "close-all"],
             &[],
         );
-        assert_offers(shell, cwd, &["doctor", "--"], &["--json", "--bundle"], &[]);
+        assert_offers(
+            shell,
+            cwd,
+            &["doctor", "--"],
+            &["--json", "--raw", "--bundle"],
+            &[],
+        );
         assert_offers(
             shell,
             cwd,

@@ -4,6 +4,7 @@ mod complete;
 #[cfg(feature = "gui")]
 mod daemon;
 mod doctor;
+mod doctor_summary;
 mod doctor_tools;
 mod run;
 #[cfg(test)]
@@ -124,6 +125,8 @@ fn main() -> ExitCode {
         now: SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_or(0, |d| d.as_secs()),
+        styled: std::io::IsTerminal::is_terminal(&std::io::stdout())
+            && std::env::var_os("NO_COLOR").is_none(),
     };
     let cancel = async move {
         let _ = cancel_rx.recv().await;

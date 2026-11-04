@@ -58,8 +58,11 @@ pub enum Command {
     /// Report what this machine supports and which providers were chosen
     Doctor {
         /// Machine-readable output
-        #[arg(long)]
+        #[arg(long, conflicts_with = "raw")]
         json: bool,
+        /// The full report: rejected providers, Wayland globals, portals and tool versions
+        #[arg(long)]
+        raw: bool,
         /// Write a tarball of the report and the logs
         #[arg(long)]
         bundle: bool,
@@ -133,7 +136,7 @@ pub enum DeckAction {
 #[derive(Debug, PartialEq, Eq)]
 pub enum Request {
     Route(Route),
-    Doctor { json: bool, bundle: bool },
+    Doctor { json: bool, raw: bool, bundle: bool },
     Agent(crate::agent::AgentCall),
     Skill(crate::agent::SkillCall),
     Annotate(crate::agent::AnnotateCall),
@@ -216,8 +219,9 @@ impl Cli {
             Command::PinLast => Request::Route(Route::PinLast),
             Command::UnpinAll => Request::Route(Route::UnpinAll),
             Command::Quit => Request::Route(Route::Quit),
-            Command::Doctor { json, bundle } => Request::Doctor {
+            Command::Doctor { json, raw, bundle } => Request::Doctor {
                 json: *json,
+                raw: *raw,
                 bundle: *bundle,
             },
             Command::Agent(args) | Command::Ai(args) => {
@@ -481,9 +485,19 @@ mod tests {
             request(&["doctor", "--json", "--bundle"]).unwrap(),
             Request::Doctor {
                 json: true,
+                raw: false,
                 bundle: true
             }
         );
+        assert_eq!(
+            request(&["doctor", "--raw"]).unwrap(),
+            Request::Doctor {
+                json: false,
+                raw: true,
+                bundle: false
+            }
+        );
+        assert!(request(&["doctor", "--raw", "--json"]).is_err());
         assert_eq!(request(&["daemon"]).unwrap(), Request::Daemon);
     }
 

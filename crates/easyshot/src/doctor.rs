@@ -96,7 +96,9 @@ pub fn render_text(raw: &str) -> String {
             }
         }
     }
-    render_probes(&v, &mut out);
+    render_services_and_tools(&v, &mut out);
+    render_input(&v, &mut out);
+    render_config(&v, &mut out);
     let missing = v["missing_tools"].as_array().map_or(&[][..], Vec::as_slice);
     if !missing.is_empty() {
         let _ = writeln!(out, "\nMissing tools:");
@@ -119,7 +121,7 @@ pub fn render_text(raw: &str) -> String {
     out
 }
 
-fn render_probes(v: &Value, out: &mut String) {
+fn render_services_and_tools(v: &Value, out: &mut String) {
     let yes = |b: &Value| {
         if b.as_bool() == Some(true) {
             "present"
@@ -168,6 +170,9 @@ fn render_probes(v: &Value, out: &mut String) {
         let _ = writeln!(out, "  tesseract: {}", version(&t["tesseract"]["version"]));
         let _ = writeln!(out, "    languages: {}", list(&t["tesseract"]["languages"]));
     }
+}
+
+pub(crate) fn render_input(v: &Value, out: &mut String) {
     let i = &v["input"];
     if let Some(status) = i["status"].as_str() {
         let shown = match status {
@@ -184,6 +189,9 @@ fn render_probes(v: &Value, out: &mut String) {
         }
         let _ = writeln!(out, "  Records {}", i["records"].as_str().unwrap_or("-"));
     }
+}
+
+pub(crate) fn render_config(v: &Value, out: &mut String) {
     let c = &v["config"];
     if c.is_object() {
         let _ = write!(

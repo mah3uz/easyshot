@@ -1,5 +1,5 @@
 use crate::cli::Request;
-use crate::doctor;
+use crate::{doctor, doctor_summary};
 use anyhow::Result;
 use es_desktop::dbus::{Client, ClientError, Endpoint, Launch};
 use es_protocol::{JobStatus, Route};
@@ -22,6 +22,8 @@ pub struct Env {
     pub log_dir: Option<PathBuf>,
     pub bundle_dir: PathBuf,
     pub now: u64,
+    /// Colour and glyphs in the doctor summary.
+    pub styled: bool,
 }
 
 pub fn execute(
@@ -34,7 +36,7 @@ pub fn execute(
     futures::executor::block_on(async {
         match request {
             Request::Route(route) => send(&route, env, cancel, out, err).await,
-            Request::Doctor { json, bundle } => doctor(json, bundle, env, out, err).await,
+            Request::Doctor { json, raw, bundle } => doctor(json, raw, bundle, env, out, err).await,
             Request::Agent(call) => crate::agent::run(&call, env, cancel, out, err).await,
             Request::Skill(call) => crate::agent::run_skill(&call, out, err),
             Request::Annotate(call) => crate::agent::run_annotate(&call, out, err),
@@ -123,6 +125,7 @@ async fn send(
 
 async fn doctor(
     json: bool,
+    raw_text: bool,
     bundle: bool,
     env: &Env,
     out: &mut dyn Write,
@@ -148,8 +151,10 @@ async fn doctor(
     };
     let shown = if json {
         format!("{}\n", doctor::pretty(&raw))
-    } else {
+    } else if raw_text {
         doctor::render_text(&raw)
+    } else {
+        doctor_summary::render(&raw, env.styled)
     };
     let _ = out.write_all(shown.as_bytes());
     if bundle {

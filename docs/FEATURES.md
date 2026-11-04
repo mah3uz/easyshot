@@ -253,7 +253,8 @@ More in the manual: [Settings](MANUAL.md#settings).
 - Opens Settings on a page with `settings [page]`.
 - Hides the deck, saves all cards or closes all cards with `deck toggle`, `save-all` and `close-all`.
 - Quits the daemon with `quit` and runs it in the foreground with `daemon`.
-- Reports providers, Wayland features, portals and missing tools with `doctor`.
+- Summarises what works, the chosen providers and the tools to install with `doctor`, in colour on a terminal.
+- Prints rejected providers, Wayland globals, portals and tool versions with `doctor --raw`.
 - Prints that report as JSON with `doctor --json`.
 - Writes a tar of the report and logs, without images, with `doctor --bundle`.
 - Accepts nine `easyshot://` links, with no arguments: region, fullscreen, window and scroll capture, record, ocr, color-picker, home and settings.

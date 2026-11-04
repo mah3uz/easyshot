@@ -86,6 +86,7 @@ pub(crate) fn env(bus: &PrivateBus, dir: &Path) -> Env {
         log_dir: None,
         bundle_dir: dir.to_owned(),
         now: 1_700_000_000,
+        styled: false,
     }
 }
 
@@ -261,17 +262,38 @@ fn doctor_falls_back_to_a_standalone_probe_and_matches_the_snapshot() {
 }
 
 #[test]
-fn doctor_text_names_the_chosen_and_rejected_providers() {
+fn doctor_raw_keeps_the_full_text_and_the_summary_leaves_it_out() {
     let bus = PrivateBus::start();
     let dir = tempfile::tempdir().unwrap();
-    let (code, out, _) = run_cli(&["doctor"], &env(&bus, dir.path()));
+    let (code, raw, _) = run_cli(&["doctor", "--raw"], &env(&bus, dir.path()));
     assert_eq!(code, EXIT_OK);
-    assert!(out.contains("Source: standalone"), "{out}");
-    assert!(
-        out.contains("Providers:") && out.contains("Portals:"),
-        "{out}"
-    );
-    assert!(out.contains("Missing tools:"), "{out}");
+    for want in [
+        "Source: standalone probe (the daemon is not running)",
+        "Providers:",
+        "    rejected ext-image-copy: not detected",
+        "Portals:",
+        "Missing tools:\n  gpu-screen-recorder (package: gpu-screen-recorder)\n  wf-recorder (package: wf-recorder)",
+    ] {
+        assert!(raw.contains(want), "{want} missing from\n{raw}");
+    }
+    let (code, summary, _) = run_cli(&["doctor"], &env(&bus, dir.path()));
+    assert_eq!(code, EXIT_OK);
+    assert!(summary.contains("What works"), "{summary}");
+    assert!(summary.contains("Missing tools"), "{summary}");
+    for gone in ["rejected", "Portals", "Wayland globals"] {
+        assert!(!summary.contains(gone), "{gone} in\n{summary}");
+    }
+}
+
+#[test]
+fn doctor_raw_text_is_unchanged() {
+    let bus = PrivateBus::start();
+    let dir = tempfile::tempdir().unwrap();
+    let server = serve(&bus, 0, JobStatus::Ok, "");
+    let (code, out, _) = run_cli(&["doctor", "--raw"], &env(&bus, dir.path()));
+    assert_eq!(code, EXIT_OK);
+    assert_eq!(out, "Compositor: fake \nCapabilities: \n\nProviders:\n");
+    server.finish();
 }
 
 #[test]
