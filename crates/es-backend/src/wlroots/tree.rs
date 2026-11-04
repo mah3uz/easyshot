@@ -140,6 +140,22 @@ fn walk(n: &Node, mut place: Place, out: &mut Vec<WindowInfo>) {
     }
 }
 
+/// Scratchpad windows live on a workspace sway names with a leading `__i3`.
+pub(crate) fn on_workspaces(windows: Vec<WindowInfo>) -> Vec<WindowInfo> {
+    windows
+        .into_iter()
+        .filter(|w| {
+            w.workspace
+                .as_deref()
+                .is_some_and(|n| !n.starts_with("__i3"))
+        })
+        .collect()
+}
+
+pub(crate) fn focus_command(id: u64) -> String {
+    format!("[con_id={id}] focus")
+}
+
 #[derive(Debug, Deserialize)]
 pub(crate) struct WindowChange {
     change: String,

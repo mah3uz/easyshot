@@ -69,6 +69,10 @@ impl FakeHypr {
                 }
                 let reply = if request.starts_with("eval ") {
                     b"ok".to_vec()
+                } else if request.starts_with("dispatch focuswindow address:0xddd4") {
+                    b"ok".to_vec()
+                } else if request.starts_with("dispatch focuswindow") {
+                    b"Window not found".to_vec()
                 } else {
                     replies.get(request.as_str()).cloned().unwrap_or_default()
                 };
@@ -124,6 +128,37 @@ fn snapshot_is_topmost_first_and_skips_hidden_and_unshown_workspaces() {
     let ranks: Vec<_> = windows.iter().map(|w| w.focus_rank).collect();
     assert_eq!(ranks, [Some(1), Some(0), Some(2)]);
     assert!(windows[0].floating);
+}
+
+#[test]
+fn the_full_list_adds_windows_on_other_workspaces_without_geometry() {
+    let windows = hyprland::all_windows(&clients(), &monitors());
+    assert_eq!(ids(&windows), ["0xbbb2", "0xccc3", "0xaaa1", "0xddd4"]);
+    let other = windows.iter().find(|w| w.id.0 == "0xddd4").expect("other");
+    assert_eq!(other.workspace.as_deref(), Some("2"));
+    assert_eq!(other.logical, None);
+    assert_eq!(other.output, Some(OutputId("DP-1".into())));
+}
+
+#[test]
+fn focusing_dispatches_focuswindow_for_the_address_and_reports_a_refusal() {
+    assert_eq!(
+        hyprland::focus_command("ddd4"),
+        "dispatch focuswindow address:0xddd4"
+    );
+    let fake = FakeHypr::start(Answer::Recorded).with_events(Vec::new());
+    let windows = HyprWindows::start(fake.ipc(), None).expect("start");
+    assert!(windows.can_focus());
+    windows.focus(&WindowId("0xddd4".into())).expect("focus");
+    assert!(
+        fake.requests()
+            .contains(&"dispatch focuswindow address:0xddd4".to_owned())
+    );
+    match windows.focus(&WindowId("0x9999".into())) {
+        Err(Error::Protocol(m)) => assert!(m.contains("Window not found"), "{m}"),
+        other => panic!("a refused focus must be reported, got {other:?}"),
+    }
+    assert_eq!(windows.all().len(), 4);
 }
 
 #[test]

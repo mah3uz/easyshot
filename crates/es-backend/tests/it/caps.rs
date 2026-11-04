@@ -56,6 +56,9 @@ impl WindowList for FakeWindows {
     fn events(&self) -> async_channel::Receiver<WindowEvent> {
         async_channel::unbounded().1
     }
+    fn can_focus(&self) -> bool {
+        true
+    }
 }
 
 struct FakeClipboard;
@@ -135,6 +138,7 @@ fn caps_are_exactly_what_the_chosen_providers_and_tools_give() {
             | Caps::CAPTURE_OUTPUT
             | Caps::WINDOW_LIST
             | Caps::WINDOW_GEOMETRY
+            | Caps::FOCUS_WINDOW
             | Caps::CLIPBOARD_NO_FOCUS
             | Caps::POINTER_GLOBAL
             | Caps::OCR

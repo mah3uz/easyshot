@@ -185,6 +185,28 @@ pub fn visible_windows(clients: &[Client], monitors: &[Monitor]) -> Vec<WindowIn
     shown.iter().map(|c| window_info(c, monitors)).collect()
 }
 
+/// Every mapped window on a numbered workspace or on one a monitor shows, shown windows first.
+pub fn all_windows(clients: &[Client], monitors: &[Monitor]) -> Vec<WindowInfo> {
+    let mut shown = visible_windows(clients, monitors);
+    let seen: Vec<String> = shown.iter().map(|w| w.id.0.clone()).collect();
+    let mut hidden: Vec<&Client> = clients
+        .iter()
+        .filter(|c| c.mapped && !c.hidden)
+        .filter(|c| c.workspace.id > 0)
+        .filter(|c| !seen.contains(&address(&c.address)))
+        .collect();
+    hidden.sort_by_key(|c| (c.workspace.id, c.focus_history_id));
+    shown.extend(hidden.iter().map(|c| WindowInfo {
+        logical: None,
+        ..window_info(c, monitors)
+    }));
+    shown
+}
+
+pub fn focus_command(addr: &str) -> String {
+    format!("dispatch focuswindow address:{}", address(addr))
+}
+
 pub fn output_at(monitors: &[Monitor], p: Point) -> Option<OutputId> {
     monitors
         .iter()

@@ -1,5 +1,8 @@
 use super::ipc::Ipc;
-use super::json::{Client, Monitor, address, join_toplevels, visible_windows, window_info};
+use super::json::{
+    Client, Monitor, address, all_windows, focus_command, join_toplevels, visible_windows,
+    window_info,
+};
 use crate::error::{Error, Result};
 use crate::traits::WindowList;
 use es_model::platform::{WindowEvent, WindowId, WindowInfo};
@@ -82,6 +85,13 @@ impl Inner {
         }
     }
 
+    fn address_of(&self, id: &WindowId) -> String {
+        let ids = self.ids.lock().unwrap_or_else(|e| e.into_inner());
+        ids.iter()
+            .find(|(_, known)| *known == id)
+            .map_or_else(|| id.0.clone(), |(addr, _)| addr.clone())
+    }
+
     fn known(&self, addr: &str) -> WindowId {
         let ids = self.ids.lock().unwrap_or_else(|e| e.into_inner());
         ids.get(addr)
@@ -154,6 +164,13 @@ impl HyprWindows {
         self.inner.assign(&mut windows, &clients, false);
         Ok(windows)
     }
+
+    pub fn try_all(&self) -> Result<Vec<WindowInfo>> {
+        let (clients, monitors) = self.inner.fetch()?;
+        let mut windows = all_windows(&clients, &monitors);
+        self.inner.assign(&mut windows, &clients, false);
+        Ok(windows)
+    }
 }
 
 fn read_events(stream: UnixStream, inner: &Inner, tx: &async_channel::Sender<WindowEvent>) {
@@ -190,5 +207,23 @@ impl WindowList for HyprWindows {
     }
     fn events(&self) -> async_channel::Receiver<WindowEvent> {
         self.events.clone()
+    }
+    fn all(&self) -> Vec<WindowInfo> {
+        self.try_all()
+            .inspect_err(|e| tracing::warn!("hyprland: window list: {e}"))
+            .unwrap_or_default()
+    }
+    fn can_focus(&self) -> bool {
+        true
+    }
+    fn focus(&self, w: &WindowId) -> Result<()> {
+        let reply = self
+            .inner
+            .ipc
+            .request(&focus_command(&self.inner.address_of(w)))?;
+        match String::from_utf8_lossy(&reply).trim() {
+            "ok" => Ok(()),
+            other => Err(Error::Protocol(format!("hyprland focuswindow: {other}"))),
+        }
     }
 }

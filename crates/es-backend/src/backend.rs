@@ -35,6 +35,7 @@ bitflags! {
         const FILE_PICKER = 65536;
         const APPEARANCE = 131072;
         const CURSOR_STREAM = 262144;
+        const FOCUS_WINDOW = 524288;
     }
 }
 
@@ -202,6 +203,7 @@ fn derive_caps(b: &Backend, probe: &Probe) -> Caps {
     );
     caps.set(Caps::WINDOW_LIST, chosen("windows").is_some());
     caps.set(Caps::WINDOW_GEOMETRY, b.windows.has_geometry());
+    caps.set(Caps::FOCUS_WINDOW, b.windows.can_focus());
     caps.set(
         Caps::CLIPBOARD_NO_FOCUS,
         chosen("clipboard").is_some() && !b.clipboard.needs_focused_window(),

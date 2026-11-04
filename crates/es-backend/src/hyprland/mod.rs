@@ -7,7 +7,8 @@ mod windows;
 pub use fade::{Animation, HyprFade, layer_close, parse as parse_fade};
 pub use ipc::{EVENT_SOCKET, Ipc, REQUEST_SOCKET, REQUEST_TIMEOUT};
 pub use json::{
-    Client, CursorPos, Monitor, focused_monitor, join_toplevels, output_at, visible_windows,
+    Client, CursorPos, Monitor, all_windows, focus_command, focused_monitor, join_toplevels,
+    output_at, visible_windows,
 };
 pub use rules::{HyprBinds, hyprlang_snippet, lua_snippet, parse_binds};
 pub use windows::{HyprEvent, HyprWindows, Toplevels, parse_event};

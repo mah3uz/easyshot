@@ -23,5 +23,10 @@
    "workspace": {"id": 1, "name": "1"}, "floating": false, "pseudo": false, "monitor": 0,
    "class": "steam", "title": "tray", "initialClass": "steam", "initialTitle": "steam", "pid": 4500,
    "xwayland": true, "pinned": false, "fullscreen": 0, "fullscreenClient": 0, "grouped": [], "tags": [],
-   "swallowing": "0x0", "focusHistoryID": 4, "inhibitingIdle": false, "xdgTag": "", "xdgDescription": ""}
+   "swallowing": "0x0", "focusHistoryID": 4, "inhibitingIdle": false, "xdgTag": "", "xdgDescription": ""},
+  {"address": "0xfff6", "mapped": true, "hidden": false, "at": [0, 0], "size": [500, 400],
+   "workspace": {"id": -98, "name": "special:magic"}, "floating": true, "pseudo": false, "monitor": 0,
+   "class": "dropdown", "title": "scratch", "initialClass": "dropdown", "initialTitle": "dropdown", "pid": 4600,
+   "xwayland": false, "pinned": false, "fullscreen": 0, "fullscreenClient": 0, "grouped": [], "tags": [],
+   "swallowing": "0x0", "focusHistoryID": 5, "inhibitingIdle": false, "xdgTag": "", "xdgDescription": ""}
 ]

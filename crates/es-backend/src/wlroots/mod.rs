@@ -7,7 +7,7 @@ use crate::include_scan;
 use crate::probe::{Probe, Provider};
 use crate::traits::{BindHelper, BindSyntax, PointerQuery, Trigger, WindowList};
 use es_geom::Point;
-use es_model::platform::{OutputId, WindowEvent, WindowInfo};
+use es_model::platform::{OutputId, WindowEvent, WindowId, WindowInfo};
 use es_protocol::Route;
 use ipc::{EVENT_BIT, GET_CONFIG, GET_OUTPUTS, GET_TREE, Ipc, RUN_COMMAND};
 use std::net::Shutdown;
@@ -135,6 +135,24 @@ impl WindowList for SwayWindows {
     }
     fn events(&self) -> async_channel::Receiver<WindowEvent> {
         self.rx.clone()
+    }
+    fn all(&self) -> Vec<WindowInfo> {
+        tree::on_workspaces(self.snapshot())
+    }
+    fn can_focus(&self) -> bool {
+        true
+    }
+    fn focus(&self, w: &WindowId) -> Result<()> {
+        let id: u64 = w.0.parse().map_err(|_| Error::NotFound(w.0.clone()))?;
+        let outcomes: Vec<Outcome> = self
+            .ipc
+            .json(RUN_COMMAND, tree::focus_command(id).as_bytes())?;
+        match outcomes.into_iter().find(|o| !o.success) {
+            Some(o) => Err(Error::Protocol(
+                o.error.unwrap_or_else(|| "sway could not focus".to_owned()),
+            )),
+            None => Ok(()),
+        }
     }
 }
 

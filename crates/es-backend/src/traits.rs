@@ -33,6 +33,17 @@ pub trait WindowList: Send + Sync {
     fn snapshot(&self) -> Vec<WindowInfo>;
     fn has_geometry(&self) -> bool;
     fn events(&self) -> async_channel::Receiver<WindowEvent>;
+    /// Every open window on any workspace; a window the screen does not show has no `logical`.
+    fn all(&self) -> Vec<WindowInfo> {
+        self.snapshot()
+    }
+    fn can_focus(&self) -> bool {
+        false
+    }
+    /// Gives the window focus, which also brings its workspace to an output.
+    fn focus(&self, _w: &WindowId) -> Result<()> {
+        Err(crate::Error::Unsupported)
+    }
 }
 
 pub trait PointerQuery: Send + Sync {
@@ -92,5 +103,14 @@ impl<T: WindowList + ?Sized> WindowList for Arc<T> {
     }
     fn events(&self) -> async_channel::Receiver<WindowEvent> {
         (**self).events()
+    }
+    fn all(&self) -> Vec<WindowInfo> {
+        (**self).all()
+    }
+    fn can_focus(&self) -> bool {
+        (**self).can_focus()
+    }
+    fn focus(&self, w: &WindowId) -> Result<()> {
+        (**self).focus(w)
     }
 }

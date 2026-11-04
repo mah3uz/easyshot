@@ -179,6 +179,61 @@ fn sway_content_rect_excludes_borders_and_hidden_windows_have_none() {
     assert_eq!(find(&ws, "6").logical, None);
 }
 
+fn con(id: u64, app: &str, visible: bool) -> Value {
+    serde_json::json!({
+        "id": id, "type": "con", "name": app, "app_id": app, "pid": id, "visible": visible,
+        "rect": {"x": 0, "y": 0, "width": 800, "height": 600},
+        "window_rect": {"x": 0, "y": 0, "width": 800, "height": 600},
+        "nodes": [], "floating_nodes": [], "focus": []
+    })
+}
+
+fn tree_with_other_workspace_and_scratchpad() -> Value {
+    let mut t = tree();
+    t["nodes"][1]["nodes"]
+        .as_array_mut()
+        .unwrap()
+        .push(serde_json::json!({
+            "id": 40, "type": "workspace", "name": "2", "nodes": [con(41, "mail", false)],
+            "floating_nodes": [], "focus": [41]
+        }));
+    t["nodes"][0]["nodes"][0]["floating_nodes"] = serde_json::json!([con(50, "dropdown", false)]);
+    t
+}
+
+#[test]
+fn sway_full_list_has_other_workspaces_and_leaves_out_the_scratchpad() {
+    let fake = FakeSway::start(&tree_with_other_workspace_and_scratchpad().to_string());
+    let Ok(windows) = (wlroots::WINDOWS.build)(&fake.probe()) else {
+        panic!("build failed");
+    };
+    let all = windows.all();
+    let mut ids: Vec<_> = all.iter().map(|w| w.id.0.as_str()).collect();
+    ids.sort_unstable();
+    assert_eq!(ids, ["41", "5", "6"]);
+    let mail = find(&all, "41");
+    assert_eq!(mail.workspace.as_deref(), Some("2"));
+    assert_eq!(mail.logical, None);
+}
+
+#[test]
+fn sway_focus_runs_con_id_focus_and_reports_a_failure() {
+    let fake = FakeSway::start(TREE);
+    let Ok(windows) = (wlroots::WINDOWS.build)(&fake.probe()) else {
+        panic!("build failed");
+    };
+    assert!(windows.can_focus());
+    windows.focus(&WindowId("6".into())).unwrap();
+    assert_eq!(fake.shared.lock().unwrap().commands, ["[con_id=6] focus"]);
+    fake.shared.lock().unwrap().command_reply =
+        r#"[{"success":false,"error":"No relevant containers"}]"#.to_owned();
+    match windows.focus(&WindowId("99".into())) {
+        Err(Error::Protocol(m)) => assert_eq!(m, "No relevant containers"),
+        other => panic!("a failed focus must be reported, got {other:?}"),
+    }
+    assert!(windows.focus(&WindowId("not-a-number".into())).is_err());
+}
+
 #[test]
 fn sway_focus_order_follows_the_focus_lists() {
     let mut t = tree();

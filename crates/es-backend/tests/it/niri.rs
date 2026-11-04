@@ -19,6 +19,7 @@ const WINDOWS: &str = include_str!("../fixtures/niri/windows.json");
 #[derive(Default)]
 struct Shared {
     subscribers: Vec<UnixStream>,
+    actions: Vec<Value>,
 }
 
 struct FakeNiri {
@@ -35,6 +36,7 @@ fn reply(request: &Value) -> Value {
         Some("Windows") => json!({ "Windows": parse(WINDOWS) }),
         Some("FocusedOutput") => json!({ "FocusedOutput": parse(OUTPUTS)["DP-1"] }),
         Some("EventStream") => json!("Handled"),
+        None if request.get("Action").is_some() => json!("Handled"),
         _ => return json!({ "Err": "unsupported" }),
     };
     json!({ "Ok": ok })
@@ -57,6 +59,9 @@ impl FakeNiri {
                         .read_line(&mut line)
                         .unwrap();
                     let request: Value = serde_json::from_str(&line).unwrap();
+                    if let Some(action) = request.get("Action") {
+                        s.lock().unwrap().actions.push(action.clone());
+                    }
                     conn.write_all(format!("{}\n", reply(&request)).as_bytes())
                         .unwrap();
                     if request == "EventStream" {
@@ -148,6 +153,25 @@ fn niri_rects_derive_from_tiles_in_a_scrolled_workspace() {
     assert_eq!(find(&ws, "11").workspace.as_deref(), Some("1"));
     assert_eq!(find(&ws, "11").pid, Some(1011));
     assert!(windows.has_geometry());
+}
+
+#[test]
+fn niri_full_list_carries_workspaces_and_focus_sends_the_action() {
+    let fake = FakeNiri::start();
+    let Ok(windows) = (niri::WINDOWS.build)(&fake.probe()) else {
+        panic!("build failed");
+    };
+    let all = windows.all();
+    assert_eq!(all.len(), 6);
+    assert_eq!(find(&all, "14").workspace.as_deref(), Some("mail"));
+    assert_eq!(find(&all, "14").logical, None);
+    assert!(windows.can_focus());
+    windows.focus(&WindowId("14".into())).unwrap();
+    assert_eq!(
+        fake.shared.lock().unwrap().actions,
+        [json!({"FocusWindow": {"id": 14}})]
+    );
+    assert!(windows.focus(&WindowId("x".into())).is_err());
 }
 
 #[test]

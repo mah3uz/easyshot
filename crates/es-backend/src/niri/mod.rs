@@ -8,7 +8,7 @@ use crate::include_scan;
 use crate::probe::{Probe, Provider};
 use crate::traits::{BindHelper, BindSyntax, PointerQuery, Trigger, WindowList};
 use es_geom::Point;
-use es_model::platform::{OutputId, WindowEvent, WindowInfo};
+use es_model::platform::{OutputId, WindowEvent, WindowId, WindowInfo};
 use es_protocol::Route;
 use ipc::Ipc;
 use layout::State;
@@ -18,7 +18,7 @@ use std::net::Shutdown;
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError};
-use wire::{Event, Output, Request, Response};
+use wire::{Action, Event, Output, Request, Response};
 
 pub const SOCKET_ENV: &str = "NIRI_SOCKET";
 
@@ -166,6 +166,19 @@ impl WindowList for NiriWindows {
     }
     fn events(&self) -> async_channel::Receiver<WindowEvent> {
         self.rx.clone()
+    }
+    fn can_focus(&self) -> bool {
+        true
+    }
+    fn focus(&self, w: &WindowId) -> Result<()> {
+        let id: u64 = w.0.parse().map_err(|_| Error::NotFound(w.0.clone()))?;
+        match self
+            .ipc
+            .request(&Request::Action(Action::FocusWindow { id }))?
+        {
+            Response::Handled => Ok(()),
+            _ => Err(ipc::unexpected("Handled")),
+        }
     }
 }
 

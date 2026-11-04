@@ -135,6 +135,20 @@ impl WindowList for TestWindows {
     fn events(&self) -> async_channel::Receiver<WindowEvent> {
         self.events.clone()
     }
+    fn all(&self) -> Vec<WindowInfo> {
+        let mut windows = self.inner.all();
+        windows.retain(|w| on_output(w, &self.output));
+        windows
+    }
+    fn can_focus(&self) -> bool {
+        self.inner.can_focus()
+    }
+    fn focus(&self, w: &WindowId) -> Result<()> {
+        if !self.all().iter().any(|known| &known.id == w) {
+            return Err(Error::NotFound(w.0.clone()));
+        }
+        self.inner.focus(w)
+    }
 }
 
 pub struct TestCapture {

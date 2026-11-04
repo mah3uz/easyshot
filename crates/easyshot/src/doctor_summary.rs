@@ -86,6 +86,11 @@ pub(crate) const CAPS: &[(&str, &str, &str)] = &[
         "Cursor in recordings",
         "recordings cannot show the pointer",
     ),
+    (
+        "FOCUS_WINDOW",
+        "Switch to a window",
+        "a window on another workspace cannot be recorded",
+    ),
 ];
 
 /// A tool with an alternative is not missing while its concern has a chosen provider.

@@ -8,6 +8,12 @@ pub(crate) enum Request {
     Windows,
     FocusedOutput,
     EventStream,
+    Action(Action),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub(crate) enum Action {
+    FocusWindow { id: u64 },
 }
 
 pub(crate) type Reply = std::result::Result<Response, String>;
