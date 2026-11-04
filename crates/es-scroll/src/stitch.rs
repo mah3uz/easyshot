@@ -1,4 +1,4 @@
-use crate::shift::{Exclusions, shift};
+use crate::shift::{Exclusions, shift_masked};
 use crate::{Frame, frame_hash};
 
 pub const MAX_HEIGHT: usize = 30_000;
@@ -27,6 +27,7 @@ pub struct Stitcher {
     top: usize,
     header: Option<usize>,
     right: Option<usize>,
+    moving: Vec<bool>,
 }
 
 impl Default for Stitcher {
@@ -49,11 +50,17 @@ impl Stitcher {
             top: 0,
             header: None,
             right: None,
+            moving: Vec::new(),
         }
     }
 
     pub fn height(&self) -> usize {
         self.canvas.as_ref().map_or(0, |c| c.height)
+    }
+
+    /// The frame rows seen changing while the rest stood still.
+    pub fn moving(&self) -> &[bool] {
+        &self.moving
     }
 
     pub fn image(&self) -> Option<&Frame> {
@@ -92,12 +99,10 @@ impl Stitcher {
             None => PROBE_MARGINS,
         };
         let known = [self.right.unwrap_or(0)];
-        let Some(dy) = known
-            .iter()
-            .chain(guesses)
-            .find_map(|&right| shift(prev, frame, Exclusions { top: header, right }))
-        else {
-            return Push::NoOverlap;
+        let Some(dy) = known.iter().chain(guesses).find_map(|&right| {
+            shift_masked(prev, frame, Exclusions { top: header, right }, &self.moving)
+        }) else {
+            return self.moved_in_place(frame, hash);
         };
         if dy == 0 {
             self.prev = Some(frame.clone());
@@ -123,6 +128,26 @@ impl Stitcher {
         } else {
             Push::Appended(dy)
         }
+    }
+
+    /// A frame that differs from the last in under half its rows was not scrolled: those rows move by themselves.
+    fn moved_in_place(&mut self, frame: &Frame, hash: u64) -> Push {
+        let Some(prev) = self.prev.as_ref() else {
+            return Push::NoOverlap;
+        };
+        let changed: Vec<usize> = (0..frame.height)
+            .filter(|&y| prev.row(y) != frame.row(y))
+            .collect();
+        if changed.len() * 2 >= frame.height {
+            return Push::NoOverlap;
+        }
+        self.moving.resize(frame.height, false);
+        for y in changed {
+            self.moving[y] = true;
+        }
+        self.prev = Some(frame.clone());
+        self.prev_hash = hash;
+        Push::Duplicate
     }
 
     fn seed(&mut self, frame: &Frame) -> Push {

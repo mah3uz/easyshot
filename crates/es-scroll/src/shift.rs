@@ -51,6 +51,11 @@ fn ncc(a: &[f64], b: &[f64]) -> f64 {
 }
 
 pub fn shift(prev: &Frame, next: &Frame, ex: Exclusions) -> Option<usize> {
+    shift_masked(prev, next, ex, &[])
+}
+
+/// `moving` marks the frame rows whose content changes in place, which are left out of the match.
+pub fn shift_masked(prev: &Frame, next: &Frame, ex: Exclusions, moving: &[bool]) -> Option<usize> {
     if prev.width != next.width || prev.height != next.height {
         return None;
     }
@@ -65,9 +70,23 @@ pub fn shift(prev: &Frame, next: &Frame, ex: Exclusions) -> Option<usize> {
         let mean = v.iter().sum::<f64>() / v.len() as f64;
         v.iter_mut().for_each(|x| *x -= mean);
     }
+    let still = |y: usize| !moving.get(ex.top + y).copied().unwrap_or(false);
     let mut best = (MIN_NCC, None);
     for dy in 0..=len - min_overlap {
-        let r = ncc(&p[dy * bands..], &n[..(len - dy) * bands]);
+        let rows: Vec<usize> = (0..len - dy)
+            .filter(|&y| still(y) && still(y + dy))
+            .collect();
+        if rows.len() < min_overlap {
+            continue;
+        }
+        let r = if rows.len() == len - dy {
+            ncc(&p[dy * bands..], &n[..(len - dy) * bands])
+        } else {
+            let band = |v: &[f64], y: usize| v[y * bands..(y + 1) * bands].to_vec();
+            let a: Vec<f64> = rows.iter().flat_map(|&y| band(&p, y + dy)).collect();
+            let b: Vec<f64> = rows.iter().flat_map(|&y| band(&n, y)).collect();
+            ncc(&a, &b)
+        };
         if r > best.0 {
             best = (r, Some(dy));
         }

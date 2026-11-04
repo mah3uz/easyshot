@@ -1,0 +1,27 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>easyshot-scroll-page</title>
+<style>
+body { margin: 0; font: 16px/1.5 sans-serif; background: #fff; color: #222; }
+p { margin: 0 20px; padding: 4px 0; border-bottom: 1px solid #ddd; }
+#anim { position: fixed; left: 150px; top: 200px; width: 300px; height: 200px;
+  background: linear-gradient(90deg, #e33, #33e, #3c3); display: none; }
+.on #anim { display: block; animation: slide 0.7s linear infinite alternate; }
+@keyframes slide { from { transform: translateX(0) rotate(0deg); } to { transform: translateX(250px) rotate(30deg); } }
+</style></head>
+<body>
+<div id="anim"></div>
+<div id="lines"></div>
+<script>
+const q = new URLSearchParams(location.search);
+if (q.get('anim') === '1') document.body.classList.add('on');
+const lines = document.getElementById('lines');
+for (let i = 0; i < 2000; i++) {
+  const p = document.createElement('p');
+  p.textContent = `Line ${i} ` + 'lorem ipsum dolor sit amet '.repeat((i * 7) % 5 + 1) + (i * 2654435761 % 100000);
+  p.style.color = `hsl(${(i * 37) % 360} 60% 35%)`;
+  lines.appendChild(p);
+}
+const step = +(q.get('step') || 0), every = +(q.get('every') || 100), wait = +(q.get('wait') || 0);
+if (step) setTimeout(() => setInterval(() => window.scrollBy({ top: step, behavior: 'smooth' }), every), wait);
+</script>
+</body></html>

@@ -1,5 +1,6 @@
 use es_scroll::{
     AutoScrollStop, Frame, Push, Settle, SettleStep, Stitcher, auto_scroll_step, frame_hash,
+    still_hash,
 };
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::time::{Duration, Instant};
@@ -51,12 +52,12 @@ pub struct Params {
     pub max_height: usize,
 }
 
-/// Grabs until two frames in a row are the same, or gives the last one when the area never settles.
-pub fn settled(src: &mut dyn Source) -> Option<Frame> {
+/// Grabs until two frames in a row are the same outside the `moving` rows, or gives the last one when the area never settles.
+pub fn settled(src: &mut dyn Source, moving: &[bool]) -> Option<Frame> {
     let mut settle = Settle::new();
     loop {
         let frame = src.grab()?;
-        match settle.observe(frame_hash(&frame)) {
+        match settle.observe(still_hash(&frame, moving)) {
             SettleStep::Settled | SettleStep::GaveUp => return Some(frame),
             SettleStep::Retry(d) => src.sleep(d),
         }
@@ -154,7 +155,7 @@ impl Session<'_> {
 
     /// One last settled frame, which may add less than the usual minimum.
     fn finish_with(mut self, src: &mut dyn Source) -> Outcome {
-        if let Some(frame) = settled(src) {
+        if let Some(frame) = settled(src, self.stitcher.moving()) {
             self.push(&frame, true);
         }
         self.finish()
@@ -174,11 +175,15 @@ pub fn run(
         params,
         emit,
     };
-    let Some(first) = settled(src) else {
+    let Some(first) = settled(src, &[]) else {
         return Outcome::Failed;
     };
     if session.push(&first, false) == Push::Full {
         return session.finish();
+    }
+    // Auto-scroll only pushes scrolled frames, so an unscrolled one has to show which rows animate by themselves.
+    if let Some(still) = src.grab() {
+        session.push(&still, false);
     }
     let mut auto = false;
     let mut stop = AutoScrollStop::new();
@@ -208,7 +213,8 @@ pub fn run(
                 continue;
             }
             pace.sent(clicks);
-            let push = settled(src).map_or(Push::NoOverlap, |f| session.push(&f, false));
+            let push = settled(src, session.stitcher.moving())
+                .map_or(Push::NoOverlap, |f| session.push(&f, false));
             pace.observe(push);
             if push != Push::Full && stop.record(matches!(push, Push::Appended(_))) {
                 return session.finish_with(src);
@@ -229,7 +235,8 @@ pub fn run(
                 session.push(&frame, false)
             } else if moved.is_some_and(|t| now.duration_since(t) >= QUIET) {
                 moved = None;
-                settled(src).map_or(Push::NoOverlap, |f| session.push(&f, false))
+                settled(src, session.stitcher.moving())
+                    .map_or(Push::NoOverlap, |f| session.push(&f, false))
             } else {
                 continue;
             }

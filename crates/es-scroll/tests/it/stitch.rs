@@ -218,3 +218,58 @@ fn banded_document_scrolled_to_its_end() {
     assert_eq!(st.push(&window(&page, 300, 300)), Push::Duplicate);
     assert_eq!(st.finish().unwrap(), page);
 }
+
+fn animate(frame: &mut Frame, rows: std::ops::Range<usize>, seed: u64) {
+    let mut rng = Rng(seed);
+    for y in rows {
+        let shade = rng.next();
+        for x in 0..frame.width {
+            let i = (y * frame.width + x) * 4;
+            let v = shade.wrapping_add((x * 3) as u8);
+            frame.data[i..i + 4].copy_from_slice(&[v, 255 - v, v / 2, 255]);
+        }
+    }
+}
+
+// A web page's animation stays on the same screen rows while the page scrolls under it.
+#[test]
+fn an_animation_fixed_on_screen_does_not_stop_the_page_from_stitching() {
+    let page = noise_page(200, 1400, 9);
+    let mut st = Stitcher::new();
+    let steps = [
+        (0, Push::Appended(200)),
+        (0, Push::Duplicate),
+        (60, Push::Appended(60)),
+        (130, Push::Appended(70)),
+        (190, Push::Appended(60)),
+    ];
+    for (i, (off, want)) in steps.into_iter().enumerate() {
+        let mut f = window(&page, off, 200);
+        animate(&mut f, 50..110, 100 + i as u64);
+        assert_eq!(st.push(&f), want, "step {i}, offset {off}");
+    }
+    assert_eq!(st.height(), 390);
+    let canvas = st.image().unwrap();
+    let s = page.width * 4;
+    assert!(
+        canvas.data[300 * s..390 * s] == page.data[300 * s..390 * s]
+            && canvas.data[..50 * s] == page.data[..50 * s],
+        "the rows clear of the animation are the page's own"
+    );
+}
+
+#[test]
+fn an_animation_alone_is_not_a_scroll() {
+    let page = noise_page(200, 400, 10);
+    let mut st = Stitcher::new();
+    for i in 0..3 {
+        let mut f = window(&page, 0, 200);
+        animate(&mut f, 50..110, 200 + i);
+        let r = st.push(&f);
+        assert!(
+            matches!(r, Push::Appended(200) | Push::Duplicate),
+            "frame {i}: {r:?}"
+        );
+    }
+    assert_eq!(st.height(), 200);
+}

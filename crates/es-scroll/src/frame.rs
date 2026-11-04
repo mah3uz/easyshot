@@ -36,3 +36,19 @@ pub fn frame_hash(frame: &Frame) -> u64 {
     }
     h
 }
+
+/// The hash of the rows not marked in `skip`, so content that animates in place does not keep a frame from settling.
+pub fn still_hash(frame: &Frame, skip: &[bool]) -> u64 {
+    if !skip.contains(&true) {
+        return frame_hash(frame);
+    }
+    let mut still = Frame {
+        width: frame.width,
+        height: frame.height,
+        data: Vec::with_capacity(frame.data.len()),
+    };
+    for y in (0..frame.height).filter(|&y| !skip.get(y).copied().unwrap_or(false)) {
+        still.data.extend_from_slice(frame.row(y));
+    }
+    frame_hash(&still)
+}
