@@ -86,14 +86,65 @@ fn differs(a: &image::Rgba<u8>, b: &image::Rgba<u8>) -> bool {
     a.0.iter().zip(b.0).any(|(x, y)| x.abs_diff(y) > 8)
 }
 
-/// Of the pixels the bar covered, how many still differ from the empty screen.
-fn bar_pixels(empty: &image::RgbaImage, bar: &image::RgbaImage, now: &image::RgbaImage) -> usize {
-    empty
-        .pixels()
-        .zip(bar.pixels())
-        .zip(now.pixels())
-        .filter(|((e, b), n)| differs(e, b) && differs(e, n))
+// The compositor's control tool is reached through the harness, which owns every compositor-specific call.
+fn compositor_ctl(what: &str) -> serde_json::Value {
+    let harness = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/harness/hypr.sh");
+    let out = Command::new("bash")
+        .arg(harness)
+        .args(["ctl", what, "-j"])
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "harness ctl {what}");
+    serde_json::from_slice(&out.stdout).unwrap()
+}
+
+/// The bar's layer surface in the output's pixels, so the session's own panels changing on the
+/// output are not taken for the bar.
+fn bar_rect() -> Option<[u32; 4]> {
+    let monitors = compositor_ctl("monitors");
+    let monitor = monitors.as_array()?.iter().find(|m| m["name"] == OUTPUT)?;
+    let layers = compositor_ctl("layers");
+    let surface = layers[OUTPUT]["levels"]
+        .as_object()?
+        .values()
+        .filter_map(|level| level.as_array())
+        .flatten()
+        .find(|l| l["namespace"] == "easyshot-bar")?;
+    let num = |v: &serde_json::Value| v.as_f64();
+    let scale = num(&monitor["scale"])?;
+    let px = |v: f64| (v * scale).round() as u32;
+    Some([
+        px(num(&surface["x"])? - num(&monitor["x"])?),
+        px(num(&surface["y"])? - num(&monitor["y"])?),
+        px(num(&surface["w"])?),
+        px(num(&surface["h"])?),
+    ])
+}
+
+/// Of the pixels the bar covered, how many differ between `before` and `now`.
+fn bar_pixels(
+    [x, y, w, h]: [u32; 4],
+    empty: &image::RgbaImage,
+    bar: &image::RgbaImage,
+    before: &image::RgbaImage,
+    now: &image::RgbaImage,
+) -> usize {
+    let at = |i: &image::RgbaImage, px, py| *i.get_pixel(px, py);
+    let (right, bottom) = ((x + w).min(empty.width()), (y + h).min(empty.height()));
+    (y..bottom)
+        .flat_map(|py| (x..right).map(move |px| (px, py)))
+        .filter(|&(px, py)| {
+            differs(&at(empty, px, py), &at(bar, px, py))
+                && differs(&at(before, px, py), &at(now, px, py))
+        })
         .count()
+}
+
+fn escape() {
+    gdbus(
+        &format!("{}.Inject", es_protocol::TEST_INTERFACE),
+        &[r#"[{"type":"key","keystroke":"escape"}]"#],
+    );
 }
 
 // Runs inside tests/harness/hypr.sh, whose only output is easyshot-test, under the session's own
@@ -120,21 +171,28 @@ fn platform_hypr_the_frozen_frame_after_the_bar_closes_has_no_bar_in_it() {
     sleep(Duration::from_millis(500));
     let empty = screen(root, "empty");
 
+    // The selector dims the frozen frame, so it is compared with the empty screen seen through it.
+    assert!(command("capture/region").is_some(), "{}", log());
+    sleep(Duration::from_millis(1500));
+    let selector = screen(root, "selector");
+    escape();
+    sleep(Duration::from_millis(1000));
+
     assert!(command("capture-bar").is_some(), "{}", log());
     sleep(Duration::from_millis(1500));
     let bar = screen(root, "bar");
-    let covered = bar_pixels(&empty, &bar, &bar);
+    let rect = bar_rect().unwrap_or_else(|| panic!("no easyshot-bar layer:\n{}", log()));
+    eprintln!("bar at {rect:?}");
+    let covered = bar_pixels(rect, &empty, &bar, &empty, &bar);
     assert!(covered > 20_000, "no bar on screen ({covered}):\n{}", log());
 
     // The same path as Area on the bar: the capture closes the bar, waits, then freezes the screen.
     assert!(command("capture/region").is_some(), "{}", log());
     sleep(Duration::from_millis(1500));
     let frozen = screen(root, "frozen");
-    let left = bar_pixels(&empty, &bar, &frozen);
-    gdbus(
-        &format!("{}.Inject", es_protocol::TEST_INTERFACE),
-        &[r#"[{"type":"key","keystroke":"escape"}]"#],
-    );
+    let left = bar_pixels(rect, &empty, &bar, &selector, &frozen);
+    escape();
+    eprintln!("{left} of the bar's {covered} pixels are in the frozen frame");
     assert!(
         left < covered / 100,
         "{left} of the bar's {covered} pixels are in the frozen frame:\n{}",
