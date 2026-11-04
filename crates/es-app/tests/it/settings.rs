@@ -171,3 +171,38 @@ fn breaking_the_file_keeps_the_last_good_config_and_is_never_overwritten(cx: &mu
         [SettingsEvent::Changed(_)]
     ));
 }
+
+fn unknown_events(log: &Log) -> Vec<Vec<String>> {
+    log.borrow()
+        .iter()
+        .filter_map(|e| match e {
+            SettingsEvent::UnknownKeys(keys) => Some(keys.iter().map(|k| k.path.clone()).collect()),
+            _ => None,
+        })
+        .collect()
+}
+
+#[gpui::test]
+fn unknown_keys_are_reported_once_per_changed_set(cx: &mut TestAppContext) {
+    let (_dir, path) = config_path();
+    std::fs::write(&path, "oops = 1\n").unwrap();
+    let (model, log) = model(cx, &path);
+    model.update(cx, |m, cx| m.report_unknown(cx));
+    model.update(cx, |m, cx| m.report_unknown(cx));
+    assert_eq!(unknown_events(&log), vec![vec!["oops".to_owned()]]);
+
+    model.update(cx, |m, cx| m.reload(cx));
+    assert_eq!(unknown_events(&log).len(), 1);
+
+    std::fs::write(&path, "oops = 1\nalso = 2\n").unwrap();
+    model.update(cx, |m, cx| m.reload(cx));
+    assert_eq!(unknown_events(&log).len(), 2);
+    assert_eq!(unknown_events(&log)[1], vec!["oops", "also"]);
+
+    std::fs::write(&path, "[general]\nplay_sound = true\n").unwrap();
+    model.update(cx, |m, cx| m.reload(cx));
+    assert_eq!(unknown_events(&log).len(), 2);
+    std::fs::write(&path, "oops = 1\n").unwrap();
+    model.update(cx, |m, cx| m.reload(cx));
+    assert_eq!(unknown_events(&log).len(), 3);
+}

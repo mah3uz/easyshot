@@ -217,6 +217,7 @@ More in the manual: [Recording](MANUAL.md#recording).
 - Has Home, General, Capture, Overlay, Recording, Shortcuts, Agents and About pages.
 - Applies every change at once and saves it to `config.toml`.
 - Applies edits you make to `config.toml` by hand while easyshot runs.
+- Shows a toast naming keys in `config.toml` that easyshot does not know, such as a misspelt one.
 - Keeps the last good settings and shows the line and column if the file has an error.
 - Shows the capture buttons with their keys, your five latest captures and a Setup list on Home.
 - Saves screenshots automatically unless you turn that off; Capture Region & Save still writes a file.

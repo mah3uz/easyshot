@@ -398,6 +398,11 @@ good settings and tells you the line and column. It does not write to the file w
 error is there, so changes made in Settings stay until you quit; fix the file and its
 contents apply again.
 
+A key that easyshot does not know, such as a misspelt one, is ignored and left in the file.
+When the file is loaded or edited, a toast names up to three such keys with their lines, and
+how many more there are. It shows once for each change in the set of unknown keys, not on
+every save.
+
 Home shows the capture buttons with their keys, your five most recent captures, and Setup:
 a list of what your compositor and installed tools offer, such as the selection overlay,
 window capture, recording and text recognition.

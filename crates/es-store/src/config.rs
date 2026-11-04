@@ -2,14 +2,21 @@ use crate::atomic::write_atomic;
 use crate::error::{Error, Result, io};
 use es_model::Config;
 use std::path::{Path, PathBuf};
-use toml_edit::{DocumentMut, Item, Table, Value};
+use toml_edit::{Document, DocumentMut, Item, Table, Value};
 
 pub const CURRENT_CONFIG_VERSION: u32 = 1;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnknownKey {
+    pub path: String,
+    pub line: Option<usize>,
+}
 
 pub struct ConfigFile {
     path: PathBuf,
     config: Config,
     doc: DocumentMut,
+    unknown: Vec<UnknownKey>,
     error: Option<Error>,
     newer: Option<u32>,
 }
@@ -21,20 +28,33 @@ fn line_col(text: &str, offset: usize) -> (usize, usize) {
     (line, col)
 }
 
-fn parse(text: &str) -> Result<(Config, DocumentMut)> {
+type Parsed = (Config, DocumentMut, Vec<UnknownKey>);
+
+fn parse(text: &str) -> Result<Parsed> {
     let at = |span: Option<std::ops::Range<usize>>, message: String| {
         let (line, col) = line_col(text, span.map_or(0, |s| s.start));
         Error::Parse { line, col, message }
     };
-    let doc = text
-        .parse::<DocumentMut>()
-        .map_err(|e| at(e.span(), e.message().to_owned()))?;
+    let doc = Document::parse(text.to_owned()).map_err(|e| at(e.span(), e.message().to_owned()))?;
     let config =
         toml::from_str::<Config>(text).map_err(|e| at(e.span(), e.message().to_owned()))?;
-    Ok((config, doc))
+    let unknown = find_unknown(&doc, &config, text);
+    Ok((config, doc.into_mut(), unknown))
 }
 
-fn unknown_keys(doc: &Table, known: &Table, prefix: &str, out: &mut Vec<String>) {
+fn find_unknown(doc: &Document<String>, config: &Config, text: &str) -> Vec<UnknownKey> {
+    let Ok(known) = toml::to_string(config)
+        .map_err(|_| ())
+        .and_then(|s| s.parse::<DocumentMut>().map_err(|_| ()))
+    else {
+        return Vec::new();
+    };
+    let mut keys = Vec::new();
+    unknown_keys(doc.as_table(), known.as_table(), "", text, &mut keys);
+    keys
+}
+
+fn unknown_keys(doc: &Table, known: &Table, prefix: &str, text: &str, out: &mut Vec<UnknownKey>) {
     for (key, item) in doc {
         let path = if prefix.is_empty() {
             key.to_owned()
@@ -42,8 +62,14 @@ fn unknown_keys(doc: &Table, known: &Table, prefix: &str, out: &mut Vec<String>)
             format!("{prefix}.{key}")
         };
         match (item, known.get(key)) {
-            (_, None) => out.push(path),
-            (Item::Table(d), Some(Item::Table(k))) => unknown_keys(d, k, &path, out),
+            (_, None) => {
+                let line = doc
+                    .key(key)
+                    .and_then(|k| k.span())
+                    .map(|span| line_col(text, span.start).0);
+                out.push(UnknownKey { path, line });
+            }
+            (Item::Table(d), Some(Item::Table(k))) => unknown_keys(d, k, &path, text, out),
             _ => {}
         }
     }
@@ -91,6 +117,7 @@ impl ConfigFile {
             path: path.to_path_buf(),
             config: Config::default(),
             doc: DocumentMut::new(),
+            unknown: Vec::new(),
             error: None,
             newer: None,
         };
@@ -112,6 +139,11 @@ impl ConfigFile {
         self.error.as_ref()
     }
 
+    /// Keys in the file that easyshot does not know; they stay in the file untouched.
+    pub fn unknown_keys(&self) -> &[UnknownKey] {
+        &self.unknown
+    }
+
     pub fn newer_version(&self) -> Option<u32> {
         self.newer
     }
@@ -124,8 +156,11 @@ impl ConfigFile {
             Err(e) => return Err(io(&self.path)(e)),
         };
         match parse(&text) {
-            Ok((config, doc)) => {
-                self.warn_unknown(&doc, &config);
+            Ok((config, doc, unknown)) => {
+                for key in &unknown {
+                    tracing::warn!(key = key.path, "unknown config key kept");
+                }
+                self.unknown = unknown;
                 let changed = config != self.config || self.error.is_some();
                 self.newer = (config.config_version > CURRENT_CONFIG_VERSION)
                     .then_some(config.config_version);
@@ -146,20 +181,6 @@ impl ConfigFile {
                 self.error = Some(copy);
                 Err(e)
             }
-        }
-    }
-
-    fn warn_unknown(&self, doc: &DocumentMut, config: &Config) {
-        let Ok(known) = toml::to_string(config)
-            .map_err(|_| ())
-            .and_then(|s| s.parse::<DocumentMut>().map_err(|_| ()))
-        else {
-            return;
-        };
-        let mut keys = Vec::new();
-        unknown_keys(doc.as_table(), known.as_table(), "", &mut keys);
-        for key in keys {
-            tracing::warn!(key, "unknown config key kept");
         }
     }
 

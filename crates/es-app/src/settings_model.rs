@@ -1,7 +1,9 @@
 use crate::errors::{Error, Result};
+use crate::fl;
+use crate::toast::Toast;
 use bitflags::bitflags;
 use es_model::Config;
-use es_store::{ConfigFile, FileWatcher};
+use es_store::{ConfigFile, FileWatcher, UnknownKey};
 use gpui::{Context, EventEmitter, Task};
 use std::sync::Arc;
 use std::time::Duration;
@@ -44,6 +46,36 @@ impl SectionMask {
     }
 }
 
+const LISTED_KEYS: usize = 3;
+
+/// Names the first few keys with their lines and counts the rest.
+pub fn unknown_keys_toast(keys: &[UnknownKey]) -> Toast {
+    let mut listed: Vec<String> = keys
+        .iter()
+        .take(LISTED_KEYS)
+        .map(|k| match k.line {
+            Some(line) => fl!(
+                "toast-settings-unknown-key",
+                key = k.path.as_str(),
+                line = line
+            ),
+            None => k.path.clone(),
+        })
+        .collect();
+    if keys.len() > LISTED_KEYS {
+        listed.push(fl!(
+            "toast-settings-unknown-more",
+            more = i64::try_from(keys.len() - LISTED_KEYS).unwrap_or(0)
+        ));
+    }
+    let id = if keys.len() == 1 {
+        "toast-settings-unknown-one"
+    } else {
+        "toast-settings-unknown-many"
+    };
+    Toast::error(id).arg("keys", listed.join(", "))
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SettingsEvent {
     Changed(SectionMask),
@@ -53,11 +85,13 @@ pub enum SettingsEvent {
         message: String,
     },
     SaveFailed(String),
+    UnknownKeys(Vec<UnknownKey>),
 }
 
 pub struct SettingsModel {
     config: Arc<Config>,
     file: ConfigFile,
+    reported_unknown: Vec<String>,
     save: Option<Task<()>>,
     _watcher: Option<FileWatcher>,
 }
@@ -71,6 +105,7 @@ impl SettingsModel {
         Self {
             config,
             file,
+            reported_unknown: Vec::new(),
             save: None,
             _watcher: None,
         }
@@ -131,6 +166,24 @@ impl SettingsModel {
             Err(error) => {
                 tracing::warn!(%error, "config reload failed");
             }
+        }
+        self.report_unknown(cx);
+    }
+
+    /// Emits `UnknownKeys` when the file's unknown keys differ from the last ones reported.
+    pub fn report_unknown(&mut self, cx: &mut Context<Self>) {
+        if self.file.error().is_some() {
+            return;
+        }
+        let unknown = self.file.unknown_keys();
+        let names: Vec<String> = unknown.iter().map(|k| k.path.clone()).collect();
+        if names == self.reported_unknown {
+            return;
+        }
+        let keys = unknown.to_vec();
+        self.reported_unknown = names;
+        if !keys.is_empty() {
+            cx.emit(SettingsEvent::UnknownKeys(keys));
         }
     }
 

@@ -147,3 +147,40 @@ fn watcher_sees_an_atomic_replace() {
     es_store::atomic::write_atomic(&path, b"a = 2\n").unwrap();
     rx.recv_timeout(Duration::from_secs(5)).unwrap();
 }
+
+#[test]
+fn unknown_keys_are_reported_with_their_lines_and_nested_paths() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write(
+        dir.path(),
+        "compositor = \"x\"\n[general]\nsave_dir = \"/tmp\"\nplay_sond = true\n\n[after_capture.screenshot]\nsave = true\n",
+    );
+    let file = ConfigFile::load(&path).unwrap();
+    let found: Vec<_> = file
+        .unknown_keys()
+        .iter()
+        .map(|k| (k.path.as_str(), k.line))
+        .collect();
+    assert_eq!(
+        found,
+        vec![
+            ("compositor", Some(1)),
+            ("general.play_sond", Some(4)),
+            ("after_capture.screenshot.save", Some(7)),
+        ]
+    );
+}
+
+#[test]
+fn a_clean_file_and_an_unset_optional_key_report_nothing_and_unknown_keys_stay_on_save() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = write(dir.path(), "[general]\nsave_dir = \"/tmp/shots\"\n");
+    assert!(ConfigFile::load(&path).unwrap().unknown_keys().is_empty());
+
+    let path = write(dir.path(), "typo = 1\n");
+    let mut file = ConfigFile::load(&path).unwrap();
+    let mut cfg = file.config().clone();
+    cfg.general.play_sound = false;
+    file.save(&cfg).unwrap();
+    assert!(std::fs::read_to_string(&path).unwrap().contains("typo = 1"));
+}

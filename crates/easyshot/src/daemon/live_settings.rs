@@ -1,6 +1,6 @@
 use es_app::deck::{Deck, DeckPolicy};
 use es_app::history::History;
-use es_app::settings_model::{SectionMask, SettingsEvent, SettingsModel};
+use es_app::settings_model::{SectionMask, SettingsEvent, SettingsModel, unknown_keys_toast};
 use es_app::toast::{Toast, show_toast};
 use es_overlays::deck::view::{DeckSettings, DeckSurface};
 use gpui::{App, Entity, Subscription};
@@ -14,7 +14,7 @@ pub(super) fn install(
     cx: &mut App,
 ) -> Subscription {
     let (deck, deck_surface, history) = (deck.clone(), deck_surface.clone(), history.clone());
-    cx.subscribe(settings, move |settings, event, cx| match event {
+    let subscription = cx.subscribe(settings, move |settings, event, cx| match event {
         SettingsEvent::Changed(mask) => {
             let cfg = settings.read(cx).config().clone();
             if mask.intersects(SectionMask::OVERLAY | SectionMask::CAPTURE) {
@@ -44,5 +44,8 @@ pub(super) fn install(
             Toast::error("toast-settings-save-failed").arg("error", error.clone()),
             cx,
         ),
-    })
+        SettingsEvent::UnknownKeys(keys) => show_toast(unknown_keys_toast(keys), cx),
+    });
+    settings.update(cx, |s, cx| s.report_unknown(cx));
+    subscription
 }

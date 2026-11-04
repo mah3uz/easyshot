@@ -180,3 +180,42 @@ fn a_failed_save_raises_a_toast_with_settings_closed(cx: &mut TestAppContext) {
     wait_until(cx, "the toast", |_| !sink.shown().is_empty());
     assert_eq!(sink.shown()[0].title, "Couldn’t save settings");
 }
+
+#[gpui::test]
+fn unknown_keys_raise_one_toast_naming_them_per_changed_set(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    let sink = MemorySink::new();
+    cx.update(|cx| install_toasts(sink.clone(), Arc::new(Silent), cx));
+    let file = rig.paths.config_file();
+
+    std::fs::write(&file, "compositor = \"x\"\n[general]\nhistory_limit = 5\n").unwrap();
+    wait_until(cx, "the toast", |_| !sink.shown().is_empty());
+    let shown = sink.shown();
+    assert_eq!(shown[0].title, "Unknown setting in config.toml");
+    assert!(
+        shown[0]
+            .message
+            .as_deref()
+            .is_some_and(|m| m.contains("compositor (line 1)"))
+    );
+
+    std::fs::write(&file, "compositor = \"x\"\n[general]\nhistory_limit = 6\n").unwrap();
+    wait_until(cx, "the edit to apply", |cx| history_limit(&rig, cx) == 6);
+    settle(cx);
+    assert_eq!(sink.shown().len(), 1);
+
+    std::fs::write(&file, "a = 1\nb = 2\nc = 3\nd = 4\ne = 5\n").unwrap();
+    wait_until(cx, "the second toast", |_| sink.shown().len() == 2);
+    let shown = sink.shown();
+    assert_eq!(shown[1].title, "Unknown settings in config.toml");
+    let message = shown[1].message.clone().unwrap();
+    assert!(
+        message.contains("a (line 1), b (line 2), c (line 3), and 2 more"),
+        "{message}"
+    );
+
+    std::fs::write(&file, "[general]\nhistory_limit = 8\n").unwrap();
+    wait_until(cx, "the edit to apply", |cx| history_limit(&rig, cx) == 8);
+    settle(cx);
+    assert_eq!(sink.shown().len(), 2);
+}

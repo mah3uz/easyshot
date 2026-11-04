@@ -433,6 +433,7 @@ impl SettingsWindow {
                 });
             }
             SettingsEvent::SaveFailed(error) => self.save_failed = Some(error.clone()),
+            SettingsEvent::UnknownKeys(_) => {}
         }
         cx.notify();
     }

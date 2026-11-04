@@ -25,7 +25,7 @@ pub mod wallpapers;
 pub mod watch;
 
 pub use commit::{Commit, Reopened, commit, commit_new, reopen};
-pub use config::ConfigFile;
+pub use config::{ConfigFile, UnknownKey};
 pub use deck::{Deck, StageRequest};
 pub use error::{Error, Result};
 pub use export::ExportFormat;
