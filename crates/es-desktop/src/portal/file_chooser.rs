@@ -2,7 +2,7 @@ use super::portal_error;
 use crate::bus::connect;
 use crate::dbus::Endpoint;
 use crate::{Error, FilePicker, OpenRequest, Result, SaveRequest};
-use ashpd::desktop::file_chooser::SelectedFiles;
+use ashpd::desktop::file_chooser::{FileFilter, SelectedFiles};
 use futures::future::BoxFuture;
 use std::path::PathBuf;
 
@@ -70,9 +70,17 @@ impl FilePicker for PortalFilePicker {
         let endpoint = self.endpoint.clone();
         Box::pin(async move {
             let conn = connect(&endpoint).await?;
-            let request = SelectedFiles::open_file()
+            let mut chooser = SelectedFiles::open_file()
                 .title(req.title.as_str())
-                .multiple(req.multiple)
+                .multiple(req.multiple);
+            if let Some(filter) = &req.filter {
+                let built = filter
+                    .mime_types
+                    .iter()
+                    .fold(FileFilter::new(&filter.label), |f, m| f.mimetype(m));
+                chooser = chooser.filter(built);
+            }
+            let request = chooser
                 .current_folder::<PathBuf>(req.dir.clone())
                 .map_err(portal_error)?
                 .connection(Some(conn))

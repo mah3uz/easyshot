@@ -14,9 +14,9 @@ use es_editor::{EditorSession, EditorSource, EditorWindow};
 use es_model::platform::OutputInfo;
 use es_overlays::record::bar::{BAR, BarEvent};
 use es_overlays::record::placement;
-use es_protocol::{Route, SettingsPage};
+use es_protocol::{ArgValue, PATH_ARG, Route, RouteArgs, SettingsPage};
 use es_shell::gallery::{GalleryEvent, GalleryFiles};
-use es_shell::home::{self, HomeDeps, HomeWindow, Tab};
+use es_shell::home::{self, HomeDeps, HomeEvent, HomeWindow, OpenPicker, Tab};
 use es_shell::onboarding::{self, Onboarding, OnboardingEvent, OnboardingInput};
 use es_shell::settings::{self, SettingsDeps, SettingsWindowEvent};
 use es_store::Paths;
@@ -56,6 +56,7 @@ pub struct Wiring {
     home: RefCell<Option<WeakEntity<HomeWindow>>>,
     recoveries: RefCell<HashMap<PathBuf, PathBuf>>,
     wallpaper: RefCell<Option<Rc<dyn WallpaperChooser>>>,
+    open_picker: RefCell<Option<OpenPicker>>,
 }
 
 struct Handle(AnyWindowHandle);
@@ -120,6 +121,7 @@ impl Wiring {
             home: RefCell::default(),
             recoveries: RefCell::default(),
             wallpaper: RefCell::default(),
+            open_picker: RefCell::default(),
         })
     }
 
@@ -130,6 +132,10 @@ impl Wiring {
 
     pub fn set_wallpaper_chooser(&self, chooser: Rc<dyn WallpaperChooser>) {
         *self.wallpaper.borrow_mut() = Some(chooser);
+    }
+
+    pub fn set_open_picker(&self, picker: OpenPicker) {
+        *self.open_picker.borrow_mut() = Some(picker);
     }
 
     pub fn set_bar_sources(&self, sources: BarSources) {
@@ -259,6 +265,7 @@ fn open_home(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>> {
             version: env!("EASYSHOT_VERSION").to_owned(),
             input_access: Rc::new(es_record::input::system_access),
         },
+        open_picker: w.open_picker.borrow().clone(),
     };
     let window = opened(home::open(deps, cx))?;
     let view = window
@@ -295,6 +302,11 @@ fn open_home(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>> {
             },
         )
         .detach();
+        let on_home = w.clone();
+        cx.subscribe(&view, move |_, event: &HomeEvent, cx| match event {
+            HomeEvent::Open(file) => open_file(&on_home, file, cx),
+        })
+        .detach();
         let on_gallery = w.clone();
         cx.subscribe(&gallery, move |_, event: &GalleryEvent, cx| match event {
             GalleryEvent::Open(file) if es_store::media::is_video(file) => {
@@ -310,6 +322,19 @@ fn open_home(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>> {
         .detach();
     }
     Ok(handle(window))
+}
+
+pub(super) fn open_file(w: &Rc<Wiring>, file: &Path, cx: &mut App) {
+    let mut args = RouteArgs::default();
+    args.0
+        .insert(PATH_ARG.to_owned(), ArgValue::Path(file.to_owned()));
+    match Route::parse("open", &args) {
+        Ok(route) => w.dispatch(route, cx),
+        Err(e) => {
+            tracing::info!(error = %e, file = %file.display(), "not an image or video");
+            es_app::toast::show_toast(es_app::toast::Toast::error("toast-open-unsupported"), cx);
+        }
+    }
 }
 
 fn choose_save_folder(w: &Rc<Wiring>, cx: &mut App) {

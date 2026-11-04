@@ -378,6 +378,8 @@ fn start(
     wiring.register();
     if test_mode {
         wiring.set_wallpaper_chooser(Rc::new(pickers::Declining));
+    } else if backend.caps.contains(es_backend::Caps::FILE_PICKER) {
+        wiring.set_open_picker(pickers::open_picker(backend.clone()));
     }
     wiring.set_bar_sources(bar::BarSources {
         windows: {

@@ -171,6 +171,9 @@ More in the manual: [The editor](MANUAL.md#the-editor) and [Editor keys](MANUAL.
 - Opens on the gallery from `easyshot gallery` or the tray's Media Gallery.
 - Opens on Settings from `easyshot settings`, the tray's Settings or an `easyshot://settings` link, and on a named page if you give one.
 - Brings the one Home window to the front when you open it again.
+- Has an Open… button that picks an image or video from anywhere on your computer: images open in the editor, videos in the trim viewer.
+- Opens an image or video you drop onto the window.
+- Offers Easyshot in your file manager's Open with for PNG, JPEG, GIF, MP4, WebM, MKV and MOV files, and `easyshot open FILE` does the same.
 - Keeps a history of captures with search, sorting, icon and list views, and a trash.
 - Keeps 100 history entries by default.
 - Lists recordings in the gallery under Videos and All Media: unsaved ones, saved ones and trim exports, each with a first-frame thumbnail, a play badge and its length when known.

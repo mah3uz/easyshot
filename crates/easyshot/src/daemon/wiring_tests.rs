@@ -1,7 +1,7 @@
 use super::bar::{BarSources, NoAudio, devices_from, new_bar};
 use super::pickers::{Declining, declining_folder_picker};
 use super::reopen_recovered;
-use super::windows::{Wiring, onboarding_input, open_practice};
+use super::windows::{Wiring, onboarding_input, open_file, open_practice};
 use es_app::capture_coordinator::CaptureCoordinator;
 use es_app::deck::{Deck, DeckPolicy};
 use es_app::dispatcher::{Action, RouteDispatcher};
@@ -281,6 +281,41 @@ fn open_route_gives_one_editor_per_file(cx: &mut TestAppContext) {
     open(&rig, Route::Open(b), cx);
     assert_eq!(rig.wiring.editor_count(), 2);
     assert_eq!(cx.update(|cx| cx.windows().len()), 2);
+}
+
+#[gpui::test]
+fn a_file_picked_in_home_opens_in_an_editor(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    let file = rig.dir.path().join("picked.png");
+    png(&file);
+    let picked = file.clone();
+    rig.wiring
+        .set_open_picker(Rc::new(move |_| gpui::Task::ready(Some(picked.clone()))));
+    open(&rig, Route::Home, cx);
+    let home = rig.wiring.home().unwrap();
+    cx.update(|cx| home.update(cx, |h, cx| h.choose_file(cx)));
+    cx.run_until_parked();
+    assert!(is_open(
+        &rig,
+        WindowKind::Editor,
+        &WindowKey::Path(file),
+        cx
+    ));
+}
+
+#[gpui::test]
+fn an_unsupported_file_raises_a_toast_and_opens_nothing(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    let file = rig.dir.path().join("notes.txt");
+    std::fs::write(&file, "hello").unwrap();
+    let sink = MemorySink::new();
+    cx.update(|cx| install_toasts(sink.clone(), Arc::new(Silent), cx));
+    cx.update(|cx| open_file(&rig.wiring, &file, cx));
+    cx.run_until_parked();
+    assert_eq!(rig.wiring.editor_count(), 0);
+    let shown = sink.shown();
+    assert_eq!(shown.len(), 1);
+    assert_eq!(shown[0].title, "Can’t open that file");
 }
 
 #[gpui::test]

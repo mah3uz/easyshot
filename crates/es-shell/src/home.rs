@@ -5,15 +5,18 @@ use es_app::history::History;
 use es_store::Paths;
 use es_ui::{
     a11y::{Accessible, Role},
-    components::{Segment, Segmented},
+    components::{ButtonKind, EditorButton, Segment, Segmented},
+    icons::IconName,
     theme::{UI_FONT, tokens},
 };
 use gpui::{
-    App, AppContext, Context, Entity, Focusable, InteractiveElement, IntoElement, ParentElement,
-    Render, Styled, TitlebarOptions, Window, WindowBounds, WindowHandle, WindowOptions, div, px,
-    size,
+    App, AppContext, Context, Entity, EventEmitter, ExternalPaths, Focusable, InteractiveElement,
+    IntoElement, ParentElement, Render, Styled, Task, TitlebarOptions, Window, WindowBounds,
+    WindowHandle, WindowOptions, div, px, size,
 };
 use gpui_component::Root;
+use std::path::PathBuf;
+use std::rc::Rc;
 use std::sync::Arc;
 
 pub const WINDOW_SIZE: (f32, f32) = (1080., 740.);
@@ -38,11 +41,19 @@ impl Tab {
     }
 }
 
+/// Asks for one image or video file; `None` when the user cancels.
+pub type OpenPicker = Rc<dyn Fn(&mut App) -> Task<Option<PathBuf>>>;
+
+pub enum HomeEvent {
+    Open(PathBuf),
+}
+
 pub struct HomeDeps {
     pub history: Entity<History>,
     pub paths: Paths,
     pub files: Arc<dyn GalleryFiles>,
     pub settings: SettingsDeps,
+    pub open_picker: Option<OpenPicker>,
 }
 
 pub struct HomeWindow {
@@ -50,7 +61,10 @@ pub struct HomeWindow {
     gallery: Entity<Gallery>,
     settings: Entity<SettingsWindow>,
     focus_gallery: bool,
+    open_picker: Option<OpenPicker>,
 }
+
+impl EventEmitter<HomeEvent> for HomeWindow {}
 
 impl HomeWindow {
     pub fn new(deps: HomeDeps, window: &mut Window, cx: &mut Context<Self>) -> Self {
@@ -61,6 +75,26 @@ impl HomeWindow {
             gallery,
             settings,
             focus_gallery: true,
+            open_picker: deps.open_picker,
+        }
+    }
+
+    pub fn choose_file(&mut self, cx: &mut Context<Self>) {
+        let Some(picker) = self.open_picker.clone() else {
+            return;
+        };
+        let picked = picker(cx);
+        cx.spawn(async move |this, cx| {
+            if let Some(file) = picked.await {
+                let _ = this.update(cx, |_, cx| cx.emit(HomeEvent::Open(file)));
+            }
+        })
+        .detach();
+    }
+
+    pub fn drop_files(&mut self, files: &ExternalPaths, cx: &mut Context<Self>) {
+        if let Some(file) = files.paths().first() {
+            cx.emit(HomeEvent::Open(file.clone()));
         }
     }
 
@@ -100,11 +134,29 @@ impl HomeWindow {
         )
         .selected(Tab::ALL.iter().position(|t| *t == self.tab).unwrap_or(0))
         .height(px(28.))
-        .on_select(move |index, _, cx| {
-            let tab = Tab::ALL.get(index).copied().unwrap_or(Tab::Gallery);
-            let _ = view.update(cx, |this, cx| this.show(tab, cx));
+        .on_select({
+            let view = view.clone();
+            move |index, _, cx| {
+                let tab = Tab::ALL.get(index).copied().unwrap_or(Tab::Gallery);
+                let _ = view.update(cx, |this, cx| this.show(tab, cx));
+            }
+        });
+        let open = self.open_picker.is_some().then(|| {
+            div().absolute().right(px(12.)).child(
+                EditorButton::new("home-open")
+                    .icon(IconName::FolderOpen)
+                    .label(fl!("home-window-open"))
+                    .tooltip(fl!("home-window-open-tip"))
+                    .kind(ButtonKind::Bordered)
+                    .on_click({
+                        move |_, _, cx| {
+                            let _ = view.update(cx, |this, cx| this.choose_file(cx));
+                        }
+                    }),
+            )
         });
         div()
+            .relative()
             .flex()
             .flex_none()
             .items_center()
@@ -114,6 +166,7 @@ impl HomeWindow {
             .border_b_1()
             .border_color(t.border)
             .child(div().w(px(SWITCHER_WIDTH)).child(switcher))
+            .children(open)
     }
 }
 
@@ -134,6 +187,7 @@ impl Render for HomeWindow {
             .font_family(UI_FONT)
             .bg(t.window)
             .text_color(t.text)
+            .on_drop(cx.listener(|this, files: &ExternalPaths, _, cx| this.drop_files(files, cx)))
             .child(self.tab_bar(cx))
             .child(
                 div()

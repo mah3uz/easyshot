@@ -1,7 +1,8 @@
 use super::windows::FolderPicker;
 use es_backend::Backend;
-use es_desktop::{FilePicker, SaveRequest};
+use es_desktop::{FilePicker, OpenFilter, OpenRequest, SaveRequest};
 use es_editor::session::io::{ChooseRequest, ExportChooser};
+use es_shell::home::OpenPicker;
 use es_store::naming::{exists, unique_path};
 use gpui::{App, PathPromptOptions, Task};
 use std::path::PathBuf;
@@ -69,6 +70,36 @@ pub fn folder_picker() -> FolderPicker {
     })
 }
 
+const OPEN_MIME_TYPES: [&str; 7] = [
+    "image/png",
+    "image/jpeg",
+    "image/gif",
+    "video/mp4",
+    "video/webm",
+    "video/x-matroska",
+    "video/quicktime",
+];
+
+pub fn open_picker(backend: Arc<Backend>) -> OpenPicker {
+    Rc::new(move |cx| {
+        let strings = es_app::strings::loader();
+        let Some(files) = backend.files.as_deref() else {
+            return Task::ready(None);
+        };
+        let asked = files.open(OpenRequest {
+            title: strings.get("picker-open-title"),
+            multiple: false,
+            dir: None,
+            filter: Some(OpenFilter {
+                label: strings.get("picker-open-filter"),
+                mime_types: OPEN_MIME_TYPES.iter().map(|m| (*m).to_owned()).collect(),
+            }),
+        });
+        cx.background_executor()
+            .spawn(async move { asked.await.ok()?.into_iter().next() })
+    })
+}
+
 pub fn declining_folder_picker() -> FolderPicker {
     Rc::new(|_| Task::ready(None))
 }
@@ -88,10 +119,7 @@ mod tests {
             let path = self.0.clone();
             Box::pin(async move { Ok(Some(path)) })
         }
-        fn open(
-            &self,
-            _: es_desktop::OpenRequest,
-        ) -> BoxFuture<'static, es_desktop::Result<Vec<PathBuf>>> {
+        fn open(&self, _: OpenRequest) -> BoxFuture<'static, es_desktop::Result<Vec<PathBuf>>> {
             Box::pin(async { Ok(Vec::new()) })
         }
     }

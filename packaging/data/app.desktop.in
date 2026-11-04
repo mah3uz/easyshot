@@ -2,8 +2,9 @@
 Type=Application
 Name=Easyshot
 Comment=Screenshots, annotation and screen recording
-Exec=easyshot
+Exec=easyshot open %f
 Icon=@APP_ID@
 Terminal=false
 Categories=Utility;Graphics;
+MimeType=image/png;image/jpeg;image/gif;video/mp4;video/webm;video/x-matroska;video/quicktime;
 StartupNotify=false

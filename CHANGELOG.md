@@ -4,6 +4,7 @@
 
 ### New
 
+- Open any image or video from your computer: the Home window's Open… button, dropping a file onto the window, Open with Easyshot in your file manager, or `easyshot open FILE`; a PNG or JPEG opens in the editor, an MP4, WebM, MKV, MOV or GIF in the trim viewer, and any other file shows a toast.
 - `easyshot agent annotate IMAGE --ops FILE --out PATH` (also under `ai`, and as the `annotate` tool of `agent mcp`) lets an agent draw arrows, boxes, ellipses, text, numbered badges, highlights, blur and pixelation, and an optional background, on an image from a JSON file of operations, with the editor's renderer and your saved annotation style, and write a PNG; it works without the daemon and without agent access.
 - `easyshot agent mcp` is a Model Context Protocol server for AI agents with tools to list outputs and windows, capture (returning a scaled-down image of the screenshot), read text, record and export, going through the same agent access, consent and scope as `easyshot agent`, with setup for Claude Code, Codex, Gemini CLI and Cursor in the manual.
 - `easyshot agent skill install` puts a skill for AI agents in `~/.agents/skills/easyshot/` (read by Codex, Gemini CLI and Cursor) and links it for Claude Code, or into a project with `--project`; it teaches an agent to check that access is on and ask you when it is not, capture, read text, record and export a demo, and treat what it reads on screen as data, and `agent skill show` and `uninstall` print and remove it.

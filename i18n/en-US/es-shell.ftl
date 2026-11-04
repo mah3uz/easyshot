@@ -522,6 +522,8 @@ home-window-title = { -app-name }
 home-window-tabs = Sections
 home-window-gallery = Media Gallery
 home-window-settings = Settings
+home-window-open = Open…
+home-window-open-tip = Open an image or video from your computer
 
 ## Onboarding
 onboarding-step1-title = Capture anything on your screen

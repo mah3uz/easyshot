@@ -38,10 +38,11 @@ pub enum Command {
         #[arg(value_parser = PageParser)]
         page: Option<SettingsPage>,
     },
-    /// Open an image file in the editor, or handle an easyshot:// URL
+    /// Open an image in the editor or a video in the trim viewer, or handle an easyshot:// URL;
+    /// with nothing, open the Home window
     Open {
         #[arg(add = ArgValueCompleter::new(crate::complete::open_target))]
-        target: String,
+        target: Option<String>,
     },
     /// Edit the image on the clipboard
     EditClipboard,
@@ -208,7 +209,10 @@ impl Cli {
             Command::CaptureBar => Request::Route(Route::CaptureBar),
             Command::Gallery => Request::Route(Route::Gallery),
             Command::Settings { page } => Request::Route(Route::Settings(*page)),
-            Command::Open { target } => Request::Route(open_route(target)?),
+            Command::Open {
+                target: Some(target),
+            } => Request::Route(open_route(target)?),
+            Command::Open { target: None } => Request::Route(Route::Home),
             Command::EditClipboard => Request::Route(Route::EditClipboard),
             Command::Deck { action } => Request::Route(match action {
                 DeckAction::Toggle => Route::DeckToggle,
@@ -395,17 +399,44 @@ mod tests {
         assert!(request(&["bogus"]).is_err());
     }
 
-    #[test]
-    fn the_launcher_entry_opens_home() {
+    fn launcher_entry() -> (&'static str, Vec<&'static str>) {
         let entry = include_str!("../../../packaging/data/app.desktop.in");
         let exec = entry
             .lines()
             .find_map(|l| l.strip_prefix("Exec="))
             .expect("an Exec line");
         let mut words = exec.split_whitespace();
-        assert_eq!(words.next(), Some("easyshot"));
-        let args: Vec<&str> = words.collect();
+        let program = words.next().expect("a program");
+        (program, words.collect())
+    }
+
+    #[test]
+    fn the_launcher_entry_opens_home() {
+        let (program, args) = launcher_entry();
+        assert_eq!(program, "easyshot");
+        let args: Vec<&str> = args.into_iter().filter(|a| !a.starts_with('%')).collect();
         assert_eq!(route(&args), Route::Home);
+    }
+
+    #[test]
+    fn the_launcher_entry_takes_one_file_and_lists_images_and_videos() {
+        let (_, args) = launcher_entry();
+        assert_eq!(args, ["open", "%f"]);
+        let entry = include_str!("../../../packaging/data/app.desktop.in");
+        let mimes = entry
+            .lines()
+            .find_map(|l| l.strip_prefix("MimeType="))
+            .expect("a MimeType line");
+        for mime in [
+            "image/png",
+            "image/jpeg",
+            "video/mp4",
+            "video/webm",
+            "video/x-matroska",
+            "video/quicktime",
+        ] {
+            assert!(mimes.split(';').any(|m| m == mime), "{mime}");
+        }
     }
 
     #[test]

@@ -136,6 +136,13 @@ pub struct OpenRequest {
     pub title: String,
     pub multiple: bool,
     pub dir: Option<PathBuf>,
+    pub filter: Option<OpenFilter>,
+}
+
+#[derive(Debug, Clone)]
+pub struct OpenFilter {
+    pub label: String,
+    pub mime_types: Vec<String>,
 }
 
 pub trait FilePicker: Send + Sync {

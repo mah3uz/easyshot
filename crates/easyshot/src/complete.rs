@@ -3,7 +3,7 @@ use es_protocol::Route;
 use std::ffi::OsStr;
 use std::path::Path;
 
-const IMAGE_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg"];
+const OPEN_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "mp4", "webm", "mkv", "mov", "gif"];
 
 pub fn open_target(current: &OsStr) -> Vec<CompletionCandidate> {
     let Some(current) = current.to_str() else {
@@ -79,7 +79,7 @@ fn image_paths(current: &str) -> Vec<String> {
             let path = entry.path();
             if path.is_dir() {
                 Some(format!("{dir}{name}/"))
-            } else if is_image(&path) {
+            } else if is_openable(&path) {
                 Some(format!("{dir}{name}"))
             } else {
                 None
@@ -90,10 +90,10 @@ fn image_paths(current: &str) -> Vec<String> {
     found
 }
 
-fn is_image(path: &Path) -> bool {
+fn is_openable(path: &Path) -> bool {
     path.extension()
         .and_then(OsStr::to_str)
-        .is_some_and(|e| IMAGE_EXTENSIONS.iter().any(|x| e.eq_ignore_ascii_case(x)))
+        .is_some_and(|e| OPEN_EXTENSIONS.iter().any(|x| e.eq_ignore_ascii_case(x)))
 }
 
 #[cfg(test)]

@@ -45,7 +45,7 @@ starting for your user only, run `systemctl --user mask --now easyshot.service`;
 `disable` does not override the package's enable for all users. `systemctl --user unmask
 easyshot.service` undoes it. Without the package, the first command you run starts the daemon
 through D-Bus activation, and `systemctl --user enable --now easyshot.service` keeps it
-running for the whole session. The package installs a desktop entry (Easyshot in your application menu opens the Home window) and registers
+running for the whole session. The package installs a desktop entry (Easyshot in your application menu opens the Home window, and your file manager offers it for PNG, JPEG, GIF, MP4, WebM, MKV and MOV files) and registers
 `easyshot://` links, which open through `easyshot open`.
 
 easyshot cannot register global keyboard shortcuts for you on Hyprland or wlroots
@@ -295,6 +295,19 @@ Gallery open it on the gallery; `easyshot settings [page]`, the tray's Settings 
 only one Home window: opening it again brings it to the front and switches to the tab you
 asked for, or keeps the tab it shows when you asked for none.
 
+### Opening a file
+
+Easyshot opens a file from anywhere on your computer: a PNG or JPEG opens in the editor,
+and an MP4, WebM, MKV, MOV or GIF opens in the trim viewer. Three ways in:
+
+- the Open… button at the right of the Home window's header, which asks for a file in your
+  desktop's file chooser (images and videos only; the button is missing when the desktop
+  has no file chooser portal);
+- dropping a file onto the Home window (with several, the first opens);
+- Open with Easyshot in your file manager, or `easyshot open <file>`.
+
+Any other file raises a toast, "Can’t open that file", and nothing opens.
+
 ## History and gallery
 
 Captures are kept in a history with retention, search, sorting, icon and list views, and a
@@ -451,7 +464,8 @@ with no command opens the Home window, and `easyshot --help` lists the commands.
 Ctrl+C to cancel. If the daemon is not running, easyshot tries to start it; if that fails
 it tells you to run `easyshot daemon` or `systemctl --user start easyshot.service`.
 `easyshot open <url>` handles `easyshot://` links; `easyshot open <file>` opens a PNG or
-JPEG in the editor.
+JPEG in the editor and an MP4, WebM, MKV, MOV or GIF in the trim viewer, and fails for any
+other file; `easyshot open` alone opens the Home window.
 
 Exit codes: 0 done, 1 error, 2 cancelled, 3 the daemon is not running or went away.
 

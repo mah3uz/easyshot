@@ -57,9 +57,12 @@ static URL_ROUTES: &[(&str, Route)] = &[
 ];
 
 const URL_SCHEME: &str = "easyshot";
-const IMAGE_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg"];
+const OPEN_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "mp4", "webm", "mkv", "mov", "gif"];
 const PNG_MAGIC: &[u8] = &[0x89, b'P', b'N', b'G'];
 const JPEG_MAGIC: &[u8] = &[0xFF, 0xD8, 0xFF];
+const GIF_MAGIC: &[u8] = b"GIF8";
+const MATROSKA_MAGIC: &[u8] = &[0x1A, 0x45, 0xDF, 0xA3];
+const ISO_BASE_BRAND_AT: usize = 4;
 
 impl SettingsPage {
     pub const ALL: [SettingsPage; 8] = [
@@ -237,12 +240,12 @@ impl Route {
             return Err(bad("path is empty"));
         }
         let canonical = path.canonicalize().map_err(|e| bad(&e.to_string()))?;
-        if !has_image_extension(&canonical) {
-            return Err(bad("not a PNG or JPEG image"));
+        if !has_openable_extension(&canonical) {
+            return Err(bad("not a PNG or JPEG image or a video"));
         }
         let mut file = open_regular(&canonical).ok_or_else(|| bad("not a regular file"))?;
-        if !has_image_magic(&mut file) {
-            return Err(bad("not a PNG or JPEG image"));
+        if !has_openable_magic(&mut file) {
+            return Err(bad("not a PNG or JPEG image or a video"));
         }
         Ok(Route::Open(canonical))
     }
@@ -263,16 +266,23 @@ impl fmt::Display for Route {
     }
 }
 
-fn has_image_extension(path: &Path) -> bool {
+fn has_openable_extension(path: &Path) -> bool {
     path.extension()
         .and_then(|e| e.to_str())
-        .is_some_and(|e| IMAGE_EXTENSIONS.iter().any(|x| e.eq_ignore_ascii_case(x)))
+        .is_some_and(|e| OPEN_EXTENSIONS.iter().any(|x| e.eq_ignore_ascii_case(x)))
 }
 
-fn has_image_magic(file: &mut std::fs::File) -> bool {
-    let mut head = [0u8; 4];
+fn has_openable_magic(file: &mut std::fs::File) -> bool {
+    let mut head = [0u8; 8];
     let n = file.read(&mut head).unwrap_or(0);
-    head[..n].starts_with(PNG_MAGIC) || head[..n].starts_with(JPEG_MAGIC)
+    let head = &head[..n];
+    head.starts_with(PNG_MAGIC)
+        || head.starts_with(JPEG_MAGIC)
+        || head.starts_with(GIF_MAGIC)
+        || head.starts_with(MATROSKA_MAGIC)
+        || head
+            .get(ISO_BASE_BRAND_AT..)
+            .is_some_and(|b| b.starts_with(b"ftyp"))
 }
 
 #[cfg(test)]
@@ -440,6 +450,27 @@ mod tests {
             );
         }
         assert!(Route::parse("open", &path_args(&mismatch)).is_ok());
+    }
+
+    #[test]
+    fn open_accepts_videos_by_extension_and_container() {
+        let dir = tempfile::tempdir().unwrap();
+        let heads: [(&str, &[u8]); 5] = [
+            ("a.mp4", b"\0\0\0\x18ftypmp42"),
+            ("b.MOV", b"\0\0\0\x14ftypqt  "),
+            ("c.webm", &[0x1A, 0x45, 0xDF, 0xA3, 0x9F]),
+            ("d.mkv", &[0x1A, 0x45, 0xDF, 0xA3, 0x9F]),
+            ("e.gif", b"GIF89a"),
+        ];
+        for (name, head) in heads {
+            let file = dir.path().join(name);
+            std::fs::write(&file, head).unwrap();
+            let r = Route::parse("open", &path_args(&file)).unwrap();
+            assert_eq!(r, Route::Open(file.canonicalize().unwrap()), "{name}");
+        }
+        let fake = dir.path().join("f.mp4");
+        std::fs::write(&fake, b"not a video at all").unwrap();
+        assert!(Route::parse("open", &path_args(&fake)).is_err());
     }
 
     #[test]
