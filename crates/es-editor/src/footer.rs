@@ -2,6 +2,7 @@ use es_ui::{
     a11y::{Accessible, Role},
     components::{EditorButton, IconButton, ZoomCapsule},
     icons::IconName,
+    motion::{NOTICE_EXPAND, since_change},
     theme::tokens,
     tokens::Typeset,
 };
@@ -9,6 +10,8 @@ use gpui::{
     AnyElement, Context, InteractiveElement, IntoElement, ParentElement, Styled, Window, div,
     prelude::FluentBuilder, px,
 };
+
+const NOTICE_SHIFT: gpui::Pixels = px(8.);
 
 use crate::strings::fl;
 use crate::window::{
@@ -21,6 +24,7 @@ impl EditorWindow {
         let ready = self.session().is_some();
         let low_res = self.low_res && ready;
         let expanded = self.low_res_expanded;
+        let open = since_change("low-res-open", expanded, NOTICE_EXPAND, window, cx);
         let this = cx.entity().downgrade();
         div()
             .id("footer")
@@ -50,10 +54,14 @@ impl EditorWindow {
                         }),
                     ),
                 )
-                .when(expanded, |d| {
+                .when(expanded || open < 1., |d| {
+                    let shown = if expanded { open } else { 1. - open };
                     d.child(
                         div()
                             .id("low-res-text")
+                            .relative()
+                            .left(-NOTICE_SHIFT * (1. - shown))
+                            .opacity(shown)
                             .text_color(t.text_secondary)
                             .typeset(t.type_scale.label)
                             .accessible(Role::Note, fl!("editor-lowres-text"))

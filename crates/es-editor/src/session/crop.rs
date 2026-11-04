@@ -26,6 +26,10 @@ pub enum CropEvent {
     Ended,
     /// The image was cropped; the rectangle is where the kept region sat in the canvas element.
     Applied(Rect),
+    /// Reset or an aspect change moved the crop; the rectangle is where it was, in image pixels.
+    Reshaped(Rect),
+    /// Crop mode ended without cropping; the rectangle is where the crop was, in image pixels.
+    Cancelled(Rect),
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -113,23 +117,29 @@ impl CropModel {
     }
 
     pub fn cancel(&mut self, cx: &mut Context<Self>) {
-        if self.state.take().is_some() {
+        if let Some(state) = self.state.take() {
             self.drag = None;
+            cx.emit(CropEvent::Cancelled(state.rect()));
             cx.emit(CropEvent::Ended);
             cx.notify();
         }
     }
 
     pub fn reset(&mut self, cx: &mut Context<Self>) {
-        if let Some(s) = self.state.as_mut() {
-            s.reset();
-            cx.notify();
-        }
+        self.reshape(cx, CropState::reset);
     }
 
     pub fn set_aspect(&mut self, aspect: AspectPreset, cx: &mut Context<Self>) {
+        self.reshape(cx, |s| s.set_aspect(aspect));
+    }
+
+    fn reshape(&mut self, cx: &mut Context<Self>, f: impl FnOnce(&mut CropState)) {
         if let Some(s) = self.state.as_mut() {
-            s.set_aspect(aspect);
+            let from = s.rect();
+            f(s);
+            if s.rect() != from {
+                cx.emit(CropEvent::Reshaped(from));
+            }
             cx.notify();
         }
     }

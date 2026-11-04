@@ -88,6 +88,12 @@ is a fast start that settles softly, `cubic-bezier(.2, .8, .2, 1)`.
 |---|---|---|
 | Editor: after Crop, the kept region grows from the crop rectangle to fill the view | `CROP_COMMIT` | 220 ms, snappy |
 | Editor: a preset, or a canvas shape, draws its padding, corners, shadow and shape into place | `PRESET_APPLY` | 200 ms, snappy |
+| Editor: crop Reset, or an aspect change, eases the crop frame from where it was to its new place | `CROP_RESHAPE` | 180 ms, snappy |
+| Editor: cancelling a crop widens the frame to the whole image as the frame and the dimming fade | `CROP_COMMIT` | 220 ms, snappy |
+| Editor: the Progressive Blur Direction row opens and closes with the Directional mode, dropping 8 px into place as it fades | `SECTION_EXPAND` | 180 ms, snappy |
+| Editor: the low-resolution notice slides 8 px in from the left as it fades in, and back out as it fades | `NOTICE_EXPAND` | 220 ms, snappy |
+| Editor: a preset's delete button grows from 82 % as it fades in, and shrinks away as it fades | `BUTTON_POP`, `BUTTON_POP_SCALE` | 180 ms, snappy |
+| Editor: the focus pad's knob grows from 10 to 12 px as a drag starts, and a double-click glides it back to the centre | `KNOB_GROW`, `SETTLE` | 120 ms, 180 ms, snappy |
 | Editor: picking an alignment slides the card to its new place | `SETTLE` | 180 ms, snappy |
 | Editor: switching the fill library, or the wallpaper source, fades the new swatches in | `FILL_SWITCH` | 160 ms, snappy |
 | Deck: a card's picture fades in over "Loading preview…", and "Saving…" fades in and out | `CROSSFADE` | 150 ms, ease-out |
@@ -104,6 +110,9 @@ is a fast start that settles softly, `cubic-bezier(.2, .8, .2, 1)`.
 | Countdown: after the last second the dial shrinks to 82 % and fades out | `COUNTDOWN_OUT` | 300 ms, snappy |
 | Editor: Saved and Copied fade in, hold, and fade out at the end of the hold; the button they replaced fades back | `FLASH`, `FLASH_HOLD` | 200 ms snappy fades, 1.4 s hold |
 | Tooltips open after a rest, and at once while you move straight on | `TOOLTIP_DELAY`, `TOOLTIP_WARM` | 160 ms, 500 ms |
+
+Tooltips open where the pointer is, not anchored to their control, so one tooltip cannot glide
+from control to control; each opens on its own, at once while warm.
 
 The countdown's entry stands in for a spring (0.42 s response, 0.78 damping), which settles in
 about the same time with no visible overshoot; elements have no blur filter, so the entry

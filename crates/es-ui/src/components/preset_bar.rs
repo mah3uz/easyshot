@@ -16,9 +16,11 @@ use crate::{
     components::{
         IconButton,
         button::{Interaction, focus_ring, keyed_focus, shows_focus},
+        icon_button,
     },
     fl,
     icons::IconName,
+    motion::{BUTTON_POP, BUTTON_POP_SCALE, tween},
     theme::tokens,
     tokens::Typeset,
 };
@@ -264,14 +266,40 @@ impl RenderOnce for PresetBar {
                 .into_any_element()
         };
 
-        let delete = applied.zip(self.on_delete).map(|(index, on_delete)| {
+        let deletable = applied.zip(self.on_delete);
+        let last_label = window.use_keyed_state((self.id.clone(), "delete"), cx, |_, _| {
+            SharedString::default()
+        });
+        if let Some((index, _)) = deletable {
             let label = fl!(
                 "panels-presets-delete",
                 name = self.presets[index].to_string()
             );
-            IconButton::new("delete", IconName::Trash, label)
+            last_label.update(cx, |l, _| *l = label.into());
+        }
+        let shown = tween(
+            (self.id.clone(), "delete"),
+            if deletable.is_some() { 1. } else { 0. },
+            BUTTON_POP,
+            window,
+            cx,
+        );
+        let delete = (shown > 0.).then(|| {
+            let scale = BUTTON_POP_SCALE + (1. - BUTTON_POP_SCALE) * shown;
+            let button = IconButton::new("delete", IconName::Trash, last_label.read(cx).clone())
+                .size(icon_button::SIZE * scale, icon_button::GLYPH * scale)
                 .disabled(self.disabled)
-                .on_click(move |_, window, cx| on_delete(index, window, cx))
+                .when_some(deletable, |b, (index, on_delete)| {
+                    b.on_click(move |_, window, cx| on_delete(index, window, cx))
+                });
+            div()
+                .flex_none()
+                .size(icon_button::SIZE)
+                .flex()
+                .items_center()
+                .justify_center()
+                .opacity(shown)
+                .child(button)
         });
         let add = IconButton::new("add", IconName::Plus, fl!("panels-presets-add"))
             .disabled(self.disabled)

@@ -89,6 +89,13 @@ pub const FILL_SWITCH: Transition = fades(160, Easing::Snappy);
 pub const SETTLE: Transition = moves(180, Easing::Snappy);
 pub const PRESET_APPLY: Transition = moves(200, Easing::Snappy);
 pub const CROP_COMMIT: Transition = moves(220, Easing::Snappy);
+
+pub const CROP_RESHAPE: Transition = moves(180, Easing::Snappy);
+pub const KNOB_GROW: Transition = moves(120, Easing::Snappy);
+pub const BUTTON_POP: Transition = moves(180, Easing::Snappy);
+pub const BUTTON_POP_SCALE: f32 = 0.82;
+pub const NOTICE_EXPAND: Transition = moves(220, Easing::Snappy);
+
 pub const PAGE_CHANGE: Transition = moves(180, Easing::EaseOut);
 pub const PAGE_RISE: Pixels = px(8.);
 pub const STEP_CHANGE: Transition = moves(200, Easing::EaseOut);
@@ -389,6 +396,9 @@ mod tests {
             !CROSSFADE.plays(true) && !FILL_SWITCH.plays(true) && !COMPOSITE_FADE.plays(true),
             "a cross-fade over 120 ms is too long to keep"
         );
+        for t in [CROP_RESHAPE, KNOB_GROW, BUTTON_POP, NOTICE_EXPAND] {
+            assert!(!t.plays(true), "{t:?} moves, so Reduce Motion skips it");
+        }
         for t in [POPOVER_OPEN, TOAST_IN, TOAST_OUT, SECTION_EXPAND, FLASH] {
             assert!(t.plays(false));
         }

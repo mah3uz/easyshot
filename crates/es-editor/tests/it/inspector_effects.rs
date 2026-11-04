@@ -435,3 +435,39 @@ fn screenshots_camera_and_blur() {
     shoot(ThemeMode::Light, "inspector-effects-light", false);
     shoot(ThemeMode::Dark, "inspector-effects-scrub", true);
 }
+
+fn fresh(rig: &mut Rig, name: &str) -> image::RgbaImage {
+    let handle = rig.app.window.into();
+    rig.app
+        .cx
+        .update_window(handle, |_, window, _| window.refresh())
+        .unwrap();
+    rig.app.screenshot(name)
+}
+
+#[test]
+fn the_direction_row_opens_with_a_directional_blur_and_closes_without_it() {
+    use es_ui::motion::SECTION_EXPAND;
+    let mut look = BackgroundSettings::default();
+    look.progressive_blur.is_enabled = true;
+    let mut rig = rig(ThemeMode::Light, look);
+    rig.app
+        .cx
+        .update(|cx| es_ui::motion::set_reduce_motion(false, cx));
+    let mode = blur_bounds(&mut rig, BlurControl::Mode).unwrap();
+    for (side, what) in [(0.75, "open"), (0.25, "close")] {
+        click(
+            &mut rig,
+            point(mode.left() + mode.size.width * side, mode.center().y),
+        );
+        let start = fresh(&mut rig, &format!("blur-direction-{what}-0-start"));
+        rig.app.cx.advance_clock(SECTION_EXPAND.duration / 3);
+        let mid = fresh(&mut rig, &format!("blur-direction-{what}-1-mid"));
+        rig.app.cx.advance_clock(SECTION_EXPAND.duration);
+        let end = fresh(&mut rig, &format!("blur-direction-{what}-2-end"));
+        assert!(
+            start != mid && mid != end,
+            "the Direction row moves to {what}"
+        );
+    }
+}

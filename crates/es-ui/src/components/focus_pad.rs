@@ -12,6 +12,7 @@ use crate::{
     a11y::{Accessible, Role},
     components::button::{Interaction, focus_halo, keyed_focus, shows_focus},
     fl,
+    motion::{Clocked, KNOB_GROW, SETTLE, tween},
     theme::tokens,
 };
 
@@ -28,6 +29,7 @@ pub const CENTRE: Point<f32> = Point { x: 0.5, y: 0.5 };
 struct Drag {
     dragging: bool,
     bounds: Bounds<Pixels>,
+    recentre: Option<(Point<f32>, Clocked)>,
 }
 
 fn unit_at(bounds: Bounds<Pixels>, at: Point<Pixels>) -> Point<f32> {
@@ -116,7 +118,26 @@ impl RenderOnce for FocusPad {
         let drag = window.use_keyed_state(self.id.clone(), cx, |_, _| Drag::default());
         let dragging = drag.read(cx).dragging || self.preview == Interaction::Pressed;
         let position = self.position;
-        let knob = if dragging { KNOB_DRAGGING } else { KNOB };
+        let knob = px(tween(
+            (self.id.clone(), "knob"),
+            f32::from(if dragging { KNOB_DRAGGING } else { KNOB }),
+            KNOB_GROW,
+            window,
+            cx,
+        ));
+        let shown = match drag.read(cx).recentre {
+            Some((from, clocked)) => {
+                let t = clocked.progress(window, cx);
+                if t >= 1. {
+                    drag.update(cx, |d, _| d.recentre = None);
+                }
+                point(
+                    from.x + (position.x - from.x) * t,
+                    from.y + (position.y - from.y) * t,
+                )
+            }
+            None => position,
+        };
         let (rest_fill, hover_fill) = (t.text.opacity(0.035), t.text.opacity(0.055));
         let fill = match self.preview {
             Interaction::Hover | Interaction::Pressed => hover_fill,
@@ -178,8 +199,8 @@ impl RenderOnce for FocusPad {
 
         let knob_el = div()
             .absolute()
-            .left(gpui::relative(position.x))
-            .top(gpui::relative(position.y))
+            .left(gpui::relative(shown.x))
+            .top(gpui::relative(shown.y))
             .ml(-knob / 2.)
             .mt(-knob / 2.)
             .size(knob)
@@ -231,8 +252,12 @@ impl RenderOnce for FocusPad {
                         } else {
                             unit_at(bounds, event.position)
                         };
+                        let recentre = event.click_count >= 2;
                         drag.update(cx, |d, cx| {
-                            d.dragging = event.click_count < 2;
+                            d.dragging = !recentre;
+                            d.recentre = recentre
+                                .then(|| Clocked::start(SETTLE, cx).map(|c| (position, c)))
+                                .flatten();
                             cx.notify();
                         });
                         pressing(at, window, cx);

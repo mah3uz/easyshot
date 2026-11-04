@@ -14,8 +14,8 @@ use crate::{
     theme::tokens,
 };
 
-const SIZE: Pixels = px(28.);
-const GLYPH: Pixels = px(14.);
+pub(crate) const SIZE: Pixels = px(28.);
+pub(crate) const GLYPH: Pixels = px(14.);
 
 /// A round, borderless glyph button for panel accessories, where a full editor button would be too loud.
 #[derive(IntoElement)]

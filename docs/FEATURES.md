@@ -126,7 +126,7 @@ More in the manual: [Pinned screenshots](MANUAL.md#pinned-screenshots).
 - Hold Alt while cropping to resize about the centre.
 - Locks a crop to Freeform, Original, 1:1, 16:9, 9:16, 4:3 or 3:2.
 - Shows the size the cropped image will have in the footer.
-- Apply a crop with Enter or Crop; leave with Escape, Cancel or the crop button; Reset returns to the whole image.
+- Apply a crop with Enter or Crop; leave with Escape, Cancel or the crop button; Reset returns to the whole image. Reset, a new aspect and Cancel ease the crop frame into place.
 - Rotates and flips from the menu beside the crop button.
 - Moves annotations with the pixels under them when you crop, rotate or flip.
 - Undoes crop, rotate and flip, keeping the last 16 image steps.
@@ -137,7 +137,7 @@ More in the manual: [Pinned screenshots](MANUAL.md#pinned-screenshots).
 - Tilts and rolls the picture in 3D, with lens, zoom, pan and card rotation.
 - Keeps the picture sharp, as it will export, while you drag a camera or blur slider.
 - Blurs the screenshot or the whole scene around a round or band-shaped sharp area, with Progressive Blur.
-- Moves the sharp area by dragging its focus pad, and centres it with a double-click.
+- Moves the sharp area by dragging its focus pad, and centres it with a double-click, gliding the knob home.
 - Changes a slider by dragging anywhere on it or typing a value.
 - Adds a border and a watermark.
 - Applies presets of image settings.

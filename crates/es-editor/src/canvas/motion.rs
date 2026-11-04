@@ -1,10 +1,11 @@
 use super::underlay::Morph;
 use super::{EditorCanvas, effects};
 use crate::session::viewport::ViewMath;
+use es_anno::crop::CropState;
 use es_geom::{Point, Rect};
 use es_model::BackgroundSettings;
 use es_render::beautify::{Layout, layout};
-use es_ui::motion::{CROP_COMMIT, Clocked, Transition};
+use es_ui::motion::{CROP_COMMIT, CROP_RESHAPE, Clocked, Transition};
 use gpui::{Context, Window};
 
 enum Shift {
@@ -21,6 +22,20 @@ pub(super) struct CanvasMotion {
     shift: Shift,
 }
 
+/// The crop frame easing from `from` (image pixels) to the crop, or to `leaving` as it fades out.
+pub(super) struct CropMotion {
+    clocked: Clocked,
+    from: Rect,
+    leaving: Option<CropState>,
+}
+
+/// The crop a frame draws, where it is drawn, and how opaque.
+pub(super) struct CropShown {
+    pub state: CropState,
+    pub rect: Rect,
+    pub alpha: f32,
+}
+
 /// What a frame draws: the view, and the look part of the way along when it is changing.
 pub(super) struct Shown {
     pub math: ViewMath,
@@ -35,6 +50,66 @@ impl EditorCanvas {
             shift: Shift::View { from },
         });
         cx.notify();
+    }
+
+    /// With `leaving`, crop mode has ended and the frame widens to it while it fades.
+    pub(super) fn crop_reshaped(
+        &mut self,
+        from: Rect,
+        leaving: Option<CropState>,
+        cx: &mut Context<Self>,
+    ) {
+        let transition = if leaving.is_some() {
+            CROP_COMMIT
+        } else {
+            CROP_RESHAPE
+        };
+        self.crop_motion = Clocked::start(transition, cx).map(|clocked| CropMotion {
+            clocked,
+            from,
+            leaving,
+        });
+        cx.notify();
+    }
+
+    pub(super) fn crop_shown(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Option<CropShown> {
+        let current = self.crop.read(cx).state().cloned();
+        let Some(motion) = &self.crop_motion else {
+            return current.map(|state| CropShown {
+                rect: state.rect(),
+                state,
+                alpha: 1.0,
+            });
+        };
+        let t = f64::from(motion.clocked.progress(window, cx));
+        let state = match (current, &motion.leaving) {
+            (Some(state), None) => state,
+            (None, Some(leaving)) if t < 1.0 => leaving.clone(),
+            (state, _) => {
+                self.crop_motion = None;
+                return state.map(|state| CropShown {
+                    rect: state.rect(),
+                    state,
+                    alpha: 1.0,
+                });
+            }
+        };
+        let (a, b) = (motion.from, state.rect());
+        let f = |x: f64, y: f64| x + (y - x) * t;
+        let rect = Rect::new(f(a.x0, b.x0), f(a.y0, b.y0), f(a.x1, b.x1), f(a.y1, b.y1));
+        let alpha = if motion.leaving.is_some() {
+            1.0 - t as f32
+        } else {
+            1.0
+        };
+        if t >= 1.0 {
+            self.crop_motion = None;
+        }
+        Some(CropShown { state, rect, alpha })
     }
 
     /// The camera and scene blur are drawn as one composite of the final look, so they change at once.

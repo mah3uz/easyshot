@@ -1,6 +1,7 @@
 use es_model::{BlurEdgeMode, BlurMode, ProgressiveBlurSettings};
 use es_ui::{
     components::{FocusPad, InspectorSlider, Segment, Segmented, ValueFormat},
+    motion::{SECTION_EXPAND, since_change},
     theme::tokens,
     tokens::{Tokens, Typeset},
 };
@@ -11,12 +12,15 @@ use gpui::{
     prelude::FluentBuilder, px, size,
 };
 use gpui_component::tooltip::Tooltip;
+use std::cell::Cell;
+use std::rc::Rc;
 
 use super::camera::{Field, Sliders};
 use crate::session::look::LookModel;
 use crate::strings::fl;
 
 const DIMMED: f32 = 0.48;
+const ROW_DROP: Pixels = px(8.);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum BlurControl {
@@ -102,6 +106,7 @@ pub struct BlurBody {
     look: Entity<LookModel>,
     sliders: Sliders<BlurControl>,
     pad_dragging: bool,
+    direction_height: Rc<Cell<Option<Pixels>>>,
     _look_changes: Subscription,
 }
 
@@ -111,6 +116,7 @@ impl BlurBody {
             _look_changes: cx.observe(&look, |_, _, cx| cx.notify()),
             sliders: Sliders::new(look.clone()),
             pad_dragging: false,
+            direction_height: Rc::default(),
             look,
         }
     }
@@ -317,15 +323,50 @@ impl Render for BlurBody {
             },
         );
 
+        let directional = blur.mode == BlurMode::Directional;
+        let reveal = since_change(
+            "blur-direction-reveal",
+            directional,
+            SECTION_EXPAND,
+            window,
+            cx,
+        );
+        let open = if directional { reveal } else { 1. - reveal };
         let shown = BlurControl::SLIDERS
             .into_iter()
-            .filter(|&c| c != BlurControl::Direction || blur.mode == BlurMode::Directional);
+            .filter(|&c| c != BlurControl::Direction || open > 0.);
         let mut sliders = Vec::new();
         for c in shown {
             let row = self
                 .sliders
                 .row(c, || c.field(), c.get(&blur), !on, window, cx);
-            sliders.push(if c == BlurControl::FocusSize {
+            sliders.push(if c == BlurControl::Direction && open < 1. {
+                let measured = self.direction_height.clone();
+                let height = measured.get();
+                let row = div().relative().w_full().flex_none().child(row).child(
+                    canvas(
+                        move |bounds, _, _| measured.set(Some(bounds.size.height)),
+                        |_, _, _, _| {},
+                    )
+                    .absolute()
+                    .size_full(),
+                );
+                div()
+                    .w_full()
+                    .flex()
+                    .flex_col()
+                    .overflow_hidden()
+                    .opacity(open)
+                    .h(height.unwrap_or_default() * open)
+                    .child(
+                        div()
+                            .flex_none()
+                            .relative()
+                            .top(-ROW_DROP * (1. - open))
+                            .child(row),
+                    )
+                    .into_any_element()
+            } else if c == BlurControl::FocusSize {
                 let help = self.focus_size_help(cx);
                 div()
                     .id("blur-focus-size-help")

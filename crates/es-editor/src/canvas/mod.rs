@@ -23,6 +23,7 @@ use crate::session::EditorSession;
 use crate::session::crop::{CropEvent, CropModel};
 use crate::session::doc::DocModel;
 use crate::session::viewport::{ViewportModel, WHEEL_ZOOM_RATE};
+use es_anno::crop::CropState;
 use es_anno::{DrawItem, Viewport};
 use es_app::image_budget::ImageStores;
 use es_geom::Point;
@@ -112,6 +113,7 @@ pub struct EditorCanvas {
     pan_from: Option<gpui::Point<Pixels>>,
     stats: FrameStats,
     motion: Option<motion::CanvasMotion>,
+    crop_motion: Option<motion::CropMotion>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -122,11 +124,18 @@ impl EditorCanvas {
             cx.observe(&session.doc, |_, _, cx| cx.notify()),
             cx.observe(&session.viewport, |_, _, cx| cx.notify()),
             cx.observe(&session.crop, |_, _, cx| cx.notify()),
-            cx.subscribe(&session.crop, |this, _, event: &CropEvent, cx| {
-                if let CropEvent::Applied(from) = *event {
-                    this.crop_committed(from, cx);
-                }
-            }),
+            cx.subscribe(
+                &session.crop,
+                |this, _, event: &CropEvent, cx| match *event {
+                    CropEvent::Applied(from) => this.crop_committed(from, cx),
+                    CropEvent::Reshaped(from) => this.crop_reshaped(from, None, cx),
+                    CropEvent::Cancelled(from) => {
+                        let size = this.doc.read(cx).image_size();
+                        this.crop_reshaped(from, Some(CropState::new(size)), cx);
+                    }
+                    CropEvent::Started | CropEvent::Ended => {}
+                },
+            ),
         ];
         let redactions = Rc::new(RefCell::new(Redactions::default()));
         let painter = redaction::painter(redactions.clone(), session.doc.clone(), cx.weak_entity());
@@ -167,6 +176,7 @@ impl EditorCanvas {
             pan_from: None,
             stats: FrameStats::default(),
             motion: None,
+            crop_motion: None,
             _subscriptions: subscriptions,
         }
     }

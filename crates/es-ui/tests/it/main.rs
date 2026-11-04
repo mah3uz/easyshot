@@ -2,6 +2,7 @@ mod controls;
 mod cursors;
 mod gallery;
 mod hello;
+mod inspector_motion;
 mod panels;
 mod picks;
 mod segmented_motion;

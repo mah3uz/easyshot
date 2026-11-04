@@ -5,12 +5,12 @@ use crate::canvas_support;
 use std::{cell::RefCell, rc::Rc};
 
 use canvas_support::{App, every_kind, opened};
-use es_anno::crop::CropHandle;
+use es_anno::crop::{AspectPreset, CropHandle};
 use es_editor::{
     EditorCanvas, EditorSession,
     inspector::background::BackgroundBody,
     session::{
-        crop::CropTarget,
+        crop::{CropModel, CropTarget},
         look::{LookEvent, LookModel},
     },
 };
@@ -21,7 +21,10 @@ use es_model::{
 };
 use es_render::beautify::GradientPreset;
 use es_store::Paths;
-use es_ui::motion::{CROP_COMMIT, PRESET_APPLY, SETTLE, Transition, set_reduce_motion};
+use es_ui::motion::{
+    CROP_COMMIT, CROP_RESHAPE, PRESET_APPLY, SETTLE, Transition, set_reduce_motion,
+};
+use es_ui::tokens::ThemeMode;
 use gpui::{AppContext, Entity};
 use image::RgbaImage;
 use tempfile::TempDir;
@@ -149,6 +152,93 @@ fn applying_a_crop_draws_the_kept_region_growing_from_its_rectangle_to_the_fit()
     crop_and_apply(&mut still);
     let settled = frame(&mut still, "crop-commit-reduced");
     assert_moves_over(&moving, &settled, "the crop commit");
+}
+
+fn crop_in(r: &mut Rig) {
+    let crop = r.session.crop.clone();
+    r.app.cx.update(|cx| {
+        crop.update(cx, |c, cx| {
+            c.begin(cx);
+            c.press(CropTarget::Handle(CropHandle::TopLeft), Point::ZERO);
+            c.drag_to(Point::new(500.0, 300.0), false, cx);
+            c.release(cx);
+        })
+    });
+    r.app.settle();
+}
+
+type CropStep = fn(&mut CropModel, &mut gpui::Context<CropModel>);
+
+fn crop_rig(mode: ThemeMode, reduce: bool) -> Rig {
+    let mut r = rig(mint(0.08));
+    r.app.cx.update(|cx| {
+        es_ui::theme::set_mode(mode, cx);
+        set_reduce_motion(reduce, cx);
+    });
+    crop_in(&mut r);
+    r
+}
+
+fn crop_step(r: &mut Rig, step: CropStep) {
+    let crop = r.session.crop.clone();
+    r.app.cx.update(|cx| crop.update(cx, step));
+    r.app.settle();
+}
+
+#[test]
+fn reset_and_an_aspect_change_ease_the_crop_frame_from_where_it_was() {
+    for mode in [ThemeMode::Light, ThemeMode::Dark] {
+        let name = format!("{mode:?}").to_lowercase();
+        let steps: [(&str, CropStep); 2] = [
+            ("reset", |c, cx| c.reset(cx)),
+            ("aspect", |c, cx| c.set_aspect(AspectPreset::Square, cx)),
+        ];
+        for (what, step) in steps {
+            let mut r = crop_rig(mode, false);
+            frame(&mut r, &format!("crop-{what}-{name}-before"));
+            crop_step(&mut r, step);
+            let moving = frames(&mut r, CROP_RESHAPE, &format!("crop-{what}-{name}"));
+
+            let mut still = crop_rig(mode, true);
+            crop_step(&mut still, step);
+            let settled = frame(&mut still, &format!("crop-{what}-{name}-reduced"));
+            assert!(
+                moving[0] != settled,
+                "{what} with Reduce Motion jumps straight to the new frame"
+            );
+            assert_moves_over(&moving, &settled, &format!("the crop {what}"));
+        }
+    }
+}
+
+#[test]
+fn cancelling_a_crop_widens_its_frame_to_the_whole_image_as_it_fades() {
+    for mode in [ThemeMode::Light, ThemeMode::Dark] {
+        let name = format!("{mode:?}").to_lowercase();
+        let mut r = crop_rig(mode, false);
+        frame(&mut r, &format!("crop-cancel-{name}-before"));
+        crop_step(&mut r, |c, cx| c.cancel(cx));
+        let crop = r.session.crop.clone();
+        assert!(
+            !r.app.cx.update(|cx| crop.read(cx).is_cropping()),
+            "crop mode ends at once; only its drawing lingers"
+        );
+        let moving = frames(&mut r, CROP_COMMIT, &format!("crop-cancel-{name}"));
+
+        let mut still = crop_rig(mode, true);
+        crop_step(&mut still, |c, cx| c.cancel(cx));
+        let settled = frame(&mut still, &format!("crop-cancel-{name}-reduced"));
+        assert!(
+            moving[0] != settled,
+            "with Reduce Motion the frame goes at once"
+        );
+        let [start, mid, _, end] = &moving;
+        assert!(start != mid && mid != end, "the cancel draws in motion");
+        assert!(
+            same_but_edges(end, &settled),
+            "the frame is gone when the cancel's duration is up"
+        );
+    }
 }
 
 fn apply_preset(r: &mut Rig) {

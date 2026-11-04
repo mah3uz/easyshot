@@ -97,6 +97,7 @@ fn handle_shape(rect: Rect, handle: CropHandle) -> RoundedRect {
 struct Pen {
     to_window: Affine,
     bucket: Bucket,
+    alpha: f32,
     out: Vec<Painted>,
 }
 
@@ -106,7 +107,7 @@ impl Pen {
             path,
             self.to_window,
             FillRule::NonZero,
-            color,
+            color.opacity(self.alpha),
             self.bucket,
             &mut self.out,
         );
@@ -119,9 +120,12 @@ impl Pen {
     }
 }
 
-/// Dimmed exterior, framed rect with thirds, and the handles, in window pixels.
+/// Dimmed exterior, framed rect with thirds, and the handles, in window pixels; `rect` is the
+/// crop as drawn, in image pixels, which differs from the state's while it moves.
 pub fn overlay(
     state: &CropState,
+    rect: Rect,
+    alpha: f32,
     vp: &Viewport,
     bounds: Bounds<Pixels>,
     scale_factor: f32,
@@ -132,6 +136,7 @@ pub fn overlay(
             index: 0,
             scale_factor,
         },
+        alpha,
         out: Vec::new(),
     };
     let size = state.image_size();
@@ -139,7 +144,10 @@ pub fn overlay(
         vp.page_to_screen(Point::ZERO),
         vp.page_to_screen(Point::new(size.width, size.height)),
     );
-    let crop = screen_rect(state, vp);
+    let crop = Rect::from_points(
+        vp.page_to_screen(Point::new(rect.x0, rect.y0)),
+        vp.page_to_screen(Point::new(rect.x1, rect.y1)),
+    );
     let mut dim = BezPath::new();
     for band in [
         Rect::new(image.x0, image.y0, image.x1, crop.y0),
@@ -187,16 +195,23 @@ pub fn overlay(
 
 impl EditorCanvas {
     pub(super) fn crop_overlay(
-        &self,
+        &mut self,
         bounds: Bounds<Pixels>,
-        scale_factor: f32,
-        cx: &App,
+        window: &mut Window,
+        cx: &mut Context<Self>,
     ) -> Vec<Painted> {
         let vp = self.viewport.read(cx).viewport();
-        self.crop
-            .read(cx)
-            .state()
-            .map(|s| overlay(s, &vp, bounds, scale_factor))
+        self.crop_shown(window, cx)
+            .map(|s| {
+                overlay(
+                    &s.state,
+                    s.rect,
+                    s.alpha,
+                    &vp,
+                    bounds,
+                    window.scale_factor(),
+                )
+            })
             .unwrap_or_default()
     }
 

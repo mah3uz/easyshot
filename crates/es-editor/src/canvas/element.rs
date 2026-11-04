@@ -86,8 +86,7 @@ impl Element for CanvasElement {
         let chrome = self.view.read(cx).chrome(bounds, window.scale_factor(), cx);
         let crop = self
             .view
-            .read(cx)
-            .crop_overlay(bounds, window.scale_factor(), cx);
+            .update(cx, |c, cx| c.crop_overlay(bounds, window, cx));
         window.with_content_mask(Some(ContentMask { bounds }), |window| {
             if let Some((image, cells)) = frame.grid {
                 for at in cells {
