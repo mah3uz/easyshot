@@ -199,7 +199,7 @@ What was rejected beyond that, and why: not recorded.
 10. **Affordance cursors** (maintainer's decision, 2026-10-31): resize, rotate, endpoint,
     bend, crop and pin cursors, and an arrow during marquee.
     See `DESIGN.md`.
-11. to 19. **Ergonomic additions** (arrow-key nudge, Esc deselects, middle-button and
+11. to 19. **Ergonomic additions** (arrow-key nudge, Esc stepping back (item 28), middle-button and
     Space-hold pan, pointer-anchored zoom, Duplicate, copy and paste of shapes, z-order
     keys, Tab cycling, shell robustness). They add behaviour and never new chrome, so the
     interface stays identical to the reference design. Rejected: snapping guides, an eraser tool
@@ -262,3 +262,29 @@ What was rejected beyond that, and why: not recorded.
     missing file cannot break the compositor config. Keys are `Mod4`, not `$mod`, because an
     included file cannot rely on the variable. Rejected: editing the compositor config, and a
     paste-in snippet, which was lost when the window closed.
+28. **Esc steps back one level per press** (maintainer's decision, 2026-11-03): finish the
+    text being typed, then leave crop, then clear the selection, then switch to the Select
+    tool. Rejected: Esc only clearing the selection, which left the first user stuck in a
+    drawing tool and in crop.
+29. **The mouse wheel zooms** (maintainer's decision, 2026-11-03) at the pointer; touchpad
+    two-finger scroll pans; pinch and Ctrl+wheel zoom too. Rejected: the wheel panning with
+    Ctrl or Alt to zoom, which made a mouse user hunt for the modifier.
+30. **Annotations stay on the image** (maintainer's decision, 2026-11-03): drawing starts only
+    on the image, and drawing, moving and resizing stop at its edge. Rejected: a free canvas,
+    where shapes dragged off the picture were cut off or lost in the export.
+31. **Video export options in one place** (maintainer's decision, 2026-11-03): format (MP4,
+    WebM, GIF), size (Original, 1080p, 720p, 480p, never enlarging), quality (High, Balanced,
+    Small), brightness and four looks. Rejected: film grain, which the user did not want.
+32. **An auto-saved card offers Show in folder** (maintainer's decision, 2026-11-03) where an
+    unsaved one offers Save. Rejected: a Save button on a file already saved, which did
+    nothing new.
+33. **Highlighter is its own tool** (maintainer's decision, 2026-11-03): translucent colour,
+    straight or freehand, key M, M again switches the mode. Highlight (the spotlight) stays
+    as it was. Rejected: turning the spotlight into a highlighter, which would remove a tool
+    people use for a different job.
+34. **The capture bar toggles** (maintainer's decision, 2026-11-03): its key and the tray's
+    item open it and close it again, and Esc closes it. Rejected: a second open only
+    focusing it, which left no way to dismiss it from the key that opened it.
+35. **New text starts at size 24** (maintainer's decision, 2026-11-04, replacing 36 from
+    2026-11-03): 36 was too large on everyday captures, the original 20 too small to read on a
+    full-screen shot.
