@@ -42,6 +42,7 @@ More in the manual: [Installing it](MANUAL.md#installing-it) and [Running it](MA
 - Counts down before a capture: pick first, then easyshot takes a fresh frame, so menus you open during the countdown are in the shot.
 - Sets the countdown with `--timed` (3 seconds by default) or `--timed N` for 1 to 60 seconds.
 - Sets the countdown from the capture bar's timer button: Off, 3, 5 or 10 seconds.
+- Shows the countdown as a dial that springs in, each second rolling down into place.
 - Reads text from a region, with or without line breaks.
 - Reads QR codes from a region.
 - Picks a colour from the screen and copies it as `#RRGGBB`.
@@ -169,6 +170,7 @@ More in the manual: [The editor](MANUAL.md#the-editor) and [Editor keys](MANUAL.
 ## Home window and gallery
 
 - Holds the gallery and Settings in one window, one tab each.
+- Slides between the two tabs, and cross-fades from one Settings page to the next.
 - Opens from the application menu, from a bare `easyshot` or from an `easyshot://home` link.
 - Opens on the gallery from `easyshot gallery` or the tray's Media Gallery.
 - Opens on Settings from `easyshot settings`, the tray's Settings or an `easyshot://settings` link, and on a named page if you give one.
