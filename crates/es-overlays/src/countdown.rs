@@ -3,7 +3,10 @@ use es_app::capture_coordinator::{Countdown as CountdownHook, Timer, settle};
 use es_app::errors::{Error, Result};
 use es_app::platform_ui::{LayerShellSurfaces, SurfaceHandle, SurfaceRole};
 use es_ui::a11y::{Accessible as _, Role};
-use es_ui::motion::{Easing, reduce_motion};
+use es_ui::motion::{
+    COUNTDOWN_ENTRY_SCALE, COUNTDOWN_IN, COUNTDOWN_IN_REDUCED, COUNTDOWN_OUT,
+    COUNTDOWN_OUT_REDUCED, DIGIT_ROLL, Transition, reduce_motion,
+};
 use es_ui::theme::UI_FONT;
 use es_ui::tokens::{Appearance, Tokens};
 use gpui::{
@@ -16,8 +19,6 @@ use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 const TICK: Duration = Duration::from_secs(1);
-const EXIT: Duration = Duration::from_millis(300);
-const EXIT_REDUCED: Duration = Duration::from_millis(120);
 // The overlay's frame callback stops once it is unmapped, so a frame period stands in for it.
 const DIAL: f32 = 152.;
 const DIGIT: f32 = 68.;
@@ -25,6 +26,7 @@ const RING: f32 = 5.;
 const RING_INSET: f32 = 5.;
 const SCRIM: f32 = 0.10;
 const EXIT_SCALE: f32 = 0.82;
+const ROLL_SHARE: f32 = 0.4;
 const BADGE: f32 = 160.;
 const BADGE_RADIUS: f32 = 28.;
 const BADGE_DIGIT: f32 = 76.;
@@ -54,8 +56,21 @@ impl Clock {
     }
 }
 
+fn gated(full: Transition, reduced: Transition, reduce_motion: bool) -> Transition {
+    if full.plays(reduce_motion) {
+        full
+    } else {
+        reduced
+    }
+}
+
 pub fn exit_duration(reduce_motion: bool) -> Duration {
-    if reduce_motion { EXIT_REDUCED } else { EXIT }
+    gated(COUNTDOWN_OUT, COUNTDOWN_OUT_REDUCED, reduce_motion).duration
+}
+
+fn eased(transition: Transition, since: Instant, now: Instant) -> f32 {
+    let t = now.saturating_duration_since(since).as_secs_f32() / transition.duration.as_secs_f32();
+    transition.easing.at(t)
 }
 
 pub struct Countdown {
@@ -63,6 +78,7 @@ pub struct Countdown {
     seconds: u32,
     remaining: u32,
     started: Instant,
+    ticked: Instant,
     exit: Option<(Instant, Duration)>,
     finished: bool,
     clock: Clock,
@@ -75,6 +91,7 @@ impl Countdown {
             seconds,
             remaining: seconds,
             started: (clock.now)(),
+            ticked: (clock.now)(),
             exit: None,
             finished: false,
             clock,
@@ -108,6 +125,7 @@ impl Countdown {
                 cx.update(|cx| {
                     this.update(cx, |c, cx| {
                         c.remaining = n;
+                        c.ticked = (c.clock.now)();
                         cx.notify();
                     })
                 });
@@ -143,17 +161,38 @@ impl Countdown {
         if self.finished {
             return (0.0, if reduced { 1.0 } else { EXIT_SCALE });
         }
-        let Some((since, length)) = self.exit else {
-            return (1.0, 1.0);
-        };
-        let t = now.saturating_duration_since(since).as_secs_f32() / length.as_secs_f32();
-        let t = t.clamp(0.0, 1.0);
-        if reduced {
-            (1.0 - t, 1.0)
-        } else {
-            let e = Easing::Snappy.at(t);
-            (1.0 - e, 1.0 - (1.0 - EXIT_SCALE) * e)
+        if let Some((since, _)) = self.exit {
+            let out = gated(COUNTDOWN_OUT, COUNTDOWN_OUT_REDUCED, reduced);
+            let e = eased(out, since, now);
+            let scale = if out.fade {
+                1.0
+            } else {
+                1.0 - (1.0 - EXIT_SCALE) * e
+            };
+            return (1.0 - e, scale);
         }
+        let entry = gated(COUNTDOWN_IN, COUNTDOWN_IN_REDUCED, reduced);
+        let e = eased(entry, self.started, now);
+        let scale = if entry.fade {
+            1.0
+        } else {
+            COUNTDOWN_ENTRY_SCALE + (1.0 - COUNTDOWN_ENTRY_SCALE) * e
+        };
+        (e, scale)
+    }
+
+    fn entering(&self, now: Instant, reduced: bool) -> bool {
+        let entry = gated(COUNTDOWN_IN, COUNTDOWN_IN_REDUCED, reduced);
+        now.saturating_duration_since(self.started) < entry.duration
+    }
+
+    /// How far the last digit change has rolled, 0 to 1; `None` when nothing is rolling.
+    fn roll(&self, now: Instant, reduced: bool) -> Option<f32> {
+        let rolling = DIGIT_ROLL.plays(reduced)
+            && self.remaining < self.seconds
+            && self.exit.is_none()
+            && now.saturating_duration_since(self.ticked) < DIGIT_ROLL.duration;
+        rolling.then(|| eased(DIGIT_ROLL, self.ticked, now))
     }
 }
 
@@ -274,26 +313,35 @@ impl Render for Countdown {
         let reduced = reduce_motion(cx);
         let now = (self.clock.now)();
         let (opacity, scale) = self.presence(now, reduced);
-        if !self.finished && (!reduced || self.exit.is_some()) {
+        if !self.finished && (!reduced || self.exit.is_some() || self.entering(now, reduced)) {
             window.request_animation_frame();
         }
+        let roll = self.roll(now, reduced);
         let tokens = cx.try_global::<Tokens>();
         let dark = tokens.is_some_and(|t| t.appearance == Appearance::Dark);
         let text = tokens.map_or(hsla(0., 0., 0.1, 1.), |t| t.colours.text);
         let label = fl!("countdown-a11y", count = self.remaining);
+        let remaining = self.remaining;
         let digit = |size: f32, colour: Hsla| {
-            div()
-                .absolute()
-                .size_full()
-                .flex()
-                .items_center()
-                .justify_center()
-                .font_family(UI_FONT)
-                .font_weight(FontWeight::SEMIBOLD)
-                .text_size(px(size * scale))
-                .line_height(px(size * scale))
-                .text_color(colour.opacity(colour.a * opacity))
-                .child(self.remaining.to_string())
+            let face = move |n: u32, shift: f32, shown: f32| {
+                div()
+                    .absolute()
+                    .size_full()
+                    .top(px(size * scale * ROLL_SHARE * shift))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .font_family(UI_FONT)
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_size(px(size * scale))
+                    .line_height(px(size * scale))
+                    .text_color(colour.opacity(colour.a * opacity * shown))
+                    .child(n.to_string())
+            };
+            match roll {
+                Some(e) => vec![face(remaining + 1, e, 1.0 - e), face(remaining, e - 1.0, e)],
+                None => vec![face(remaining, 0.0, 1.0)],
+            }
         };
         let root = div()
             .id("countdown")
@@ -322,7 +370,7 @@ impl Render for Countdown {
                     .absolute()
                     .size_full(),
                 )
-                .child(digit(DIGIT, text))
+                .children(digit(DIGIT, text))
             }
             CountdownStyle::Recording => {
                 let side = BADGE * scale;
@@ -333,7 +381,8 @@ impl Render for Countdown {
                         .h(px(side))
                         .rounded(px(BADGE_RADIUS * scale))
                         .bg(hsla(0., 0., 0., 0.55 * opacity))
-                        .child(digit(BADGE_DIGIT, hsla(0., 0., 1., 1.))),
+                        .overflow_hidden()
+                        .children(digit(BADGE_DIGIT, hsla(0., 0., 1., 1.))),
                 )
             }
         }
