@@ -1,97 +1,106 @@
 use crate::doctor::{render_config, render_input};
+use crate::strings::fl;
 use serde_json::Value;
 use std::fmt::Write as _;
 
-/// `(flag, what it is, what a missing one means for you)`.
-pub(crate) const CAPS: &[(&str, &str, &str)] = &[
-    (
-        "LAYER_SHELL",
-        "Overlays on screen",
-        "the selection and the deck cannot draw over your screen",
-    ),
-    (
-        "CAPTURE_OUTPUT",
-        "Capture a screen",
-        "you cannot capture a whole screen or a region",
-    ),
-    (
-        "CAPTURE_WINDOW",
-        "Capture a window",
-        "you cannot capture a single window",
-    ),
-    (
-        "WINDOW_LIST",
-        "List windows",
-        "you cannot pick a window by pointing at it",
-    ),
-    (
-        "WINDOW_GEOMETRY",
-        "Window positions",
-        "windows cannot be outlined or snapped to",
-    ),
-    (
-        "CLIPBOARD_NO_FOCUS",
-        "Copy without focus",
-        "copying may fail unless an easyshot window has focus",
-    ),
-    ("TRAY", "Tray icon", "there is no tray icon"),
-    (
-        "NOTIFY_ACTIONS",
-        "Notification buttons",
-        "notifications have no buttons",
-    ),
-    (
-        "PORTAL_SHORTCUTS",
-        "Shortcuts through the portal",
-        "easyshot cannot register keys through the desktop portal",
-    ),
-    (
-        "SHORTCUT_TRIGGERS",
-        "Shortcut keys",
-        "easyshot cannot read which keys you have set",
-    ),
-    (
-        "POINTER_GLOBAL",
-        "Pointer position",
-        "easyshot cannot tell where the pointer is on screen",
-    ),
-    (
-        "VIRTUAL_INPUT",
-        "Scrolling for you",
-        "scroll capture cannot scroll the page itself",
-    ),
-    (
-        "RECORDER",
-        "Screen recording",
-        "you cannot record the screen",
-    ),
-    ("OCR", "Read text", "you cannot read text from a capture"),
-    (
-        "BIND_CHECK",
-        "Shortcut check",
-        "easyshot cannot tell whether your keys are bound",
-    ),
-    (
-        "FILE_PICKER",
-        "File dialogs",
-        "open and save use easyshot's own dialog",
-    ),
-    (
-        "APPEARANCE",
-        "Light and dark mode",
-        "easyshot does not follow your light or dark setting",
-    ),
-    (
-        "CURSOR_STREAM",
-        "Cursor in recordings",
-        "recordings cannot show the pointer",
-    ),
-    (
-        "FOCUS_WINDOW",
-        "Switch to a window",
-        "a window on another workspace cannot be recorded",
-    ),
+pub(crate) const CAPS: &[&str] = &[
+    "LAYER_SHELL",
+    "CAPTURE_OUTPUT",
+    "CAPTURE_WINDOW",
+    "WINDOW_LIST",
+    "WINDOW_GEOMETRY",
+    "CLIPBOARD_NO_FOCUS",
+    "TRAY",
+    "NOTIFY_ACTIONS",
+    "PORTAL_SHORTCUTS",
+    "SHORTCUT_TRIGGERS",
+    "POINTER_GLOBAL",
+    "VIRTUAL_INPUT",
+    "RECORDER",
+    "OCR",
+    "BIND_CHECK",
+    "FILE_PICKER",
+    "APPEARANCE",
+    "CURSOR_STREAM",
+    "FOCUS_WINDOW",
 ];
+
+fn cap_text(flag: &str, missing: bool) -> String {
+    let (label, note) = match flag {
+        "LAYER_SHELL" => (
+            fl!("doctor-cap-layer-shell"),
+            fl!("doctor-cap-layer-shell-missing"),
+        ),
+        "CAPTURE_OUTPUT" => (
+            fl!("doctor-cap-capture-output"),
+            fl!("doctor-cap-capture-output-missing"),
+        ),
+        "CAPTURE_WINDOW" => (
+            fl!("doctor-cap-capture-window"),
+            fl!("doctor-cap-capture-window-missing"),
+        ),
+        "WINDOW_LIST" => (
+            fl!("doctor-cap-window-list"),
+            fl!("doctor-cap-window-list-missing"),
+        ),
+        "WINDOW_GEOMETRY" => (
+            fl!("doctor-cap-window-geometry"),
+            fl!("doctor-cap-window-geometry-missing"),
+        ),
+        "CLIPBOARD_NO_FOCUS" => (
+            fl!("doctor-cap-clipboard-no-focus"),
+            fl!("doctor-cap-clipboard-no-focus-missing"),
+        ),
+        "TRAY" => (fl!("doctor-cap-tray"), fl!("doctor-cap-tray-missing")),
+        "NOTIFY_ACTIONS" => (
+            fl!("doctor-cap-notify-actions"),
+            fl!("doctor-cap-notify-actions-missing"),
+        ),
+        "PORTAL_SHORTCUTS" => (
+            fl!("doctor-cap-portal-shortcuts"),
+            fl!("doctor-cap-portal-shortcuts-missing"),
+        ),
+        "SHORTCUT_TRIGGERS" => (
+            fl!("doctor-cap-shortcut-triggers"),
+            fl!("doctor-cap-shortcut-triggers-missing"),
+        ),
+        "POINTER_GLOBAL" => (
+            fl!("doctor-cap-pointer-global"),
+            fl!("doctor-cap-pointer-global-missing"),
+        ),
+        "VIRTUAL_INPUT" => (
+            fl!("doctor-cap-virtual-input"),
+            fl!("doctor-cap-virtual-input-missing"),
+        ),
+        "RECORDER" => (
+            fl!("doctor-cap-recorder"),
+            fl!("doctor-cap-recorder-missing"),
+        ),
+        "OCR" => (fl!("doctor-cap-ocr"), fl!("doctor-cap-ocr-missing")),
+        "BIND_CHECK" => (
+            fl!("doctor-cap-bind-check"),
+            fl!("doctor-cap-bind-check-missing"),
+        ),
+        "FILE_PICKER" => (
+            fl!("doctor-cap-file-picker"),
+            fl!("doctor-cap-file-picker-missing"),
+        ),
+        "APPEARANCE" => (
+            fl!("doctor-cap-appearance"),
+            fl!("doctor-cap-appearance-missing"),
+        ),
+        "CURSOR_STREAM" => (
+            fl!("doctor-cap-cursor-stream"),
+            fl!("doctor-cap-cursor-stream-missing"),
+        ),
+        "FOCUS_WINDOW" => (
+            fl!("doctor-cap-focus-window"),
+            fl!("doctor-cap-focus-window-missing"),
+        ),
+        _ => (flag.to_owned(), String::new()),
+    };
+    if missing { note } else { label }
+}
 
 /// A tool with an alternative is not missing while its concern has a chosen provider.
 const ALTERNATIVES: &[(&str, &str)] = &[
@@ -125,13 +134,13 @@ pub fn render(raw: &str, styled: bool) -> String {
     let mut out = String::new();
     let text = |v: &Value| v.as_str().unwrap_or("-").to_owned();
     if let Some(source) = v.get("source").and_then(Value::as_str) {
-        let _ = writeln!(out, "The daemon is not running; this is a {source} probe.");
+        let _ = writeln!(out, "{}", fl!("doctor-daemon-down", source = source));
     }
     let compositor = &v["compositor"];
     let _ = writeln!(
         out,
         "{} {} {}",
-        style.heading("Compositor:"),
+        style.heading(&fl!("doctor-compositor")),
         text(&compositor["name"]),
         compositor["version"].as_str().unwrap_or("")
     );
@@ -141,26 +150,30 @@ pub fn render(raw: &str, styled: bool) -> String {
         .flatten()
         .filter_map(Value::as_str)
         .collect();
-    let _ = writeln!(out, "\n{}", style.heading("What works"));
-    for (flag, label, note) in CAPS {
+    let _ = writeln!(out, "\n{}", style.heading(&fl!("doctor-heading-works")));
+    for flag in CAPS {
+        let label = cap_text(flag, false);
         if has.contains(flag) {
             let _ = writeln!(out, "  {} {label}", style.ok());
         } else {
+            let note = cap_text(flag, true);
             let _ = writeln!(out, "  {} {label}: {note}", style.no());
         }
     }
     let providers = v["providers"].as_array().map_or(&[][..], Vec::as_slice);
     if !providers.is_empty() {
-        let _ = writeln!(out, "\n{}", style.heading("Chosen providers"));
+        let _ = writeln!(out, "\n{}", style.heading(&fl!("doctor-heading-providers")));
         for p in providers {
-            let forced = p["forced"]
-                .as_str()
-                .map_or(String::new(), |f| format!(" (forced: {f})"));
+            let forced = p["forced"].as_str().map_or(String::new(), |f| {
+                format!(" {}", fl!("doctor-forced", forced = f))
+            });
             let _ = writeln!(
                 out,
                 "  {}: {}{forced}",
                 text(&p["capability"]),
-                p["chosen"].as_str().unwrap_or("none")
+                p["chosen"]
+                    .as_str()
+                    .map_or_else(|| fl!("doctor-provider-none"), str::to_owned)
             );
         }
     }
@@ -180,14 +193,14 @@ pub fn render(raw: &str, styled: bool) -> String {
         })
         .collect();
     if !missing.is_empty() {
-        let _ = writeln!(out, "\n{}", style.heading("Missing tools"));
+        let _ = writeln!(out, "\n{}", style.heading(&fl!("doctor-heading-missing")));
         for m in missing {
             let _ = writeln!(
                 out,
-                "  {} {}: install the package {}",
+                "  {} {}: {}",
                 style.no(),
                 text(&m["tool"]),
-                text(&m["package"])
+                fl!("doctor-install-package", package = text(&m["package"]))
             );
         }
     }
@@ -195,12 +208,12 @@ pub fn render(raw: &str, styled: bool) -> String {
     render_config(&v, &mut out);
     let errors = v["errors"].as_array().map_or(&[][..], Vec::as_slice);
     if !errors.is_empty() {
-        let _ = writeln!(out, "\n{}", style.heading("Errors"));
+        let _ = writeln!(out, "\n{}", style.heading(&fl!("doctor-heading-errors")));
         for e in errors {
             let _ = writeln!(out, "  {}", text(e));
         }
     }
-    let _ = writeln!(out, "\nRun `easyshot doctor --raw` for the full report.");
+    let _ = writeln!(out, "\n{}", fl!("doctor-raw-hint"));
     out
 }
 
@@ -236,8 +249,17 @@ mod tests {
             .iter_names()
             .map(|(n, _)| n)
             .collect();
-        let listed: Vec<_> = CAPS.iter().map(|(n, ..)| *n).collect();
+        let listed: Vec<_> = CAPS.to_vec();
         assert_eq!(names, listed);
+        for flag in CAPS {
+            for missing in [false, true] {
+                let text = cap_text(flag, missing);
+                assert!(
+                    !text.is_empty() && !text.contains("No localization"),
+                    "{flag}"
+                );
+            }
+        }
     }
 
     #[test]

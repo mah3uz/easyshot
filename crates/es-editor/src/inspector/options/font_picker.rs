@@ -121,4 +121,12 @@ mod tests {
         );
         assert_eq!(font_choices(&[]).len(), 3);
     }
+
+    #[test]
+    fn a_family_that_is_not_installed_says_so_and_an_installed_one_is_its_name() {
+        let gone = FontFamily::System("Gone Sans".into());
+        assert_eq!(family_title(&gone, false), "Gone Sans (not installed)");
+        assert_eq!(family_title(&gone, true), "Gone Sans");
+        assert_eq!(family_title(&FontFamily::Compact, false), "Inter Tight");
+    }
 }

@@ -1,11 +1,12 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use super::{Editor, launch};
+use super::{Editor, launch, launch_with_text};
+use crate::canvas_support::renamed_nunito_text;
 use es_editor::inspector::options::Control;
 use es_geom::Point;
 use es_model::{ShapeKind, Tool};
 use es_ui::tokens::ThemeMode;
-use gpui::point;
+use gpui::{KeyDownEvent, Keystroke, PlatformInput, point};
 
 impl Editor {
     fn new_text(&mut self) {
@@ -101,4 +102,42 @@ fn undo_reverts_a_background_and_a_border_one_step_each() {
     assert!(e.text().fill.is_some());
     e.edit(|e| e.undo());
     assert_eq!(e.text().fill, None);
+}
+
+const FACES: [&str; 10] = [
+    "Face00", "Face01", "Face02", "Face03", "Face04", "Face05", "Face06", "Face07", "Face08",
+    "Face09",
+];
+
+impl Editor {
+    fn type_key(&mut self, key: &'static str) {
+        self.send(PlatformInput::KeyDown(KeyDownEvent {
+            keystroke: Keystroke::parse(key).unwrap(),
+            is_held: false,
+            prefer_character_input: false,
+        }));
+    }
+
+    fn open_font_menu(&mut self) {
+        let b = self.bounds(Control::FontFamily).unwrap();
+        self.click_at(b.center());
+    }
+}
+
+#[test]
+fn the_font_menu_lists_the_bundled_families_then_the_installed_ones_in_order() {
+    let text = renamed_nunito_text("font-order", &FACES);
+    let mut e = launch_with_text(ThemeMode::Light, text);
+    e.new_text();
+    assert_eq!(e.text().font_family, es_model::FontFamily::Pro);
+    e.open_font_menu();
+    for _ in 0..3 {
+        e.type_key("down");
+    }
+    e.type_key("enter");
+    assert_eq!(
+        e.text().font_family,
+        es_model::FontFamily::System("Face00".into()),
+        "Inter, Inter Tight, Nunito, then the first installed family"
+    );
 }

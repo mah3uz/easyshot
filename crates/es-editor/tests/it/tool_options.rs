@@ -36,6 +36,10 @@ struct Editor {
 }
 
 fn launch(mode: ThemeMode) -> Editor {
+    launch_with_text(mode, TEXT.clone())
+}
+
+fn launch_with_text(mode: ThemeMode, text: std::sync::Arc<es_anno::BundledText>) -> Editor {
     let slot: Rc<RefCell<Option<Entity<EditorWindow>>>> = Rc::default();
     let out = slot.clone();
     let mut app = Headless::open(
@@ -55,7 +59,7 @@ fn launch(mode: ThemeMode) -> Editor {
                 BackgroundSettings::default(),
             );
             let editor =
-                cx.new(|cx| EditorWindow::new(EditorSession::new(doc, TEXT.clone(), cx), cx));
+                cx.new(|cx| EditorWindow::new(EditorSession::new(doc, text.clone(), cx), cx));
             *out.borrow_mut() = Some(editor.clone());
             cx.new(|cx| Root::new(editor, window, cx))
         },

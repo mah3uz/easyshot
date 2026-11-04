@@ -1,4 +1,5 @@
 use crate::doctor_tools::{self, ToolRunner};
+use crate::strings::fl;
 use anyhow::{Context, Result};
 use es_backend::{Backend, Probe};
 use es_store::bundle::{BundleEntry, write_bundle};
@@ -176,38 +177,36 @@ pub(crate) fn render_input(v: &Value, out: &mut String) {
     let i = &v["input"];
     if let Some(status) = i["status"].as_str() {
         let shown = match status {
-            "granted" => "can read the keyboard and mouse",
-            "denied" => "cannot read the keyboard and mouse",
-            "group_pending" => {
-                "cannot read the keyboard and mouse yet (added to the group, log out and in)"
-            }
-            _ => "not in this build",
+            "granted" => fl!("doctor-input-granted"),
+            "denied" => fl!("doctor-input-denied"),
+            "group_pending" => fl!("doctor-input-group-pending"),
+            _ => fl!("doctor-input-absent"),
         };
-        let _ = writeln!(out, "\nClicks and keys in recordings: {shown}");
+        let _ = writeln!(out, "\n{}", fl!("doctor-input", state = shown));
         if let Some(fix) = i["fix"].as_str() {
-            let _ = writeln!(out, "  Fix: {fix}");
+            let _ = writeln!(out, "  {}", fl!("doctor-input-fix", fix = fix));
         }
-        let _ = writeln!(out, "  Records {}", i["records"].as_str().unwrap_or("-"));
+        let what = i["records"].as_str().unwrap_or("-");
+        let _ = writeln!(out, "  {}", fl!("doctor-input-records", what = what));
     }
 }
 
 pub(crate) fn render_config(v: &Value, out: &mut String) {
     let c = &v["config"];
     if c.is_object() {
-        let _ = write!(
+        let detail = c.get("detail").map_or(String::new(), |d| {
+            format!(": {}", d.as_str().map_or(d.to_string(), str::to_owned))
+        });
+        let _ = writeln!(
             out,
-            "\nSettings file: {} ({}",
-            c["path"].as_str().unwrap_or("-"),
-            c["status"].as_str().unwrap_or("-")
+            "\n{}",
+            fl!(
+                "doctor-config",
+                path = c["path"].as_str().unwrap_or("-"),
+                status = c["status"].as_str().unwrap_or("-"),
+                detail = detail
+            )
         );
-        if let Some(detail) = c.get("detail") {
-            let _ = write!(
-                out,
-                ": {}",
-                detail.as_str().map_or(detail.to_string(), str::to_owned)
-            );
-        }
-        let _ = writeln!(out, ")");
     }
 }
 

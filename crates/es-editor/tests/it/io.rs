@@ -200,13 +200,55 @@ fn the_journal_survives_a_crash_and_reopens_the_same_document() {
     assert!(dirty, "recovered edits count as unsaved");
 }
 
+fn write_journal(f: &shell::Fixture, session: &str, version: u32, document: &serde_json::Value) {
+    let text = serde_json::json!({
+        "format": "easyshot.recovery",
+        "version": version,
+        "display": "/tmp/shot.png",
+        "base_image": "/tmp/shot.png",
+        "document": document,
+    });
+    std::fs::write(
+        journal::journal_path(&f.paths, session),
+        serde_json::to_vec(&text).unwrap(),
+    )
+    .unwrap();
+}
+
 #[test]
-fn an_unreadable_journal_is_skipped_and_left_alone() {
+fn an_unparseable_journal_is_dropped_with_its_staged_bases() {
     let f = launch();
-    let bad = f.paths.recovery_dir().join("broken.json");
+    let bad = journal::journal_path(&f.paths, "broken");
     std::fs::write(&bad, b"{ not json").unwrap();
+    let staged = f.paths.recovery_dir().join(format!(
+        "broken.base-{}.png",
+        "0b8f0e3c-9a52-4d43-a8e2-1e7f1f0b9c11"
+    ));
+    std::fs::write(&staged, b"png").unwrap();
     assert!(journal::recover(&f.paths).is_empty());
-    assert!(bad.exists());
+    assert!(!bad.exists());
+    assert!(!staged.exists());
+}
+
+#[test]
+fn a_journal_with_a_document_this_build_cannot_read_is_dropped() {
+    let f = launch();
+    write_journal(&f, "odd", 1, &serde_json::json!({ "shapes": 7 }));
+    assert!(journal::recover(&f.paths).is_empty());
+    assert!(!journal::journal_path(&f.paths, "odd").exists());
+}
+
+#[test]
+fn a_journal_from_before_font_names_still_reopens() {
+    let f = launch();
+    let old: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../tests/fixtures/formats/document/v3.json"
+    ))
+    .unwrap();
+    write_journal(&f, "old", 1, &old);
+    let found = journal::recover(&f.paths);
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].entry.document.shapes.len(), 1);
 }
 
 #[test]

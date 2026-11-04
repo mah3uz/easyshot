@@ -356,3 +356,62 @@ fn json_and_text_answers_and_exit_codes() {
     let (mut out, mut err) = (Vec::new(), Vec::new());
     assert_eq!(run_annotate(&missing, &mut out, &mut err), 5);
 }
+
+fn text_ops(font: Option<&str>) -> String {
+    let font = font.map_or(String::new(), |f| format!(r#","font":"{f}""#));
+    format!(
+        r##"{{"version":1,"ops":[{{"op":"text","x":20,"y":60,"text":"Hamburgefonts","size":40,"color":"#000000"{font}}}]}}"##
+    )
+}
+
+fn text_family(font: &str) -> es_model::FontFamily {
+    let (doc, _) =
+        annotate_ops::build(&text_ops(Some(font)), (480, 300), &StylePreset::default()).unwrap();
+    let es_model::ShapeKind::Text(t) = &doc.shapes[0].kind else {
+        panic!("not a text");
+    };
+    t.font_family.clone()
+}
+
+fn rendered(rig: &Rig, font: Option<&str>, out: &str) -> RgbaImage {
+    rig.run(&text_ops(font), out, false).unwrap();
+    image::open(rig.path(out)).unwrap().to_rgba8()
+}
+
+#[test]
+fn a_text_op_names_a_bundled_or_installed_font() {
+    use es_model::FontFamily::*;
+    assert_eq!(text_family("Compact"), Compact);
+    assert_eq!(text_family("nunito"), Rounded);
+    assert_eq!(text_family("Inter"), Pro);
+    assert_eq!(text_family("Cantarell"), System("Cantarell".into()));
+}
+
+#[test]
+fn a_text_op_without_a_font_takes_the_saved_style() {
+    let style = StylePreset {
+        text_font_family: es_model::FontFamily::Rounded,
+        ..StylePreset::default()
+    };
+    let (doc, _) = annotate_ops::build(&text_ops(None), (480, 300), &style).unwrap();
+    let es_model::ShapeKind::Text(t) = &doc.shapes[0].kind else {
+        panic!("not a text");
+    };
+    assert_eq!(t.font_family, es_model::FontFamily::Rounded);
+}
+
+#[test]
+fn a_known_font_draws_in_that_font() {
+    let rig = Rig::new();
+    let default = rendered(&rig, None, "default.png");
+    let rounded = rendered(&rig, Some("rounded"), "rounded.png");
+    assert_ne!(default, rounded);
+}
+
+#[test]
+fn an_unknown_font_draws_in_the_bundled_default() {
+    let rig = Rig::new();
+    let default = rendered(&rig, None, "default.png");
+    let unknown = rendered(&rig, Some("No Such Family 7"), "unknown.png");
+    assert_eq!(default, unknown);
+}

@@ -81,11 +81,21 @@ fn remove_file(path: &Path) {
     }
 }
 
+fn drop_session(paths: &Paths, journal: &Path) {
+    if let Some(session) = session_of(journal) {
+        for staged in staged_files(paths, &session) {
+            remove_file(&staged);
+        }
+    }
+    remove_file(journal);
+}
+
 pub fn load(path: &Path) -> es_store::Result<Option<Entry>> {
     Ok(JsonFile::<Entry>::open_existing(path, FormatKind::Recovery)?.map(|f| f.value))
 }
 
-/// Every readable journal in name order; an unreadable one stays on disk and is skipped.
+/// Every readable journal in name order. One that cannot be parsed or migrated can never reopen,
+/// so it and its staged bases are removed; one that failed to read from disk stays.
 pub fn recover(paths: &Paths) -> Vec<Recovered> {
     let Ok(dir) = std::fs::read_dir(paths.recovery_dir()) else {
         return Vec::new();
@@ -97,7 +107,12 @@ pub fn recover(paths: &Paths) -> Vec<Recovered> {
             Ok(Some(entry)) => Some(Recovered { path, entry }),
             Ok(None) => None,
             Err(e) => {
-                tracing::warn!(error = %e, path = %path.display(), "recovery journal unreadable");
+                if matches!(e, es_store::Error::Io { .. }) {
+                    tracing::warn!(error = %e, path = %path.display(), "recovery journal unreadable");
+                } else {
+                    tracing::warn!(error = %e, path = %path.display(), "recovery journal dropped");
+                    drop_session(paths, &path);
+                }
                 None
             }
         })

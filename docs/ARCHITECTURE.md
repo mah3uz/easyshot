@@ -314,7 +314,8 @@ as a missing wallpaper. `es_store::wallpapers::read` reads only a regular file o
   and the older one is deleted only after that journal is on disk, so a crash at any point
   leaves a journal whose files match. One lock per session orders the writes; a write that a
   newer one or a removal overtook is dropped. A missing or unreadable staged base reopens the
-  original base with a warning.
+  original base with a warning. A journal that does not parse or migrate is logged and removed
+  with its staged bases at startup; the editor opens normally.
 - A panic hook writes `crash/<ts>.txt` (version, features, chosen providers, backtrace, last
   200 log lines, kept in an in-memory tracing layer); the next start offers "Open crash
   report" and renames the file to `<ts>.reported.txt` so it is offered once. Nothing is
