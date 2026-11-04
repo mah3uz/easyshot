@@ -4,30 +4,32 @@ use es_scroll::{AutoScrollStop, Frame, Settle, SettleStep, auto_scroll_step, fra
 use std::time::Duration;
 
 #[test]
-fn settle_backs_off_then_gives_up_after_twelve_tries() {
+fn settle_backs_off_then_gives_up_once_it_has_waited_two_hundred_ms() {
     let mut s = Settle::new();
     let mut delays = Vec::new();
-    for h in 0..11u64 {
-        match s.observe(h) {
+    for _ in 0..6 {
+        match s.observe(false) {
             SettleStep::Retry(d) => delays.push(d.as_micros()),
             other => panic!("{other:?}"),
         }
     }
-    assert_eq!(
-        delays,
-        [
-            10_000, 15_000, 22_500, 33_750, 50_625, 75_937, 80_000, 80_000, 80_000, 80_000, 80_000
-        ]
-    );
-    assert_eq!(s.observe(11), SettleStep::GaveUp);
+    assert_eq!(delays, [10_000, 15_000, 22_500, 33_750, 50_625, 75_937]);
+    assert_eq!(s.observe(false), SettleStep::GaveUp);
 }
 
 #[test]
-fn settle_needs_two_identical_hashes() {
+fn settle_needs_a_frame_unchanged_from_the_one_before() {
     let mut s = Settle::new();
-    assert_eq!(s.observe(5), SettleStep::Retry(Duration::from_millis(10)));
-    assert_eq!(s.observe(6), SettleStep::Retry(Duration::from_millis(15)));
-    assert_eq!(s.observe(6), SettleStep::Settled);
+    assert_eq!(
+        s.observe(true),
+        SettleStep::Retry(Duration::from_millis(10)),
+        "the first frame has nothing to match"
+    );
+    assert_eq!(
+        s.observe(false),
+        SettleStep::Retry(Duration::from_millis(15))
+    );
+    assert_eq!(s.observe(true), SettleStep::Settled);
 }
 
 #[test]

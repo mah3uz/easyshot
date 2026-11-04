@@ -109,24 +109,48 @@ pub fn shift_robust(prev: &Frame, next: &Frame, ex: Exclusions) -> Option<usize>
     if len <= min_overlap {
         return None;
     }
-    let edges: Vec<usize> = (bands..n.len())
-        .filter(|&i| (n[i] - n[i - bands]).abs() > EDGE)
-        .collect();
+    let edges = edges(&n, bands);
     let mut best = (0, 0, 0);
     for dy in 0..=len - min_overlap {
-        let limit = (len - dy) * bands;
-        let (mut seen, mut same) = (0, 0);
-        for &i in edges.iter().take_while(|&&i| i < limit) {
-            seen += 1;
-            let j = i + dy * bands;
-            if (p[j] - n[i]).abs() <= SAME && (p[j - bands] - n[i - bands]).abs() <= SAME {
-                same += 1;
-            }
-        }
+        let (same, seen) = edges_kept(&p, &n, bands, &edges, dy);
         if same > best.0 {
             best = (same, seen, dy);
         }
     }
     let (same, seen, dy) = best;
     (same >= min_overlap && same as f64 >= MIN_SHARE * seen as f64).then_some(dy)
+}
+
+/// Whether most edges stayed where they were, so content animating in place does not count as a move.
+pub fn unmoved(prev: &Frame, next: &Frame) -> bool {
+    if prev.width != next.width || prev.height != next.height {
+        return false;
+    }
+    let (p, bands) = profile(prev, Exclusions::default());
+    let (n, _) = profile(next, Exclusions::default());
+    let edges = edges(&n, bands);
+    let (same, seen) = edges_kept(&p, &n, bands, &edges, 0);
+    if seen == 0 {
+        return p == n;
+    }
+    same as f64 >= MIN_SHARE * seen as f64
+}
+
+fn edges(n: &[f64], bands: usize) -> Vec<usize> {
+    (bands..n.len())
+        .filter(|&i| (n[i] - n[i - bands]).abs() > EDGE)
+        .collect()
+}
+
+fn edges_kept(p: &[f64], n: &[f64], bands: usize, edges: &[usize], dy: usize) -> (usize, usize) {
+    let limit = (n.len() / bands).saturating_sub(dy) * bands;
+    let (mut seen, mut same) = (0, 0);
+    for &i in edges.iter().take_while(|&&i| i < limit) {
+        seen += 1;
+        let j = i + dy * bands;
+        if (p[j] - n[i]).abs() <= SAME && (p[j - bands] - n[i - bands]).abs() <= SAME {
+            same += 1;
+        }
+    }
+    (same, seen)
 }

@@ -3,7 +3,8 @@ use std::time::Duration;
 const FIRST_DELAY_MS: f64 = 10.0;
 const DELAY_GROWTH: f64 = 1.5;
 const MAX_DELAY_MS: f64 = 80.0;
-const MAX_TRIES: u32 = 12;
+// Moving content may never settle, and every tick waits on this.
+const MAX_WAIT_MS: f64 = 200.0;
 const MAX_FAILED_STEPS: u32 = 8;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -15,8 +16,8 @@ pub enum SettleStep {
 
 #[derive(Debug, Clone, Default)]
 pub struct Settle {
-    last: Option<u64>,
     tries: u32,
+    waited_ms: f64,
 }
 
 impl Settle {
@@ -24,16 +25,17 @@ impl Settle {
         Self::default()
     }
 
-    pub fn observe(&mut self, hash: u64) -> SettleStep {
+    /// `unchanged` says whether this frame matches the one before; the first frame has none.
+    pub fn observe(&mut self, unchanged: bool) -> SettleStep {
         self.tries += 1;
-        if self.last == Some(hash) {
+        if unchanged && self.tries > 1 {
             return SettleStep::Settled;
         }
-        self.last = Some(hash);
-        if self.tries >= MAX_TRIES {
+        if self.waited_ms >= MAX_WAIT_MS {
             return SettleStep::GaveUp;
         }
         let ms = (FIRST_DELAY_MS * DELAY_GROWTH.powi(self.tries as i32 - 1)).min(MAX_DELAY_MS);
+        self.waited_ms += ms;
         SettleStep::Retry(Duration::from_secs_f64(ms / 1000.0))
     }
 }

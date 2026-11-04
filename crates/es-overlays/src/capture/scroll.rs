@@ -1,6 +1,6 @@
 use es_scroll::{
     AutoScrollStop, Frame, Push, Settle, SettleStep, Stitcher, auto_scroll_step, frame_hash,
-    still_hash,
+    still_hash, unmoved,
 };
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::time::{Duration, Instant};
@@ -52,20 +52,34 @@ pub struct Params {
     pub max_height: usize,
 }
 
-/// Grabs until two frames in a row are the same outside the `moving` rows, or gives the last one when the area never settles.
+/// Grabs until a frame matches the one before outside what moves in place, or gives the last one when the area never settles.
 pub fn settled(src: &mut dyn Source, moving: &[bool]) -> Option<Frame> {
     let mut settle = Settle::new();
+    let mut last: Option<Frame> = None;
     loop {
         let frame = src.grab()?;
-        match settle.observe(still_hash(&frame, moving)) {
+        let unchanged = last.as_ref().is_some_and(|l| {
+            still_hash(l, moving) == still_hash(&frame, moving) || unmoved(l, &frame)
+        });
+        match settle.observe(unchanged) {
             SettleStep::Settled | SettleStep::GaveUp => return Some(frame),
-            SettleStep::Retry(d) => src.sleep(d),
+            SettleStep::Retry(d) => {
+                last = Some(frame);
+                src.sleep(d);
+            }
         }
     }
 }
 
 /// Nearest-neighbour, never enlarged.
 pub fn fit(frame: &Frame, max: (usize, usize)) -> Frame {
+    fit_live(frame, None, max)
+}
+
+/// The stitched image with its last view replaced by `latest`, so moving content and an unmatched frame show as they are now.
+pub fn fit_live(frame: &Frame, latest: Option<&Frame>, max: (usize, usize)) -> Frame {
+    let latest = latest.filter(|l| l.width == frame.width && l.height <= frame.height);
+    let live_from = latest.map_or(frame.height, |l| frame.height - l.height);
     let k = (max.0 as f64 / frame.width as f64)
         .min(max.1 as f64 / frame.height as f64)
         .min(1.0);
@@ -74,7 +88,13 @@ pub fn fit(frame: &Frame, max: (usize, usize)) -> Frame {
     let mut data = Vec::with_capacity(w * h * 4);
     for y in 0..h {
         let sy = (y * frame.height / h).min(frame.height - 1);
-        let row = &frame.data[sy * frame.width * 4..(sy + 1) * frame.width * 4];
+        let row = match latest {
+            Some(l) if sy >= live_from => {
+                let y = sy - live_from;
+                &l.data[y * l.width * 4..(y + 1) * l.width * 4]
+            }
+            _ => &frame.data[sy * frame.width * 4..(sy + 1) * frame.width * 4],
+        };
         for x in 0..w {
             let sx = (x * frame.width / w).min(frame.width - 1);
             data.extend_from_slice(&row[sx * 4..sx * 4 + 4]);
@@ -140,9 +160,14 @@ impl Session<'_> {
         };
         if matches!(push, Push::Appended(_) | Push::Full) {
             (self.emit)(Update::Height(self.stitcher.height()));
-            if let Some(image) = self.stitcher.image() {
-                (self.emit)(Update::Preview(fit(image, self.params.preview)));
-            }
+        }
+        if let Some(image) = self.stitcher.image() {
+            let latest = (push != Push::Full).then_some(frame);
+            (self.emit)(Update::Preview(fit_live(
+                image,
+                latest,
+                self.params.preview,
+            )));
         }
         push
     }

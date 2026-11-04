@@ -38,6 +38,7 @@ struct Fake {
     at: Vec<(u64, Command)>,
     inside: bool,
     flicker: bool,
+    blink: bool,
     /// How many rows one wheel click moves this app.
     per_click: usize,
     grabs: usize,
@@ -58,6 +59,7 @@ impl Fake {
             at: Vec::new(),
             inside: true,
             flicker: false,
+            blink: false,
             per_click: 15,
             grabs: 0,
             scrolls: 0,
@@ -79,6 +81,9 @@ impl Source for Fake {
         }
         let mut data = self.rows(self.offset, VIEW);
         if self.flicker {
+            data.rotate_left(self.grabs % VIEW * W * 4);
+        }
+        if self.blink {
             data[0] = self.grabs as u8;
         }
         Frame::new(W, VIEW, data)
@@ -241,12 +246,50 @@ fn an_area_that_never_settles_is_retried_with_growing_pauses_then_taken() {
     let (outcome, updates) = run(&mut fake, &rx, es_scroll::MAX_HEIGHT);
     assert_eq!(outcome, Outcome::Cancelled);
     assert_eq!(
-        fake.grabs, 13,
-        "twelve tries, the last frame is used, then one more shows what animates in place"
+        fake.grabs, 8,
+        "seven tries within 200 ms, the last frame is used, then one more shows what animates in place"
     );
     let ms: Vec<u128> = fake.sleeps[1..].iter().map(|d| d.as_millis()).collect();
-    assert_eq!(ms, vec![10, 15, 22, 33, 50, 75, 80, 80, 80, 80, 80]);
+    assert_eq!(ms, vec![10, 15, 22, 33, 50, 75]);
     assert_eq!(heights(&updates), vec![VIEW]);
+}
+
+// Each tick waits for the area to settle, so content that animates in place must not hold it up.
+#[test]
+fn a_pixel_changing_in_place_does_not_keep_the_area_from_settling() {
+    let (tx, rx) = mpsc::channel();
+    let mut fake = Fake::new(600, tx.clone());
+    fake.blink = true;
+    tx.send(Command::Cancel).expect("queued");
+    let (outcome, _) = run(&mut fake, &rx, es_scroll::MAX_HEIGHT);
+    assert_eq!(outcome, Outcome::Cancelled);
+    assert_eq!(fake.grabs, 3, "two grabs settle, then one more");
+}
+
+#[test]
+fn the_preview_shows_every_grab_even_when_nothing_is_added() {
+    let (tx, rx) = mpsc::channel();
+    let mut fake = Fake::new(600, tx.clone());
+    fake.blink = true;
+    fake.at = vec![(1000, Command::Cancel)];
+    let (_, updates) = run(&mut fake, &rx, es_scroll::MAX_HEIGHT);
+    let previews: Vec<&Frame> = updates
+        .iter()
+        .filter_map(|u| match u {
+            Update::Preview(f) => Some(f),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(heights(&updates), vec![VIEW], "nothing scrolled");
+    assert!(
+        previews.len() >= 3,
+        "one preview per grab pushed, got {}",
+        previews.len()
+    );
+    assert!(
+        previews.windows(2).any(|w| w[0] != w[1]),
+        "the preview follows the pixel that changes"
+    );
 }
 
 #[test]
