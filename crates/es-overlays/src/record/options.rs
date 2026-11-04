@@ -253,7 +253,7 @@ impl RecordingOptions {
                 Some(Pick::Mic(None)),
             ))
             .chain(self.mics.iter().map(|d| {
-                let on = self.mic.as_deref() == Some(d.name.as_str());
+                let on = self.mic.as_deref().is_some_and(|m| same_mic(&d.name, m));
                 (
                     d.description.clone(),
                     on,
@@ -309,6 +309,11 @@ impl RecordingOptions {
     }
 }
 
+// Settings stores the default input as "default"; the device list names it "default_input".
+fn same_mic(device: &str, chosen: &str) -> bool {
+    device == chosen || (device == "default_input" && chosen == "default")
+}
+
 impl Render for RecordingOptions {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let t = tokens(cx).clone();
@@ -316,7 +321,7 @@ impl Render for RecordingOptions {
         let mic_name = self.mic.as_ref().map(|name| {
             self.mics
                 .iter()
-                .find(|d| d.name == *name)
+                .find(|d| same_mic(&d.name, name))
                 .map_or(name.clone(), |d| d.description.clone())
         });
         let (display_tip, display_a11y) = if multi {
