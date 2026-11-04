@@ -13,6 +13,7 @@ pub struct Line<T> {
 pub struct Listening<T> {
     slot: Slot<T>,
     generation: Rc<Cell<u64>>,
+    applied: Rc<Cell<u64>>,
 }
 
 impl<T> Listening<T> {
@@ -25,15 +26,23 @@ impl<T> Listening<T> {
         Listening {
             slot: slot.clone(),
             generation,
+            applied: Rc::default(),
         }
     }
 
-    pub fn tag(&self) -> u64 {
-        self.generation.get()
+    /// The tag for input sent now: the last switch the pick has accepted.
+    pub fn stamp(&self) -> impl Fn() -> u64 + Clone + 'static {
+        let applied = self.applied.clone();
+        move || applied.get()
     }
 
-    pub fn is_current(&self, tag: u64) -> bool {
-        tag == self.generation.get()
+    /// Whether `tag` is as new as the latest switch; accepting a switch makes later input current.
+    pub fn accept(&self, tag: u64) -> bool {
+        let current = tag == self.generation.get();
+        if current {
+            self.applied.set(tag);
+        }
+        current
     }
 }
 
@@ -79,12 +88,32 @@ mod tests {
     #[test]
     fn events_tagged_before_a_switch_are_stale() {
         let slot: Slot<&str> = Rc::default();
-        let (tx, _rx) = async_channel::unbounded();
+        let (tx, rx) = async_channel::unbounded();
         let listening = Listening::start(&slot, tx);
-        let before = listening.tag();
+        let before = listening.stamp()();
         switch(&slot, "window");
-        assert!(!listening.is_current(before));
-        assert!(listening.is_current(listening.tag()));
+        switch(&slot, "text");
+        let first = rx.try_recv().map(|(tag, _)| tag);
+        assert_eq!(first.map(|tag| listening.accept(tag)), Ok(false));
+        assert!(!listening.accept(before));
+    }
+
+    // A switch to the view already shown rebuilds nothing, so the input after it must be current
+    // without a new subscription, or Esc and every drag are dropped.
+    #[test]
+    fn input_after_a_switch_that_changes_no_view_is_current() {
+        let slot: Slot<&str> = Rc::default();
+        let (tx, rx) = async_channel::unbounded();
+        let listening = Listening::start(&slot, tx);
+        let stamp = listening.stamp();
+        for _ in 0..2 {
+            assert!(switch(&slot, "region"));
+            let queued = stamp();
+            let tag = rx.try_recv().map(|(tag, _)| tag);
+            assert_eq!(tag.map(|tag| listening.accept(tag)), Ok(true));
+            assert!(!listening.accept(queued), "input sent before the switch");
+            assert!(listening.accept(stamp()), "Esc or a drag sent after it");
+        }
     }
 
     #[test]

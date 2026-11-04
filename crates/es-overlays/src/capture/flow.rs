@@ -253,11 +253,11 @@ impl Open {
                 _ => None,
             })
             .collect();
-        let tag = self.listening.tag();
+        let stamp = self.listening.stamp();
         for (index, o) in self.overlays.iter().enumerate() {
-            let tx = self.tx.clone();
+            let (tx, stamp) = (self.tx.clone(), stamp.clone());
             let send = move |pick: Pick| {
-                let _ = tx.try_send((tag, (index, pick)));
+                let _ = tx.try_send((stamp(), (index, pick)));
             };
             let subscription = match &o.content {
                 Some(Content::Region(e)) => {
@@ -415,7 +415,7 @@ impl SelectionFlow for LayerShellSelectionFlow {
             cx.update(|cx| open.show(view, &setup, cx));
             loop {
                 let (tag, (index, event)) = rx.recv().await.map_err(|_| Error::Cancelled)?;
-                if !open.listening.is_current(tag) {
+                if !open.listening.accept(tag) {
                     continue;
                 }
                 let Some(overlay) = open.overlays.get(index) else {
