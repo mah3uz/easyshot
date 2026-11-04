@@ -1,7 +1,7 @@
 use es_model::{
-    AgentRecord, AnnotationDocument, Envelope, FontFamily, FormatKind, Header, LastRegion,
-    LastTarget, Migrated, PresetLibrary, RecordingCapture, RecordingInput, RecordingProject,
-    Recovery, ShapeKind, State, StylePreset, Tool, migrate,
+    AgentRecord, AnnotationDocument, Envelope, FontFamily, FormatKind, GradientLibrary, Header,
+    LastRegion, LastTarget, Migrated, PresetLibrary, RecordingCapture, RecordingInput,
+    RecordingProject, Recovery, ShapeKind, State, StylePreset, Tool, migrate,
 };
 use serde::{Serialize, de::DeserializeOwned};
 use std::path::PathBuf;
@@ -57,6 +57,17 @@ fn bg_presets_v1() {
     assert_eq!(dusk.camera.field_of_view_degrees, 24.0);
     assert!(dusk.progressive_blur.is_active() && dusk.border.is_visible());
     assert!(dusk.watermark.is_visible());
+}
+
+#[test]
+fn gradients_v1_keeps_every_stop_and_the_axis() {
+    let lib: GradientLibrary = load_v1(FormatKind::Gradients);
+    assert_eq!(lib.gradients.len(), 1);
+    let harbour = &lib.gradients[0];
+    assert!(harbour.is_user());
+    assert_eq!(harbour.title, "Harbour");
+    assert_eq!(harbour.colors.len(), 3);
+    assert_eq!(harbour.angle_degrees(), 90.0);
 }
 
 #[test]
@@ -346,6 +357,7 @@ fn unknown_fields_are_tolerated_in_every_body() {
     }
     tolerant::<StylePreset>(FormatKind::Style);
     tolerant::<PresetLibrary>(FormatKind::BgPresets);
+    tolerant::<GradientLibrary>(FormatKind::Gradients);
     tolerant::<AnnotationDocument>(FormatKind::Document);
     tolerant::<RecordingCapture>(FormatKind::Capture);
     tolerant::<RecordingInput>(FormatKind::Input);
@@ -362,6 +374,7 @@ fn an_empty_body_is_a_valid_default_for_every_kind() {
         assert_eq!(body, T::default());
     }
     empty::<PresetLibrary>();
+    empty::<GradientLibrary>();
     empty::<AnnotationDocument>();
     empty::<RecordingInput>();
     empty::<State>();

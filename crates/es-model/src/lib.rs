@@ -17,8 +17,8 @@ pub use agent::{ActionRecord, AgentCfg, AgentRecord, AlwaysGrant, Consent};
 pub use background::{
     Alignment, AspectRatio, BackgroundColor, BackgroundGradient, BackgroundPreset,
     BackgroundSettings, BackgroundStyle, BlurEdgeMode, BlurMode, BorderSettings, CameraSettings,
-    CornerMultipliers, PresetLibrary, ProgressiveBlurSettings, ShadowStyle, UnitPoint,
-    WatermarkSettings,
+    CornerMultipliers, GradientLibrary, PresetLibrary, ProgressiveBlurSettings, ShadowStyle,
+    UnitPoint, WatermarkSettings,
 };
 pub use capture::{
     CaptureKind, CaptureVariant, DeckManifest, HistoryEntry, HistoryIndex, Step,

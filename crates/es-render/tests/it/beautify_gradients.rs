@@ -143,3 +143,60 @@ fn no_background_stays_transparent() {
     let p = render_background(&BackgroundStyle::None, 4, 4).unwrap();
     assert_eq!(p.pixel(2, 2).unwrap().alpha(), 0);
 }
+
+fn user_gradient(colours: &[(f64, f64, f64)], degrees: f64) -> BackgroundGradient {
+    let mut g = BackgroundGradient {
+        id: "user-test".into(),
+        title: "Mine".into(),
+        colors: colours
+            .iter()
+            .map(|&(r, g, b)| BackgroundColor::custom(r, g, b))
+            .collect(),
+        ..BackgroundGradient::default()
+    };
+    g.set_angle_degrees(degrees);
+    g
+}
+
+#[test]
+fn four_stops_at_270_degrees_run_right_to_left_evenly() {
+    let g = user_gradient(
+        &[
+            (1.0, 0.0, 0.0),
+            (0.0, 1.0, 0.0),
+            (0.0, 0.0, 1.0),
+            (1.0, 1.0, 1.0),
+        ],
+        270.0,
+    );
+    let p = render_gradient(&g, 301, 40).unwrap();
+    let near = |got: [f32; 3], want: [f32; 3]| (0..3).all(|c| (got[c] - want[c]).abs() <= 6.0);
+    for (x, want) in [
+        (300, [255.0, 0.0, 0.0]),
+        (200, [0.0, 255.0, 0.0]),
+        (100, [0.0, 0.0, 255.0]),
+        (0, [255.0, 255.0, 255.0]),
+    ] {
+        let got = rgb(&p, x, 20);
+        assert!(near(got, want), "x {x}: {got:?} vs {want:?}");
+    }
+}
+
+#[test]
+fn an_off_axis_angle_reaches_from_corner_to_corner() {
+    let g = user_gradient(&[(0.0, 0.0, 0.0), (1.0, 1.0, 1.0)], 30.0);
+    let p = render_gradient(&g, 200, 200).unwrap();
+    let grey = |x, y| rgb(&p, x, y)[0];
+    assert!(grey(0, 199) < 6.0, "the start corner is the first colour");
+    assert!(grey(199, 0) > 249.0, "the far corner is the last colour");
+    assert!((grey(100, 100) - 128.0).abs() < 4.0);
+    let across = grey(100 + 43, 100 + 25);
+    assert!(
+        (across - grey(100, 100)).abs() < 3.0,
+        "constant across the axis"
+    );
+    assert!(
+        grey(100 + 25, 100 - 43) > grey(100, 100) + 30.0,
+        "brighter along it"
+    );
+}

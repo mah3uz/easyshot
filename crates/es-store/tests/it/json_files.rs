@@ -110,6 +110,60 @@ fn background_library_keeps_added_presets() {
     assert_eq!(again.value.get(id).map(|p| p.name.as_str()), Some("Sunset"));
 }
 
+fn harbour() -> es_model::BackgroundGradient {
+    let mut g = es_model::BackgroundGradient {
+        title: "Harbour".into(),
+        colors: vec![
+            es_model::BackgroundColor::custom(0.0, 0.6, 0.8),
+            es_model::BackgroundColor::custom(0.9, 0.6, 0.1),
+            es_model::BackgroundColor::custom(0.4, 0.1, 0.6),
+        ],
+        ..Default::default()
+    };
+    g.set_angle_degrees(90.0);
+    g
+}
+
+#[test]
+fn user_gradients_round_trip_in_their_own_envelope() {
+    let dir = tempfile::tempdir().unwrap();
+    let paths = Paths::rooted(dir.path());
+    let mut f = presets::open_gradients(&paths).unwrap();
+    let id = f.value.save(harbour());
+    f.save().unwrap();
+    let written: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(paths.gradients_file()).unwrap()).unwrap();
+    assert_eq!(
+        (&written["format"], &written["version"]),
+        (&"easyshot.gradients".into(), &1.into())
+    );
+    let again = presets::open_gradients(&paths).unwrap();
+    assert_eq!(again.value.get(&id), Some(&f.value.gradients[0]));
+    assert_eq!(again.value.gradients[0].colors.len(), 3);
+}
+
+#[test]
+fn newer_gradients_are_read_only_and_a_damaged_file_is_kept_for_recovery() {
+    let dir = tempfile::tempdir().unwrap();
+    let paths = paths_with_dirs(dir.path());
+    let body = newer("easyshot.gradients");
+    std::fs::write(paths.gradients_file(), &body).unwrap();
+    let f = presets::open_gradients(&paths).unwrap();
+    assert!(matches!(f.save(), Err(Error::NewerVersion { version: 7 })));
+    assert_eq!(
+        std::fs::read_to_string(paths.gradients_file()).unwrap(),
+        body
+    );
+
+    std::fs::write(paths.gradients_file(), "{ not json").unwrap();
+    let f = presets::open_gradients(&paths).unwrap();
+    assert!(f.value.gradients.is_empty());
+    assert_eq!(
+        std::fs::read_to_string(paths.gradients_recovery_file()).unwrap(),
+        "{ not json"
+    );
+}
+
 #[test]
 fn a_file_of_another_format_is_rejected_not_adopted() {
     let dir = tempfile::tempdir().unwrap();

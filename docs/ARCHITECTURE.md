@@ -219,6 +219,7 @@ Degradation, each reported by doctor:
 | Config | `$XDG_CONFIG_HOME/easyshot/config.toml` |
 | Editor style preset | `$XDG_CONFIG_HOME/easyshot/annotation-style.json` |
 | Background presets | `$XDG_CONFIG_HOME/easyshot/background-presets.json` |
+| User gradients | `$XDG_CONFIG_HOME/easyshot/gradients.json` |
 | Library | `$XDG_DATA_HOME/easyshot/library/` (`<name>.png`, `.png.easyshot` sidecar, `.base.png`) |
 | History index | `library/index.json`, a cache rebuilt by scanning `library/` |
 | Deck staging | `$XDG_DATA_HOME/easyshot/deck/<uuid>/` |

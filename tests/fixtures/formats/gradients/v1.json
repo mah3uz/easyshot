@@ -1,0 +1,17 @@
+{
+  "format": "easyshot.gradients",
+  "version": 1,
+  "gradients": [
+    {
+      "id": "user-7d1e4c52-3a0b-4f5e-9c61-2b8a0d4e1f01",
+      "title": "Harbour",
+      "colors": [
+        {"id": "custom", "title": "Custom", "red": 0.0, "green": 0.65, "blue": 0.8, "alpha": 1.0},
+        {"id": "custom", "title": "Custom", "red": 0.95, "green": 0.6, "blue": 0.1, "alpha": 1.0},
+        {"id": "custom", "title": "Custom", "red": 0.4, "green": 0.1, "blue": 0.6, "alpha": 1.0}
+      ],
+      "start": {"x": 0.0, "y": 0.5},
+      "end": {"x": 1.0, "y": 0.5}
+    }
+  ]
+}

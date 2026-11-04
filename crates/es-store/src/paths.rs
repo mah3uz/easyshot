@@ -66,6 +66,14 @@ impl Paths {
         self.config.join("background-presets.json.recovery")
     }
 
+    pub fn gradients_file(&self) -> PathBuf {
+        self.config.join("gradients.json")
+    }
+
+    pub fn gradients_recovery_file(&self) -> PathBuf {
+        self.config.join("gradients.json.recovery")
+    }
+
     pub fn library_dir(&self) -> PathBuf {
         self.data.join("library")
     }

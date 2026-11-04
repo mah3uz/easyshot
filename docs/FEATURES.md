@@ -129,6 +129,7 @@ More in the manual: [Pinned screenshots](MANUAL.md#pinned-screenshots).
 - Moves annotations with the pixels under them when you crop, rotate or flip.
 - Undoes crop, rotate and flip, keeping the last 16 image steps.
 - Adds a background of a colour, one of 24 gradients or a wallpaper.
+- Makes your own gradients: two to four colours, any angle, a name; edit, rename or delete them, and edit a copy of a built-in one.
 - Adjusts padding, corners, shadow, shadow style and alignment.
 - Sets the shape of the whole picture: Free, 1:1, 4:3, 3:2 or 16:9, shown once there is a background.
 - Tilts and rolls the picture in 3D, with lens, zoom, pan and card rotation.

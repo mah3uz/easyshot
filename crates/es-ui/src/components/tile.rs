@@ -188,6 +188,7 @@ pub struct TileGrid {
     selected: Option<usize>,
     preview: Interaction,
     on_select: Option<SelectHandler>,
+    trailing: Option<AnyElement>,
 }
 
 impl TileGrid {
@@ -205,6 +206,7 @@ impl TileGrid {
             selected: None,
             preview: Interaction::Rest,
             on_select: None,
+            trailing: None,
         }
     }
 
@@ -231,6 +233,12 @@ impl TileGrid {
 
     pub fn on_select(mut self, handler: impl Fn(usize, &mut Window, &mut App) + 'static) -> Self {
         self.on_select = Some(Rc::new(handler));
+        self
+    }
+
+    /// A cell after the tiles that is not one of the choices, such as an add button.
+    pub fn trailing(mut self, cell: impl IntoElement) -> Self {
+        self.trailing = Some(cell.into_any_element());
         self
     }
 }
@@ -279,5 +287,6 @@ impl RenderOnce for TileGrid {
                 })
             })
             .children(tiles)
+            .children(self.trailing)
     }
 }

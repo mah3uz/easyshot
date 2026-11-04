@@ -2,7 +2,6 @@ use es_model::{
     BackgroundStyle,
     background::{Alignment, AspectRatio, BackgroundColor, ShadowStyle},
 };
-use es_render::beautify::gradients::PRESETS;
 use es_ui::{
     a11y::{Accessible, Role},
     components::{AlignmentPad, ButtonKind, EditorButton, Segment, Segmented, Tile, TileGrid},
@@ -48,7 +47,7 @@ fn colour_name(id: &str) -> String {
     }
 }
 
-fn gradient_name(id: &str) -> String {
+pub(super) fn gradient_name(id: &str) -> String {
     match id {
         "violet" => fl!("editor-bg-gradient-violet"),
         "jade" => fl!("editor-bg-gradient-jade"),
@@ -174,27 +173,6 @@ impl BackgroundBody {
                             .children(picker),
                     ),
             )
-            .into_any_element()
-    }
-
-    fn gradient_picker(&self, cx: &mut Context<Self>) -> AnyElement {
-        let selected = match &self.settings(cx).style {
-            BackgroundStyle::Gradient(g) => PRESETS.iter().position(|p| p.id == g.id),
-            _ => None,
-        };
-        let tiles = PRESETS.iter().zip(&self.gradients).map(|(p, image)| {
-            let tile = Tile::new(p.id, gradient_name(p.id));
-            match image {
-                Some(image) => tile.child(img(image.clone()).size_full()),
-                None => tile,
-            }
-        });
-        let this = cx.entity().downgrade();
-        TileGrid::new("bg-gradients", fl!("editor-bg-fill-gradient"), tiles)
-            .selected(selected)
-            .on_select(move |i, _, cx| {
-                let _ = this.update(cx, |this, cx| this.pick_gradient(i, cx));
-            })
             .into_any_element()
     }
 
@@ -483,7 +461,7 @@ impl Render for BackgroundBody {
         });
         let picker = match self.library {
             Library::Color => self.colour_picker(&t, cx),
-            Library::Gradient => self.gradient_picker(cx),
+            Library::Gradient => self.gradient_picker(&t, window, cx),
             Library::Wallpaper => self.wallpaper_picker(&t, window, cx),
         };
         let shown = since_change("bg-fill-switch", self.library, FILL_SWITCH, window, cx);

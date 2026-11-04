@@ -1,5 +1,9 @@
+mod gradient_editor;
+mod gradient_view;
 mod view;
 pub mod wallpaper_cache;
+
+pub use gradient_editor::QUICK_ANGLES;
 
 use std::{path::PathBuf, rc::Rc, sync::Arc};
 
@@ -7,7 +11,8 @@ use es_model::{
     BackgroundSettings, BackgroundStyle,
     background::{Alignment, AspectRatio, BackgroundColor, ShadowStyle},
 };
-use es_render::beautify::gradients::{PRESETS, render_gradient};
+use es_render::beautify::gradients::PRESETS;
+use es_store::presets::GradientFile;
 use es_ui::components::{InspectorSlider, ValueFormat};
 use es_ui::motion::{PRESET_APPLY, SETTLE};
 use gpui::{
@@ -16,7 +21,6 @@ use gpui::{
 };
 use gpui_component::color_picker::{ColorPickerEvent, ColorPickerState};
 
-use crate::canvas::underlay;
 use crate::session::look::LookModel;
 use crate::strings::fl;
 use crate::toolbar::Drawn;
@@ -79,6 +83,9 @@ pub struct BackgroundBody {
     tab: WallpaperTab,
     recent: Vec<PathBuf>,
     gradients: Vec<Option<Arc<RenderImage>>>,
+    mine: Option<GradientFile>,
+    mine_thumbs: Vec<Option<Arc<RenderImage>>>,
+    draft: Option<gradient_editor::Draft>,
     controls: Option<Controls>,
     shape_drawn: Drawn<()>,
     _subscriptions: Vec<Subscription>,
@@ -102,11 +109,19 @@ impl BackgroundBody {
         ];
         let gradients = PRESETS
             .iter()
-            .map(|p| {
-                render_gradient(&p.style(), GRADIENT_PIXELS, GRADIENT_PIXELS)
-                    .and_then(|pixmap| underlay::render_image(&pixmap))
-            })
+            .map(|p| gradient_editor::thumb(&p.style()))
             .collect();
+        let mine = gradient_editor::open_mine(look.read(cx).paths());
+        let mine_thumbs = mine
+            .as_ref()
+            .map(|f| {
+                f.value
+                    .gradients
+                    .iter()
+                    .map(gradient_editor::thumb)
+                    .collect()
+            })
+            .unwrap_or_default();
         let mut this = Self {
             look,
             cache,
@@ -115,6 +130,9 @@ impl BackgroundBody {
             tab: WallpaperTab::Recent,
             recent: Vec::new(),
             gradients,
+            mine,
+            mine_thumbs,
+            draft: None,
             controls: None,
             shape_drawn: Drawn::default(),
             _subscriptions: subscriptions,
@@ -155,7 +173,15 @@ impl BackgroundBody {
     }
 
     /// Only a fill that puts up or takes down the stage moves the card, so only that one animates.
+    /// Any other fill picked while a gradient is being edited leaves that edit unsaved.
     fn set_style(&mut self, style: BackgroundStyle, cx: &mut Context<Self>) {
+        if self
+            .draft
+            .as_ref()
+            .is_some_and(|d| style != BackgroundStyle::Gradient(d.gradient.clone()))
+        {
+            self.draft = None;
+        }
         self.look.update(cx, |look, cx| {
             let mut next = look.settings().clone();
             next.style = style;
@@ -183,9 +209,14 @@ impl BackgroundBody {
         self.set_style(BackgroundStyle::Solid(custom), cx);
     }
 
+    /// The built-ins first, then the user's own gradients.
     pub fn pick_gradient(&mut self, index: usize, cx: &mut Context<Self>) {
-        if let Some(preset) = PRESETS.get(index) {
-            self.set_style(BackgroundStyle::Gradient(preset.style()), cx);
+        let gradient = match PRESETS.get(index) {
+            Some(preset) => Some(preset.style()),
+            None => self.user_gradients().get(index - PRESETS.len()).cloned(),
+        };
+        if let Some(gradient) = gradient {
+            self.set_style(BackgroundStyle::Gradient(gradient), cx);
         }
     }
 

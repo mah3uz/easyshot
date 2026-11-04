@@ -1,10 +1,15 @@
 mod effects;
+mod gradients;
 mod presets;
 mod style;
 
 pub use effects::{
     BlurEdgeMode, BlurMode, BorderSettings, CameraSettings, ProgressiveBlurSettings,
     WatermarkSettings,
+};
+pub use gradients::{
+    GradientLibrary, MAX_GRADIENT_NAME_CHARS, MAX_GRADIENT_STOPS, MIN_GRADIENT_STOPS,
+    clean_gradient_name,
 };
 pub use presets::{BackgroundPreset, MAX_PRESET_NAME_CHARS, PresetLibrary};
 pub use style::{BackgroundColor, BackgroundGradient, BackgroundStyle, UnitPoint};

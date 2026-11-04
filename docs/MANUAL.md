@@ -223,9 +223,21 @@ Your annotations move with the pixels under them. Crop, rotate and flip are undo
 first steps back through the edits you made after them. The editor keeps the last 16 image
 steps, and drops the oldest sooner when they would hold more than 768 MiB of pixels.
 
-Beautify options: background (colour, one of 24 gradients, wallpaper), padding, corners, shadow and
+Beautify options: background (colour, one of 24 gradients or your own, wallpaper), padding, corners, shadow and
 its style, alignment, canvas shape, camera 3D, progressive blur, border, watermark and
 presets.
+
+Your own gradients follow the 24 built-in ones in the Gradient grid. The + tile after them
+starts a new gradient from the one selected. Under the grid, Edit gradient changes the
+selected gradient of yours; on a built-in one the button reads Edit a copy, since the
+built-ins stay as they are. While you edit, the canvas shows the gradient: pick two to four
+colours (the + after them adds one between the last two, the × beside a colour removes it),
+set the angle with the slider (0° points up, 90° runs left to right, 180° top to bottom) or
+one of the quick angles, and give it a name. Save keeps it; Cancel or Escape puts the
+background back as it was, and picking another fill leaves the edit unsaved. The bin button
+deletes one of your gradients after you confirm; images and presets that use it keep their
+colours, since they hold the colours themselves. Your gradients are kept in
+`$XDG_CONFIG_HOME/easyshot/gradients.json`.
 
 Canvas shape, in the inspector's Background section, sets the shape of the whole picture:
 Free (the image's own shape plus padding), 1:1, 4:3, 3:2 or 16:9. The background grows
@@ -878,6 +890,7 @@ The server runs for as long as the agent session does.
 |---|---|
 | Settings | `$XDG_CONFIG_HOME/easyshot/config.toml` |
 | Last annotation style | `$XDG_CONFIG_HOME/easyshot/annotation-style.json` |
+| Your gradients | `$XDG_CONFIG_HOME/easyshot/gradients.json` |
 | Screenshots and edit sidecars | `$XDG_DATA_HOME/easyshot/library/` |
 | Recordings | `$XDG_DATA_HOME/easyshot/recordings/` |
 | Logs and crash reports | `$XDG_STATE_HOME/easyshot/log/`, `crash/` |
