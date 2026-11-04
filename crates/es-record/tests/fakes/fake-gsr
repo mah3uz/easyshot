@@ -3,8 +3,16 @@ import os, signal, socket, sys, threading, time
 
 args = sys.argv[1:]
 if "-ipc" not in args:
-    sys.stderr.write("gsr error: window 1x1+0+0 doesn't match any monitor. Available: eDP-1 (2560x1600+0+0)\n")
-    sys.exit(1)
+    if "FAKE_LOG" in os.environ:
+        with open(os.environ["FAKE_LOG"], "a") as f:
+            f.write("probe " + " ".join(args) + "\n")
+    region = args[args.index("-w") + 1]
+    monitors = os.environ.get("FAKE_MONITORS", "eDP-1=2560x1600+0+0").split(",")
+    sys.stderr.write("gsr error: the region %s doesn't match any monitor. Available monitors and their regions:\n" % region)
+    for m in monitors:
+        name, rect = m.split("=")
+        sys.stderr.write('  "%s"    (%s)\n' % (name, rect))
+    sys.exit(51)
 modes = os.environ.get("FAKE_MODE", "").split(",")
 log_path = os.environ["FAKE_LOG"]
 

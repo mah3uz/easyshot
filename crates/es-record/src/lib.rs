@@ -78,7 +78,11 @@ pub struct RecorderProbe {
 #[derive(Debug, Clone)]
 pub enum RecordSource {
     Output(OutputId),
-    Region { output: OutputId, logical: Rect },
+    /// `logical` is in global logical points, not relative to `output`.
+    Region {
+        output: OutputId,
+        logical: Rect,
+    },
     Window(WindowInfo),
 }
 

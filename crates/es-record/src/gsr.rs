@@ -26,7 +26,21 @@ pub struct GsrRecorder {
     clock: Arc<dyn Clock>,
     env: HashMap<String, String>,
     units: Arc<Mutex<RegionUnits>>,
+    probed: Arc<Mutex<Option<Probed>>>,
 }
+
+type Layout = (String, es_geom::Rect, (u32, u32));
+type Probed = (Vec<Layout>, RegionUnits);
+
+fn layout(outputs: &[OutputInfo]) -> Vec<Layout> {
+    outputs
+        .iter()
+        .map(|o| (o.id.0.clone(), o.logical, o.physical))
+        .collect()
+}
+
+// Off every monitor, so the recorder lists its monitors and exits without recording.
+const PROBE_ARGS: [&str; 6] = ["-w", "1x1+1000000+1000000", "-c", "mkv", "-o", "/dev/null"];
 
 impl GsrRecorder {
     fn new(portal: bool) -> Self {
@@ -42,6 +56,7 @@ impl GsrRecorder {
             clock: Arc::new(SystemClock::default()),
             env: HashMap::new(),
             units: Arc::default(),
+            probed: Arc::default(),
         }
     }
 
@@ -103,13 +118,37 @@ impl GsrRecorder {
         (!text.is_empty()).then_some(text)
     }
 
-    /// Runs the recorder against a 1x1 region so it prints its monitor list; the caller decides when.
+    /// Runs the recorder against a region off every monitor so it prints its monitor list, once per output layout.
     pub fn probe_units(&self, outputs: &[OutputInfo]) -> RegionUnits {
-        if !needs_unit_probe(outputs) {
-            return RegionUnits::Logical;
-        }
+        let units = if !needs_unit_probe(outputs) {
+            RegionUnits::Logical
+        } else {
+            let now = layout(outputs);
+            let cached = self.probed.lock().ok().and_then(|p| {
+                p.as_ref()
+                    .filter(|(l, _)| *l == now)
+                    .map(|(_, u)| u.clone())
+            });
+            match cached {
+                Some(units) => units,
+                None => {
+                    let units = self.run_probe(outputs);
+                    if let Ok(mut p) = self.probed.lock() {
+                        *p = Some((now, units.clone()));
+                    }
+                    units
+                }
+            }
+        };
+        self.set_units(units.clone());
+        units
+    }
+
+    fn run_probe(&self, outputs: &[OutputInfo]) -> RegionUnits {
         let out = std::process::Command::new(&self.program)
-            .args(["-w", "1x1+0+0", "-o", "/dev/null"])
+            .args(PROBE_ARGS)
+            .envs(&self.env)
+            .stdin(std::process::Stdio::null())
             .output();
         let Ok(out) = out else {
             return RegionUnits::Logical;
@@ -119,9 +158,7 @@ impl GsrRecorder {
             String::from_utf8_lossy(&out.stderr),
             String::from_utf8_lossy(&out.stdout)
         );
-        let units = decide_units(&parse_monitor_list(&text), outputs);
-        self.set_units(units.clone());
-        units
+        decide_units(&parse_monitor_list(&text), outputs)
     }
 
     fn kms_problem(&self) -> Option<String> {

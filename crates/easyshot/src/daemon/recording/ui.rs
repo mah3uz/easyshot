@@ -15,7 +15,8 @@ use std::cell::Cell;
 use std::rc::Rc;
 use std::time::Duration;
 
-const UNMAP_SETTLE: Duration = Duration::from_millis(150);
+/// A closed surface can still be on screen until the compositor repaints, so frames are taken after this.
+pub const UNMAP_SETTLE: Duration = Duration::from_millis(150);
 
 pub type TrayUpdate = Rc<dyn Fn(Option<RecordingTrayState>, &mut App)>;
 pub type Notify = Rc<dyn Fn(String)>;

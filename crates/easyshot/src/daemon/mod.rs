@@ -456,7 +456,15 @@ fn start(
         countdown: recording::ui::countdown(surfaces.clone()),
         select_area: {
             let coordinator = coordinator.clone();
-            Rc::new(move |cx| coordinator.select_area(cx))
+            Rc::new(move |cx| {
+                let coordinator = coordinator.clone();
+                cx.spawn(async move |cx| {
+                    cx.background_executor()
+                        .timer(recording::ui::UNMAP_SETTLE)
+                        .await;
+                    cx.update(|cx| coordinator.select_area(cx)).await
+                })
+            })
         },
         input: recording::input::for_system(Arc::new(es_record::SystemClock::default()), backend),
     });

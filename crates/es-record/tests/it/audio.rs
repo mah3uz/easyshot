@@ -81,48 +81,111 @@ fn output(
     }
 }
 
-const ERROR_TEXT: &str = "gsr error: window 1x1+0+0 doesn't match any monitor. Available: \
-    DP-2 (2560x1440+2883+182), eDP-1 (2560x1600+0+0)";
+// Printed by gpu-screen-recorder 6.1.6 in headless sway with two outputs, one at scale 1.5.
+const ERROR_TEXT: &str = "gsr error: the region 1x1+1000000+1000000 doesn't match any monitor. \
+    Available monitors and their regions:\n  \"HEADLESS-1\"    (1706x960+2883+182)\n  \"HEADLESS-2\"    (1920x1080+0+0)\n";
 
 #[test]
-fn the_monitor_list_is_parsed_from_the_error_text() {
+fn the_monitor_list_is_parsed_from_the_recorders_error_text() {
     let m = parse_monitor_list(ERROR_TEXT);
     assert_eq!(m.len(), 2);
     assert_eq!(
         (m[0].name.as_str(), m[0].width, m[0].height, m[0].x, m[0].y),
-        ("DP-2", 2560, 1440, 2883, 182)
+        ("HEADLESS-1", 1706, 960, 2883, 182)
     );
-    assert_eq!((m[1].name.as_str(), m[1].width), ("eDP-1", 2560));
+    assert_eq!((m[1].name.as_str(), m[1].width), ("HEADLESS-2", 1920));
+}
+
+fn mapped(printed: &str, outs: &[OutputInfo]) -> RegionUnits {
+    let units = decide_units(&parse_monitor_list(printed), outs);
+    assert!(matches!(units, RegionUnits::Mapped(_)), "{units:?}");
+    units
+}
+
+fn target(units: &RegionUnits, output: &str, x: f64, y: f64, w: f64, h: f64) -> String {
+    units.region_target(&OutputId(output.into()), Rect::new(x, y, x + w, y + h))
 }
 
 #[test]
-fn a_printed_size_equal_to_the_logical_size_means_logical_coordinates() {
-    let outs = [
-        output("DP-2", (2883.0, 182.0, 2560.0, 1440.0), (2560, 1440), 1.0),
-        output("eDP-1", (0.0, 0.0, 1280.0, 800.0), (2560, 1600), 2.0),
-    ];
-    let printed = parse_monitor_list("DP-2 (2560x1440+2883+182), eDP-1 (1280x800+0+0)");
-    assert_eq!(decide_units(&printed, &outs), RegionUnits::Logical);
+fn a_global_area_on_an_offset_output_lands_on_that_monitor_in_the_recorders_coordinates() {
+    let outs = [output(
+        "DP-2",
+        (2883.0, 182.0, 2560.0, 1440.0),
+        (2560, 1440),
+        1.0,
+    )];
+    let global = mapped(r#"  "DP-2"    (2560x1440+2883+182)"#, &outs);
+    assert_eq!(
+        target(&global, "DP-2", 3000.0, 400.0, 800.0, 600.0),
+        "800x600+3000+400"
+    );
+    let from_zero = mapped(r#"  "DP-2"    (2560x1440+0+0)"#, &outs);
+    assert_eq!(
+        target(&from_zero, "DP-2", 3000.0, 400.0, 800.0, 600.0),
+        "800x600+117+218"
+    );
 }
 
 #[test]
-fn a_printed_physical_size_on_a_scaled_output_maps_regions_to_physical_pixels() {
+fn a_scaled_offset_output_maps_by_the_size_the_recorder_printed() {
+    let outs = [output(
+        "DP-2",
+        (2883.0, 182.0, 2560.0 / 1.5, 960.0),
+        (2560, 1440),
+        1.5,
+    )];
+    let logical = mapped(r#"  "DP-2"    (1706x960+2883+182)"#, &outs);
+    assert_eq!(
+        target(&logical, "DP-2", 3000.0, 400.0, 800.0, 600.0),
+        "800x600+3000+400"
+    );
+    assert_eq!(
+        target(&logical, "DP-2", 2883.0, 182.0, 2560.0 / 1.5, 960.0),
+        "1706x960+2883+182"
+    );
+    let physical = mapped(r#"  "DP-2"    (2560x1440+0+0)"#, &outs);
+    assert_eq!(
+        target(&physical, "DP-2", 3001.0, 400.0, 800.0, 600.0),
+        "1200x900+177+327"
+    );
+}
+
+#[test]
+fn outputs_side_by_side_each_map_to_their_own_monitor() {
     let outs = [
-        output("DP-2", (2883.0, 182.0, 2560.0, 1440.0), (2560, 1440), 1.0),
-        output("eDP-1", (0.0, 0.0, 1280.0, 800.0), (2560, 1600), 2.0),
+        output("HEADLESS-2", (0.0, 0.0, 1920.0, 1080.0), (1920, 1080), 1.0),
+        output(
+            "HEADLESS-1",
+            (2883.0, 182.0, 2560.0 / 1.5, 960.0),
+            (2560, 1440),
+            1.5,
+        ),
     ];
-    let printed = parse_monitor_list(ERROR_TEXT);
-    let units = decide_units(&printed, &outs);
-    let RegionUnits::Physical(maps) = &units else {
-        panic!("expected physical");
-    };
-    assert_eq!(maps.len(), 1);
-    let edp = OutputId("eDP-1".into());
-    let region = Rect::new(100.0, 50.0, 400.0, 250.0);
-    assert_eq!(units.region_target(&edp, region), "600x400+200+100");
-    let dp = OutputId("DP-2".into());
-    let region = Rect::new(3083.0, 382.0, 3883.0, 982.0);
-    assert_eq!(units.region_target(&dp, region), "800x600+3083+382");
+    let units = mapped(ERROR_TEXT, &outs);
+    assert_eq!(
+        target(&units, "HEADLESS-2", 100.0, 50.0, 300.0, 200.0),
+        "300x200+100+50"
+    );
+    assert_eq!(
+        target(&units, "HEADLESS-1", 3000.0, 400.0, 800.0, 600.0),
+        "800x600+3000+400"
+    );
+}
+
+#[test]
+fn without_a_matching_monitor_the_area_goes_as_global_logical_coordinates() {
+    let outs = [output(
+        "DP-2",
+        (2883.0, 182.0, 2560.0, 1440.0),
+        (2560, 1440),
+        1.0,
+    )];
+    let units = decide_units(&parse_monitor_list(ERROR_TEXT), &outs);
+    assert_eq!(units, RegionUnits::Logical);
+    assert_eq!(
+        target(&units, "DP-2", 3000.0, 400.0, 800.0, 600.0),
+        "800x600+3000+400"
+    );
 }
 
 struct Sink(Option<&'static str>);

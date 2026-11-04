@@ -392,3 +392,34 @@ fn a_region_recording_on_a_scaled_output_is_sent_in_physical_pixels() {
     block_on(r.start(s).unwrap().stop()).unwrap();
     assert!(argv(&rig.lines()).starts_with("-w 600x400+200+100 "));
 }
+
+#[test]
+fn an_area_on_an_offset_output_is_probed_once_and_sent_on_the_recorders_monitor() {
+    let rig = Rig::new();
+    let outputs = [OutputInfo {
+        id: OutputId("DP-2".into()),
+        description: String::new(),
+        logical: Rect::new(2883.0, 182.0, 5443.0, 1622.0),
+        physical: (2560, 1440),
+        scale: 1.0,
+        refresh_mhz: 60_000,
+        transform: Transform::Normal,
+        focused: None,
+    }];
+    let r = rig
+        .recorder(false, "")
+        .with_env("FAKE_MONITORS", "DP-2=2560x1440+0+0");
+    for _ in 0..2 {
+        let s = spec(rig.tmp.path(), region("DP-2", 3000.0, 400.0, 800.0, 600.0));
+        r.prepare(&s, &outputs);
+        block_on(r.start(s).unwrap().stop()).unwrap();
+    }
+    let lines = rig.lines();
+    let probes: Vec<_> = lines.iter().filter(|l| l.starts_with("probe ")).collect();
+    assert_eq!(probes.len(), 1, "one probe per output layout: {lines:?}");
+    assert!(
+        probes[0].contains("-c mkv"),
+        "without a container the recorder never lists its monitors"
+    );
+    assert!(argv(&lines).starts_with("-w 800x600+117+218 "));
+}

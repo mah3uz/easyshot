@@ -525,3 +525,27 @@ async fn a_screenshot_is_taken_while_a_recording_runs_but_a_second_recording_is_
 }
 
 mod keystrokes;
+
+#[test]
+fn an_area_reaches_the_recorder_in_global_logical_points_on_an_offset_output() {
+    let dp2 = OutputInfo {
+        id: OutputId("DP-2".into()),
+        description: String::new(),
+        logical: Rect::new(2883.0, 182.0, 5443.0, 1622.0),
+        physical: (2560, 1440),
+        scale: 1.0,
+        transform: es_model::platform::Transform::Normal,
+        refresh_mhz: 60_000,
+        focused: None,
+    };
+    let chosen = Rect::new(3000.0, 400.0, 3800.0, 1000.0);
+    let start = Start::new(area(), Some((dp2.id.clone(), chosen)));
+    let (_, source) = target::resolve(&start, &[dp2]).unwrap();
+    let es_record::RecordSource::Region { logical, .. } = source else {
+        panic!("expected a region");
+    };
+    assert_eq!(
+        logical, chosen,
+        "recorders place regions in the global layout, as slurp prints them"
+    );
+}
