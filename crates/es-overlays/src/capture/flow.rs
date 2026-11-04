@@ -103,6 +103,7 @@ enum View {
     Text,
     Window,
     Color,
+    ScrollWindow,
     Scroll,
 }
 
@@ -223,11 +224,11 @@ impl Open {
                 )
             }
             // The list goes on the pointer's output only; the others just show the frozen screen.
-            View::Window if !setup.geometry => {
+            View::Window | View::ScrollWindow if !setup.geometry => {
                 let items = (index == 0).then(|| windows::listed(&setup.windows, pid));
                 Content::Picker(cx.new(|cx| WindowPicker::new(&frame, items, cx)))
             }
-            View::Window => {
+            View::Window | View::ScrollWindow => {
                 let here = windows::on_output(&setup.windows, &o.output, o.logical, pid);
                 Content::Window(cx.new(|cx| WindowSelector::new(frame, here, cx)))
             }
@@ -344,7 +345,28 @@ fn view_for(mode: SelectMode) -> Option<View> {
         SelectMode::Text => Some(View::Text),
         SelectMode::Window => Some(View::Window),
         SelectMode::Color => Some(View::Color),
-        SelectMode::Scroll => Some(View::Scroll),
+        SelectMode::Scroll => Some(View::ScrollWindow),
+        SelectMode::ScrollRegion => Some(View::Scroll),
+    }
+}
+
+/// Space swaps between picking a window and drawing a region, within the same kind of capture.
+fn toggled(view: View, to_window: bool) -> Option<View> {
+    match (view, to_window) {
+        (View::Region | View::Window, true) => Some(View::Window),
+        (View::Region | View::Window, false) => Some(View::Region),
+        (View::Scroll | View::ScrollWindow, true) => Some(View::ScrollWindow),
+        (View::Scroll | View::ScrollWindow, false) => Some(View::Scroll),
+        _ => None,
+    }
+}
+
+/// Without any window to pick, a scroll capture starts on a region.
+fn usable(view: View, setup: &Setup) -> View {
+    if view == View::ScrollWindow && setup.windows.is_empty() && !setup.geometry {
+        View::Scroll
+    } else {
+        view
     }
 }
 
@@ -389,7 +411,7 @@ impl SelectionFlow for LayerShellSelectionFlow {
                 geometry,
             };
             let mut open = cx.update(|cx| this.open(frames, tx, listening, cx))?;
-            let mut view = first;
+            let mut view = usable(first, &setup);
             cx.update(|cx| open.show(view, &setup, cx));
             loop {
                 let (tag, (index, event)) = rx.recv().await.map_err(|_| Error::Cancelled)?;
@@ -404,22 +426,19 @@ impl SelectionFlow for LayerShellSelectionFlow {
                     Pick::Began => {}
                     Pick::Cancel => return Ok(Selection::Cancelled),
                     Pick::ToWindow | Pick::ToRegion => {
-                        let next = if event == Pick::ToWindow {
-                            View::Window
-                        } else {
-                            View::Region
-                        };
-                        if view != next && matches!(view, View::Region | View::Window) {
+                        let next =
+                            toggled(view, event == Pick::ToWindow).map(|v| usable(v, &setup));
+                        if let Some(next) = next.filter(|next| *next != view) {
                             view = next;
                             cx.update(|cx| open.show(view, &setup, cx));
                         }
                     }
-                    Pick::Switch(next) if next == view => {}
+                    Pick::Switch(next) if usable(next, &setup) == view => {}
                     Pick::Switch(View::Window) if setup.windows.is_empty() && !setup.geometry => {
                         return Err(Error::Unsupported);
                     }
                     Pick::Switch(next) => {
-                        view = next;
+                        view = usable(next, &setup);
                         cx.update(|cx| open.show(view, &setup, cx));
                     }
                     Pick::Whole => {
@@ -435,8 +454,35 @@ impl SelectionFlow for LayerShellSelectionFlow {
                         drop(open);
                         let (surfaces, backend) = (this.surfaces.clone(), this.backend.clone());
                         let control = this.scroll.clone();
-                        return scroll_flow::capture(surfaces, backend, control, output, local, cx)
-                            .await;
+                        return scroll_flow::capture(
+                            surfaces, backend, control, output, local, None, cx,
+                        )
+                        .await;
+                    }
+                    Pick::Window { id, local } if view == View::ScrollWindow => {
+                        let bounds =
+                            Rect::new(0.0, 0.0, frame.logical.width(), frame.logical.height());
+                        let area = local
+                            .map(|l| l.intersect(bounds))
+                            .filter(|a| a.width() >= 1.0 && a.height() >= 1.0);
+                        let Some(area) = area else {
+                            view = View::Scroll;
+                            cx.update(|cx| open.show(view, &setup, cx));
+                            continue;
+                        };
+                        drop(open);
+                        let (surfaces, backend) = (this.surfaces.clone(), this.backend.clone());
+                        let control = this.scroll.clone();
+                        return scroll_flow::capture(
+                            surfaces,
+                            backend,
+                            control,
+                            output,
+                            area,
+                            Some(id),
+                            cx,
+                        )
+                        .await;
                     }
                     Pick::Region(local) => {
                         let cropped = geometry::crop(&frame, local)
@@ -482,5 +528,41 @@ impl SelectionFlow for LayerShellSelectionFlow {
             Switch::Close => Pick::Cancel,
         };
         live::switch(&self.picking, (0, pick))
+    }
+}
+
+#[cfg(test)]
+mod view_tests {
+    use super::*;
+
+    #[test]
+    fn a_scroll_capture_starts_on_a_window_and_the_region_start_is_separate() {
+        assert_eq!(view_for(SelectMode::Scroll), Some(View::ScrollWindow));
+        assert_eq!(view_for(SelectMode::ScrollRegion), Some(View::Scroll));
+        assert_eq!(view_for(SelectMode::Window), Some(View::Window));
+    }
+
+    #[test]
+    fn space_swaps_window_and_region_without_leaving_the_kind_of_capture() {
+        assert_eq!(toggled(View::ScrollWindow, false), Some(View::Scroll));
+        assert_eq!(toggled(View::Scroll, true), Some(View::ScrollWindow));
+        assert_eq!(toggled(View::Window, false), Some(View::Region));
+        assert_eq!(toggled(View::Region, true), Some(View::Window));
+        assert_eq!(toggled(View::Color, true), None);
+        assert_eq!(toggled(View::Text, false), None);
+    }
+
+    #[test]
+    fn with_no_window_to_pick_a_scroll_capture_starts_on_a_region() {
+        let mut setup = Setup {
+            options: FlowOptions::default(),
+            last: None,
+            windows: Vec::new(),
+            geometry: false,
+        };
+        assert_eq!(usable(View::ScrollWindow, &setup), View::Scroll);
+        assert_eq!(usable(View::Window, &setup), View::Window);
+        setup.geometry = true;
+        assert_eq!(usable(View::ScrollWindow, &setup), View::ScrollWindow);
     }
 }

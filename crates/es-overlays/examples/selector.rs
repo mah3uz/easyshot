@@ -364,7 +364,7 @@ fn main() {
                     Mode::Region => SelectMode::Region,
                     Mode::Window => SelectMode::Window,
                     Mode::Color => SelectMode::Color,
-                    Mode::Scroll => SelectMode::Scroll,
+                    Mode::Scroll => SelectMode::ScrollRegion,
                 },
                 cx,
             );

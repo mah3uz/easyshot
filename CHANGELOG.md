@@ -22,7 +22,7 @@
 - The editor remembers your last annotation style across sessions, and each tool's options have a Reset to defaults button.
 - Crop, rotate and flip the image in the editor; annotations follow, and each step can be undone.
 - In the editor the mouse wheel zooms about the pointer and touchpad scrolling pans; annotations stay on the image.
-- Scrolling capture: select an area, scroll, and get one tall image.
+- Scrolling capture: pick a window (Space draws a region instead; Shift-click the bar's Scroll button or `capture scroll --region` starts on a region), scroll, and get one tall image.
 - One capture runs at a time and nothing waits in line: while you pick, another capture key switches the picker to that mode on the same frozen screen and the same key closes it; once a capture is under way, a new one is refused with a toast "A capture is in progress"; screenshots still work during a recording, and an agent asking during a capture is told busy.
 - The editor's inspector on the right, with a button in the tool row to hide it, and its Background, Camera and Progressive Blur sections: colours, gradients, seven built-in wallpapers or your own, padding, shadow, corners, a canvas shape (Free, 1:1, 4:3, 3:2, 16:9), alignment, and a focus pad for the sharp area.
 - Each editor tool's options show in the inspector, with a back arrow to the image settings, and stay until you change tools: colour and stroke, arrowheads and line style for arrows, font, size, bold, italic and underline for text, blur strength, the Highlighter's mode, and crop's ratio with Reset, Cancel and Apply.

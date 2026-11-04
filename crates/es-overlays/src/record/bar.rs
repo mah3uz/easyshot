@@ -8,10 +8,10 @@ use es_ui::a11y::{Accessible as _, Role};
 use es_ui::icons::IconName;
 use es_ui::theme::{UI_FONT, tokens};
 use gpui::{
-    AnyElement, App, AppContext as _, Context, Div, Entity, EventEmitter, FocusHandle, Focusable,
-    Hsla, InteractiveElement as _, IntoElement, KeyDownEvent, ParentElement as _, Render,
-    SharedString, Stateful, StatefulInteractiveElement as _, Styled as _, Subscription, Window,
-    div, prelude::FluentBuilder as _, px,
+    AnyElement, App, AppContext as _, ClickEvent, Context, Div, Entity, EventEmitter, FocusHandle,
+    Focusable, Hsla, InteractiveElement as _, IntoElement, KeyDownEvent, ParentElement as _,
+    Render, SharedString, Stateful, StatefulInteractiveElement as _, Styled as _, Subscription,
+    Window, div, prelude::FluentBuilder as _, px,
 };
 use gpui_component::{Icon, tooltip::Tooltip};
 
@@ -269,6 +269,14 @@ const ITEMS: [(&str, IconName, Route); 6] = [
     ("bar-color", IconName::Pipette, Route::ColorPicker),
 ];
 
+/// Shift on Scroll starts by drawing a region instead of picking a window.
+pub fn with_modifier(route: &Route, shift: bool) -> Route {
+    match route {
+        Route::CaptureScroll if shift => Route::CaptureScrollRegion,
+        _ => route.clone(),
+    }
+}
+
 /// With the screenshot timer on, area, screen and window count down after the pick.
 pub fn with_timer(route: &Route, seconds: u32) -> Route {
     let mode = match route {
@@ -320,7 +328,8 @@ impl Render for CaptureBar {
             let (caption, title) = words(id);
             bar = bar.child(
                 captioned(id, icon, caption, title.clone(), title, true, cx).on_click(cx.listener(
-                    move |bar, _, _, cx| {
+                    move |bar, click: &ClickEvent, _, cx| {
+                        let route = with_modifier(&route, click.modifiers().shift);
                         cx.emit(BarEvent::Route(with_timer(&route, bar.screenshot_timer)))
                     },
                 )),

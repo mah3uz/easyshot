@@ -121,6 +121,24 @@ impl<V: Render + 'static> Surface<V> {
         self.up(x, y);
     }
 
+    pub fn shift_click(&mut self, x: f32, y: f32) {
+        let modifiers = Modifiers::shift();
+        self.hover(x, y, false);
+        self.send(PlatformInput::MouseDown(MouseDownEvent {
+            button: MouseButton::Left,
+            position: point(px(x), px(y)),
+            modifiers,
+            click_count: 1,
+            first_mouse: false,
+        }));
+        self.send(PlatformInput::MouseUp(MouseUpEvent {
+            button: MouseButton::Left,
+            position: point(px(x), px(y)),
+            modifiers,
+            click_count: 1,
+        }));
+    }
+
     pub fn key(&mut self, key: &'static str) {
         self.send(PlatformInput::KeyDown(KeyDownEvent {
             keystroke: Keystroke::parse(key).expect("keystroke"),

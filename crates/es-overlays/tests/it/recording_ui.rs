@@ -476,6 +476,35 @@ fn the_screenshot_timer_steps_off_3_5_10_and_times_area_screen_and_window() {
 }
 
 #[test]
+fn shift_on_scroll_starts_a_region_and_nothing_else_changes() {
+    let h = 480.;
+    let mut s = Surface::open(BAR.width as f32, h, |cx| {
+        CaptureBar::new(vec![output("A", 0., 1280., 720.)], devices(), false, cx)
+    });
+    let (events, _sub) = s.record::<BarEvent>();
+    let y = h - 32.;
+    s.shift_click(item_x(3), y);
+    s.click(item_x(3), y);
+    s.shift_click(item_x(0), y);
+    let routes: Vec<Route> = events
+        .borrow()
+        .iter()
+        .filter_map(|e| match e {
+            BarEvent::Route(r) => Some(r.clone()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        routes,
+        [
+            Route::CaptureScrollRegion,
+            Route::CaptureScroll,
+            Route::CaptureRegion
+        ]
+    );
+}
+
+#[test]
 fn a_bar_without_a_recorder_disables_recording_and_says_why() {
     let h = 480.;
     let mut s = Surface::open(BAR.width as f32, h, |cx| {

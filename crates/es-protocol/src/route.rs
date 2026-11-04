@@ -20,6 +20,7 @@ static PLAIN: &[(&str, Route)] = &[
     ("capture/region-annotate", Route::CaptureRegionAnnotate),
     ("capture/region-pin", Route::CaptureRegionPin),
     ("capture/scroll", Route::CaptureScroll),
+    ("capture/scroll-region", Route::CaptureScrollRegion),
     ("ocr", Route::Ocr),
     ("ocr/single-line", Route::OcrSingleLine),
     ("color-picker", Route::ColorPicker),
@@ -183,6 +184,7 @@ impl Route {
             Route::CaptureRegionSave => vec!["capture", "region", "--save"],
             Route::CaptureRegionAnnotate => vec!["capture", "region", "--annotate"],
             Route::CaptureRegionPin => vec!["capture", "region", "--pin"],
+            Route::CaptureScrollRegion => vec!["capture", "scroll", "--region"],
             Route::OcrSingleLine => vec!["ocr", "--single-line"],
             Route::Settings(Some(page)) => vec!["settings", page.as_str()],
             Route::Settings(None) => vec!["settings"],
@@ -300,6 +302,7 @@ mod tests {
             Route::CaptureRegionAnnotate => 8,
             Route::CaptureRegionPin => 9,
             Route::CaptureScroll => 10,
+            Route::CaptureScrollRegion => 35,
             Route::Ocr => 11,
             Route::OcrSingleLine => 12,
             Route::ColorPicker => 13,
@@ -333,7 +336,7 @@ mod tests {
             Route::all().iter().map(variant_index).collect();
         assert_eq!(
             seen,
-            (0..=34).collect(),
+            (0..=35).collect(),
             "a variant is missing from Route::all"
         );
     }
@@ -345,7 +348,7 @@ mod tests {
             assert_eq!(route.to_string(), *name);
             assert_eq!(&Route::parse(name, &no_args()).unwrap(), route);
         }
-        assert_eq!(PLAIN.len(), 31);
+        assert_eq!(PLAIN.len(), 32);
     }
 
     #[test]

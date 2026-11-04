@@ -307,7 +307,7 @@ fn a_second_scroll_request_stops_the_running_scroll_and_others_are_refused(
         .set_scroll_stop(Rc::new(move |_| counter.set(counter.get() + 1)));
     let scroll = rig.submit(cx, CaptureKind::Scroll);
     rig.leave_picking();
-    let stop = rig.submit(cx, CaptureKind::Scroll);
+    let stop = rig.submit(cx, CaptureKind::ScrollRegion);
     let refused = rig.submit(cx, CaptureKind::Region);
 
     assert_eq!(stops.get(), 1);

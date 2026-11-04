@@ -14,11 +14,18 @@ pub enum CaptureKind {
     Window,
     Previous,
     Scroll,
+    ScrollRegion,
     Text,
     TextLine,
     Color,
     Recording,
     RecordingArea,
+}
+
+impl CaptureKind {
+    fn scrolls(self) -> bool {
+        matches!(self, CaptureKind::Scroll | CaptureKind::ScrollRegion)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -233,8 +240,8 @@ impl CaptureCoordinator {
             Phase::Picking(current) | Phase::Committed(current) => Some(current),
             Phase::Held => None,
         };
-        let scrolling = running.is_some_and(|c| c.request.kind == CaptureKind::Scroll);
-        if request.kind == CaptureKind::Scroll && scrolling {
+        let scrolling = running.is_some_and(|c| c.request.kind.scrolls());
+        if request.kind.scrolls() && scrolling {
             let stop = self.inner.hooks.borrow().scroll_stop.clone();
             if let Some(stop) = stop {
                 stop(cx);
@@ -419,6 +426,7 @@ fn source(kind: CaptureKind) -> Source {
         CaptureKind::Region | CaptureKind::RecordingArea => Source::Pick(SelectMode::Region),
         CaptureKind::Window => Source::Pick(SelectMode::Window),
         CaptureKind::Scroll => Source::Pick(SelectMode::Scroll),
+        CaptureKind::ScrollRegion => Source::Pick(SelectMode::ScrollRegion),
         CaptureKind::Text | CaptureKind::TextLine => Source::Pick(SelectMode::Text),
         CaptureKind::Color => Source::Pick(SelectMode::Color),
     }

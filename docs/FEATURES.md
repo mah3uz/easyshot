@@ -45,7 +45,10 @@ More in the manual: [Installing it](MANUAL.md#installing-it) and [Running it](MA
 - Reads text from a region, with or without line breaks.
 - Reads QR codes from a region.
 - Picks a colour from the screen and copies it as `#RRGGBB`.
-- Captures a scrolling page as one tall image, up to 30000 pixels: select an area and scroll.
+- Captures a scrolling page as one tall image, up to 30000 pixels.
+- Scroll capture starts by picking a window; press Space to draw a region instead.
+- Shift-click the capture bar's Scroll button to start scroll capture on a region.
+- Reads a scrolled window from its own pixels where the compositor gives them, so windows on top of it stay out.
 - Shows the size so far on a bar under the scrolling area, with a Stop button.
 - Scrolls the page for you with Auto Scroll, where your compositor allows it, and stops at the end.
 - Shows a preview of the tall image beside the area as it grows.
@@ -239,6 +242,7 @@ More in the manual: [Settings](MANUAL.md#settings).
 - Captures with `capture region`, `fullscreen`, `window`, `previous`, `timed` or `scroll`.
 - Adds `--copy`, `--save`, `--annotate` or `--pin` to `capture region`.
 - Adds `--timed [N]` to region, window and fullscreen captures.
+- Adds `--region` to `capture scroll` to start on a region instead of a window.
 - Reads text with `ocr`, and `ocr --single-line` for one line.
 - Picks a colour with `color-picker`.
 - Controls recording with `record` and its `area`, `stop`, `pause`, `restart` and `discard` actions.

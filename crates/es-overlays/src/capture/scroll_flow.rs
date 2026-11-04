@@ -10,7 +10,7 @@ use es_app::platform_ui::{
 };
 use es_backend::Backend;
 use es_geom::{Point, Rect, Size};
-use es_model::platform::{CaptureOpts, Frame, OutputId, Transform};
+use es_model::platform::{CaptureOpts, Frame, OutputId, Transform, WindowId};
 use gpui::{App, AppContext as _, AsyncApp, Entity, RenderImage};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -29,22 +29,55 @@ struct Live {
     /// Relative to the output.
     local: Rect,
     area: Rect,
+    window: Option<WindowId>,
+    /// False once the compositor has refused the window's own buffer.
+    own_buffer: bool,
+}
+
+fn scroll_frame(frame: &Frame) -> Option<es_scroll::Frame> {
+    let (w, h) = frame.size_px;
+    es_scroll::Frame::new(w as usize, h as usize, frame.bgra.to_vec())
+}
+
+fn grab_area(backend: &Backend, output: &OutputId, local: Rect) -> Option<es_scroll::Frame> {
+    let frames = backend
+        .capture
+        .capture_outputs(std::slice::from_ref(output), CaptureOpts { cursor: false })
+        .inspect_err(|error| tracing::warn!(%error, "scroll capture frame"))
+        .ok()?;
+    scroll_frame(&geometry::crop(frames.first()?, local)?)
+}
+
+/// The window's own pixels, so windows on top of it stay out; its on-screen rectangle once they are refused.
+fn grab_window<E: std::fmt::Display>(
+    own_buffer: &mut bool,
+    own: std::result::Result<Frame, E>,
+    rectangle: impl FnOnce() -> Option<es_scroll::Frame>,
+) -> Option<es_scroll::Frame> {
+    match own {
+        Ok(frame) => scroll_frame(&frame),
+        Err(error) => {
+            tracing::info!(%error, "scroll capture reads the window's rectangle");
+            *own_buffer = false;
+
+            rectangle()
+        }
+    }
 }
 
 impl Source for Live {
     fn grab(&mut self) -> Option<es_scroll::Frame> {
-        let frames = self
+        let Some(id) = self.window.as_ref().filter(|_| self.own_buffer) else {
+            return grab_area(&self.backend, &self.output, self.local);
+        };
+        let own = self
             .backend
             .capture
-            .capture_outputs(
-                std::slice::from_ref(&self.output),
-                CaptureOpts { cursor: false },
-            )
-            .inspect_err(|error| tracing::warn!(%error, "scroll capture frame"))
-            .ok()?;
-        let cropped = geometry::crop(frames.first()?, self.local)?;
-        let (w, h) = cropped.size_px;
-        es_scroll::Frame::new(w as usize, h as usize, cropped.bgra.to_vec())
+            .capture_window(id, CaptureOpts { cursor: false });
+        let (backend, output, local) = (&self.backend, &self.output, self.local);
+        grab_window(&mut self.own_buffer, own, || {
+            grab_area(backend, output, local)
+        })
     }
 
     fn scroll(&mut self, clicks: u32) -> bool {
@@ -124,6 +157,7 @@ pub(crate) async fn capture(
     control: Control,
     output: OutputId,
     local: Rect,
+    window: Option<WindowId>,
     cx: &mut AsyncApp,
 ) -> Result<Selection> {
     let info = surfaces.output_info(&output)?;
@@ -155,6 +189,8 @@ pub(crate) async fn capture(
         output: output.clone(),
         local,
         area,
+        window,
+        own_buffer: true,
     };
     let (out, messages) = async_channel::unbounded();
     std::thread::Builder::new()
@@ -257,5 +293,44 @@ fn apply(
                 view.update(cx, |p, cx| p.set_image(image, w, h, cx));
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn window_frame() -> Frame {
+        Frame {
+            output: None,
+            size_px: (2, 1),
+            logical: Rect::new(0.0, 0.0, 2.0, 1.0),
+            scale: 1.0,
+            bgra: Arc::from(vec![1u8; 8]),
+            transform: Transform::Normal,
+            captured_at: Instant::now(),
+        }
+    }
+
+    fn rectangle_frame() -> Option<es_scroll::Frame> {
+        es_scroll::Frame::new(1, 1, vec![9; 4])
+    }
+
+    #[test]
+    fn a_window_that_gives_its_own_pixels_is_read_from_them_not_from_the_screen() {
+        let mut own_buffer = true;
+        let got = grab_window(&mut own_buffer, Ok::<_, String>(window_frame()), || {
+            panic!("the screen is not read")
+        });
+        assert_eq!(got.map(|f| (f.width, f.height)), Some((2, 1)));
+        assert!(own_buffer);
+    }
+
+    #[test]
+    fn a_refused_window_buffer_falls_back_to_the_rectangle_and_stays_there() {
+        let mut own_buffer = true;
+        let got = grab_window(&mut own_buffer, Err("no buffer"), rectangle_frame);
+        assert_eq!(got.map(|f| (f.width, f.height)), Some((1, 1)));
+        assert!(!own_buffer);
     }
 }
