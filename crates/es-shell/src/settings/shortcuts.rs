@@ -269,12 +269,17 @@ impl SettingsWindow {
             return;
         };
         self.check_include(cx);
+        let dir = self.shortcuts.paths.config_dir().to_path_buf();
         cx.spawn(async move |this, cx| {
-            let found = cx
+            let (found, included) = cx
                 .background_executor()
-                .spawn(async move { binds.existing_binds() })
+                .spawn(async move {
+                    let included = binds.is_included(&dir).unwrap_or(false);
+                    (binds.existing_binds(), included)
+                })
                 .await;
-            this.update(cx, |this, cx| this.apply_check(found, cx)).ok();
+            this.update(cx, |this, cx| this.apply_check(found, included, cx))
+                .ok();
         })
         .detach();
     }
@@ -282,6 +287,7 @@ impl SettingsWindow {
     fn apply_check(
         &mut self,
         found: es_backend::Result<Vec<(CompositorTrigger, String)>>,
+        included: bool,
         cx: &mut Context<Self>,
     ) {
         let s = &mut self.shortcuts;
@@ -292,7 +298,7 @@ impl SettingsWindow {
                 for e in CATALOGUE {
                     let Some(route) = route_of(e) else { continue };
                     let ours = s.global.get(e.id).map(|t| compositor_trigger(t, syntax));
-                    if let Some(found) = status(&existing, route, ours.as_ref()) {
+                    if let Some(found) = status(&existing, route, ours.as_ref(), included) {
                         s.status.insert(e.id, found);
                     }
                 }

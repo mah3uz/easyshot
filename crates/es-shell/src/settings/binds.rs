@@ -172,18 +172,86 @@ pub(crate) fn runs(command: &str, route: &Route) -> bool {
     words[start + 1..] == route.command_args()[..]
 }
 
+/// A Lua config reports a bind's action as a handle, not the command text.
+fn opaque(command: &str) -> bool {
+    command.starts_with("HL.Dispatcher(")
+}
+
 /// What `existing` says about one action: run by some bind, or its trigger taken by another command.
+/// With our binds file included, an opaque bind on our own trigger is ours.
 pub fn status(
     existing: &[(CompositorTrigger, String)],
     route: &Route,
     ours: Option<&CompositorTrigger>,
+    included: bool,
 ) -> Option<BindStatus> {
     if existing.iter().any(|(_, command)| runs(command, route)) {
         return Some(BindStatus::Bound);
     }
     let ours = normalise(&ours?.0);
-    existing
+    let (_, command) = existing
         .iter()
-        .find(|(trigger, _)| normalise(&trigger.0) == ours)
-        .map(|(_, command)| BindStatus::Conflict(command.clone()))
+        .find(|(trigger, _)| normalise(&trigger.0) == ours)?;
+    if included && opaque(command) {
+        return Some(BindStatus::Bound);
+    }
+    Some(BindStatus::Conflict(command.clone()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn region() -> Route {
+        Route::all()
+            .into_iter()
+            .find(|r| r.command_args() == ["capture", "region"])
+            .expect("region route")
+    }
+
+    fn lua() -> Vec<(CompositorTrigger, String)> {
+        let json = br#"[{"locked": false, "mouse": false, "release": false, "repeat": false, "longPress": false, "non_consuming": false, "auto_consuming": false, "has_description": false, "modmask": 65, "submap": "", "submap_universal": "false", "key": "S", "keycode": 0, "catch_all": false, "description": "", "allow_input_capture": false, "dispatcher": "HL.Dispatcher(exec_cmd)", "arg": "85"}]"#;
+        es_backend::hyprland::parse_binds(json).expect("binds")
+    }
+
+    fn conf(command: &str) -> Vec<(CompositorTrigger, String)> {
+        let json = format!(
+            r#"[{{"modmask": 65, "submap": "", "key": "S", "keycode": 0, "dispatcher": "exec", "arg": "{command}"}}]"#
+        );
+        es_backend::hyprland::parse_binds(json.as_bytes()).expect("binds")
+    }
+
+    fn ours() -> CompositorTrigger {
+        CompositorTrigger("SUPER+SHIFT+S".into())
+    }
+
+    #[test]
+    fn own_lua_bind_is_bound_when_included() {
+        let got = status(&lua(), &region(), Some(&ours()), true);
+        assert_eq!(got, Some(BindStatus::Bound));
+    }
+
+    #[test]
+    fn own_lua_trigger_without_the_include_is_not_bound() {
+        let got = status(&lua(), &region(), Some(&ours()), false);
+        assert!(matches!(got, Some(BindStatus::Conflict(_))));
+    }
+
+    #[test]
+    fn lua_bind_on_another_trigger_is_not_ours() {
+        let other = CompositorTrigger("SUPER+SHIFT+D".into());
+        assert_eq!(status(&lua(), &region(), Some(&other), true), None);
+    }
+
+    #[test]
+    fn classic_conf_with_our_command_is_bound() {
+        let got = status(&conf("easyshot capture region"), &region(), None, false);
+        assert_eq!(got, Some(BindStatus::Bound));
+    }
+
+    #[test]
+    fn classic_conf_foreign_command_on_our_trigger_conflicts() {
+        let got = status(&conf("grim"), &region(), Some(&ours()), true);
+        assert_eq!(got, Some(BindStatus::Conflict("exec grim".into())));
+    }
 }
