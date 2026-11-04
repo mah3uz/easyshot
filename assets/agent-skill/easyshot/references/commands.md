@@ -21,6 +21,38 @@ easyshot agent annotate /tmp/shot.png --ops /tmp/ops.json --out /tmp/marked.png 
 `allowed_outputs`, `allowed_windows`, `redact_secrets`, `log_limit`. You may read them. Changing
 them is the user's decision.
 
+## Annotate ops
+
+The ops file is `{"version":1,"ops":[...],"background":{...}}`; `background` is optional and
+`ops` may be empty. Coordinates and sizes are pixels of the input image from its top left
+corner; colours are `#rrggbb` or `#rrggbbaa`. Fields in brackets are optional.
+
+| `op` | Fields |
+|---|---|
+| `arrow` | `from` `[x,y]`, `to` `[x,y]` (at least 1 px apart), [`color`], [`width` 0.5 to the longest edge], [`head`: `none`, `arrow`, `triangle`, `square`, `dot`, `diamond`, `inverted`, `bar`] |
+| `rect`, `ellipse` | `x`, `y`, `w`, `h`, [`color`], [`width`], [`fill` true/false] |
+| `text` | `x`, `y`, `text` (1 to 2000 characters), [`size` 4 to 2000], [`color`], [`background` colour behind the text] |
+| `counter` | `x`, `y`, [`n` 1 to 9999; numbers count up from 1 when left out], [`color`] |
+| `highlight` | `x`, `y`, `w`, `h`, [`color`] |
+| `blur`, `pixelate` | `x`, `y`, `w`, `h`, [`amount` 0 to 1] |
+
+`background` puts the image on a card:
+
+| Field | Meaning |
+|---|---|
+| `padding` | pixels around the image, 0 to twice its longest edge |
+| `corners` | corner radius in pixels, 0 to half its shorter edge |
+| `color` | one colour, or |
+| `gradient` | 2 to 8 colours, top left to bottom right (give `color` or `gradient`, not both; neither gives graphite) |
+| `shadow` | 0 to 1 |
+
+```json
+{"version":1,"ops":[],"background":{"gradient":["#0f3b46","#1fa3a0","#5ee6c8"],"padding":72,"corners":16,"shadow":0.5}}
+```
+
+The output is larger than the input by the padding on each side; read `width` and `height` from
+the answer.
+
 ## JSON shapes
 
 Every answer is one object with `ok` and `kind`. Fields may be added; existing ones keep their

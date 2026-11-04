@@ -170,7 +170,7 @@ message names the op's index and field. References: `references/commands.md`.
 | 1 | `failed` | Read `error.message`; report it. Retry once at most. |
 | 2 | `cancelled` | Stopped by the user. Do not retry. |
 | 3 | `no_daemon` | Ask the user to start easyshot. |
-| 4 | `invalid_arguments` | Fix the command line (or pick a window by id). |
+| 4 | `invalid_arguments` | Fix the command line (or pick a window by id). A message starting `busy` means the user is in the middle of a capture: wait a few seconds and try once more. |
 | 5 | `not_found` | The output, window or recording does not exist: list again. |
 | 6 | `unsupported` | The desktop or a tool (Tesseract, ffmpeg) is missing: tell the user. |
 | 7 | `access_off` | Ask the user to turn agent access on (section 1). |

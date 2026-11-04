@@ -32,6 +32,9 @@ More in the manual: [Installing it](MANUAL.md#installing-it) and [Running it](MA
 
 - Captures a region: the screen freezes, you drag a selection and adjust it, and the last area is preselected.
 - Press Space while selecting to switch between drawing a region and picking a window.
+- Runs one capture at a time: while you pick, another capture key switches the picker to that mode on the same frozen screen, and the same key closes it.
+- Says "A capture is in progress" if you start a capture while one is already under way.
+- Lets you take screenshots while a recording runs.
 - Captures the previous target again: the same area, display or window.
 - Tells you when the previous window has closed, instead of capturing.
 - Captures the whole screen under the pointer.
