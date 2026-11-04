@@ -204,7 +204,7 @@ pub fn deck_events(d: &ActionDeps, clipboard: Rc<dyn ClipboardSink>, cx: &mut Ap
                     .detach();
                 }
             }
-            DeckAction::Dismiss | DeckAction::Share => {}
+            DeckAction::Dismiss | DeckAction::Share | DeckAction::Preview | DeckAction::Delete => {}
         },
     })
 }

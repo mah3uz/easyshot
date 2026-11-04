@@ -116,6 +116,7 @@ pub struct Overlay {
     pub edge_margin: u32,
     /// Seconds; 16 means never.
     pub dismiss_delay: u32,
+    pub actions: CardActions,
 }
 
 impl Default for Overlay {
@@ -127,7 +128,55 @@ impl Default for Overlay {
             always_show_actions: false,
             edge_margin: 20,
             dismiss_delay: 5,
+            actions: CardActions::default(),
         }
+    }
+}
+
+/// The actions a deck card offers besides Dismiss; Save stands for Show in folder once auto-save wrote the file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct CardActions {
+    pub copy: bool,
+    pub save: bool,
+    pub edit: bool,
+    pub pin: bool,
+    pub share: bool,
+    pub preview: bool,
+    pub delete: bool,
+}
+
+impl Default for CardActions {
+    fn default() -> Self {
+        Self {
+            copy: true,
+            save: true,
+            edit: true,
+            pin: true,
+            share: true,
+            preview: false,
+            delete: false,
+        }
+    }
+}
+
+impl CardActions {
+    pub fn any(&self) -> bool {
+        [
+            self.copy,
+            self.save,
+            self.edit,
+            self.pin,
+            self.share,
+            self.preview,
+            self.delete,
+        ]
+        .contains(&true)
+    }
+
+    /// A set with nothing on cannot be chosen in Settings; read from a file, it means the defaults.
+    pub fn or_default(self) -> Self {
+        if self.any() { self } else { Self::default() }
     }
 }
 
@@ -324,5 +373,33 @@ mod tests {
         expected.general.show_capture_bar_at_launch = true;
         expected.recording.system_audio = false;
         assert_eq!(toml::from_str::<Config>(src).unwrap(), expected);
+    }
+
+    #[test]
+    fn a_card_action_left_out_of_the_file_keeps_its_default() {
+        let c: Config = toml::from_str("[overlay.actions]\ndelete = true\ncopy = false\n").unwrap();
+        let a = c.overlay.actions;
+        assert!(a.delete && !a.copy, "the chosen ones are read");
+        assert!(a.save && a.edit && a.pin && a.share && !a.preview);
+    }
+
+    #[test]
+    fn a_hand_edited_set_with_nothing_on_reads_as_the_defaults() {
+        let none = CardActions {
+            copy: false,
+            save: false,
+            edit: false,
+            pin: false,
+            share: false,
+            preview: false,
+            delete: false,
+        };
+        assert!(!none.any());
+        assert_eq!(none.or_default(), CardActions::default());
+        let one = CardActions {
+            preview: true,
+            ..none
+        };
+        assert_eq!(one.or_default(), one, "one action on is a valid choice");
     }
 }

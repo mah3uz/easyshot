@@ -142,7 +142,7 @@ fn the_newest_card_sits_in_the_corner_the_deck_is_anchored_to() {
     );
 }
 
-struct Stage {
+pub(crate) struct Stage {
     content: AnyView,
     dark: bool,
 }
@@ -187,9 +187,9 @@ fn item(dir: &std::path::Path, n: u8) -> DeckItem {
     }
 }
 
-struct Rig {
-    s: Surface<Stage>,
-    deck: Entity<Deck>,
+pub(crate) struct Rig {
+    pub(crate) s: Surface<Stage>,
+    pub(crate) deck: Entity<Deck>,
     view: Entity<DeckView>,
     events: Rc<RefCell<Vec<DeckEvent>>>,
     geometry: DeckGeometry,
@@ -201,7 +201,7 @@ fn rig(cards: u8, dark: bool) -> Rig {
     rig_with(cards, dark, DeckSettings::default(), None)
 }
 
-fn rig_with(cards: u8, dark: bool, settings: DeckSettings, saved: Option<&str>) -> Rig {
+pub(crate) fn rig_with(cards: u8, dark: bool, settings: DeckSettings, saved: Option<&str>) -> Rig {
     let dir = tempfile::tempdir().unwrap();
     let geometry = settings.geometry(usize::from(cards));
     let panel = geometry.panel();
@@ -270,13 +270,13 @@ fn rig_with(cards: u8, dark: bool, settings: DeckSettings, saved: Option<&str>) 
 
 impl Rig {
     /// Where the view draws card `i` for the cards it holds now.
-    fn card(&mut self, i: usize) -> Rect {
+    pub(crate) fn card(&mut self, i: usize) -> Rect {
         let deck = self.deck.clone();
         let count = self.s.app.cx.update(|cx| deck.read(cx).len());
         DeckSettings::default().geometry(count).card(i)
     }
 
-    fn names(&mut self) -> Vec<String> {
+    pub(crate) fn names(&mut self) -> Vec<String> {
         let deck = self.deck.clone();
         self.s
             .app
@@ -285,13 +285,13 @@ impl Rig {
     }
 
     /// The headless window draws on the next event, so a pointer that changes the card is moved twice before it presses.
-    fn point(&mut self, x: f32, y: f32) {
+    pub(crate) fn point(&mut self, x: f32, y: f32) {
         self.s.hover(x, y, false);
         self.s.hover(x, y, false);
     }
 
     /// The headless app has no frame clock, so an animation advances only when the window is redrawn.
-    fn next_frame(&mut self) {
+    pub(crate) fn next_frame(&mut self) {
         let handle = self.s.app.window.into();
         self.s
             .app
@@ -301,7 +301,7 @@ impl Rig {
         self.s.app.settle();
     }
 
-    fn click(&mut self, x: f32, y: f32) {
+    pub(crate) fn click(&mut self, x: f32, y: f32) {
         self.point(x, y);
         self.s.down(x, y);
         self.s.up(x, y);
@@ -311,7 +311,7 @@ impl Rig {
         self.events.borrow().last().cloned()
     }
 
-    fn requested(&self) -> Vec<(String, DeckAction)> {
+    pub(crate) fn requested(&self) -> Vec<(String, DeckAction)> {
         self.events
             .borrow()
             .iter()

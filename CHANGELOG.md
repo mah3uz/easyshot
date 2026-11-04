@@ -4,6 +4,7 @@
 
 ### New
 
+- Settings › Overlay › Card Actions chooses which actions a preview card shows (Copy, Save / Show in Folder, Edit, Pin, Cloud Share, Preview, Delete); Dismiss is always there and at least one other action stays on.
 - Open any image or video from your computer: the Home window's Open… button, dropping a file onto the window, Open with Easyshot in your file manager, or `easyshot open FILE`; a PNG or JPEG opens in the editor, an MP4, WebM, MKV, MOV or GIF in the trim viewer, and any other file shows a toast.
 - The gallery's preview size, from small to two previews a row, set with a slider in its toolbar, Ctrl+scroll over the grid, or Ctrl+plus, Ctrl+minus and Ctrl+0, and remembered in `[gallery] item_size`.
 - `easyshot agent annotate IMAGE --ops FILE --out PATH` (also under `ai`, and as the `annotate` tool of `agent mcp`) lets an agent draw arrows, boxes, ellipses, text, numbered badges, highlights, blur and pixelation, and an optional background, on an image from a JSON file of operations, with the editor's renderer and your saved annotation style, and write a PNG; it works without the daemon and without agent access.

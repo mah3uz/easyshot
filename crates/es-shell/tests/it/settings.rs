@@ -484,6 +484,36 @@ fn the_low_resolution_switch_is_bound_to_general_low_res_preview() {
 }
 
 #[test]
+fn the_card_actions_are_saved_and_the_last_one_on_stays_on() {
+    let mut fx = fixture(Caps::empty(), None, |_| {});
+    fx.update(|v, cx| v.set_toggle(Toggle::CardDelete, true, cx));
+    for toggle in [
+        Toggle::CardCopy,
+        Toggle::CardSave,
+        Toggle::CardEdit,
+        Toggle::CardPin,
+        Toggle::CardShare,
+        Toggle::CardPreview,
+    ] {
+        fx.update(|v, cx| v.set_toggle(toggle, false, cx));
+    }
+    fx.update(|v, cx| v.set_toggle(Toggle::CardDelete, false, cx));
+    fx.advance(SAVE_DEBOUNCE + Duration::from_millis(1));
+    let actions = ConfigFile::load(&fx.config)
+        .unwrap()
+        .config()
+        .overlay
+        .actions;
+    assert!(
+        actions.delete,
+        "turning off the only action left would leave a card with nothing but Dismiss"
+    );
+    assert!(!actions.copy && !actions.save && !actions.preview);
+    fx.update(|v, cx| v.show(Page::Overlay, cx));
+    fx.shot("settings-overlay-one-action");
+}
+
+#[test]
 fn the_keystrokes_row_shows_off_working_denied_pending_and_not_built() {
     let mut fx = fixture(Caps::empty(), None, |_| {});
     let state = |fx: &mut Fixture, access| {

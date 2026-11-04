@@ -2,6 +2,7 @@ mod color_picker;
 mod consent;
 mod countdown;
 mod deck;
+mod deck_actions;
 mod deck_motion;
 mod pin;
 mod player;

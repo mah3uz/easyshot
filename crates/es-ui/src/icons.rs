@@ -64,6 +64,7 @@ icons! {
         Crop = "crop",
         Download = "download",
         Droplet = "droplet",
+        Eye = "eye",
         EyeOff = "eye-off",
         Film = "film",
         FlipHorizontal2 = "flip-horizontal-2",

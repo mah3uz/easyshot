@@ -353,6 +353,13 @@ impl SettingsWindow {
             )
             .into_any_element(),
             group(
+                text(fl!("overlay-card-actions")),
+                self.card_action_rows(cx),
+                text(fl!("overlay-card-actions-footer")),
+                cx,
+            )
+            .into_any_element(),
+            group(
                 text(fl!("overlay-behavior")),
                 vec![
                     self.toggle_row(

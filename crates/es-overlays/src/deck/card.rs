@@ -1,7 +1,8 @@
-use super::layout::{Slot, ToolLayout};
+use super::layout::{Slot, ToolLayout, chosen};
 use crate::capture::strings::fl;
 use es_app::deck::{DeckAction, DeckItem, ItemStatus};
 use es_geom::Size;
+use es_model::config::CardActions;
 use es_ui::a11y::{Accessible as _, Role};
 use es_ui::icons::IconName;
 use es_ui::motion::{CROSSFADE, DECK_HOVER, animate, since_change};
@@ -57,6 +58,8 @@ pub fn action_label(action: DeckAction) -> String {
         DeckAction::Edit => fl!("deck-tool-edit"),
         DeckAction::Share => fl!("deck-tool-cloud-share"),
         DeckAction::ShowInFolder => fl!("deck-tool-show-in-folder"),
+        DeckAction::Preview => fl!("deck-tool-preview"),
+        DeckAction::Delete => fl!("deck-tool-delete"),
     }
 }
 
@@ -69,6 +72,8 @@ fn action_icon(action: DeckAction) -> IconName {
         DeckAction::Edit => IconName::Pencil,
         DeckAction::Share => IconName::CloudUpload,
         DeckAction::ShowInFolder => IconName::FolderOpen,
+        DeckAction::Preview => IconName::Eye,
+        DeckAction::Delete => IconName::Trash,
     }
 }
 
@@ -105,6 +110,7 @@ pub struct Card {
     scale: f32,
     tools: Option<usize>,
     share: bool,
+    actions: CardActions,
     focus: FocusHandle,
     on_action: ActionHandler,
 }
@@ -128,6 +134,7 @@ impl Card {
             scale,
             tools: None,
             share: false,
+            actions: CardActions::default(),
             focus,
             on_action,
         }
@@ -142,6 +149,19 @@ impl Card {
     pub fn share(mut self, available: bool) -> Self {
         self.share = available;
         self
+    }
+
+    pub fn actions(mut self, actions: CardActions) -> Self {
+        self.actions = actions;
+        self
+    }
+
+    /// A recording has no still to preview, and its files are not the card's to trash.
+    fn usable(&self, action: DeckAction) -> bool {
+        let file_only = matches!(action, DeckAction::Preview | DeckAction::Delete);
+        chosen(&self.actions, action)
+            && (self.share || action != DeckAction::Share)
+            && !(self.item.video && file_only)
     }
 
     fn id(&self, part: &str) -> ElementId {
@@ -185,10 +205,13 @@ impl Card {
         }
         let inset = px(INSET * s);
         let positioned = base.absolute();
+        let middle = px((self.size.width as f32 - CORNER_BUTTON * s) / 2.);
         let positioned = match slot {
             Slot::TopLeft => positioned.top(inset).left(inset),
             Slot::TopRight => positioned.top(inset).right(inset),
+            Slot::TopCenter => positioned.top(inset).left(middle),
             Slot::BottomLeft => positioned.bottom(inset).left(inset),
+            Slot::BottomCenter => positioned.bottom(inset).left(middle),
             _ => positioned.bottom(inset).right(inset),
         };
         positioned
@@ -209,7 +232,7 @@ impl Card {
     }
 
     fn tool_layer(&self) -> gpui::Div {
-        let usable = |a: &DeckAction| self.share || *a != DeckAction::Share;
+        let usable = |a: &DeckAction| self.usable(*a);
         let corners = self
             .layout
             .assignments()

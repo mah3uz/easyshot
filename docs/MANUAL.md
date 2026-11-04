@@ -127,6 +127,12 @@ opens the editor. Each capture also appears as a card in a floating preview deck
 - up to 5 cards;
 - hover actions in slots you can configure; on a card that auto-save has already saved, Save
   becomes Show in Folder, which opens your file manager on the saved file;
+- Settings › Overlay › Card Actions chooses which actions a card shows: Copy, Save / Show in
+  Folder, Edit, Pin, Cloud Share, Preview and Delete. Dismiss is always there, and at least one
+  other action stays on. Preview and Delete are off at first; with them on, Preview sits at
+  the top middle of the card and Delete at the bottom middle. In `config.toml` they are the
+  `[overlay.actions]` table (`copy`, `save`, `edit`, `pin`, `share`, `preview`, `delete`);
+  a table with every action off reads as the defaults;
 - drag a card out into another app or a file manager, which gets a copy of the file;
 - cards disappear on their own, and pause while you hover over them;
 - Save All and Clear All.

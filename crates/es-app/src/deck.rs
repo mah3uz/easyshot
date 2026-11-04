@@ -71,17 +71,21 @@ pub enum DeckAction {
     Edit,
     Share,
     ShowInFolder,
+    Preview,
+    Delete,
 }
 
 impl DeckAction {
     /// The actions a layout places; Show in folder only ever stands in for Save.
-    pub const ALL: [DeckAction; 6] = [
+    pub const ALL: [DeckAction; 8] = [
         DeckAction::Pin,
         DeckAction::Dismiss,
         DeckAction::Copy,
         DeckAction::Save,
         DeckAction::Edit,
         DeckAction::Share,
+        DeckAction::Preview,
+        DeckAction::Delete,
     ];
 }
 
@@ -95,6 +99,8 @@ pub enum Removal {
     Saved,
     Edited,
     Pinned,
+    /// The app moves the files to the Trash, and keeps the staging until Undo can no longer bring the card back.
+    Deleted,
 }
 
 impl Removal {
@@ -259,7 +265,11 @@ impl Deck {
             DeckAction::Copy => Some(Removal::Copied),
             DeckAction::Edit => Some(Removal::Edited),
             DeckAction::Pin => Some(Removal::Pinned),
-            DeckAction::Save | DeckAction::Share | DeckAction::ShowInFolder => None,
+            DeckAction::Delete => Some(Removal::Deleted),
+            DeckAction::Save
+            | DeckAction::Share
+            | DeckAction::ShowInFolder
+            | DeckAction::Preview => None,
         };
         if action == DeckAction::Save {
             self.set_status(id, ItemStatus::Saving, cx);

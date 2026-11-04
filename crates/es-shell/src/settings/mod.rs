@@ -5,10 +5,12 @@ mod home;
 mod pages;
 pub mod setup;
 mod shortcuts;
+mod toggle;
 mod widgets;
 
 pub use binds::{BindStatus, compositor_trigger, from_backend, trigger_string};
 pub use shortcuts::ShortcutRow;
+pub use toggle::Toggle;
 pub(crate) use widgets::status_mark;
 
 use crate::strings::fl;
@@ -144,57 +146,6 @@ pub struct SettingsDeps {
     pub outputs: Vec<String>,
     pub version: String,
     pub input_access: Rc<dyn Fn() -> InputAccess>,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Toggle {
-    ShowBarAtLaunch,
-    EditorsFullscreen,
-    LowResPreview,
-    AutoSave,
-    CopyAfterSave,
-    PlaySound,
-    CaptureOnRelease,
-    Preselect,
-    OpenEditor,
-    KeepPreviews,
-    AlwaysShowActions,
-    SystemAudio,
-    Keystrokes,
-    RecordingOpenEditor,
-    RecordingSave,
-    WholeScreenBar,
-}
-
-impl Toggle {
-    pub fn get(self, c: &Config) -> bool {
-        *Self::field(self, &mut c.clone())
-    }
-
-    fn field(self, c: &mut Config) -> &mut bool {
-        match self {
-            Toggle::ShowBarAtLaunch => &mut c.general.show_capture_bar_at_launch,
-            Toggle::EditorsFullscreen => &mut c.general.editor_opens_fullscreen,
-            Toggle::LowResPreview => &mut c.general.low_res_preview,
-            Toggle::AutoSave => &mut c.general.auto_save,
-            Toggle::CopyAfterSave => &mut c.general.copy_after_save,
-            Toggle::PlaySound => &mut c.general.play_sound,
-            Toggle::CaptureOnRelease => &mut c.capture.capture_on_release,
-            Toggle::Preselect => &mut c.capture.preselect_previous,
-            Toggle::OpenEditor => &mut c.capture.open_editor_after_capture,
-            Toggle::KeepPreviews => &mut c.capture.keep_in_deck_until_saved,
-            Toggle::AlwaysShowActions => &mut c.overlay.always_show_actions,
-            Toggle::SystemAudio => &mut c.recording.system_audio,
-            Toggle::Keystrokes => &mut c.recording.keystrokes,
-            Toggle::RecordingOpenEditor => &mut c.recording.open_editor_after,
-            Toggle::RecordingSave => &mut c.recording.save,
-            Toggle::WholeScreenBar => &mut c.recording.whole_screen_bar,
-        }
-    }
-
-    fn id(self) -> SharedString {
-        SharedString::from(format!("toggle-{self:?}"))
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -391,8 +342,17 @@ impl SettingsWindow {
         self.settings.read(cx).config().clone()
     }
 
+    /// The last card action left on stays on.
     pub fn set_toggle(&mut self, toggle: Toggle, on: bool, cx: &mut Context<Self>) {
-        self.edit(move |c| *toggle.field(c) = on, cx);
+        self.edit(
+            move |c| {
+                *toggle.field(c) = on;
+                if !c.overlay.actions.any() {
+                    *toggle.field(c) = true;
+                }
+            },
+            cx,
+        );
     }
 
     fn edit(&mut self, f: impl FnOnce(&mut Config), cx: &mut Context<Self>) {

@@ -406,3 +406,50 @@ fn a_hidden_deck_keeps_its_cards_and_their_timers_until_a_capture_shows_it_again
         "a new card shows the deck"
     );
 }
+
+#[gpui::test]
+fn delete_hands_an_auto_saved_card_to_the_app_and_keeps_its_staging_for_undo(
+    cx: &mut TestAppContext,
+) {
+    let (deck, log) = deck(cx, five_seconds());
+    deck.update(cx, |d, cx| {
+        d.show(
+            DeckItem {
+                saved: Some(PathBuf::from("/Pictures/shot1.png")),
+                ..item(1)
+            },
+            cx,
+        );
+        d.show(item(2), cx);
+        d.act(item(2).id, DeckAction::Preview, cx);
+        d.act(item(1).id, DeckAction::Delete, cx);
+    });
+    let requested: Vec<_> = log
+        .borrow()
+        .iter()
+        .filter_map(|e| match e {
+            DeckEvent::Requested { item, action } => {
+                Some((item.name.clone(), *action, item.saved.clone()))
+            }
+            DeckEvent::Removed { .. } => None,
+        })
+        .collect();
+    assert_eq!(
+        requested,
+        [
+            ("shot2".into(), DeckAction::Preview, None),
+            (
+                "shot1".into(),
+                DeckAction::Delete,
+                Some(PathBuf::from("/Pictures/shot1.png"))
+            )
+        ],
+        "the app needs the auto-saved file to move it to the Trash too"
+    );
+    assert_eq!(removed(&log), [("shot1".into(), Removal::Deleted)]);
+    assert_eq!(order(&deck, cx), ["shot2"], "a preview keeps its card");
+    assert!(
+        !Removal::Deleted.discards(),
+        "Undo brings the card back, so its staging stays until then"
+    );
+}

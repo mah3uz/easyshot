@@ -24,6 +24,7 @@ copy
 crop
 download
 droplet
+eye
 eye-off
 film
 flip-horizontal-2

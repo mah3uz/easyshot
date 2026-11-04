@@ -1,5 +1,6 @@
 use es_app::deck::DeckAction;
 use es_geom::{Point, Rect, Size};
+use es_model::config::CardActions;
 use std::collections::BTreeMap;
 
 pub const SPACING: f64 = 10.;
@@ -68,16 +69,20 @@ pub enum Slot {
     CenterRight,
     BottomLeft,
     BottomRight,
+    TopCenter,
+    BottomCenter,
 }
 
 impl Slot {
-    pub const ALL: [Slot; 6] = [
+    pub const ALL: [Slot; 8] = [
         Slot::TopLeft,
         Slot::TopRight,
         Slot::CenterLeft,
         Slot::CenterRight,
         Slot::BottomLeft,
         Slot::BottomRight,
+        Slot::TopCenter,
+        Slot::BottomCenter,
     ];
 
     pub fn name(self) -> &'static str {
@@ -88,6 +93,8 @@ impl Slot {
             Slot::CenterRight => "center-right",
             Slot::BottomLeft => "bottom-left",
             Slot::BottomRight => "bottom-right",
+            Slot::TopCenter => "top-center",
+            Slot::BottomCenter => "bottom-center",
         }
     }
 
@@ -109,6 +116,22 @@ pub fn action_name(action: DeckAction) -> &'static str {
         DeckAction::Edit => "edit",
         DeckAction::Share => "share",
         DeckAction::ShowInFolder => "show-in-folder",
+        DeckAction::Preview => "preview",
+        DeckAction::Delete => "delete",
+    }
+}
+
+/// Whether Settings › Overlay has `action` on; Dismiss always is.
+pub fn chosen(actions: &CardActions, action: DeckAction) -> bool {
+    match action {
+        DeckAction::Dismiss => true,
+        DeckAction::Copy => actions.copy,
+        DeckAction::Save | DeckAction::ShowInFolder => actions.save,
+        DeckAction::Edit => actions.edit,
+        DeckAction::Pin => actions.pin,
+        DeckAction::Share => actions.share,
+        DeckAction::Preview => actions.preview,
+        DeckAction::Delete => actions.delete,
     }
 }
 
@@ -144,6 +167,8 @@ impl LayoutPreset {
                 Some(A::Save),
                 Some(A::Edit),
                 Some(A::Share),
+                Some(A::Preview),
+                Some(A::Delete),
             ],
             LayoutPreset::Sharing => [
                 Some(A::Pin),
@@ -152,6 +177,8 @@ impl LayoutPreset {
                 Some(A::Share),
                 Some(A::Edit),
                 Some(A::Save),
+                Some(A::Preview),
+                Some(A::Delete),
             ],
             LayoutPreset::Minimal => [
                 None,
@@ -160,6 +187,8 @@ impl LayoutPreset {
                 Some(A::Save),
                 None,
                 None,
+                Some(A::Preview),
+                Some(A::Delete),
             ],
             LayoutPreset::Custom => return None,
         };
@@ -167,10 +196,10 @@ impl LayoutPreset {
     }
 }
 
-/// Which action sits in each of a card's six hover slots; each at most once, and Dismiss always.
+/// Which action sits in each of a card's eight hover slots; each at most once, and Dismiss always.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ToolLayout {
-    slots: [Option<DeckAction>; 6],
+    slots: [Option<DeckAction>; 8],
 }
 
 impl Default for ToolLayout {
@@ -189,6 +218,8 @@ impl ToolLayout {
                 Some(DeckAction::Save),
                 Some(DeckAction::Edit),
                 Some(DeckAction::Share),
+                Some(DeckAction::Preview),
+                Some(DeckAction::Delete),
             ],
         }
     }
@@ -255,7 +286,7 @@ impl ToolLayout {
         let Ok(map) = serde_json::from_str::<BTreeMap<String, String>>(setting) else {
             return Self::standard();
         };
-        let mut layout = ToolLayout { slots: [None; 6] };
+        let mut layout = ToolLayout { slots: [None; 8] };
         for slot in Slot::ALL {
             let action = map.get(slot.name()).and_then(|a| parse_action(a));
             if let Some(action) = action

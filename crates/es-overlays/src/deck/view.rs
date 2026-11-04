@@ -7,7 +7,7 @@ use es_app::platform_ui::{
     LayerShellSurfaces, LayerSurfaceHandle, SurfaceHandle as _, SurfaceRole,
 };
 use es_geom::{Point, Rect};
-use es_model::config::Overlay;
+use es_model::config::{CardActions, Overlay};
 use es_ui::a11y::{Accessible as _, Role};
 use es_ui::theme::UI_FONT;
 use gpui::{
@@ -32,6 +32,7 @@ pub struct DeckSettings {
     pub always_show_actions: bool,
     /// Cloud Share is drawn only when sharing is set up.
     pub share: bool,
+    pub actions: CardActions,
 }
 
 impl Default for DeckSettings {
@@ -43,6 +44,7 @@ impl Default for DeckSettings {
             layout: ToolLayout::standard(),
             always_show_actions: false,
             share: false,
+            actions: CardActions::default(),
         }
     }
 }
@@ -56,6 +58,7 @@ impl DeckSettings {
             layout: ToolLayout::parse(&overlay.layout),
             always_show_actions: overlay.always_show_actions,
             share: false,
+            actions: overlay.actions.or_default(),
         }
     }
 
@@ -294,7 +297,8 @@ impl Render for DeckView {
                         on_action,
                     )
                     .tools(show.then_some(self.showings))
-                    .share(self.settings.share),
+                    .share(self.settings.share)
+                    .actions(self.settings.actions),
                 )
         });
         div()
