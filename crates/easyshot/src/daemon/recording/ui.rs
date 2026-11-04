@@ -1,4 +1,5 @@
 use super::{Countdown, RecordingUi, Shown};
+use es_app::capture_coordinator::{UNMAP_SETTLE, settle};
 use es_app::errors::{Error, Result};
 use es_app::platform_ui::{
     LayerShellSurfaces, LayerSurfaceHandle, SurfaceHandle as _, SurfaceRole,
@@ -13,10 +14,6 @@ use es_overlays::record::{
 use gpui::{App, AppContext as _, Entity};
 use std::cell::Cell;
 use std::rc::Rc;
-use std::time::Duration;
-
-/// A closed surface can still be on screen until the compositor repaints, so frames are taken after this.
-pub const UNMAP_SETTLE: Duration = Duration::from_millis(150);
 
 pub type TrayUpdate = Rc<dyn Fn(Option<RecordingTrayState>, &mut App)>;
 pub type Notify = Rc<dyn Fn(String)>;
@@ -178,7 +175,7 @@ pub fn countdown(surfaces: Rc<LayerShellSurfaces>) -> Countdown {
         cx.spawn(async move |cx| {
             run.await;
             cx.update(|cx| handle.close(cx));
-            cx.background_executor().timer(UNMAP_SETTLE).await;
+            settle(cx, UNMAP_SETTLE).await;
             Ok(())
         })
     })

@@ -1,5 +1,5 @@
 use crate::capture::strings::fl;
-use es_app::capture_coordinator::{Countdown as CountdownHook, Timer};
+use es_app::capture_coordinator::{Countdown as CountdownHook, Timer, settle};
 use es_app::errors::{Error, Result};
 use es_app::platform_ui::{LayerShellSurfaces, SurfaceHandle, SurfaceRole};
 use es_ui::a11y::{Accessible as _, Role};
@@ -374,7 +374,7 @@ pub fn hook(surfaces: Rc<LayerShellSurfaces>, delay: Rc<dyn Fn(&App) -> u32>) ->
         cx.spawn(async move |cx| {
             run.await;
             cx.update(|cx| handle.close(cx));
-            cx.background_executor().timer(UNMAP_SETTLE).await;
+            settle(cx, UNMAP_SETTLE).await;
             Ok(())
         })
     })

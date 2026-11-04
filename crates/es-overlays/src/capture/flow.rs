@@ -377,6 +377,15 @@ fn usable(view: View, setup: &Setup) -> View {
     }
 }
 
+/// A window pick with nothing to pick fails, unless a switch is queued behind it that leaves the view.
+fn first_view(first: View, no_windows: bool, switch_queued: bool) -> Result<View> {
+    match (first, no_windows, switch_queued) {
+        (View::Window, true, false) => Err(Error::Unsupported),
+        (View::Window, true, true) => Ok(View::Region),
+        _ => Ok(first),
+    }
+}
+
 fn mode_of(view: View) -> SelectMode {
     match view {
         View::Region => SelectMode::Region,
@@ -419,9 +428,7 @@ impl SelectionFlow for LayerShellSelectionFlow {
         cx.spawn(async move |cx| {
             let (frames, (windows, geometry)) = frozen.await;
             let frames = frames.map_err(|e| Error::Protocol(e.to_string()))?;
-            if first == View::Window && windows.is_empty() && !geometry {
-                return Err(Error::Unsupported);
-            }
+            let first = first_view(first, windows.is_empty() && !geometry, !rx.is_empty())?;
             let setup = Setup {
                 options,
                 last,
@@ -561,6 +568,26 @@ mod view_tests {
         assert_eq!(view_for(SelectMode::Scroll), Some(View::ScrollWindow));
         assert_eq!(view_for(SelectMode::ScrollRegion), Some(View::Scroll));
         assert_eq!(view_for(SelectMode::Window), Some(View::Window));
+    }
+
+    #[test]
+    fn a_window_pick_with_no_windows_shows_the_region_when_a_switch_is_queued() {
+        assert!(matches!(
+            first_view(View::Window, true, false),
+            Err(Error::Unsupported)
+        ));
+        assert_eq!(
+            first_view(View::Window, true, true).ok(),
+            Some(View::Region)
+        );
+        assert_eq!(
+            first_view(View::Window, false, false).ok(),
+            Some(View::Window)
+        );
+        assert_eq!(
+            first_view(View::Region, true, false).ok(),
+            Some(View::Region)
+        );
     }
 
     #[test]

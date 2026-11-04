@@ -6,7 +6,7 @@ use es_model::AgentCfg;
 use es_model::platform::{CaptureOpts, OutputEvent, OutputInfo, Transform, WindowEvent, WindowId};
 use es_protocol::agent::{Geometry, OutputName};
 use es_protocol::{AgentRoute, JobStatus};
-use gpui::TestAppContext;
+use gpui::{AppContext as _, TestAppContext};
 use std::cell::Cell;
 use std::time::Instant;
 
@@ -371,4 +371,93 @@ fn an_agent_capture_while_the_user_picks_is_told_busy_with_exit_4(cx: &mut TestA
         hold(&coordinator).is_ok(),
         "free again once the pick is over"
     );
+}
+
+struct NoScreens;
+
+impl es_app::platform_ui::OutputSource for NoScreens {
+    fn outputs(&self) -> Vec<OutputInfo> {
+        Vec::new()
+    }
+    fn pointer_output(&self) -> Option<OutputId> {
+        None
+    }
+    fn focused_output(&self) -> Option<OutputId> {
+        None
+    }
+    fn pointer_global(&self) -> Option<es_geom::Point> {
+        None
+    }
+}
+
+struct NoClipboard;
+
+impl es_app::platform_ui::ClipboardSink for NoClipboard {
+    fn copy(&self, _: Vec<es_model::platform::ClipItem>, _: &mut App) -> Task<Result<(), Error>> {
+        Task::ready(Ok(()))
+    }
+}
+
+fn idle_deps(
+    coordinator: CaptureCoordinator,
+    cx: &mut TestAppContext,
+) -> (Deps, tempfile::TempDir) {
+    let dir = tempfile::tempdir().unwrap();
+    let paths = es_store::Paths::rooted(dir.path());
+    paths.ensure_all().unwrap();
+    let file = es_store::ConfigFile::load(&paths.config_file()).unwrap();
+    let settings = cx.new(|_| es_app::settings_model::SettingsModel::new(file));
+    let history = cx.new(|_| es_app::history::History::open(&paths, 10).unwrap());
+    let deck = cx.new(|_| es_app::deck::Deck::new(es_app::deck::DeckPolicy::default()));
+    let backend = Arc::new(Backend::detect_with(
+        &es_backend::Probe::default(),
+        &es_backend::registry::Registry::EMPTY,
+    ));
+    let surfaces = Rc::new(LayerShellSurfaces::new(Arc::new(NoScreens), None));
+    let deps = Deps {
+        backend: backend.clone(),
+        direct: Rc::new(Direct::new(backend, surfaces, paths.clone())),
+        pipeline: Rc::new(PipelineDeps {
+            paths,
+            settings,
+            history,
+            deck,
+            clipboard: Rc::new(NoClipboard),
+            recognize: Arc::new(|_, _| Ok(String::new())),
+            pin: Rc::new(|_, _, _| Ok(())),
+            open_editor: Rc::new(|_, _| Ok(())),
+        }),
+        coordinator,
+    };
+    (deps, dir)
+}
+
+#[gpui::test]
+fn the_agent_capture_path_itself_is_refused_while_the_user_picks(cx: &mut TestAppContext) {
+    use es_app::capture_coordinator::{CaptureKind, CaptureRequest};
+    let (jobs, _done) = Jobs::new();
+    let coordinator = CaptureCoordinator::new(jobs.clone());
+    let (_pick, picked) = async_channel::bounded(1);
+    coordinator.set_selection_flow(Rc::new(Picking(picked)));
+    coordinator.set_pipeline(Rc::new(|_, _, _| Task::ready(Ok(()))));
+    let (deps, _dir) = idle_deps(coordinator.clone(), cx);
+    let request = CaptureRequest::new(
+        CaptureKind::Region,
+        es_model::capture::CaptureVariant::Normal,
+    );
+    cx.update(|cx| coordinator.submit(jobs.allocate(), request, cx));
+    cx.run_until_parked();
+
+    let answer = Rc::new(std::cell::RefCell::new(None));
+    let slot = answer.clone();
+    let _attempt = cx.spawn(async move |mut cx| {
+        let shot = acquire(&deps, &AgentTarget::Fullscreen, &Scope::default(), &mut cx).await;
+        *slot.borrow_mut() = Some(shot.err());
+    });
+    cx.run_until_parked();
+    let Some(Some(Fail(code, message))) = answer.borrow_mut().take() else {
+        panic!("acquire went on to capture while the user was picking");
+    };
+    assert_eq!((code, code.exit_code()), (ErrorCode::InvalidArguments, 4));
+    assert!(message.contains("busy"), "{message}");
 }

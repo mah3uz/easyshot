@@ -335,7 +335,7 @@ impl CaptureCoordinator {
         let jobs = inner.jobs.clone();
         jobs.spawn(job, cx, move |_| async move {
             if closed {
-                settle(&async_cx).await;
+                settle(&async_cx, UNMAP_SETTLE).await;
             }
             let picked = match async_cx.update(|cx| select(request.kind, &hooks, cx)) {
                 Ok(task) => task.await,
@@ -404,8 +404,9 @@ impl CaptureCoordinator {
     }
 }
 
-async fn settle(cx: &AsyncApp) {
-    cx.background_executor().timer(UNMAP_SETTLE).await;
+/// Waits after a surface of ours closes, before the screen is grabbed.
+pub async fn settle(cx: &AsyncApp, wait: Duration) {
+    cx.background_executor().timer(wait).await;
 }
 
 async fn finish(
@@ -417,7 +418,7 @@ async fn finish(
 ) -> Result<()> {
     let picked = match picked? {
         Selection::Cancelled if request.kind == CaptureKind::Previous && first != request.kind => {
-            settle(cx).await;
+            settle(cx, UNMAP_SETTLE).await;
             cx.update(|cx| direct(hooks, Direct::Previous, cx))?.await?
         }
         Selection::Cancelled => return Err(Error::Cancelled),
