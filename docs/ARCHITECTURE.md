@@ -31,8 +31,11 @@ design that has not been run on that compositor. Rows name the compositor and da
 | The daemon in test mode at scale 1.5: a window shot of a floating terminal, then `capture/previous` after the terminal moved saves the same 900×600 window again; after the terminal closed, `capture/previous` shows the toast and saves nothing (`easyshot` daemon capture) | headless sway 1.12 | 2026-11-03 |
 | Headless GPUI windows (hello, component gallery) | no compositor (GPUI headless renderer) | 2026-11-02 |
 | First run in a real session: the daemon started by its systemd user unit, the tray icon registered, a region capture, the editor and Settings. Found and since fixed: editor keys unbound, theme setting ignored, tray icon invisible on Qt bars, stuck Space pan, pointer hiding and cursor flicker. The fixed build is not re-verified | Hyprland (first run, partial) | 2026-11-03 |
+| Second run in a real session, one monitor at 2883,182 and scale 1. Found and since fixed: scrolling capture stuck on its first frame, area recording failing on the offset monitor, the bar in the frozen frame, a capture started during another hanging the overlay. The fixed build is not re-verified | Hyprland (second run, partial) | 2026-11-04 |
+| The daemon in test mode at scale 1.5: scrolling capture of a page that scrolls under an animation stitches past 1200 px; after the capture bar closes, the settle wait reads the layer fade from the compositor (270 ms) and the frozen frame holds none of the bar (`easyshot` platform_scroll, platform_settle) | Hyprland headless output | 2026-11-04 |
+| The platform harness starts niri nested on the Hyprland test output and stops it cleanly; no test exercises the niri module there | niri, nested | 2026-11-04 |
 
-Not yet run: niri (its backend module is tested only against recorded replies and fake
+Not run: the niri module on niri (it is tested only against recorded replies and fake
 sockets), any other compositor, the packages installed from the AUR; rotated outputs; 10-bit
 formats; wlr-screencopy older than version 3.
 
@@ -382,9 +385,9 @@ niri.
 |---|---|
 | Geometry, engine, store, OCR, render, export | unit |
 | Editor, settings, gallery, player UI; canvas performance | headless windows |
-| Overlay, deck, pin, toast, bars; fractional scale; window capture | Hyprland headless output (not yet run) |
+| Scrolling capture, the settle wait after a surface closes; fractional scale | Hyprland headless output |
 | Generic providers, sway module, input-region pass-through, Auto Scroll | headless sway |
-| wlr-screencopy-only capture, niri module | nested niri (not yet run) |
+| wlr-screencopy-only capture, niri module | nested niri (harness only; no niri tests) |
 | IME, drag-out, real clipboard paste, GSR recordings with KMS, binds, Orca | manual with the maintainer |
 
 Lints are in `[workspace.lints]`. `dead_code` warnings are fatal in the gate. `just file-size` fails on

@@ -25,7 +25,7 @@ Shortcuts. "Off" switches are config keys only, not interface.
 | Copy and paste shapes | Ctrl+C copies shapes only when the selection is non-empty and Select is active, using an in-app clipboard, never the system clipboard (which holds images). Ctrl+V pastes at +16, or at the pointer if it is over the canvas. Image copy stays Ctrl+Shift+C. |
 | Z-order keys | Ctrl+] / Ctrl+[ one step; Ctrl+Shift+] / [ to front or back. Reordering applies only among non-redaction shapes; the draw order redaction, spotlight, shapes is fixed. |
 | Tab and Shift+Tab | Cycle the selection through shapes in z-order when the canvas has focus, which helps keyboard and screen-reader users. |
-| Shell robustness | An explicit capture queue, hand-edit-safe config, doctor and provider fallbacks. |
+| Shell robustness | One capture at a time (a new pick replaces the open one, a committed one refuses), hand-edit-safe config, doctor and provider fallbacks. |
 
 Not added, because they would break the 1:1 look or need tuning: snapping guides (maybe
 later, behind a setting), an eraser tool (a 13th button), Alt-drag duplicate (Alt already

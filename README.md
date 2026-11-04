@@ -53,8 +53,8 @@ deck, the editor, settings, gallery, tray, recording and the command line.
   supported.
 - Recording needs gpu-screen-recorder or wf-recorder. The screen-cast portal is not used.
 - easyshot never edits your compositor config; you add the key binds yourself.
-- Not in version 1: the video studio (timeline, zooms, captions), camera recording, cloud
-  sharing, a built-in updater and Flatpak.
+- There is no video studio (timeline, zooms, captions), camera recording, cloud sharing,
+  built-in updater or Flatpak.
 
 ## Install
 

@@ -27,7 +27,7 @@ const faq = [
   },
   {
     q: 'Does it upload my screenshots?',
-    a: 'No. Everything stays on your machine: captures, recordings, logs and crash reports. There is no cloud sharing in version 1.',
+    a: 'No. Everything stays on your machine: captures, recordings, logs and crash reports. easyshot has no cloud sharing.',
   },
   {
     q: 'What does recording need?',
