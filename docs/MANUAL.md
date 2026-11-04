@@ -294,6 +294,16 @@ asked for, or keeps the tab it shows when you asked for none.
 Captures are kept in a history with retention, search, sorting, icon and list views, and a
 trash. The default limit is 100 entries.
 
+Videos are in the gallery too, under Videos and All Media: recordings you have not saved yet
+(the project folders in `$XDG_DATA_HOME/easyshot/recordings/`), saved recordings and trim
+exports (`~/Videos/easyshot/`). A video shows its first frame, a play badge and, for a
+recording not yet saved, its length; the frame is a placeholder until ffmpeg has made it, or
+for good if ffmpeg is missing. Opening a video opens the trim viewer. Show in Folder and Move
+to Trash work as for a screenshot; trashing a recording that is not saved yet takes its whole
+project folder. Videos are not counted in the history limit. The tray's recent recordings list
+the same videos, newest first, and the list updates when a recording is kept, saved, exported
+or trashed.
+
 ## Recording
 
 A capture bar and recording picker start a recording of an area, a display or a window.

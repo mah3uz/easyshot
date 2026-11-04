@@ -172,6 +172,10 @@ More in the manual: [The editor](MANUAL.md#the-editor) and [Editor keys](MANUAL.
 - Brings the one Home window to the front when you open it again.
 - Keeps a history of captures with search, sorting, icon and list views, and a trash.
 - Keeps 100 history entries by default.
+- Lists recordings in the gallery under Videos and All Media: unsaved ones, saved ones and trim exports, each with a first-frame thumbnail, a play badge and its length when known.
+- Opens a video from the gallery or the tray in the trim viewer.
+- Shows and trashes a video from the gallery as it does a screenshot.
+- Lists the tray's recent recordings from the same videos and updates them after a save, an export or a trash.
 
 More in the manual: [The Home window](MANUAL.md#the-home-window) and [History and gallery](MANUAL.md#history-and-gallery).
 
