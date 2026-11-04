@@ -50,6 +50,14 @@ pub(super) fn fail_of(e: Error) -> Fail {
         Error::NotFound(what) => Fail::new(ErrorCode::NotFound, format!("no {what}")),
         Error::Cancelled => Fail::new(ErrorCode::Cancelled, "cancelled"),
         Error::TesseractMissing => Fail::new(ErrorCode::Unsupported, super::ocr::INSTALL_HINT),
+        Error::AudioDeviceMissing => Fail::new(
+            ErrorCode::Failed,
+            es_app::strings::loader().get("toast-recording-no-audio-device-message"),
+        ),
+        Error::AreaOffMonitor => Fail::new(
+            ErrorCode::Failed,
+            es_app::strings::loader().get("toast-recording-area-off-monitor-message"),
+        ),
         other => Fail::new(ErrorCode::Failed, other.to_string()),
     }
 }

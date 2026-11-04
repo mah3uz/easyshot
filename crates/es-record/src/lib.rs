@@ -41,6 +41,10 @@ pub enum Error {
     },
     #[error("protocol error: {0}")]
     Protocol(String),
+    #[error("an audio device was not found")]
+    AudioDeviceMissing,
+    #[error("the capture area is not on any monitor")]
+    AreaOffMonitor,
     #[error("parse error at line {line}, column {col}: {message}")]
     Parse {
         line: usize,

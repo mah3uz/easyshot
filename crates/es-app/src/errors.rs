@@ -25,6 +25,10 @@ pub enum Error {
     },
     #[error("protocol error: {0}")]
     Protocol(String),
+    #[error("an audio device was not found")]
+    AudioDeviceMissing,
+    #[error("the capture area is not on any monitor")]
+    AreaOffMonitor,
     #[error("parse error at line {line}, column {col}: {message}")]
     Parse {
         line: usize,
@@ -116,6 +120,14 @@ pub fn title_id(error: &Error, op: Op) -> &'static str {
         (_, Op::Recording) => "toast-recording-save-failed",
         (_, Op::Scroll) => "toast-scroll-capture-failed",
         (_, Op::Open | Op::Other) => "toast-error-generic",
+    }
+}
+
+pub fn recording_start_title(error: &Error) -> &'static str {
+    match error {
+        Error::AudioDeviceMissing => "toast-recording-no-audio-device",
+        Error::AreaOffMonitor => "toast-recording-area-off-monitor",
+        _ => "toast-error-generic",
     }
 }
 

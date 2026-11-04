@@ -6,7 +6,7 @@ use es_app::toast::{Toast, show_toast};
 use es_app::windows::{WindowKey, WindowKind, Windows};
 use es_model::platform::WindowInfo;
 use es_overlays::record::bar::{BarEvent, CaptureBar};
-use es_overlays::record::options::RecordingRequest;
+use es_overlays::record::options::{RecordingDefaults, RecordingRequest};
 use es_record::AudioDevice;
 use es_record::audio::{Runner, list_audio_devices};
 use gpui::{App, AppContext as _, Entity};
@@ -65,7 +65,8 @@ pub fn start_recording(recordings: &Recordings, request: RecordingRequest, cx: &
             && !matches!(e, Error::Cancelled)
         {
             tracing::warn!(error = %e, "recording did not start");
-            cx.update(|cx| show_toast(Toast::error("toast-error-generic"), cx));
+            let title = es_app::errors::recording_start_title(&e);
+            cx.update(|cx| show_toast(Toast::error(title), cx));
         }
     })
     .detach();
@@ -76,7 +77,16 @@ pub fn new_bar(w: &Rc<Wiring>, cx: &mut App) -> Entity<CaptureBar> {
     let devices = (sources.devices)();
     let bar = cx.new(|cx| CaptureBar::new((w.outputs)(), devices, sources.recorder_missing, cx));
     let options = bar.read(cx).options().clone();
-    options.update(cx, |o, cx| o.set_windows((sources.windows)(), cx));
+    let recording = &w.settings.read(cx).config().recording;
+    let defaults = RecordingDefaults {
+        mic: (!recording.mic.is_empty()).then(|| recording.mic.clone()),
+        system_audio: recording.system_audio,
+        delay_secs: recording.start_delay,
+    };
+    options.update(cx, |o, cx| {
+        o.set_defaults(defaults, cx);
+        o.set_windows((sources.windows)(), cx);
+    });
     cx.subscribe(&bar, move |bar, event: &BarEvent, cx| {
         if matches!(event, BarEvent::RefreshWindows) {
             let options = bar.read(cx).options().clone();

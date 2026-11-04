@@ -322,3 +322,10 @@ fn a_window_or_output_outside_the_scope_is_refused_where_the_capture_resolves_it
         assert_eq!(refused, Some(ErrorCode::AccessDenied), "{target:?}");
     }
 }
+
+#[test]
+fn a_missing_audio_device_is_explained_to_the_agent_without_the_device_list() {
+    let fail = fail_of(Error::AudioDeviceMissing);
+    assert!(fail.1.contains("microphone or sound device"), "{}", fail.1);
+    assert!(!fail.1.contains("default_output"));
+}

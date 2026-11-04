@@ -37,6 +37,31 @@ fn the_capture_bar_is_told_when_no_recorder_is_installed(cx: &mut TestAppContext
     assert!(hint.contains("No screen recorder is installed"), "{hint}");
 }
 
+#[gpui::test]
+fn the_capture_bar_panel_starts_from_the_recording_settings(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    rig.settings.update(cx, |s, cx| {
+        s.update(
+            |c| {
+                c.recording.mic = "default".into();
+                c.recording.system_audio = true;
+                c.recording.start_delay = 3;
+            },
+            cx,
+        )
+    });
+    let bar = cx.update(|cx| new_bar(&rig.wiring, cx));
+    let request = cx.update(|cx| {
+        let options = bar.read(cx).options().clone();
+        options
+            .read(cx)
+            .request(es_overlays::record::RecordingTarget::Area)
+    });
+    assert_eq!(request.mic.as_deref(), Some("default"));
+    assert!(request.system_audio);
+    assert_eq!(request.delay_secs, 3);
+}
+
 struct Pactl(&'static str);
 
 impl es_record::audio::Runner for Pactl {

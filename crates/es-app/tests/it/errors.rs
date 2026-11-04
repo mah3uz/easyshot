@@ -131,3 +131,21 @@ fn a_toast_message_uses_the_catalogue_text_when_it_has_one() {
         ToastRequest::resolve(&Toast::error("toast-capture-save-failed").arg("error", "x"));
     assert!(request.message.unwrap().contains("still in the deck"));
 }
+
+#[test]
+fn a_recorder_that_cannot_use_a_device_or_area_says_so_in_plain_words() {
+    use es_app::errors::recording_start_title;
+    for (error, title) in [
+        (Error::AudioDeviceMissing, "toast-recording-no-audio-device"),
+        (Error::AreaOffMonitor, "toast-recording-area-off-monitor"),
+    ] {
+        assert_eq!(recording_start_title(&error), title);
+        let request = ToastRequest::resolve(&Toast::error(title));
+        assert_eq!(request.title, "Couldn\u{2019}t start recording");
+        assert!(request.message.is_some(), "{title} has a message");
+    }
+    assert_eq!(
+        recording_start_title(&Error::Protocol("x".into())),
+        "toast-error-generic"
+    );
+}

@@ -165,9 +165,19 @@ fn quality_name(q: Quality) -> &'static str {
 
 fn mic_arg(mic: &str) -> String {
     match mic {
-        "" | "default_input" => "default_input".into(),
+        "" | "default" | "default_input" => "default_input".into(),
         m if m.starts_with("device:") || m == "default_output" => m.into(),
         m => format!("device:{m}"),
+    }
+}
+
+pub fn early_exit(code: Option<i32>, status: &str, stderr: &str) -> Error {
+    match code {
+        Some(50) => Error::AudioDeviceMissing,
+        Some(51) => Error::AreaOffMonitor,
+        _ => Error::Protocol(format!(
+            "gpu-screen-recorder exited early ({status}): {stderr}"
+        )),
     }
 }
 
@@ -197,11 +207,14 @@ pub fn gsr_args(
     push(&["-k", codec_name(spec.codec)]);
     push(&["-c", container_ext(spec.container)]);
     push(&["-q", quality_name(spec.quality)]);
-    if spec.system_audio {
-        push(&["-a", "default_output"]);
-    }
-    if let Some(m) = &spec.mic {
-        push(&["-a", &mic_arg(m)]);
+    let audio = match (spec.system_audio, &spec.mic) {
+        (true, Some(m)) => Some(format!("default_output|{}", mic_arg(m))),
+        (true, None) => Some("default_output".to_owned()),
+        (false, Some(m)) => Some(mic_arg(m)),
+        (false, None) => None,
+    };
+    if let Some(audio) = audio {
+        push(&["-a", &audio]);
     }
     push(&["-cursor", if spec.cursor { "yes" } else { "no" }]);
     push(&["-ipc", &ipc.to_string_lossy()]);
@@ -311,10 +324,11 @@ impl Recorder for GsrRecorder {
         let ts_file = PathBuf::from(format!("{}.ts", out.display()));
         loop {
             if let Some(st) = helper.exited() {
-                return Err(Error::Protocol(format!(
-                    "gpu-screen-recorder exited early ({st}): {}",
-                    helper.stderr_tail()
-                )));
+                return Err(early_exit(
+                    st.code(),
+                    &st.to_string(),
+                    &helper.stderr_tail(),
+                ));
             }
             let ready = if self.portal {
                 ts_file.exists()

@@ -7,7 +7,7 @@ use es_overlays::record::control::{BAR as CONTROL, CONFIRM};
 use es_overlays::record::options::WIDTH;
 use es_overlays::record::{
     BarEvent, CaptureBar, Confirm, ControlBar, ControlEvent, OptionsEvent, Phase, Placement,
-    Recorded, RecordingOptions, RecordingTarget, control_bar, highlight_strips,
+    Recorded, RecordingDefaults, RecordingOptions, RecordingTarget, control_bar, highlight_strips,
 };
 use es_protocol::{Route, TimedMode};
 use es_record::{AudioDevice, AudioKind, Clock};
@@ -246,6 +246,33 @@ fn the_options_build_a_request_from_their_controls() {
         events.borrow().last(),
         Some(OptionsEvent::Start(r)) if matches!(&r.target, RecordingTarget::Window(w) if w.title == "notes.md")
     ));
+}
+
+#[test]
+fn the_options_start_from_the_given_defaults_and_requests_carry_them() {
+    let mut s = Surface::open(WIDTH as f32, 360., |_| {
+        RecordingOptions::new(vec![output("A", 0., 1280., 720.)], devices())
+    });
+    let view = s.view.clone();
+    s.app.cx.update(|cx| {
+        view.update(cx, |o, cx| {
+            o.set_defaults(
+                RecordingDefaults {
+                    mic: Some("default".into()),
+                    system_audio: true,
+                    delay_secs: 3,
+                },
+                cx,
+            )
+        })
+    });
+    let request = s
+        .app
+        .cx
+        .update(|cx| view.read(cx).request(RecordingTarget::Area));
+    assert_eq!(request.mic.as_deref(), Some("default"));
+    assert!(request.system_audio);
+    assert_eq!(request.delay_secs, 3);
 }
 
 #[test]

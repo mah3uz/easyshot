@@ -121,6 +121,8 @@ pub struct Recordings(Rc<Inner>);
 fn io_error(e: &es_record::Error) -> Error {
     match e {
         es_record::Error::Unsupported => Error::Unsupported,
+        es_record::Error::AudioDeviceMissing => Error::AudioDeviceMissing,
+        es_record::Error::AreaOffMonitor => Error::AreaOffMonitor,
         other => Error::Protocol(other.to_string()),
     }
 }

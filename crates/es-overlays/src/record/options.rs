@@ -51,6 +51,14 @@ impl RecordingRequest {
     }
 }
 
+/// What the panel starts with; changing it on the panel affects only that recording.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RecordingDefaults {
+    pub mic: Option<String>,
+    pub system_audio: bool,
+    pub delay_secs: u32,
+}
+
 #[derive(Debug, Clone)]
 pub enum OptionsEvent {
     Start(Box<RecordingRequest>),
@@ -106,6 +114,13 @@ impl RecordingOptions {
     pub fn set_windows(&mut self, windows: Vec<WindowInfo>, cx: &mut Context<Self>) {
         self.windows = windows;
         self.resized(cx);
+    }
+
+    pub fn set_defaults(&mut self, defaults: RecordingDefaults, cx: &mut Context<Self>) {
+        self.mic = defaults.mic;
+        self.system_audio = defaults.system_audio;
+        self.delay = defaults.delay_secs.min(MAX_DELAY);
+        cx.notify();
     }
 
     pub fn set_delay(&mut self, secs: u32, cx: &mut Context<Self>) {

@@ -285,7 +285,11 @@ trash. The default limit is 100 entries.
 
 A capture bar and recording picker start a recording of an area, a display or a window.
 System sound is recorded unless you turn it off in Settings, Recording; the microphone is
-off until you choose one there. There is a countdown, and then a control bar with stop,
+off until you choose one there. The capture bar's recording panel starts with those settings
+and the start delay; changing them on the bar affects only that recording. With both on, the
+video has one audio track that mixes system sound and the microphone, so any player plays both.
+If the microphone you chose is not found, or the area is not on any monitor, you get a notice
+that says so. There is a countdown, and then a control bar with stop,
 pause and resume, restart and discard. The recorded area is highlighted. Without
 gpu-screen-recorder or wf-recorder, nothing starts: you get a notice that names both and the
 Arch package to install.

@@ -5,7 +5,7 @@ use common::*;
 use es_geom::Rect;
 use es_model::platform::{OutputId, OutputInfo, Transform};
 use es_record::Clock;
-use es_record::gsr::gsr_args;
+use es_record::gsr::{early_exit, gsr_args};
 use es_record::{
     Codec, Container, Error, GsrRecorder, Quality, Recorder, RecorderEvent, RegionUnits,
 };
@@ -86,7 +86,7 @@ fn an_output_recording_passes_the_documented_flags() {
 }
 
 #[test]
-fn a_region_uses_global_logical_coordinates_and_audio_tracks_stay_separate() {
+fn a_region_uses_global_logical_coordinates_and_system_and_mic_audio_share_one_mixed_track() {
     let mut s = spec(Path::new("/r"), region("DP-2", 3083.0, 382.0, 800.0, 600.0));
     s.system_audio = true;
     s.mic = Some("alsa_input.usb-rode".into());
@@ -105,15 +105,15 @@ fn a_region_uses_global_logical_coordinates_and_audio_tracks_stay_separate() {
     .join(" ");
     assert_eq!(
         a,
-        "-w 800x600+3083+382 -f 30 -k hevc -c mp4 -q ultra -a default_output -a device:alsa_input.usb-rode \
+        "-w 800x600+3083+382 -f 30 -k hevc -c mp4 -q ultra -a default_output|device:alsa_input.usb-rode \
          -cursor no -ipc /run/s.sock -write-first-frame-ts yes -o /r/screen.mp4"
     );
 }
 
-#[test]
-fn the_default_microphone_keeps_its_special_name() {
+fn audio_of(system: bool, mic: Option<&str>) -> Vec<String> {
     let mut s = spec(Path::new("/r"), output("DP-1"));
-    s.mic = Some(String::new());
+    s.system_audio = system;
+    s.mic = mic.map(str::to_owned);
     let a = gsr_args(
         &s,
         false,
@@ -121,7 +121,56 @@ fn the_default_microphone_keeps_its_special_name() {
         Path::new("/s"),
         Path::new("/o"),
     );
-    assert!(a.join(" ").contains("-a default_input"));
+    a.iter()
+        .enumerate()
+        .filter(|(_, x)| *x == "-a")
+        .map(|(i, _)| a[i + 1].clone())
+        .collect()
+}
+
+#[test]
+fn every_microphone_setting_becomes_a_name_the_recorder_accepts() {
+    for (mic, want) in [
+        ("", "default_input"),
+        ("default", "default_input"),
+        ("default_input", "default_input"),
+        ("default_output", "default_output"),
+        ("device:x", "device:x"),
+        (
+            "alsa_input.pci-0000_79_00.6.analog-stereo",
+            "device:alsa_input.pci-0000_79_00.6.analog-stereo",
+        ),
+    ] {
+        assert_eq!(audio_of(false, Some(mic)), [want], "mic {mic:?}");
+    }
+}
+
+#[test]
+fn one_audio_source_is_one_track_and_two_are_mixed_into_one() {
+    assert!(audio_of(false, None).is_empty());
+    assert_eq!(audio_of(true, None), ["default_output"]);
+    assert_eq!(
+        audio_of(true, Some("default")),
+        ["default_output|default_input"]
+    );
+}
+
+#[test]
+fn the_recorders_early_exit_codes_say_what_went_wrong() {
+    use es_record::Error;
+    assert!(matches!(
+        early_exit(Some(50), "x", "list"),
+        Error::AudioDeviceMissing
+    ));
+    assert!(matches!(
+        early_exit(Some(51), "x", ""),
+        Error::AreaOffMonitor
+    ));
+    let other = early_exit(Some(1), "exit status: 1", "boom").to_string();
+    assert!(
+        other.contains("exit status: 1") && other.contains("boom"),
+        "{other}"
+    );
 }
 
 #[test]

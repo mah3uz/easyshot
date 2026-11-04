@@ -6,7 +6,9 @@ pub mod session;
 
 pub use bar::{BarEvent, CaptureBar};
 pub use control::{Confirm, ControlBar, ControlEvent};
-pub use options::{OptionsEvent, RecordingOptions, RecordingRequest, RecordingTarget};
+pub use options::{
+    OptionsEvent, RecordingDefaults, RecordingOptions, RecordingRequest, RecordingTarget,
+};
 pub use placement::{Placement, Recorded, control_bar, highlight_strips};
 pub use session::{Phase, Stopwatch, format_elapsed, tray_notice};
 
