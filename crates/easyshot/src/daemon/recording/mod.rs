@@ -9,7 +9,7 @@ mod target;
 mod tests;
 pub mod ui;
 
-use es_app::capture_coordinator::CaptureKind;
+use es_app::capture_coordinator::{CaptureKind, Gate};
 use es_app::deck::Deck;
 use es_app::errors::{Error, Result};
 use es_app::platform_ui::Selection;
@@ -129,6 +129,15 @@ fn io_error(e: &es_record::Error) -> Error {
 
 fn busy() -> Error {
     Error::Internal("the recording is busy".into())
+}
+
+/// Holds back only recording starts: screenshots run while a recording does.
+pub fn gate(recordings: &Recordings) -> Gate {
+    let recordings = recordings.clone();
+    Rc::new(move |request, cx| match request.kind {
+        CaptureKind::Recording | CaptureKind::RecordingArea => recordings.admit(cx),
+        _ => Ok(()),
+    })
 }
 
 /// A save notice that says where the file went and opens it when clicked.

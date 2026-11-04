@@ -1,5 +1,6 @@
 use super::color::{ColorEvent, ColorPicker};
 use super::geometry;
+use super::live::{self, Listening, Slot};
 use super::picker::WindowPicker;
 use super::scroll_flow::{self, Control};
 use super::selector::{RegionSelector, SelectorEvent, SelectorStyle};
@@ -9,7 +10,7 @@ use es_app::capture_coordinator::Hook;
 use es_app::errors::{Error, Result};
 use es_app::platform_ui::{
     LayerShellSurfaces, LayerSurfaceHandle, SelectMode, Selection, SelectionFlow, SurfaceHandle,
-    SurfaceRole,
+    SurfaceRole, Switch,
 };
 use es_backend::Backend;
 use es_geom::{Rect, Rgba};
@@ -45,6 +46,7 @@ pub struct LayerShellSelectionFlow {
     recall: Recall,
     remember: Remember,
     scroll: Control,
+    picking: Slot<(usize, Pick)>,
 }
 
 impl LayerShellSelectionFlow {
@@ -56,6 +58,7 @@ impl LayerShellSelectionFlow {
             recall: Rc::new(|_| None),
             remember: Rc::new(|_, _| {}),
             scroll: Control::default(),
+            picking: Slot::default(),
         }
     }
 
@@ -89,6 +92,7 @@ impl LayerShellSelectionFlow {
             recall: self.recall.clone(),
             remember: self.remember.clone(),
             scroll: self.scroll.clone(),
+            picking: self.picking.clone(),
         }
     }
 }
@@ -111,6 +115,8 @@ enum Pick {
     Cancel,
     ToWindow,
     ToRegion,
+    Switch(View),
+    Whole,
 }
 
 enum Content {
@@ -151,7 +157,8 @@ struct Setup {
 struct Open {
     overlays: Vec<Overlay>,
     subscriptions: Vec<Subscription>,
-    tx: async_channel::Sender<(usize, Pick)>,
+    tx: async_channel::Sender<(u64, (usize, Pick))>,
+    listening: Listening<(usize, Pick)>,
     cx: AsyncApp,
 }
 
@@ -245,10 +252,11 @@ impl Open {
                 _ => None,
             })
             .collect();
+        let tag = self.listening.tag();
         for (index, o) in self.overlays.iter().enumerate() {
             let tx = self.tx.clone();
             let send = move |pick: Pick| {
-                let _ = tx.try_send((index, pick));
+                let _ = tx.try_send((tag, (index, pick)));
             };
             let subscription = match &o.content {
                 Some(Content::Region(e)) => {
@@ -290,13 +298,15 @@ impl LayerShellSelectionFlow {
     fn open(
         &self,
         frames: Vec<Frame>,
+        tx: async_channel::Sender<(u64, (usize, Pick))>,
+        listening: Listening<(usize, Pick)>,
         cx: &mut App,
-    ) -> Result<(Open, async_channel::Receiver<(usize, Pick)>)> {
-        let (tx, rx) = async_channel::unbounded();
+    ) -> Result<Open> {
         let mut open = Open {
             overlays: Vec::new(),
             subscriptions: Vec::new(),
             tx,
+            listening,
             cx: cx.to_async(),
         };
         let pointer = self.surfaces.source().pointer_output();
@@ -324,7 +334,7 @@ impl LayerShellSelectionFlow {
         if open.overlays.is_empty() {
             return Err(Error::NotFound("any output to select on".into()));
         }
-        Ok((open, rx))
+        Ok(open)
     }
 }
 
@@ -351,13 +361,10 @@ impl SelectionFlow for LayerShellSelectionFlow {
             .map(|o| o.id)
             .collect();
         let backend = self.backend.clone();
-        let wants_windows = matches!(first, View::Region | View::Window);
+        let (tx, rx) = async_channel::unbounded();
+        let listening = Listening::start(&self.picking, tx.clone());
         let frozen = cx.background_spawn(async move {
-            let windows = if wants_windows {
-                (backend.windows.snapshot(), backend.windows.has_geometry())
-            } else {
-                (Vec::new(), false)
-            };
+            let windows = (backend.windows.snapshot(), backend.windows.has_geometry());
             let frames = backend
                 .capture
                 .capture_outputs(&ids, CaptureOpts { cursor: false });
@@ -381,11 +388,14 @@ impl SelectionFlow for LayerShellSelectionFlow {
                 windows,
                 geometry,
             };
-            let (mut open, rx) = cx.update(|cx| this.open(frames, cx))?;
+            let mut open = cx.update(|cx| this.open(frames, tx, listening, cx))?;
             let mut view = first;
             cx.update(|cx| open.show(view, &setup, cx));
             loop {
-                let (index, event) = rx.recv().await.map_err(|_| Error::Cancelled)?;
+                let (tag, (index, event)) = rx.recv().await.map_err(|_| Error::Cancelled)?;
+                if !open.listening.is_current(tag) {
+                    continue;
+                }
                 let Some(overlay) = open.overlays.get(index) else {
                     continue;
                 };
@@ -403,6 +413,22 @@ impl SelectionFlow for LayerShellSelectionFlow {
                             view = next;
                             cx.update(|cx| open.show(view, &setup, cx));
                         }
+                    }
+                    Pick::Switch(next) if next == view => {}
+                    Pick::Switch(View::Window) if setup.windows.is_empty() && !setup.geometry => {
+                        return Err(Error::Unsupported);
+                    }
+                    Pick::Switch(next) => {
+                        view = next;
+                        cx.update(|cx| open.show(view, &setup, cx));
+                    }
+                    Pick::Whole => {
+                        drop(open);
+                        return Ok(Selection::Region {
+                            output,
+                            logical: frame.logical,
+                            frame,
+                        });
                     }
                     Pick::Color(c) => return Ok(Selection::Color(c)),
                     Pick::Region(local) if view == View::Scroll => {
@@ -447,5 +473,14 @@ impl SelectionFlow for LayerShellSelectionFlow {
                 }
             }
         })
+    }
+
+    fn switch(&self, to: Switch, _cx: &mut App) -> bool {
+        let pick = match to {
+            Switch::To(mode) => view_for(mode).map_or(Pick::Cancel, Pick::Switch),
+            Switch::Whole => Pick::Whole,
+            Switch::Close => Pick::Cancel,
+        };
+        live::switch(&self.picking, (0, pick))
     }
 }

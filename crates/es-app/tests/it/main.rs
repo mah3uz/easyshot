@@ -1,6 +1,6 @@
 mod agent_access;
 mod agent_redact;
-mod capture_queue;
+mod capture_rule;
 mod deck;
 mod dispatcher;
 mod errors;

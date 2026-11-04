@@ -1,11 +1,10 @@
 use crate::errors::{Error, Result};
 use crate::jobs::{JobId, Jobs};
-use crate::platform_ui::{SelectMode, Selection, SelectionFlow};
+use crate::platform_ui::{SelectMode, Selection, SelectionFlow, Switch};
+use crate::toast::{IconName, Toast, show_toast};
 use es_model::capture::CaptureVariant;
-use futures::channel::oneshot;
-use gpui::{App, Task};
+use gpui::{App, AsyncApp, Task};
 use std::cell::{Cell, RefCell};
-use std::collections::VecDeque;
 use std::rc::Rc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -83,69 +82,86 @@ struct Hooks {
     gate: Option<Gate>,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct Current {
+    request: CaptureRequest,
+    /// The job whose task does the work.
+    runner: JobId,
+    /// The job the outcome is reported to: the runner, or the request that took its pick over.
+    owner: JobId,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum Phase {
+    Idle,
+    Picking(Current),
+    Committed(Current),
+    /// Taken by a claim, which answers to no request.
+    Held,
+}
+
 struct Inner {
     jobs: Jobs,
     hooks: RefCell<Hooks>,
-    waiting: RefCell<VecDeque<oneshot::Sender<()>>>,
-    busy: Cell<bool>,
-    scrolling: Cell<bool>,
+    phase: Cell<Phase>,
 }
 
-impl Inner {
-    fn release(&self) {
-        let mut waiting = self.waiting.borrow_mut();
-        while let Some(next) = waiting.pop_front() {
-            if next.send(()).is_ok() {
-                return;
+pub fn busy() -> Error {
+    Error::Internal("a capture is in progress".into())
+}
+
+fn busy_toast(cx: &mut App) {
+    show_toast(Toast::new("toast-capture-busy", IconName::Info), cx);
+}
+
+/// The capture task's hold on the phase; dropping it while it holds ends the capture.
+struct Turn {
+    inner: Rc<Inner>,
+    held: bool,
+}
+
+impl Turn {
+    fn commit(&self, fallback: Current) -> Current {
+        match self.inner.phase.get() {
+            Phase::Picking(c) | Phase::Committed(c) => {
+                self.inner.phase.set(Phase::Committed(c));
+                c
             }
+            Phase::Idle | Phase::Held => fallback,
         }
-        self.busy.set(false);
+    }
+
+    fn release(&mut self) {
+        if std::mem::take(&mut self.held) {
+            self.inner.phase.set(Phase::Idle);
+        }
     }
 }
-
-struct Turn(Rc<Inner>);
 
 impl Drop for Turn {
     fn drop(&mut self) {
-        self.0.release();
-    }
-}
-
-/// A request waiting its turn; dropping it hands a turn it was already given to the next one.
-struct Waiter {
-    rx: oneshot::Receiver<()>,
-    inner: Rc<Inner>,
-    granted: bool,
-}
-
-impl Waiter {
-    async fn turn(mut self) -> Result<Turn> {
-        (&mut self.rx).await.map_err(|_| Error::Cancelled)?;
-        self.granted = true;
-        Ok(Turn(self.inner.clone()))
-    }
-}
-
-impl Drop for Waiter {
-    fn drop(&mut self) {
-        if self.granted {
+        if !self.held {
             return;
         }
-        self.rx.close();
-        if matches!(self.rx.try_recv(), Ok(Some(()))) {
-            self.inner.release();
+        if let Phase::Picking(c) | Phase::Committed(c) = self.inner.phase.get()
+            && c.owner != c.runner
+        {
+            self.inner.jobs.report(c.owner, &Err(Error::Cancelled));
         }
+        self.inner.phase.set(Phase::Idle);
     }
 }
 
-struct ScrollFlag(Rc<Inner>);
+/// Keeps every other capture out until dropped.
+pub struct Claim(Rc<Inner>);
 
-impl Drop for ScrollFlag {
+impl Drop for Claim {
     fn drop(&mut self) {
-        self.0.scrolling.set(false);
+        self.0.phase.set(Phase::Idle);
     }
 }
 
+/// The single owner of what is being captured: one capture at a time, never queued.
 #[derive(Clone)]
 pub struct CaptureCoordinator {
     inner: Rc<Inner>,
@@ -157,9 +173,7 @@ impl CaptureCoordinator {
             inner: Rc::new(Inner {
                 jobs,
                 hooks: RefCell::default(),
-                waiting: RefCell::default(),
-                busy: Cell::new(false),
-                scrolling: Cell::new(false),
+                phase: Cell::new(Phase::Idle),
             }),
         }
     }
@@ -185,7 +199,7 @@ impl CaptureCoordinator {
         self.inner.hooks.borrow_mut().before_capture = Some(hook);
     }
 
-    /// Refuses a request before it waits, selects or captures anything.
+    /// Refuses a request before it selects or captures anything.
     pub fn set_gate(&self, gate: Gate) {
         self.inner.hooks.borrow_mut().gate = Some(gate);
     }
@@ -200,91 +214,232 @@ impl CaptureCoordinator {
         self.inner.hooks.borrow_mut().scroll_stop = Some(hook);
     }
 
-    /// Runs `job` once every earlier request has finished.
+    pub fn is_idle(&self) -> bool {
+        matches!(self.inner.phase.get(), Phase::Idle)
+    }
+
+    /// Starts `request`, folds it into the pick already running, or refuses it.
     pub fn submit(&self, job: JobId, request: CaptureRequest, cx: &mut App) {
-        let inner = self.inner.clone();
-        let gate = inner.hooks.borrow().gate.clone();
+        let gate = self.inner.hooks.borrow().gate.clone();
         if let Some(gate) = gate
             && let Err(e) = gate(request, cx)
         {
-            inner.jobs.report(job, &Err(e));
+            self.inner.jobs.report(job, &Err(e));
             return;
         }
-        if request.kind == CaptureKind::Scroll && inner.scrolling.get() {
-            let stop = inner.hooks.borrow().scroll_stop.clone();
+        let running = match self.inner.phase.get() {
+            Phase::Idle => return self.start(job, request, cx),
+            Phase::Picking(current) if self.replace(job, current, request, cx) => return,
+            Phase::Picking(current) | Phase::Committed(current) => Some(current),
+            Phase::Held => None,
+        };
+        let scrolling = running.is_some_and(|c| c.request.kind == CaptureKind::Scroll);
+        if request.kind == CaptureKind::Scroll && scrolling {
+            let stop = self.inner.hooks.borrow().scroll_stop.clone();
             if let Some(stop) = stop {
                 stop(cx);
             }
-            inner.jobs.report(job, &Ok(()));
+            self.inner.jobs.report(job, &Ok(()));
             return;
         }
-        let waiter = if inner.busy.replace(true) {
-            let (tx, rx) = oneshot::channel();
-            inner.waiting.borrow_mut().push_back(tx);
-            Some(Waiter {
-                rx,
-                inner: inner.clone(),
-                granted: false,
-            })
+        busy_toast(cx);
+        self.inner.jobs.report(job, &Err(busy()));
+    }
+
+    /// The same request again closes the pick; another one takes it over on the same frames.
+    fn replace(&self, job: JobId, current: Current, request: CaptureRequest, cx: &mut App) -> bool {
+        let flow = self.inner.hooks.borrow().flow.clone();
+        let Some(flow) = flow else {
+            return false;
+        };
+        let same = current.request == request;
+        let to = if same {
+            Switch::Close
         } else {
-            None
+            switch_for(request.kind)
+        };
+        if !flow.switch(to, cx) {
+            return false;
+        }
+        if same {
+            self.inner.jobs.report(job, &Ok(()));
+            return true;
+        }
+        if current.owner != current.runner {
+            self.inner
+                .jobs
+                .report(current.owner, &Err(Error::Cancelled));
+        }
+        let next = Current {
+            request,
+            owner: job,
+            ..current
+        };
+        self.inner.phase.set(match to {
+            Switch::To(_) => Phase::Picking(next),
+            Switch::Whole | Switch::Close => Phase::Committed(next),
+        });
+        true
+    }
+
+    fn start(&self, job: JobId, request: CaptureRequest, cx: &mut App) {
+        let inner = self.inner.clone();
+        let first = Current {
+            request,
+            runner: job,
+            owner: job,
+        };
+        inner.phase.set(match source(request.kind) {
+            Source::Pick(_) => Phase::Picking(first),
+            Source::Direct(_) => Phase::Committed(first),
+        });
+        let mut turn = Turn {
+            inner: inner.clone(),
+            held: true,
         };
         let async_cx = cx.to_async();
         let jobs = inner.jobs.clone();
         jobs.spawn(job, cx, move |_| async move {
-            let _turn = match waiter {
-                Some(waiter) => waiter.turn().await?,
-                None => Turn(inner.clone()),
-            };
-            let _scroll = (request.kind == CaptureKind::Scroll).then(|| {
-                inner.scrolling.set(true);
-                ScrollFlag(inner.clone())
-            });
             let hooks = inner.hooks.borrow().clone();
             if let Some(before) = &hooks.before_capture {
                 async_cx.update(|cx| before(cx));
             }
-            let picked = async_cx
-                .update(|cx| select(request.kind, &hooks, cx))?
-                .await?;
-            if matches!(picked, Selection::Cancelled) {
-                return Err(Error::Cancelled);
-            }
-            let selection = if request.timer == Timer::Off {
-                picked
-            } else {
-                if let Some(countdown) = &hooks.countdown {
-                    async_cx.update(|cx| countdown(request.timer, cx)).await?;
-                }
-                async_cx
-                    .update(|cx| direct(&hooks, Direct::Again(picked), cx))?
-                    .await?
+            let picked = match async_cx.update(|cx| select(request.kind, &hooks, cx)) {
+                Ok(task) => task.await,
+                Err(e) => Err(e),
             };
-            if let Some(captured) = &hooks.captured {
-                async_cx.update(|cx| captured(request.kind, &selection, cx));
+            let current = turn.commit(first);
+            let result = finish(
+                current.request,
+                request.kind,
+                picked,
+                &hooks,
+                &mut turn,
+                &async_cx,
+            )
+            .await;
+            turn.release();
+            if current.owner == job {
+                return result;
             }
-            let pipeline = hooks.pipeline.ok_or(Error::Unsupported)?;
-            async_cx.update(|cx| pipeline(request, selection, cx)).await
+            inner.jobs.report(current.owner, &result);
+            Err(Error::Cancelled)
         });
+    }
+
+    /// For a capture that picks nothing, such as an agent's: refused while another one runs.
+    pub fn claim(&self) -> Result<Claim> {
+        match self.inner.phase.get() {
+            Phase::Idle => {
+                self.inner.phase.set(Phase::Held);
+                Ok(Claim(self.inner.clone()))
+            }
+            _ => Err(busy()),
+        }
+    }
+
+    /// An area picked for the capture bar's recording, under the same one-capture rule.
+    pub fn select_area(&self, cx: &mut App) -> Task<Result<Selection>> {
+        let claim = match self.claim() {
+            Ok(claim) => claim,
+            Err(e) => {
+                busy_toast(cx);
+                return Task::ready(Err(e));
+            }
+        };
+        let flow = self.inner.hooks.borrow().flow.clone();
+        let Some(flow) = flow else {
+            return Task::ready(Err(Error::Unsupported));
+        };
+        let picked = flow.run(SelectMode::Region, cx);
+        cx.spawn(async move |_| {
+            let _claim = claim;
+            picked.await
+        })
+    }
+
+    /// A request that took a pick over is cancelled through the job that runs it.
+    pub fn cancel(&self, job: JobId) -> bool {
+        match self.inner.phase.get() {
+            Phase::Picking(c) | Phase::Committed(c) if c.owner == job && c.runner != job => {
+                self.inner.jobs.cancel(c.runner)
+            }
+            _ => false,
+        }
+    }
+}
+
+async fn finish(
+    request: CaptureRequest,
+    first: CaptureKind,
+    picked: Result<Selection>,
+    hooks: &Hooks,
+    turn: &mut Turn,
+    cx: &AsyncApp,
+) -> Result<()> {
+    let picked = match picked? {
+        Selection::Cancelled if request.kind == CaptureKind::Previous && first != request.kind => {
+            cx.update(|cx| direct(hooks, Direct::Previous, cx))?.await?
+        }
+        Selection::Cancelled => return Err(Error::Cancelled),
+        picked => picked,
+    };
+    let selection = if request.timer == Timer::Off {
+        picked
+    } else {
+        if let Some(countdown) = &hooks.countdown {
+            cx.update(|cx| countdown(request.timer, cx)).await?;
+        }
+        cx.update(|cx| direct(hooks, Direct::Again(picked), cx))?
+            .await?
+    };
+    if let Some(captured) = &hooks.captured {
+        cx.update(|cx| captured(request.kind, &selection, cx));
+    }
+    let pipeline = hooks.pipeline.clone().ok_or(Error::Unsupported)?;
+    // A recording runs alongside screenshots; its own start rules keep a second one out.
+    if matches!(
+        request.kind,
+        CaptureKind::Recording | CaptureKind::RecordingArea
+    ) {
+        turn.release();
+    }
+    cx.update(|cx| pipeline(request, selection, cx)).await
+}
+
+enum Source {
+    Pick(SelectMode),
+    Direct(Direct),
+}
+
+fn source(kind: CaptureKind) -> Source {
+    match kind {
+        CaptureKind::Fullscreen | CaptureKind::Recording => Source::Direct(Direct::Fullscreen),
+        CaptureKind::Previous => Source::Direct(Direct::Previous),
+        CaptureKind::Region | CaptureKind::RecordingArea => Source::Pick(SelectMode::Region),
+        CaptureKind::Window => Source::Pick(SelectMode::Window),
+        CaptureKind::Scroll => Source::Pick(SelectMode::Scroll),
+        CaptureKind::Text | CaptureKind::TextLine => Source::Pick(SelectMode::Text),
+        CaptureKind::Color => Source::Pick(SelectMode::Color),
+    }
+}
+
+fn switch_for(kind: CaptureKind) -> Switch {
+    match source(kind) {
+        Source::Pick(mode) => Switch::To(mode),
+        Source::Direct(Direct::Previous) => Switch::Close,
+        Source::Direct(_) => Switch::Whole,
     }
 }
 
 fn select(kind: CaptureKind, hooks: &Hooks, cx: &mut App) -> Result<Task<Result<Selection>>> {
-    let interactive = |mode, cx: &mut App| {
-        hooks
+    match source(kind) {
+        Source::Pick(mode) => hooks
             .flow
             .as_ref()
             .map(|flow| flow.run(mode, cx))
-            .ok_or(Error::Unsupported)
-    };
-    match kind {
-        CaptureKind::Fullscreen | CaptureKind::Recording => direct(hooks, Direct::Fullscreen, cx),
-        CaptureKind::Previous => direct(hooks, Direct::Previous, cx),
-        CaptureKind::Region | CaptureKind::RecordingArea => interactive(SelectMode::Region, cx),
-        CaptureKind::Window => interactive(SelectMode::Window, cx),
-        CaptureKind::Scroll => interactive(SelectMode::Scroll, cx),
-        CaptureKind::Text | CaptureKind::TextLine => interactive(SelectMode::Text, cx),
-        CaptureKind::Color => interactive(SelectMode::Color, cx),
+            .ok_or(Error::Unsupported),
+        Source::Direct(from) => direct(hooks, from, cx),
     }
 }
 

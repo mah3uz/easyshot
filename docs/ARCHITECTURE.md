@@ -255,7 +255,18 @@ as a missing wallpaper. `es_store::wallpapers::read` reads only a regular file o
   appearance, outputs, windows, config file change, recorder, and `TestInject` under
   `test-hooks`) and dispatches typed handlers.
 - `RouteDispatcher::dispatch(route, origin, cx) -> JobId`: capture and record routes go to
-  the `CaptureCoordinator` (a FIFO queue; a second scroll-capture trigger stops it); window
+  the `CaptureCoordinator`, the single owner of what is being captured. It is a state
+  machine, Idle, Picking (the selector is open on frozen frames) or Committed (countdown,
+  running scroll capture, saving and processing), and nothing is queued. A request while
+  Picking takes the pick over through `SelectionFlow::switch` on the same frames (a new
+  mode switches the view, fullscreen takes the frozen output, previous closes the picker
+  and grabs afresh); the same request closes it. A request while Committed is refused
+  with the "A capture is in progress" toast, except a second scroll trigger, which stops
+  the scroll. The replacing job is the one told the outcome. Agent captures and the
+  capture bar's recording-area pick take a `Claim`, which refuses while anything runs and
+  holds off everything else; agents get `invalid_arguments` "busy". A recording releases
+  the coordinator once its selection reaches the recording pipeline, so screenshots run
+  during a recording, and `Recordings::admit` still refuses a second start. Window
   routes go to the `Windows` registry, which focuses an existing settings, gallery or
   editor window instead of opening a second; `Jobs` owns `job_id -> (Task, cancel)`.
 - es-app defines the seam traits and registries. Higher crates register implementations at
@@ -299,7 +310,8 @@ as a missing wallpaper. `es_store::wallpapers::read` reads only a regular file o
 1. The user's compositor bind runs `easyshot capture/region`. The CLI calls `Command` on
    the session bus (starting the daemon if needed) and gets a `job_id`.
 2. The daemon's pump turns the call into `PlatformEvent::Command`; `RouteDispatcher`
-   queues it on the `CaptureCoordinator`.
+   submits it to the `CaptureCoordinator`, which starts it, folds it into the running pick
+   or refuses it.
 3. The coordinator asks the `Capture` provider for a frame of the output under the pointer
    and opens the selector through `Surfaces` and `SelectionFlow`. The frame is frozen.
 4. The user selects a region. The frame is cropped (`es-render`).

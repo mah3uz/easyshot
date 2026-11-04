@@ -3,7 +3,7 @@ use crate::deck::{Deck, DeckItem};
 use crate::errors::{self, Error, Op, Presentation, Result};
 use crate::history::History;
 use crate::jobs::run_cpu;
-use crate::platform_ui::{ClipboardSink, SelectMode, Selection, SelectionFlow};
+use crate::platform_ui::{ClipboardSink, SelectMode, Selection, SelectionFlow, Switch};
 use crate::settings_model::SettingsModel;
 use crate::toast::{IconName, Toast, show_toast};
 use es_anno::draw::DrawList;
@@ -554,6 +554,10 @@ impl<T: SelectionFlow + ?Sized> SelectionFlow for Reporting<T> {
         };
         let task = self.0.run(mode, cx);
         reported(task, op, cx)
+    }
+
+    fn switch(&self, to: Switch, cx: &mut App) -> bool {
+        self.0.switch(to, cx)
     }
 }
 

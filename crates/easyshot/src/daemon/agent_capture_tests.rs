@@ -329,3 +329,46 @@ fn a_missing_audio_device_is_explained_to_the_agent_without_the_device_list() {
     assert!(fail.1.contains("microphone or sound device"), "{}", fail.1);
     assert!(!fail.1.contains("default_output"));
 }
+
+struct Picking(async_channel::Receiver<Selection>);
+
+impl es_app::platform_ui::SelectionFlow for Picking {
+    fn run(
+        &self,
+        _: es_app::platform_ui::SelectMode,
+        cx: &mut App,
+    ) -> Task<Result<Selection, Error>> {
+        let picked = self.0.clone();
+        cx.spawn(async move |_| picked.recv().await.map_err(|_| Error::Cancelled))
+    }
+}
+
+#[gpui::test]
+fn an_agent_capture_while_the_user_picks_is_told_busy_with_exit_4(cx: &mut TestAppContext) {
+    use es_app::capture_coordinator::{CaptureKind, CaptureRequest};
+    let (jobs, _done) = Jobs::new();
+    let coordinator = CaptureCoordinator::new(jobs.clone());
+    let (pick, picked) = async_channel::bounded(1);
+    coordinator.set_selection_flow(Rc::new(Picking(picked)));
+    coordinator.set_pipeline(Rc::new(|_, _, _| Task::ready(Ok(()))));
+    let request = CaptureRequest::new(
+        CaptureKind::Region,
+        es_model::capture::CaptureVariant::Normal,
+    );
+    cx.update(|cx| coordinator.submit(jobs.allocate(), request, cx));
+    cx.run_until_parked();
+
+    let Err(Fail(code, message)) = hold(&coordinator) else {
+        panic!("an agent captured the screen while the user was picking on it");
+    };
+    assert_eq!(code, ErrorCode::InvalidArguments);
+    assert_eq!(code.exit_code(), 4);
+    assert!(message.contains("busy"), "{message}");
+
+    pick.try_send(Selection::Cancelled).unwrap();
+    cx.run_until_parked();
+    assert!(
+        hold(&coordinator).is_ok(),
+        "free again once the pick is over"
+    );
+}

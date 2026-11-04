@@ -73,8 +73,22 @@ pub enum Selection {
     Cancelled,
 }
 
+/// What a newer request does to a selection that is still being picked.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Switch {
+    To(SelectMode),
+    /// Ends the pick with the whole frozen output under the pointer.
+    Whole,
+    Close,
+}
+
 pub trait SelectionFlow {
     fn run(&self, mode: SelectMode, cx: &mut App) -> Task<Result<Selection>>;
+
+    /// Acts on the frames the running pick already froze; false once nothing is being picked.
+    fn switch(&self, _to: Switch, _cx: &mut App) -> bool {
+        false
+    }
 }
 
 pub trait ClipboardSink {

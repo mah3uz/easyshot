@@ -124,6 +124,10 @@ impl RouteDispatcher {
         }
     }
 
+    pub fn coordinator(&self) -> &CaptureCoordinator {
+        &self.coordinator
+    }
+
     pub fn set_action_handler(&self, handler: ActionHandler) {
         *self.actions.borrow_mut() = Some(handler);
     }
@@ -161,7 +165,7 @@ impl RouteDispatcher {
     }
 
     pub fn cancel(&self, job: JobId) -> bool {
-        self.jobs.cancel(job)
+        self.coordinator.cancel(job) || self.jobs.cancel(job)
     }
 
     fn open_home(&self, tab: Option<HomeTab>, cx: &mut App) -> Result<()> {

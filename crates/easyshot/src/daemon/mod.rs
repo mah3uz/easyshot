@@ -31,8 +31,7 @@ use es_app::events::{EventHandlers, PlatformEvent, spawn_pump};
 use es_app::history::History;
 use es_app::pipeline::{self, PipelineDeps, Reporting};
 use es_app::platform_ui::{
-    BackendClipboardSink, LayerShellSurfaces, PinnedOutput, PinnedOutputSource, SelectMode,
-    SelectionFlow as _, ToastSurface,
+    BackendClipboardSink, LayerShellSurfaces, PinnedOutput, PinnedOutputSource, ToastSurface,
 };
 use es_app::services::Services;
 use es_app::settings_model::SettingsModel;
@@ -409,7 +408,6 @@ fn start(
                 capture::remember(paths.clone()),
             ),
     );
-    let area_flow = flow.clone();
     coordinator.set_scroll_stop(flow.scroll_stop());
     coordinator.set_selection_flow(Rc::new(Reporting(flow)));
     coordinator.set_direct_capture(Rc::new(Reporting(Rc::new(capture::Direct::new(
@@ -456,15 +454,14 @@ fn start(
         clock: Arc::new(es_record::SystemClock::default()),
         runner: Arc::new(es_record::project::SystemRunner),
         countdown: recording::ui::countdown(surfaces.clone()),
-        select_area: Rc::new(move |cx| area_flow.run(SelectMode::Region, cx)),
+        select_area: {
+            let coordinator = coordinator.clone();
+            Rc::new(move |cx| coordinator.select_area(cx))
+        },
         input: recording::input::for_system(Arc::new(es_record::SystemClock::default()), backend),
     });
     wiring.set_recordings(recordings.clone(), cx);
-    let gate = recordings.clone();
-    coordinator.set_gate(Rc::new(move |request, cx| match request.kind {
-        CaptureKind::Recording | CaptureKind::RecordingArea => gate.admit(cx),
-        _ => Ok(()),
-    }));
+    coordinator.set_gate(recording::gate(&recordings));
     let rec = recordings.clone();
     let shutter_settings = settings.clone();
     coordinator.set_pipeline(Rc::new(move |request, selection, cx| match request.kind {

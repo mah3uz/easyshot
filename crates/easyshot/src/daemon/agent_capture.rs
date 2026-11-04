@@ -5,7 +5,7 @@ use crate::daemon::capture::{Direct, cut, shoot};
 use crate::daemon::recording::Recordings;
 use es_app::agent_access::AgentAccessHandle;
 use es_app::agent_capture::{Options, Saved, save};
-use es_app::capture_coordinator::{Direct as Source, DirectCapture};
+use es_app::capture_coordinator::{CaptureCoordinator, Claim, Direct as Source, DirectCapture};
 use es_app::dispatcher::RouteDispatcher;
 use es_app::errors::Error;
 use es_app::jobs::Jobs;
@@ -33,6 +33,7 @@ pub struct Deps {
     pub backend: Arc<Backend>,
     pub direct: Rc<Direct>,
     pub pipeline: Rc<PipelineDeps>,
+    pub coordinator: CaptureCoordinator,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -84,6 +85,7 @@ pub fn install(
             pipeline.paths.clone(),
         )),
         pipeline: pipeline.clone(),
+        coordinator: dispatcher.coordinator().clone(),
     });
     let recognizer = super::ocr::recognizer();
     let ocr = super::ocr::runner(deps.clone(), recognizer.clone());
@@ -219,12 +221,23 @@ pub(super) fn check_caps(caps: Caps, target: &AgentTarget) -> Result<(), Fail> {
     }
 }
 
+/// An agent never takes over or waits for the user's capture: it is told the screen is busy.
+pub(super) fn hold(coordinator: &CaptureCoordinator) -> Result<Claim, Fail> {
+    coordinator.claim().map_err(|_| {
+        Fail::new(
+            ErrorCode::InvalidArguments,
+            "busy: a capture is in progress",
+        )
+    })
+}
+
 pub(super) async fn acquire(
     deps: &Deps,
     target: &AgentTarget,
     scope: &Scope,
     cx: &mut AsyncApp,
 ) -> Result<Shot, Fail> {
+    let _claim = hold(&deps.coordinator)?;
     if matches!(target, AgentTarget::Fullscreen) {
         let picked = cx
             .update(|cx| deps.direct.run(Source::Fullscreen, cx))

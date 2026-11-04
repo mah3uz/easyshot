@@ -481,4 +481,47 @@ async fn without_a_recorder_every_start_answers_at_once_and_nothing_starts(
     assert!(!rig.recordings.is_busy());
 }
 
+struct Whole;
+
+impl es_app::capture_coordinator::DirectCapture for Whole {
+    fn run(&self, _: es_app::capture_coordinator::Direct, _: &mut App) -> Task<Result<Selection>> {
+        Task::ready(Ok(Selection::Color(es_geom::Rgba::new(0., 0., 0., 1.))))
+    }
+}
+
+#[gpui::test]
+async fn a_screenshot_is_taken_while_a_recording_runs_but_a_second_recording_is_not(
+    cx: &mut TestAppContext,
+) {
+    use es_app::capture_coordinator::{CaptureCoordinator, CaptureRequest};
+    let rig = rig(cx);
+    cx.update(|cx| rig.recordings.start(display(), cx)).unwrap();
+    let (jobs, done) = es_app::jobs::Jobs::new();
+    let coordinator = CaptureCoordinator::new(jobs.clone());
+    coordinator.set_gate(gate(&rig.recordings));
+    coordinator.set_direct_capture(Rc::new(Whole));
+    let shots = Rc::new(RefCell::new(Vec::new()));
+    let seen = shots.clone();
+    coordinator.set_pipeline(Rc::new(move |request, _, _| {
+        seen.borrow_mut().push(request.kind);
+        Task::ready(Ok(()))
+    }));
+    for kind in [CaptureKind::Fullscreen, CaptureKind::Recording] {
+        let request = CaptureRequest::new(kind, es_model::capture::CaptureVariant::Normal);
+        cx.update(|cx| coordinator.submit(jobs.allocate(), request, cx));
+        cx.run_until_parked();
+    }
+
+    assert_eq!(*shots.borrow(), [CaptureKind::Fullscreen]);
+    let statuses: Vec<_> = std::iter::from_fn(|| done.try_recv().ok())
+        .map(|f| f.status)
+        .collect();
+    assert_eq!(
+        statuses,
+        [es_protocol::JobStatus::Ok, es_protocol::JobStatus::Error]
+    );
+    assert_eq!(rig.starts.get(), 1);
+    assert!(coordinator.is_idle());
+}
+
 mod keystrokes;

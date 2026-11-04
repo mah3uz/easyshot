@@ -2,6 +2,7 @@ pub mod color;
 pub mod flow;
 mod frozen;
 pub mod geometry;
+mod live;
 pub(crate) mod paint;
 pub mod picker;
 pub mod scroll;

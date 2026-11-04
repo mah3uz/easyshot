@@ -101,7 +101,19 @@ first time easyshot starts. The binds file always comes first where it can be wr
   the ✕ on the bar. If the area fills the whole screen, the bar sits over it and is captured.
 - **Variants.** Region capture also comes as "& Copy", "& Save", "& Annotate" and "& Pin".
 
-If you start a capture while another is running, it waits its turn.
+One capture runs at a time, and a request never waits for another to finish. Key binds,
+the command line, the tray, the capture bar and `easyshot://` links all follow this:
+
+- While you are still picking (selecting an area, a window, a colour or text), another mode
+  takes over on the same frozen screen: from region to window, for example, without a second
+  freeze. Fullscreen takes the frozen screen under the pointer, and Previous closes the
+  picker and captures the previous target. The same mode again closes the picker.
+- Once a capture is under way (a timed capture's countdown, a scrolling capture, or saving
+  and processing), a new one is refused and a toast says "A capture is in progress". The
+  scrolling-capture shortcut still stops a running scrolling capture.
+- Screenshots work while a recording runs.
+- The capture bar's area recording picks its area under the same rule; while it is picking,
+  other captures are refused.
 
 The screen always freezes during a capture. There is no option to turn that off.
 
@@ -575,7 +587,7 @@ Exit codes and error codes:
 | 1 | `failed` | the command failed |
 | 2 | `cancelled` | cancelled, for example with Ctrl+C |
 | 3 | `no_daemon` | the daemon is not running, could not be started or went away |
-| 4 | `invalid_arguments` | the command line or its arguments are wrong, or the daemon is from a different easyshot version |
+| 4 | `invalid_arguments` | the command line or its arguments are wrong, the daemon is from a different easyshot version, or a capture is in progress (the message starts with "busy") |
 | 5 | `not_found` | the output, window or area asked for does not exist |
 | 6 | `unsupported` | your compositor gives easyshot no output list, window list or capture |
 | 7 | `access_off` | agent access is turned off |
