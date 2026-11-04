@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used)]
 
 use es_model::{BlurMode, ProgressiveBlurSettings};
-use es_render::beautify::progressive_blur::{apply, blend_preview, focus_mask, preview_levels};
+use es_render::beautify::progressive_blur::{apply, focus_mask};
 use tiny_skia::Pixmap;
 
 fn stripes(w: u32, h: u32) -> Pixmap {
@@ -104,32 +104,6 @@ fn focus_position_moves_the_sharp_region() {
     let mask = focus_mask(400, 400, &settings);
     assert_eq!(mask.data[40 * 400 + 40], 0.0);
     assert_eq!(mask.data[360 * 400 + 360], 1.0);
-}
-
-#[test]
-fn preview_blend_approximates_the_full_result() {
-    // 400 blurs at full resolution; 1400 is wide enough for the reduced-resolution levels.
-    for size in [400, 1400] {
-        preview_matches_full(size);
-    }
-}
-
-fn preview_matches_full(size: u32) {
-    let src = stripes(size, size);
-    let settings = active(BlurMode::Radial);
-    let mut full = src.clone();
-    apply(&mut full, &settings);
-    let levels = preview_levels(&src, &settings).unwrap();
-    let mask = focus_mask(size, size, &settings);
-    let preview = blend_preview(&src, &levels, &mask).unwrap();
-    let total: i64 = full
-        .data()
-        .iter()
-        .zip(preview.data())
-        .map(|(a, b)| i64::from((i32::from(*a) - i32::from(*b)).abs()))
-        .sum();
-    let mean = total as f64 / full.data().len() as f64;
-    assert!(mean < 6.0, "{size}: mean channel error {mean}");
 }
 
 #[test]

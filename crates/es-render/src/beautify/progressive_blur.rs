@@ -1,11 +1,8 @@
-use crate::effects::{crop_pixmap, gaussian, gaussian_with};
+use crate::effects::{crop_pixmap, gaussian};
 use es_geom::Rect;
 use es_model::{BlurEdgeMode, BlurMode, ProgressiveBlurSettings};
-use fast_image_resize::images::{Image, ImageRef};
-use fast_image_resize::{FilterType, PixelType, ResizeAlg, ResizeOptions, Resizer};
-use libblur::ConvolutionMode;
 use rayon::prelude::*;
-use tiny_skia::{BlendMode, IntSize, Pixmap, PixmapPaint, Transform};
+use tiny_skia::{BlendMode, Pixmap, PixmapPaint, Transform};
 
 const FULL_LEVELS: usize = 6;
 
@@ -113,22 +110,28 @@ fn blend(sharp: &Pixmap, blurred: &[Pixmap], mask: &FocusMask) -> Option<Pixmap>
     Some(out)
 }
 
-fn levels(canvas: &Pixmap, settings: &ProgressiveBlurSettings, count: usize) -> Vec<Pixmap> {
+/// The blurred copies `apply` blends between; they depend on the strength, not on the focus.
+pub fn levels(canvas: &Pixmap, settings: &ProgressiveBlurSettings) -> Option<Vec<Pixmap>> {
     let radius = render_radius(canvas.width(), canvas.height(), settings);
-    (1..=count)
+    let blurred: Vec<Pixmap> = (1..=FULL_LEVELS)
         .into_par_iter()
-        .filter_map(|k| gaussian(canvas, radius * k as f64 / count as f64))
-        .collect()
+        .filter_map(|k| gaussian(canvas, radius * k as f64 / FULL_LEVELS as f64))
+        .collect();
+    (blurred.len() == FULL_LEVELS).then_some(blurred)
+}
+
+/// `apply` with its levels made beforehand; `canvas` and `mask` must have the size they were made at.
+pub fn blend_levels(canvas: &Pixmap, levels: &[Pixmap], mask: &FocusMask) -> Option<Pixmap> {
+    blend(canvas, levels, mask)
 }
 
 pub fn apply(canvas: &mut Pixmap, settings: &ProgressiveBlurSettings) {
     if !settings.is_active() {
         return;
     }
-    let blurred = levels(canvas, settings, FULL_LEVELS);
-    if blurred.len() != FULL_LEVELS {
+    let Some(blurred) = levels(canvas, settings) else {
         return;
-    }
+    };
     let mask = focus_mask(canvas.width(), canvas.height(), settings);
     if let Some(out) = blend(canvas, &blurred, &mask) {
         *canvas = out;
@@ -172,48 +175,4 @@ pub fn apply_scoped(canvas: &mut Pixmap, settings: &ProgressiveBlurSettings, ima
         Transform::identity(),
         None,
     );
-}
-
-/// Blurs at a third, two thirds and all of the render radius; wide ones are made at reduced resolution.
-pub fn preview_levels(canvas: &Pixmap, settings: &ProgressiveBlurSettings) -> Option<[Pixmap; 3]> {
-    let (w, h) = (canvas.width(), canvas.height());
-    let radius = render_radius(w, h, settings);
-    let step = (radius / 4.0).floor().clamp(1.0, 4.0);
-    let blur = |p: &Pixmap, k: u32| {
-        gaussian_with(
-            p,
-            radius * f64::from(k) / 3.0 / step,
-            ConvolutionMode::FixedPoint,
-        )
-    };
-    if step <= 1.0 {
-        let blurred: Vec<Pixmap> = (1..=3)
-            .into_par_iter()
-            .filter_map(|k| blur(canvas, k))
-            .collect();
-        return blurred.try_into().ok();
-    }
-    let small = resample(canvas, w.div_ceil(step as u32), h.div_ceil(step as u32))?;
-    let blurred: Vec<Pixmap> = (1..=3)
-        .into_par_iter()
-        .filter_map(|k| blur(&small, k))
-        .filter_map(|b| resample(&b, w, h))
-        .collect();
-    blurred.try_into().ok()
-}
-
-/// Premultiplied pixels resample correctly without alpha weighting.
-fn resample(src: &Pixmap, width: u32, height: u32) -> Option<Pixmap> {
-    let from = ImageRef::new(src.width(), src.height(), src.data(), PixelType::U8x4).ok()?;
-    let mut to = Image::new(width, height, PixelType::U8x4);
-    let options = ResizeOptions::new()
-        .resize_alg(ResizeAlg::Convolution(FilterType::Bilinear))
-        .use_alpha(false);
-    Resizer::new().resize(&from, &mut to, &options).ok()?;
-    Pixmap::from_vec(to.into_vec(), IntSize::from_wh(width, height)?)
-}
-
-/// `canvas` and `mask` must have the size the levels were made at.
-pub fn blend_preview(canvas: &Pixmap, levels: &[Pixmap; 3], mask: &FocusMask) -> Option<Pixmap> {
-    blend(canvas, levels, mask)
 }

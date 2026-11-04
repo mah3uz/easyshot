@@ -101,8 +101,19 @@ impl Element for CanvasElement {
                 paint_image(window, bounds, at, corners, image);
             }
             let flat = frame.effects.is_none();
-            if let Some((at, image)) = frame.effects {
-                paint_image(window, bounds, at, Corners::default(), image);
+            if let Some(painting) = frame.effects {
+                if let Some((at, image)) = painting.under {
+                    paint_image(window, bounds, at, Corners::default(), image);
+                }
+                window.with_element_opacity(Some(painting.opacity), |window| {
+                    paint_image(
+                        window,
+                        bounds,
+                        painting.at,
+                        Corners::default(),
+                        painting.image,
+                    );
+                });
             }
             let view = self.view.clone();
             let marker = view.update(cx, |c, _| {

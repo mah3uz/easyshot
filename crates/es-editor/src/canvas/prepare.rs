@@ -14,7 +14,7 @@ pub struct Prepared {
     pub grid: Option<(Arc<RenderImage>, Vec<Bounds<Pixels>>)>,
     pub underlay: Option<(Bounds<Pixels>, Arc<RenderImage>)>,
     /// When set, it stands in for the underlay, tiles, redactions and shapes.
-    pub effects: Option<(Bounds<Pixels>, Arc<RenderImage>)>,
+    pub effects: Option<super::effects::Painting>,
     /// Drawn over the flat canvas; a composite carries its own.
     pub watermark: Option<(Bounds<Pixels>, Arc<RenderImage>)>,
     pub tiles: Vec<(Bounds<Pixels>, Corners<Pixels>, Arc<RenderImage>)>,
@@ -247,10 +247,14 @@ impl EditorCanvas {
         stats.paths_painted = shapes_out.len() + spotlight.len();
         self.stats = stats;
         self.start_text_shadows(cx);
-        let effects = self.effects_frame(bounds, &math, f64::from(sf), &mut retired, cx);
+        let effects = self.effects_frame(bounds, &math, f64::from(sf), &mut retired, window, cx);
         match self.effects.held_image() {
             Some(image) => self.lease.hold(cx, "composite", image),
             None => self.lease.release(cx, "composite"),
+        }
+        match self.effects.fading_image() {
+            Some(image) => self.lease.hold(cx, "composite-fade", image),
+            None => self.lease.release(cx, "composite-fade"),
         }
         let flat = effects.is_none();
         let watermark = self.watermark_frame(bounds, &math, f64::from(sf), flat, &mut retired, cx);

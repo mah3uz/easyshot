@@ -9,7 +9,7 @@ use crate::beautify::watermark;
 use crate::paint::{ClipShape, paint_draw_list};
 use es_anno::draw::{DrawItem, DrawList};
 use es_geom::{Affine, Rect};
-use es_model::{BackgroundSettings, WatermarkSettings};
+use es_model::{BackgroundSettings, CameraSettings, WatermarkSettings};
 use tiny_skia::{FillRule, Mask, Pixmap, Transform};
 
 /// Draw order: background, shadow and border backing, image clipped to its rounded corners,
@@ -61,8 +61,7 @@ pub fn compose_scaled(
         page_scale,
     );
     if let Some(layer) = staged {
-        let layer = project_camera_layer(layer, &lay, settings);
-        blit::over(&mut canvas, &layer, 0, 0, None);
+        lay_card(&mut canvas, &layer, &lay, &settings.camera);
     }
 
     let scope = blur_scope(&canvas, &lay, settings);
@@ -198,8 +197,15 @@ fn has_redaction(items: &[DrawItem]) -> bool {
     })
 }
 
-fn project_camera_layer(layer: Pixmap, lay: &Layout, settings: &BackgroundSettings) -> Pixmap {
-    camera::project(layer, lay, &settings.camera, Quality::Full)
+/// The card layer under the camera, laid over `canvas`; the export and the editor's live preview both draw it so.
+pub fn lay_card(canvas: &mut Pixmap, card: &Pixmap, lay: &Layout, camera: &CameraSettings) {
+    let size = (f64::from(canvas.width()), f64::from(canvas.height()));
+    let warped = camera
+        .has_effect()
+        .then(|| camera::projection(lay.card, lay.image, size, camera))
+        .flatten()
+        .and_then(|p| camera::warp(card, &p.forward, Quality::Full));
+    blit::over(canvas, warped.as_ref().unwrap_or(card), 0, 0, None);
 }
 
 /// Where a clipped blur applies: the image, or the bounds of its projection under the camera.

@@ -3,17 +3,14 @@ use crate::canvas::underlay::cached_wallpaper;
 use es_anno::DrawList;
 use es_geom::Rect;
 use es_model::{BackgroundSettings, BlurEdgeMode, CameraSettings, ProgressiveBlurSettings};
-use es_render::beautify::blit;
-use es_render::beautify::camera::{Quality, projection, warp};
-use es_render::beautify::compose::{Stage, blur_scope, canvas_size, paint_watermark, stage};
-use es_render::beautify::progressive_blur::{blend_preview, focus_mask, preview_levels};
+use es_render::beautify::compose::{
+    Stage, blur_scope, canvas_size, lay_card, paint_watermark, stage,
+};
+use es_render::beautify::progressive_blur::{blend_levels, focus_mask, levels};
 use es_render::beautify::wallpaper_cache::WallpaperCache;
 use image::RgbaImage;
 use std::borrow::Cow;
 use tiny_skia::{BlendMode, IntRect, Pixmap, PixmapPaint, Transform};
-
-/// The approximation is drawn at half the composite's resolution.
-const LIVE_SCALE: f64 = 0.5;
 
 /// The settings with the camera and blur values taken out, keeping what they do to the layout.
 fn stage_settings(s: &BackgroundSettings) -> (BackgroundSettings, bool, bool) {
@@ -42,13 +39,13 @@ struct LevelsKey {
     region: IntRect,
 }
 
-/// Built once per drag: the background and the flat card, then projected and blurred each frame.
+/// Built once per drag at the composite's resolution, then projected and blurred each frame as the export does.
 pub struct LiveStage {
     key: SceneKey,
     stage: Stage,
     pub scale: (f64, f64),
     flat: Option<(CameraSettings, Pixmap)>,
-    levels: Option<(LevelsKey, [Pixmap; 3])>,
+    levels: Option<(LevelsKey, Vec<Pixmap>)>,
 }
 
 impl LiveStage {
@@ -58,7 +55,7 @@ impl LiveStage {
         key: &SceneKey,
         wallpapers: &WallpaperCache,
     ) -> Option<Self> {
-        let (image, page_scale) = scaled_base(base, key.scale * LIVE_SCALE)?;
+        let (image, page_scale) = scaled_base(base, key.scale)?;
         let settings = &key.settings;
         let canvas = canvas_size((image.width(), image.height()), settings);
         let wallpaper = cached_wallpaper(wallpapers, &settings.style, canvas);
@@ -82,16 +79,9 @@ impl LiveStage {
 
     fn flat(&mut self, camera: &CameraSettings) -> Option<&Pixmap> {
         if self.flat.as_ref().is_none_or(|(c, _)| c != camera) {
-            let lay = &self.stage.layout;
-            let bg = &self.stage.background;
-            let size = (f64::from(bg.width()), f64::from(bg.height()));
-            let warped = camera
-                .has_effect()
-                .then(|| projection(lay.card, lay.image, size, camera))
-                .flatten()
-                .and_then(|p| warp(&self.stage.card, &p.forward, Quality::Full));
-            let card = warped.as_ref().unwrap_or(&self.stage.card);
-            self.flat = Some((camera.clone(), over(card, bg)?));
+            let mut flat = self.stage.background.clone();
+            lay_card(&mut flat, &self.stage.card, &self.stage.layout, camera);
+            self.flat = Some((camera.clone(), flat));
         }
         self.flat.as_ref().map(|(_, p)| p)
     }
@@ -124,11 +114,11 @@ impl LiveStage {
             Cow::Owned(flat.clone_rect(region)?)
         };
         if self.levels.as_ref().is_none_or(|(k, _)| *k != key) {
-            self.levels = Some((key, preview_levels(&sharp, blur)?));
+            self.levels = Some((key, levels(&sharp, blur)?));
         }
         let levels = &self.levels.as_ref()?.1;
         let mask = focus_mask(sharp.width(), sharp.height(), blur);
-        let blurred = blend_preview(&sharp, levels, &mask)?;
+        let blurred = blend_levels(&sharp, levels, &mask)?;
         let mut canvas = if whole {
             blurred
         } else {
@@ -164,13 +154,4 @@ impl LiveStage {
         let y1 = r.y1.ceil().clamp(0.0, ch);
         IntRect::from_ltrb(x0 as i32, y0 as i32, x1 as i32, y1 as i32)
     }
-}
-
-fn over(top: &Pixmap, under: &Pixmap) -> Option<Pixmap> {
-    if top.width() != under.width() || top.height() != under.height() {
-        return None;
-    }
-    let mut out = under.clone();
-    blit::over(&mut out, top, 0, 0, None);
-    Some(out)
 }

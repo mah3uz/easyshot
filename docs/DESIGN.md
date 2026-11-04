@@ -91,6 +91,7 @@ is a fast start that settles softly, `cubic-bezier(.2, .8, .2, 1)`.
 | Editor: picking an alignment slides the card to its new place | `SETTLE` | 180 ms, snappy |
 | Editor: switching the fill library, or the wallpaper source, fades the new swatches in | `FILL_SWITCH` | 160 ms, snappy |
 | Deck: a card's picture fades in over "Loading preview…", and "Saving…" fades in and out | `CROSSFADE` | 150 ms, ease-out |
+| Editor: when a camera or blur change settles, the export-exact picture fades in over the one it replaces | `COMPOSITE_FADE` | 180 ms, ease-out |
 | Settings home: tiles and recent rows fill in under the pointer and fade back after it | `HOVER_FILL` | 120 ms fade, ease-out |
 | Settings, and the editor's inspector switching to or from a tool's options: a page rises 8 px into place and fades in | `PAGE_CHANGE` | 180 ms, ease-out |
 | Introduction: a step slides in from the side you are heading to | `STEP_CHANGE` | 200 ms, ease-out |
@@ -101,7 +102,10 @@ different heights never overlap.
 
 The preset and shape motion goes through the one canvas renderer, a step at a time; a look
 with the camera or the scene blur is drawn as one finished image, so it changes at once.
-Dragging a slider shows each value at once, since your hand is already the motion.
+Dragging a slider shows each value at once, since your hand is already the motion. While a
+camera or blur slider drags, each value is drawn off the UI thread at the picture's full
+resolution, the way the export draws it, and the last finished picture stays up until the
+next lands, so the preview is never softer than the result.
 
 With Reduce Motion on (from the desktop's setting), anything that moves, and any longer fade,
 appears at its end at once. A fade of 120 ms or less carries no movement and stays, so hover

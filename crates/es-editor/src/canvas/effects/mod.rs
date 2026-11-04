@@ -10,7 +10,8 @@ use es_model::{AnnoShapeId, BackgroundSettings};
 use es_render::beautify::compose::{canvas_size, compose_scaled};
 use es_render::beautify::layout;
 use es_render::beautify::wallpaper_cache::WallpaperCache;
-use gpui::{Bounds, Context, Pixels, RenderImage, Task, point, px, size};
+use es_ui::motion::{COMPOSITE_FADE, Clocked};
+use gpui::{App, Bounds, Context, Pixels, RenderImage, Task, Window, point, px, size};
 use image::{Frame, RgbaImage};
 use live::LiveStage;
 use rayon::prelude::*;
@@ -45,7 +46,7 @@ impl SceneKey {
 pub enum Showing {
     /// The exact export composite.
     Settled,
-    /// The half-resolution approximation drawn while a setting is dragged.
+    /// A frame drawn from the drag's stage, at the composite's resolution, while a setting is dragged.
     Live,
 }
 
@@ -57,8 +58,12 @@ pub struct EffectsState {
     pub pending: bool,
     pub composites_rendered: usize,
     pub live_frames: usize,
-    /// Images on hand: zero or one.
+    /// Images on hand: one, two while the composite fades in over the image it replaces, or none.
     pub held: usize,
+    /// The last frame painted the outgoing image under the composite fading in.
+    pub fading: bool,
+    /// Pixel size of the image the last frame painted.
+    pub pixels: Option<(u32, u32)>,
     pub released: usize,
     /// The last frame drew the watermark over the flat canvas.
     pub watermark: bool,
@@ -103,13 +108,31 @@ impl Placed {
     }
 }
 
+/// The image a settled composite replaced, kept under it while it fades in.
+struct Fade {
+    from: Placed,
+    clock: Clocked,
+}
+
+/// What the canvas paints in place of the flat canvas.
+pub struct Painting {
+    pub at: Bounds<Pixels>,
+    pub image: Arc<RenderImage>,
+    pub opacity: f32,
+    pub under: Option<(Bounds<Pixels>, Arc<RenderImage>)>,
+}
+
 #[derive(Default)]
 pub struct Effects {
     shown: Option<Shown>,
+    fade: Option<Fade>,
     pending: Option<SceneKey>,
     task: Option<Task<()>>,
     live: bool,
     stage: Option<LiveStage>,
+    /// The key of the frame being drawn off the main thread; the stage is with that job meanwhile.
+    drawing: Option<SceneKey>,
+    draw_task: Option<Task<()>>,
     building: Option<SceneKey>,
     build_task: Option<Task<()>>,
     /// The key of the last frame, so a drag can start building its stage before the first change.
@@ -117,6 +140,8 @@ pub struct Effects {
     mark: mark::Mark,
     mark_painted: bool,
     showing: Option<Showing>,
+    fading_painted: bool,
+    pixels: Option<(u32, u32)>,
     composites: usize,
     live_frames: usize,
     released: usize,
@@ -124,8 +149,16 @@ pub struct Effects {
 
 impl Effects {
     fn retire(&mut self, retired: &mut Vec<Arc<RenderImage>>) {
+        self.end_fade(retired);
         if let Some(old) = self.shown.take() {
             retired.push(old.image.image);
+            self.released += 1;
+        }
+    }
+
+    fn end_fade(&mut self, retired: &mut Vec<Arc<RenderImage>>) {
+        if let Some(fade) = self.fade.take() {
+            retired.push(fade.from.image);
             self.released += 1;
         }
     }
@@ -135,8 +168,31 @@ impl Effects {
         self.shown = Some(shown);
     }
 
+    /// A settled composite fades in over the image it replaces, unless Reduce Motion is on.
+    fn show_settled(&mut self, shown: Shown, retired: &mut Vec<Arc<RenderImage>>, cx: &App) {
+        self.end_fade(retired);
+        match (self.shown.take(), Clocked::start(COMPOSITE_FADE, cx)) {
+            (Some(old), Some(clock)) => {
+                self.fade = Some(Fade {
+                    from: old.image,
+                    clock,
+                });
+            }
+            (Some(old), None) => {
+                retired.push(old.image.image);
+                self.released += 1;
+            }
+            (None, _) => {}
+        }
+        self.shown = Some(shown);
+    }
+
     pub(super) fn held_image(&self) -> Option<&Arc<RenderImage>> {
         self.shown.as_ref().map(|s| &s.image.image)
+    }
+
+    pub(super) fn fading_image(&self) -> Option<&Arc<RenderImage>> {
+        self.fade.as_ref().map(|f| &f.from.image)
     }
 
     pub(super) fn drop_shown(&mut self, retired: &mut Vec<Arc<RenderImage>>) {
@@ -153,6 +209,8 @@ impl Effects {
 
     fn drop_stage(&mut self) {
         self.stage = None;
+        self.drawing = None;
+        self.draw_task = None;
         self.building = None;
         self.build_task = None;
     }
@@ -229,7 +287,7 @@ fn render_settled(
 }
 
 impl EditorCanvas {
-    /// Called when a slider or pad starts dragging: the canvas draws a fast approximation until `end_live_adjust`.
+    /// Called when a slider or pad starts dragging: until `end_live_adjust` each change is drawn from one stage.
     pub fn begin_live_adjust(&mut self, cx: &mut Context<Self>) {
         if !self.effects.live {
             self.effects.live = true;
@@ -240,7 +298,7 @@ impl EditorCanvas {
         }
     }
 
-    /// The exact composite replaces the approximation once the settings stay unchanged for [`SETTLE_DELAY`].
+    /// The settled composite replaces the live frames once the settings stay unchanged for [`SETTLE_DELAY`].
     pub fn end_live_adjust(&mut self, cx: &mut Context<Self>) {
         if self.effects.live {
             self.effects.live = false;
@@ -256,14 +314,59 @@ impl EditorCanvas {
             pending: e.pending.is_some(),
             composites_rendered: e.composites,
             live_frames: e.live_frames,
-            held: usize::from(e.shown.is_some()),
+            held: usize::from(e.shown.is_some()) + usize::from(e.fade.is_some()),
+            fading: e.fading_painted,
+            pixels: e.pixels,
             released: e.released,
             watermark: e.mark_painted,
         }
     }
 
-    /// The image painted in place of the flat canvas, if the camera or the blur is on.
+    /// What is painted in place of the flat canvas, if the camera or the blur is on.
     pub(super) fn effects_frame(
+        &mut self,
+        bounds: Bounds<Pixels>,
+        math: &ViewMath,
+        scale_factor: f64,
+        retired: &mut Vec<Arc<RenderImage>>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Option<Painting> {
+        self.effects.fading_painted = false;
+        self.effects.pixels = None;
+        let Some((at, image)) = self.composite_frame(bounds, math, scale_factor, retired, cx)
+        else {
+            self.effects.end_fade(retired);
+            return None;
+        };
+        self.effects.pixels = self.effects.shown.as_ref().map(|s| s.image.pixels);
+        let t = self
+            .effects
+            .fade
+            .as_ref()
+            .map(|f| f.clock.progress(window, cx));
+        let under = match (t, self.effects.fade.as_ref()) {
+            (Some(t), Some(fade)) if t < 1.0 => {
+                self.effects.fading_painted = true;
+                Some((
+                    fade.from.bounds(bounds, &math.viewport()),
+                    fade.from.image.clone(),
+                ))
+            }
+            _ => {
+                self.effects.end_fade(retired);
+                None
+            }
+        };
+        Some(Painting {
+            at,
+            image,
+            opacity: t.unwrap_or(1.0),
+            under,
+        })
+    }
+
+    fn composite_frame(
         &mut self,
         bounds: Bounds<Pixels>,
         math: &ViewMath,
@@ -294,25 +397,24 @@ impl EditorCanvas {
 
         let current = self.effects.shown.as_ref().is_some_and(|s| s.key == key);
         if self.effects.live && !current {
-            self.effects.pending = None;
-            self.effects.task = None;
-            if !self.effects.stage.as_ref().is_some_and(|s| s.fits(&key)) {
-                self.effects.stage = None;
+            let e = &mut self.effects;
+            e.pending = None;
+            e.task = None;
+            if e.stage.as_ref().is_some_and(|s| !s.fits(&key)) {
+                e.stage = None;
+            }
+            if e.stage.is_some() {
+                self.draw_live(key.clone(), cx);
+            } else if !e
+                .drawing
+                .as_ref()
+                .is_some_and(|d| live::stage_fits(d, &key))
+            {
+                e.drawing = None;
+                e.draw_task = None;
                 self.build_stage(&key, cx);
             }
-            if let Some(stage) = self.effects.stage.as_mut() {
-                let (origin, scale) = (stage.image_origin(), stage.scale);
-                let frame = stage.frame(&key.settings);
-                if let Some(image) = frame.and_then(|p| Placed::new(&p, origin, scale)) {
-                    self.effects.live_frames += 1;
-                    let shown = Shown {
-                        key,
-                        image,
-                        settled: false,
-                    };
-                    self.effects.show(shown, retired);
-                }
-            } else if !self
+            if !self
                 .effects
                 .shown
                 .as_ref()
@@ -375,11 +477,9 @@ impl EditorCanvas {
         let base = doc.base().clone();
         let job = key.clone();
         let wallpapers = self.wallpapers.clone();
-        let building = cx.background_executor().spawn(async move {
-            let mut stage = LiveStage::new(&base, &list, &job, &wallpapers)?;
-            let _ = stage.frame(&job.settings);
-            Some(stage)
-        });
+        let building = cx
+            .background_executor()
+            .spawn(async move { LiveStage::new(&base, &list, &job, &wallpapers) });
         let key = key.clone();
         self.effects.building = Some(key.clone());
         self.effects.build_task = Some(cx.spawn(async move |this, cx| {
@@ -394,6 +494,45 @@ impl EditorCanvas {
                     e.stage = stage;
                     cx.notify();
                 }
+            });
+        }));
+    }
+
+    /// Latest wins: the last finished frame stays up while the next is drawn off the main thread.
+    fn draw_live(&mut self, key: SceneKey, cx: &mut Context<Self>) {
+        let Some(mut stage) = self.effects.stage.take() else {
+            return;
+        };
+        let job = key.clone();
+        let drawn = cx.background_executor().spawn(async move {
+            let (origin, scale) = (stage.image_origin(), stage.scale);
+            let image = stage
+                .frame(&job.settings)
+                .and_then(|p| Placed::new(&p, origin, scale));
+            (stage, image)
+        });
+        self.effects.drawing = Some(key.clone());
+        self.effects.draw_task = Some(cx.spawn(async move |this, cx| {
+            let (stage, image) = drawn.await;
+            let _ = this.update(cx, |canvas, cx| {
+                let e = &mut canvas.effects;
+                if e.drawing.as_ref() != Some(&key) || !e.live {
+                    return;
+                }
+                e.drawing = None;
+                e.stage = Some(stage);
+                if let Some(image) = image {
+                    e.live_frames += 1;
+                    let mut retired = std::mem::take(&mut canvas.retired);
+                    let shown = Shown {
+                        key,
+                        image,
+                        settled: false,
+                    };
+                    canvas.effects.show(shown, &mut retired);
+                    canvas.retired = retired;
+                }
+                cx.notify();
             });
         }));
     }
@@ -428,7 +567,7 @@ impl EditorCanvas {
                         image,
                         settled: true,
                     };
-                    canvas.effects.show(shown, &mut retired);
+                    canvas.effects.show_settled(shown, &mut retired, cx);
                     canvas.retired = retired;
                 }
                 cx.notify();

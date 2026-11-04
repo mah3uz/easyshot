@@ -5,8 +5,10 @@ use crate::interaction_support;
 
 use canvas_support::*;
 use es_anno::{BuildContext, build_draw_list};
+use es_editor::EditorSession;
 use es_editor::canvas::effects::{EffectsState, SETTLE_DELAY, Showing};
 use es_model::{BackgroundColor, BackgroundSettings, BackgroundStyle, CameraSettings, Tool};
+use es_ui::motion::{COMPOSITE_FADE, set_reduce_motion};
 use es_ui::tokens::ThemeMode;
 use image::RgbaImage;
 use interaction_support::*;
@@ -96,29 +98,19 @@ fn delta_e(a: [u8; 4], b: [u8; 4]) -> f64 {
     ((p[0] - q[0]).powi(2) + (p[1] - q[1]).powi(2) + (p[2] - q[2]).powi(2)).sqrt()
 }
 
-#[test]
-fn the_settled_composite_matches_the_export_at_100_percent() {
-    let (w, h) = (1200u32, 640u32);
-    let mut look = tilted(14.0);
-    look.progressive_blur.is_enabled = true;
-    let (mut app, session) = open(
-        800.0,
-        520.0,
-        opened(w, h, every_kind(false, true), look.clone()),
-    );
-    app.cx.update(|cx| {
-        session
-            .viewport
-            .update(cx, |v, cx| v.set_percent(100.0, cx))
-    });
-    app.settle();
-    wait(&mut app, SETTLE_DELAY);
-    assert_eq!(state(&app).showing, Some(Showing::Settled));
-    let shot = app.screenshot("effects-parity-canvas");
+/// The share of the canvas's pixels that differ from the export by more than dE 3, at 100 %.
+fn off_the_export(
+    app: &mut App,
+    session: &EditorSession,
+    look: &BackgroundSettings,
+    (w, h): (u32, u32),
+    name: &str,
+) -> f64 {
+    let shot = app.screenshot(&format!("{name}-canvas"));
     let origin = app
         .cx
         .update(|cx| session.viewport.read(cx).viewport().origin);
-    let lay = es_render::beautify::layout(f64::from(w), f64::from(h), &look).pixel_aligned();
+    let lay = es_render::beautify::layout(f64::from(w), f64::from(h), look).pixel_aligned();
     let ox = (origin.x * 2.0 - lay.image.x0).round() as u32;
     let oy = (origin.y * 2.0 - lay.image.y0).round() as u32;
 
@@ -126,7 +118,7 @@ fn the_settled_composite_matches_the_export_at_100_percent() {
         build_draw_list(d.editor().doc(), &BuildContext::new(&**TEXT))
     });
     let image = Pixmap::from_vec(base(w, h).into_raw(), IntSize::from_wh(w, h).unwrap()).unwrap();
-    let export = es_render::beautify::compose(&image, &list, &look).unwrap();
+    let export = es_render::beautify::compose(&image, &list, look).unwrap();
     let (ew, eh) = (export.width(), export.height());
     assert!(
         ox + ew <= shot.width() && oy + eh <= shot.height(),
@@ -149,13 +141,197 @@ fn the_settled_composite_matches_the_export_at_100_percent() {
         }
     }
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/screenshots");
-    diff.save(dir.join("effects-parity-diff.png")).unwrap();
+    diff.save(dir.join(format!("{name}-diff.png"))).unwrap();
     let share = off as f64 / f64::from(ew * eh);
     eprintln!(
-        "effects parity: {:.3} % of pixels differ by more than dE 3",
+        "{name}: {:.3} % of pixels differ by more than dE 3",
         share * 100.0
     );
+    share
+}
+
+fn at_100_percent(look: &BackgroundSettings, size: (u32, u32)) -> (App, EditorSession) {
+    let (mut app, session) = open(
+        800.0,
+        520.0,
+        opened(size.0, size.1, every_kind(false, true), look.clone()),
+    );
+    app.cx.update(|cx| {
+        session
+            .viewport
+            .update(cx, |v, cx| v.set_percent(100.0, cx))
+    });
+    app.settle();
+    (app, session)
+}
+
+#[test]
+fn the_settled_composite_matches_the_export_at_100_percent() {
+    let size = (1200u32, 640u32);
+    let mut look = tilted(14.0);
+    look.progressive_blur.is_enabled = true;
+    let (mut app, session) = at_100_percent(&look, size);
+    wait(&mut app, SETTLE_DELAY);
+    assert_eq!(state(&app).showing, Some(Showing::Settled));
+    let share = off_the_export(&mut app, &session, &look, size, "effects-parity");
     assert!(share <= 0.02, "{:.3} % of pixels differ", share * 100.0);
+}
+
+#[test]
+fn a_live_camera_frame_matches_the_export_at_100_percent() {
+    let size = (1200u32, 640u32);
+    for blur in [false, true] {
+        let mut look = tilted(6.0);
+        look.progressive_blur.is_enabled = blur;
+        let (mut app, session) = at_100_percent(&look, size);
+        wait(&mut app, SETTLE_DELAY);
+        live(&mut app, true);
+        for degrees in [8.0, 11.0, 14.0] {
+            look = tilted(degrees);
+            look.progressive_blur.is_enabled = blur;
+            set_look(&mut app, look.clone());
+        }
+        assert_eq!(state(&app).showing, Some(Showing::Live));
+        let name = if blur {
+            "effects-live-blur"
+        } else {
+            "effects-live"
+        };
+        let share = off_the_export(&mut app, &session, &look, size, name);
+        assert!(
+            share <= 0.02,
+            "{name}: {:.3} % of pixels differ",
+            share * 100.0
+        );
+    }
+}
+
+/// Edge energy: the summed luminance steps between neighbouring pixels.
+fn sharpness(shot: &RgbaImage) -> f64 {
+    let luma = |x: u32, y: u32| {
+        let p = shot.get_pixel(x, y).0;
+        0.2126 * f64::from(p[0]) + 0.7152 * f64::from(p[1]) + 0.0722 * f64::from(p[2])
+    };
+    let mut sum = 0.0;
+    for y in 0..shot.height() - 1 {
+        for x in 0..shot.width() - 1 {
+            sum += (luma(x + 1, y) - luma(x, y)).abs() + (luma(x, y + 1) - luma(x, y)).abs();
+        }
+    }
+    sum
+}
+
+#[test]
+fn dragging_a_camera_slider_keeps_the_preview_as_sharp_as_the_settled_composite() {
+    let (mut app, _session) = open(
+        900.0,
+        560.0,
+        opened(1200, 640, every_kind(true, true), tilted(4.0)),
+    );
+    wait(&mut app, SETTLE_DELAY);
+    live(&mut app, true);
+    for degrees in [6.0, 9.0, 12.0] {
+        set_look(&mut app, tilted(degrees));
+    }
+    let during = state(&app);
+    assert_eq!(during.showing, Some(Showing::Live));
+    let live_shot = app.screenshot("effects-sharp-live");
+    live(&mut app, false);
+    wait(&mut app, SETTLE_DELAY + COMPOSITE_FADE.duration);
+    redraw(&mut app);
+    let after = state(&app);
+    assert_eq!(
+        (after.showing, after.fading),
+        (Some(Showing::Settled), false)
+    );
+    let settled_shot = app.screenshot("effects-sharp-settled");
+    let ratio = sharpness(&live_shot) / sharpness(&settled_shot);
+    assert!(
+        (ratio - 1.0).abs() <= 0.01,
+        "the live frame's edges are {ratio:.3} of the settled composite's"
+    );
+    assert_eq!(
+        during.pixels, after.pixels,
+        "the live frame has the settled composite's resolution"
+    );
+}
+
+#[test]
+fn a_live_frame_is_drawn_off_the_ui_thread_and_the_last_finished_one_stays_up() {
+    let (mut app, _session) = open(
+        900.0,
+        560.0,
+        opened(1200, 640, every_kind(false, false), tilted(4.0)),
+    );
+    wait(&mut app, SETTLE_DELAY);
+    live(&mut app, true);
+    set_look(&mut app, tilted(6.0));
+    let before = state(&app);
+    assert_eq!(
+        (before.showing, before.live_frames),
+        (Some(Showing::Live), 1)
+    );
+    let c = canvas(&app);
+    let handle = app.window.into();
+    app.cx
+        .update_window(handle, |_, window, cx| {
+            c.update(cx, |c, cx| c.set_background(tilted(9.0), cx));
+            window.draw(cx).clear(cx);
+        })
+        .expect("window is open");
+    let s = state(&app);
+    assert_eq!(
+        (s.showing, s.live_frames, s.released),
+        (Some(Showing::Live), 1, before.released),
+        "the change is drawn off the UI thread; the frame before it stays painted"
+    );
+    app.settle();
+    let s = state(&app);
+    assert_eq!(
+        (s.showing, s.live_frames),
+        (Some(Showing::Live), 2),
+        "the frame lands and replaces the one before"
+    );
+}
+
+#[test]
+fn the_settled_composite_fades_in_over_the_live_frame_unless_reduce_motion_is_on() {
+    for reduce in [false, true] {
+        let (mut app, _session) = open(
+            900.0,
+            560.0,
+            opened(1200, 640, every_kind(false, false), blurred(0.6)),
+        );
+        app.cx.update(|cx| set_reduce_motion(reduce, cx));
+        wait(&mut app, SETTLE_DELAY);
+        live(&mut app, true);
+        set_look(&mut app, blurred(0.4));
+        live(&mut app, false);
+        wait(&mut app, SETTLE_DELAY);
+        let s = state(&app);
+        assert_eq!(s.showing, Some(Showing::Settled), "reduce {reduce}");
+        if reduce {
+            assert_eq!(
+                (s.fading, s.held),
+                (false, 1),
+                "Reduce Motion swaps at once"
+            );
+            continue;
+        }
+        assert_eq!(
+            (s.fading, s.held),
+            (true, 2),
+            "the live frame stays under the composite while it fades in"
+        );
+        wait(&mut app, COMPOSITE_FADE.duration);
+        redraw(&mut app);
+        let s = state(&app);
+        assert_eq!(
+            (s.fading, s.held),
+            (false, 1),
+            "the outgoing frame is released when the fade ends"
+        );
+    }
 }
 
 #[test]
@@ -190,6 +366,14 @@ fn a_burst_of_changes_renders_one_composite_and_the_old_one_stays_up_meanwhile()
     wait(&mut app, SETTLE_DELAY);
     let s = state(&app);
     assert_eq!(s.composites_rendered, 2, "five changes, one composite");
+    assert_eq!(
+        (s.held, s.fading, s.released),
+        (2, true, 0),
+        "the old composite stays under the new one while it fades in"
+    );
+    wait(&mut app, COMPOSITE_FADE.duration);
+    redraw(&mut app);
+    let s = state(&app);
     assert_eq!((s.held, s.released, s.pending), (1, 1, false));
 }
 

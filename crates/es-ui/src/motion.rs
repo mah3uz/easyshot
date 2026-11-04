@@ -83,6 +83,8 @@ pub const FLASH_HOLD: Duration = Duration::from_millis(1400);
 pub const SLIDER_MARKERS: Transition = fades(120, Easing::EaseOut);
 pub const HOVER_FILL: Transition = fades(120, Easing::EaseOut);
 pub const CROSSFADE: Transition = fades(150, Easing::EaseOut);
+/// The exact composite fading in over the frame it replaces when a look change settles.
+pub const COMPOSITE_FADE: Transition = fades(180, Easing::EaseOut);
 pub const FILL_SWITCH: Transition = fades(160, Easing::Snappy);
 pub const SETTLE: Transition = moves(180, Easing::Snappy);
 pub const PRESET_APPLY: Transition = moves(200, Easing::Snappy);
@@ -330,7 +332,7 @@ mod tests {
         );
         assert!(!SECTION_EXPAND.plays(true));
         assert!(
-            !CROSSFADE.plays(true) && !FILL_SWITCH.plays(true),
+            !CROSSFADE.plays(true) && !FILL_SWITCH.plays(true) && !COMPOSITE_FADE.plays(true),
             "a cross-fade over 120 ms is too long to keep"
         );
         for t in [POPOVER_OPEN, TOAST_IN, TOAST_OUT, SECTION_EXPAND, FLASH] {
@@ -356,6 +358,10 @@ mod tests {
         );
         assert_eq!((ms(FLASH), FLASH_HOLD.as_millis()), (200, 1400));
         assert_eq!((ms(CROSSFADE), CROSSFADE.easing), (150, Easing::EaseOut));
+        assert_eq!(
+            (ms(COMPOSITE_FADE), COMPOSITE_FADE.easing),
+            (180, Easing::EaseOut)
+        );
         assert_eq!((ms(FILL_SWITCH), FILL_SWITCH.easing), (160, Easing::Snappy));
     }
 }

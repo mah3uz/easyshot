@@ -233,7 +233,9 @@ In the Camera section you tilt and roll the camera, set its lens (FOV), zoom and
 rotate the card itself. Progressive Blur blurs the screenshot alone or the whole scene,
 around a round or a band-shaped sharp area. Drag on its focus pad to move the sharp area;
 double-click the pad to centre it. Drag anywhere on a slider to change it, or type a value
-in its field; a slider that runs through zero stops at zero on the way.
+in its field; a slider that runs through zero stops at zero on the way. While you drag a
+camera or blur slider the picture stays sharp and shows what you will export; on a large
+screenshot it follows your hand a few frames behind.
 
 Smart Redaction (the eye-off button) reads the image with Tesseract and covers what looks
 sensitive with Pixelate or Blur shapes: e-mail addresses, web links, IPv4 addresses, phone
