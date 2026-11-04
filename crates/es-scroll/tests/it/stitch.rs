@@ -273,3 +273,67 @@ fn an_animation_alone_is_not_a_scroll() {
     }
     assert_eq!(st.height(), 200);
 }
+
+fn animate_box(
+    frame: &mut Frame,
+    rows: std::ops::Range<usize>,
+    cols: std::ops::Range<usize>,
+    seed: u64,
+) {
+    let mut rng = Rng(seed);
+    for y in rows {
+        for x in cols.clone() {
+            let i = (y * frame.width + x) * 4;
+            frame.data[i..i + 4].copy_from_slice(&[rng.next(), rng.next(), rng.next(), 255]);
+        }
+    }
+}
+
+// A box that moves on screen can cover most rows of the area at once, so leaving whole rows out of the match is not enough.
+#[test]
+fn a_box_animating_over_most_rows_does_not_stop_the_page_from_stitching() {
+    let page = noise_page(200, 1400, 11);
+    let mut st = Stitcher::new();
+    let steps = [
+        (0, Push::Appended(200)),
+        (60, Push::Appended(60)),
+        (130, Push::Appended(70)),
+        (220, Push::Appended(90)),
+    ];
+    for (i, (off, want)) in steps.into_iter().enumerate() {
+        let mut f = window(&page, off, 200);
+        let left = 40 + 10 * i;
+        animate_box(&mut f, 20..180, left..left + 70, 300 + i as u64);
+        assert_eq!(st.push(&f), want, "step {i}, offset {off}");
+    }
+    assert_eq!(st.height(), 420);
+    let canvas = st.image().unwrap();
+    assert_eq!(
+        left_cols(canvas, 30),
+        left_cols(&window(&page, 0, 420), 30),
+        "the columns clear of the box are the page's own"
+    );
+}
+
+#[test]
+fn shift_robust_finds_the_shift_where_most_edges_reappear() {
+    let page = noise_page(200, 800, 12);
+    let (mut a, mut b) = (window(&page, 0, 200), window(&page, 80, 200));
+    animate_box(&mut a, 20..180, 60..140, 1);
+    animate_box(&mut b, 20..180, 80..160, 2);
+    assert_eq!(
+        shift(&a, &b, Exclusions::default()),
+        None,
+        "the whole-area match fails"
+    );
+    assert_eq!(
+        es_scroll::shift_robust(&a, &b, Exclusions::default()),
+        Some(80)
+    );
+    let other = noise_page(200, 200, 13);
+    assert_eq!(
+        es_scroll::shift_robust(&a, &other, Exclusions::default()),
+        None,
+        "unrelated frames share no edges"
+    );
+}

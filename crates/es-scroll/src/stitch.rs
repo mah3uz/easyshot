@@ -1,4 +1,4 @@
-use crate::shift::{Exclusions, shift_masked};
+use crate::shift::{Exclusions, shift_masked, shift_robust};
 use crate::{Frame, frame_hash};
 
 pub const MAX_HEIGHT: usize = 30_000;
@@ -99,9 +99,18 @@ impl Stitcher {
             None => PROBE_MARGINS,
         };
         let known = [self.right.unwrap_or(0)];
-        let Some(dy) = known.iter().chain(guesses).find_map(|&right| {
+        let found = known.iter().chain(guesses).find_map(|&right| {
             shift_masked(prev, frame, Exclusions { top: header, right }, &self.moving)
-        }) else {
+        });
+        // An unscrolled frame goes on to `moved_in_place`, which learns the rows that animate.
+        let robust = || {
+            let ex = Exclusions {
+                top: header,
+                right: known[0],
+            };
+            shift_robust(prev, frame, ex).filter(|&dy| dy > 0)
+        };
+        let Some(dy) = found.or_else(robust) else {
             return self.moved_in_place(frame, hash);
         };
         if dy == 0 {

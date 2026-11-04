@@ -4,6 +4,9 @@ pub const MIN_NCC: f64 = 0.9;
 const SAMPLE_COLUMNS: usize = 1024;
 const BANDS: usize = 32;
 const MIN_VARIANCE: f64 = 1e-3;
+const EDGE: f64 = 2.0;
+const SAME: f64 = 1.0;
+const MIN_SHARE: f64 = 0.5;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Exclusions {
@@ -92,4 +95,38 @@ pub fn shift_masked(prev: &Frame, next: &Frame, ex: Exclusions, moving: &[bool])
         }
     }
     best.1
+}
+
+/// Content moving by itself breaks a whole-area correlation, so this counts the edges that reappear unchanged at each shift; a fixed animation spoils only the edges it covers.
+pub fn shift_robust(prev: &Frame, next: &Frame, ex: Exclusions) -> Option<usize> {
+    if prev.width != next.width || prev.height != next.height {
+        return None;
+    }
+    let (p, bands) = profile(prev, ex);
+    let (n, _) = profile(next, ex);
+    let len = p.len() / bands;
+    let min_overlap = (len / 10).max(8);
+    if len <= min_overlap {
+        return None;
+    }
+    let edges: Vec<usize> = (bands..n.len())
+        .filter(|&i| (n[i] - n[i - bands]).abs() > EDGE)
+        .collect();
+    let mut best = (0, 0, 0);
+    for dy in 0..=len - min_overlap {
+        let limit = (len - dy) * bands;
+        let (mut seen, mut same) = (0, 0);
+        for &i in edges.iter().take_while(|&&i| i < limit) {
+            seen += 1;
+            let j = i + dy * bands;
+            if (p[j] - n[i]).abs() <= SAME && (p[j - bands] - n[i - bands]).abs() <= SAME {
+                same += 1;
+            }
+        }
+        if same > best.0 {
+            best = (same, seen, dy);
+        }
+    }
+    let (same, seen, dy) = best;
+    (same >= min_overlap && same as f64 >= MIN_SHARE * seen as f64).then_some(dy)
 }
