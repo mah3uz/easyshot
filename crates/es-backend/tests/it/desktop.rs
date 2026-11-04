@@ -35,6 +35,11 @@ fn desktop_providers_probe_their_bus_names_and_portals() {
     assert_eq!((PORTAL_SETTINGS.probe)(&p), Some(10));
     let bare = Probe::default();
     assert_eq!((STATUS_NOTIFIER.probe)(&bare), None);
+    let waiting = Probe {
+        await_tray: true,
+        ..Probe::default()
+    };
+    assert_eq!((STATUS_NOTIFIER.probe)(&waiting), Some(1));
     assert_eq!((FREEDESKTOP_NOTIFICATIONS.probe)(&bare), None);
     assert_eq!((PORTAL_GLOBAL_SHORTCUTS.probe)(&bare), None);
     assert_eq!((PORTAL_FILE_CHOOSER.probe)(&bare), None);

@@ -4,6 +4,7 @@
 -app-name = easyshot
 
 ## Tray popover
+tray-title = { -app-name }
 tray-region = Region
 tray-screen = Screen
 tray-window = Window

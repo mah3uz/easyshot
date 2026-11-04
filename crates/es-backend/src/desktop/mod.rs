@@ -97,7 +97,13 @@ pub const USER_BINDS: Provider<dyn Shortcuts> = Provider {
 
 pub const STATUS_NOTIFIER: Provider<dyn Tray> = Provider {
     name: "status-notifier",
-    probe: |p| p.dbus.has("org.kde.StatusNotifierWatcher").then_some(10),
+    probe: |p| {
+        if p.dbus.has("org.kde.StatusNotifierWatcher") {
+            Some(10)
+        } else {
+            p.await_tray.then_some(1)
+        }
+    },
     build: |p| {
         if test_mode(p) {
             return Ok(Box::new(RecordingTray::default()));

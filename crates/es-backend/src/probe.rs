@@ -181,6 +181,8 @@ pub struct Probe {
     /// Turns catalogue ids into the tray's and the shortcuts portal's text; without it they show the ids.
     pub labels: Option<es_desktop::Labels>,
     pub tray_icon: Vec<es_desktop::IconPixmap>,
+    /// The daemon keeps a tray ready for a panel that starts after it; other commands do not.
+    pub await_tray: bool,
 }
 
 impl Probe {
@@ -224,6 +226,7 @@ impl Probe {
             errors,
             labels: None,
             tray_icon: es_desktop::tray_icons(),
+            await_tray: false,
         })
     }
 }

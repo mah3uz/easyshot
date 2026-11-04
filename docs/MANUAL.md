@@ -388,7 +388,10 @@ Settings > Capture, "Show the selector on" a specific screen puts the selector's
 focus on that screen; if it is unplugged, the pointer's screen is used.
 
 Show the capture bar at launch opens the bar when the daemon starts. It is off, so a start at
-login leaves easyshot in the tray with no window open. Open editors in full
+login leaves easyshot in the tray with no window open. At login easyshot starts a few seconds
+before your panel, so it waits for the panel's tray and adds its icon when the panel appears,
+and again if the panel restarts. Only when no tray has appeared 10 seconds after easyshot
+started does it open the capture bar so you can still reach it. Open editors in full
 screen opens each editor window fullscreen. Open the editor when I stop (Recording) opens the
 trim viewer as soon as a recording ends, and the card still appears.
 
@@ -814,7 +817,7 @@ the editor. Whether the buttons show depends on your notification server.
 | Window geometry | Window mode shows a list of windows instead of hover highlight. |
 | Virtual input | No Auto Scroll; manual scroll capture still works. |
 | File picker portal | Export saves to your save folder and tells you where. |
-| Tray | The capture bar opens when the daemon starts, so you can still reach easyshot. |
+| Tray | The capture bar opens if no tray has appeared 10 seconds after the daemon starts, so you can still reach easyshot; the icon is added if one appears later. |
 | Recorder | The tray's Record item is disabled with an install hint; other ways to record answer with the hint at once. |
 | Tesseract | OCR reads QR codes only; a region without one shows a notice that text recognition needs Tesseract. |
 

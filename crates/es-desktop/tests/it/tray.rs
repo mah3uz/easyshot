@@ -4,7 +4,9 @@ use crate::desktop_support;
 use dbus_support::run;
 use desktop_support::{on_private_session, serve_on};
 use es_desktop::dbus::Endpoint;
-use es_desktop::{KsniTray, RecordingTrayState, Tray, TrayItem, TrayModel, watcher_present};
+use es_desktop::{
+    KsniTray, RecordingTrayState, Tray, TrayItem, TrayModel, host_within, watcher_present,
+};
 use es_protocol::Route;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -174,9 +176,9 @@ fn the_tray_registers_shows_the_menu_and_routes_clicks() {
             }));
             let title = run(wait_for(async || {
                 let t: String = sni.get_property("Title").await.ok()?;
-                (t != "Easyshot").then_some(t)
+                (t != "label:tray-title").then_some(t)
             }));
-            assert_eq!(title, "Easyshot 01:15");
+            assert_eq!(title, "label:tray-title 01:15");
             let recording: Vec<(i32, i32, Vec<u8>)> =
                 run(sni.get_property("IconPixmap")).expect("pixmap");
             assert_ne!(recording, idle, "the recording dot is drawn on the pixmap");
@@ -184,15 +186,92 @@ fn the_tray_registers_shows_the_menu_and_routes_clicks() {
     );
 }
 
+fn after(delay: Duration) -> impl std::future::Future<Output = ()> {
+    let (tx, rx) = futures::channel::oneshot::channel::<()>();
+    std::thread::spawn(move || {
+        std::thread::sleep(delay);
+        let _ = tx.send(());
+    });
+    async move {
+        let _ = rx.await;
+    }
+}
+
+fn serve_watcher_after(
+    address: &str,
+    delay: Duration,
+) -> (
+    async_channel::Receiver<String>,
+    std::thread::JoinHandle<zbus::Connection>,
+) {
+    let (tx, registered) = async_channel::unbounded();
+    let address = address.to_owned();
+    let served = std::thread::spawn(move || {
+        std::thread::sleep(delay);
+        run(serve_on(
+            &address,
+            "org.kde.StatusNotifierWatcher",
+            "/StatusNotifierWatcher",
+            Watcher { tx },
+        ))
+    });
+    (registered, served)
+}
+
 #[test]
-fn without_a_watcher_the_probe_says_so_and_the_tray_does_not_start() {
+fn a_watcher_that_appears_after_the_tray_started_gets_the_registration() {
     on_private_session(
-        "tray::without_a_watcher_the_probe_says_so_and_the_tray_does_not_start",
+        "tray::a_watcher_that_appears_after_the_tray_started_gets_the_registration",
         |address| {
             let endpoint = Endpoint::session().on_address(address);
             assert!(!run(watcher_present(&endpoint)));
-            let started = run(KsniTray::start(Arc::new(|id| id.to_owned()), Vec::new()));
-            assert!(matches!(started, Err(es_desktop::Error::Unsupported)));
+            let tray = run(KsniTray::start(Arc::new(|id| id.to_owned()), Vec::new()));
+            assert!(tray.is_ok(), "the tray starts without a watcher");
+
+            let (registered, served) = serve_watcher_after(address, Duration::from_millis(400));
+            assert!(run(host_within(&endpoint, after(Duration::from_secs(5)))));
+            let service = run(registered.recv()).expect("registered once the watcher is up");
+            assert!(service.starts_with("org.kde.StatusNotifierItem-"));
+            let _watcher = served.join().expect("watcher thread");
+        },
+    );
+}
+
+#[test]
+fn a_watcher_that_never_appears_is_reported_after_the_deadline() {
+    on_private_session(
+        "tray::a_watcher_that_never_appears_is_reported_after_the_deadline",
+        |address| {
+            let endpoint = Endpoint::session().on_address(address);
+            let started = std::time::Instant::now();
+            let found = run(host_within(&endpoint, after(Duration::from_millis(600))));
+            assert!(!found);
+            assert!(started.elapsed() >= Duration::from_millis(600));
+        },
+    );
+}
+
+#[test]
+fn a_restarted_watcher_gets_the_registration_again() {
+    on_private_session(
+        "tray::a_restarted_watcher_gets_the_registration_again",
+        |address| {
+            let (tx, registered) = async_channel::unbounded();
+            let first = run(serve_on(
+                address,
+                "org.kde.StatusNotifierWatcher",
+                "/StatusNotifierWatcher",
+                Watcher { tx },
+            ));
+            let _tray = run(KsniTray::start(Arc::new(|id| id.to_owned()), Vec::new()))
+                .expect("tray starts");
+            let service = run(registered.recv()).expect("first registration");
+
+            run(first.close()).expect("watcher goes away");
+            let (registered, served) = serve_watcher_after(address, Duration::from_millis(300));
+            let again = run(registered.recv()).expect("registered with the new watcher");
+            assert_eq!(again, service);
+            let _second = served.join().expect("watcher thread");
         },
     );
 }

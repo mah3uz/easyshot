@@ -199,7 +199,7 @@ Degradation, each reported by doctor:
 | virtual input | Auto Scroll hidden; manual scroll capture remains |
 | file picker portal | Export writes to the save folder, with a toast and a doctor hint |
 | appearance portal | theme "system" means dark; Reduce Motion off |
-| tray watcher | capture bar shown at launch whatever the setting |
+| tray watcher | the tray waits for one and registers when it appears or restarts; capture bar shown if none appeared 10 s after the daemon started |
 | recorder | tray Record disabled with an install hint; other starts answer with it at once |
 | tesseract | OCR returns QR codes only; no codes gives a notice that Tesseract is needed |
 | cursor source | clicks in `input.json` have no position |

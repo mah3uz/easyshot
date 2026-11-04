@@ -22,7 +22,7 @@ pub use portal::{PortalAppearance, PortalFilePicker, PortalShortcuts, portal_tri
 #[cfg(feature = "sound")]
 pub use sound::RodioSound;
 pub use sound::Sound;
-pub use tray::{IconPixmap, KsniTray, watcher_present};
+pub use tray::{IconPixmap, KsniTray, host_within, watcher_present};
 pub use tray_icon::{tray_icons, with_badge, with_dot};
 
 use es_protocol::{Route, ShortcutEntry};

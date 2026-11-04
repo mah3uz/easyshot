@@ -1,5 +1,6 @@
 mod agent;
 mod bar;
+mod bar_fallback;
 #[cfg(test)]
 mod bar_tests;
 mod bus;
@@ -174,6 +175,7 @@ fn detect_backend() -> Result<(Arc<Backend>, Option<OutputId>)> {
         bail!("test mode needs EASYSHOT_TEST_OUTPUT");
     }
     probe.labels = Some(labels());
+    probe.await_tray = !test_mode_requested();
     let backend = Arc::new(Backend::detect(&probe));
     for line in &backend.report.errors {
         tracing::warn!(probe = %line, "desktop probe");
@@ -550,13 +552,9 @@ fn start(
     {
         tracing::warn!(error = %e, "onboarding");
     }
-    if (cfg.general.show_capture_bar_at_launch || backend.tray.is_none())
-        && !test_mode
-        && let Err(e) = wiring
-            .windows
-            .open(WindowKind::CaptureBar, WindowKey::Single, cx)
-    {
-        tracing::warn!(error = %e, "capture bar at launch");
+    if !test_mode {
+        let show = cfg.general.show_capture_bar_at_launch;
+        bar_fallback::at_launch(show, backend.tray.is_some(), &wiring, &mut tasks, cx);
     }
     cx.set_global(Daemon {
         _surfaces: surfaces,

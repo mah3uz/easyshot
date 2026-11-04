@@ -16,7 +16,7 @@
 - Edits you make by hand to `config.toml` apply while easyshot runs, and a later change in Settings keeps them; a file with a syntax error is left alone and the last good settings stay in use.
 - The `easyshot` command line: capture, record, OCR, settings and more, `easyshot doctor` with `--json` and `--bundle`, and shell completions for bash, zsh and fish that follow what you have typed: modes, flags, settings pages, `easyshot://` links and image files.
 - Desktop entry (Easyshot in your application menu, like a bare `easyshot`, opens the Home window), systemd user service and D-Bus activation. The Arch package enables the service for every user, though never for a display manager's login screen, and starts it for logged-in users on install; an update restarts it where it is running.
-- Starting at login leaves easyshot in the tray; with no tray, the capture bar opens so you can still reach it.
+- Starting at login leaves easyshot in the tray: it waits for your panel's tray, adds its icon when the panel appears and again if the panel restarts, and opens the capture bar only if no tray has appeared 10 seconds after it started. The tray names itself easyshot.
 - The tray menu shows your global shortcuts beside its items, lists your recent screenshots and saved recordings, and offers Unpin All while a screenshot is pinned.
 - Recording a whole screen puts the control bar on another monitor, so it is not in the video; with one monitor it sits in the bottom-right corner and is recorded. A switch in Settings › Recording turns the bar off, and the tray controls the recording either way.
 - The editor remembers your last annotation style across sessions, and each tool's options have a Reset to defaults button.

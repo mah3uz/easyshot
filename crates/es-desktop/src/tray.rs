@@ -3,7 +3,7 @@ use crate::dbus::Endpoint;
 use crate::{Error, RecordingTrayState, Result, Tray, TrayItem, TrayModel};
 use es_protocol::Route;
 use ksni::menu::{MenuItem, StandardItem, SubMenu};
-use ksni::{Icon, TrayMethods};
+use ksni::{Icon, ToolTip, TrayMethods};
 
 const WATCHER: &str = "org.kde.StatusNotifierWatcher";
 
@@ -18,6 +18,37 @@ pub async fn watcher_present(endpoint: &Endpoint) -> bool {
         return false;
     };
     dbus.name_has_owner(name).await.unwrap_or(false)
+}
+
+/// True when the tray watcher is on the bus before `deadline` completes. Never starts the watcher.
+pub async fn host_within(endpoint: &Endpoint, deadline: impl Future<Output = ()>) -> bool {
+    use futures::FutureExt;
+    let mut appears = std::pin::pin!(host_appears(endpoint).fuse());
+    let mut deadline = std::pin::pin!(deadline.fuse());
+    futures::select! {
+        found = appears => found.is_ok(),
+        () = deadline => false,
+    }
+}
+
+async fn host_appears(endpoint: &Endpoint) -> Result<()> {
+    use futures::StreamExt;
+    let conn = connect(endpoint).await?;
+    let dbus = zbus::fdo::DBusProxy::new(&conn).await.map_err(protocol)?;
+    let mut changes = dbus
+        .receive_name_owner_changed_with_args(&[(0, WATCHER)])
+        .await
+        .map_err(protocol)?;
+    let name = zbus::names::BusName::try_from(WATCHER).map_err(protocol)?;
+    if dbus.name_has_owner(name).await.map_err(protocol)? {
+        return Ok(());
+    }
+    while let Some(change) = changes.next().await {
+        if change.args().map_err(protocol)?.new_owner.is_some() {
+            return Ok(());
+        }
+    }
+    Err(Error::Unsupported)
 }
 
 #[derive(Debug, Clone)]
@@ -81,10 +112,18 @@ impl ksni::Tray for EsTray {
     }
 
     fn title(&self) -> String {
+        let name = (self.labels)("tray-title");
         match &self.recording {
-            None => "Easyshot".into(),
-            Some(s) if s.paused => format!("Easyshot {} paused", clock(s)),
-            Some(s) => format!("Easyshot {}", clock(s)),
+            None => name,
+            Some(s) if s.paused => format!("{name} {} paused", clock(s)),
+            Some(s) => format!("{name} {}", clock(s)),
+        }
+    }
+
+    fn tool_tip(&self) -> ToolTip {
+        ToolTip {
+            title: self.title(),
+            ..Default::default()
         }
     }
 
@@ -138,8 +177,9 @@ pub struct KsniTray {
 }
 
 impl KsniTray {
-    // ksni connects to the process session bus itself; a missing watcher
-    // surfaces as Unsupported.
+    // ksni connects to the process session bus itself. With the watcher
+    // assumed available it registers when the watcher appears and again when
+    // it restarts.
     pub async fn start(labels: Labels, pixmaps: Vec<IconPixmap>) -> Result<Self> {
         let (tx, activations) = async_channel::unbounded();
         let handle = EsTray {
@@ -150,6 +190,7 @@ impl KsniTray {
             pixmaps,
             tx,
         }
+        .assume_sni_available(true)
         .spawn()
         .await
         .map_err(|e| match e {
