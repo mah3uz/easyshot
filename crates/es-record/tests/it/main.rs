@@ -5,6 +5,7 @@ mod input;
 mod input_keys;
 mod input_settle;
 mod lifeline;
+mod mute;
 mod project;
 mod recovery;
 mod wf;

@@ -98,6 +98,11 @@ pub fn complete(
     kind: CaptureKind,
     runner: &dyn CommandRunner,
 ) -> es_record::Result<Completed> {
+    if out.split_audio
+        && let Err(e) = es_record::mute::merge_tracks(runner, &out.file)
+    {
+        tracing::warn!(error = %e, "the two sound tracks stay separate");
+    }
     let probe = recovery::probe_video(runner, &out.file);
     let capture = RecordingCapture {
         created_at: meta.created_at,

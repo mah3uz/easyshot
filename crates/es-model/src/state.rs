@@ -31,6 +31,13 @@ pub enum LastTarget {
     Output(String),
 }
 
+/// The recording control bar's top-left, from the top-left of its output, in logical points.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct BarSpot {
+    pub x: f64,
+    pub y: f64,
+}
+
 /// App-written state, never edited by hand.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -45,6 +52,8 @@ pub struct State {
     pub inspector_sections: BTreeMap<String, bool>,
     /// Newest first, at most `MAX_RECENT_WALLPAPERS`.
     pub recent_wallpapers: Vec<PathBuf>,
+    /// Output name to where the user last dragged the recording control bar.
+    pub control_bar_spots: BTreeMap<String, BarSpot>,
 }
 
 impl Default for State {
@@ -56,6 +65,7 @@ impl Default for State {
             onboarding_version: 0,
             inspector_sections: BTreeMap::new(),
             recent_wallpapers: Vec::new(),
+            control_bar_spots: BTreeMap::new(),
         }
     }
 }

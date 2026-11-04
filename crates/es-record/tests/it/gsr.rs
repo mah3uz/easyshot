@@ -99,6 +99,7 @@ fn a_region_uses_global_logical_coordinates_and_system_and_mic_audio_share_one_m
         &s,
         false,
         &RegionUnits::Logical,
+        false,
         Path::new("/run/s.sock"),
         Path::new("/r/screen.mp4"),
     )
@@ -118,6 +119,7 @@ fn audio_of(system: bool, mic: Option<&str>) -> Vec<String> {
         &s,
         false,
         &RegionUnits::Logical,
+        false,
         Path::new("/s"),
         Path::new("/o"),
     );
@@ -180,6 +182,7 @@ fn portal_mode_asks_the_portal_instead_of_naming_a_target() {
         &s,
         true,
         &RegionUnits::Logical,
+        false,
         Path::new("/s"),
         Path::new("/o"),
     )

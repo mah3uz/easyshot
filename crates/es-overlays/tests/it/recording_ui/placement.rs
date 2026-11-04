@@ -1,6 +1,7 @@
 use super::*;
+use es_overlays::record::placement::remembered;
 
-const BARSIZE: Size = CONTROL;
+const BARSIZE: Size = Size::new(CONTROL.width, CONTROL.height + TIP_ROOM);
 
 fn on(placement: &Placement) -> (String, Rect) {
     match placement {
@@ -45,14 +46,14 @@ fn the_control_bar_stays_out_of_an_area_near_each_edge() {
     let low = Rect::new(100., 400., 1000., 720.);
     let (_, bar) = on(&control_bar(&Recorded::Area(low), &one, BARSIZE, true));
     assert_eq!(bar.y1, 392., "no room below, so just above");
-    let mid = Rect::new(300., 100., 900., 650.);
+    let mid = Rect::new(300., 100., 900., 620.);
     let (_, bar) = on(&control_bar(&Recorded::Area(mid), &one, BARSIZE, true));
-    assert_eq!(bar.y0, 658., "home would cover it, so just below");
+    assert_eq!(bar.y0, 628., "home would cover it, so just below");
     let small = Rect::new(100., 0., 1000., 200.);
     let (_, bar) = on(&control_bar(&Recorded::Area(small), &one, BARSIZE, true));
     assert_eq!(
         bar.origin(),
-        Point::new(508., 634.),
+        Point::new(499., 604.),
         "home, as the capture bar"
     );
 }
@@ -63,7 +64,11 @@ fn an_area_with_no_room_around_it_sends_the_bar_elsewhere() {
     let one = vec![output("A", 0., 1280., 720.)];
     assert_eq!(
         control_bar(&Recorded::Area(tall), &one, BARSIZE, true),
-        Placement::Tray
+        Placement::On {
+            output: OutputId("A".into()),
+            origin: Point::new(1280. - 16. - BARSIZE.width, 720. - 48. - BARSIZE.height),
+        },
+        "nowhere clear, so inside the video in the bottom-right corner"
     );
     let two = vec![
         output("A", 0., 1280., 720.),
@@ -85,7 +90,7 @@ fn a_whole_screen_bar_goes_to_the_other_monitor() {
     assert_eq!(out, "B", "nothing of the bar is in the video");
     assert_eq!(
         bar.origin(),
-        Point::new(1280. + 960. - 132., 1080. - 48. - 38.)
+        Point::new(1280. + 960. - 141., 1080. - 48. - 68.)
     );
     let (out, _) = on(&control_bar(
         &Recorded::Display(OutputId("B".into())),
@@ -150,3 +155,56 @@ fn the_highlight_dims_everything_but_the_area() {
 }
 
 // Timer menu: 248 high, 8 above the 64-high bar; 4 padding and a 24-high header above the rows.
+
+#[test]
+fn a_window_is_recorded_like_an_area_and_its_bar_stays_out_of_the_video() {
+    let one = vec![output("A", 0., 1280., 720.)];
+    let window = Rect::new(200., 80., 1000., 640.);
+    let placed = control_bar(&Recorded::Area(window), &one, BARSIZE, true);
+    let (out, bar) = on(&placed);
+    assert_eq!(out, "A");
+    assert!(clear_of(bar, window), "{bar:?} covers {window:?}");
+}
+
+#[test]
+fn the_spot_the_user_left_is_used_on_that_output_and_kept_on_it() {
+    let two = vec![
+        output("A", 0., 1280., 720.),
+        output("B", 1280., 1920., 1080.),
+    ];
+    let home = Placement::On {
+        output: OutputId("B".into()),
+        origin: Point::new(2000., 900.),
+    };
+    let spots = |id: &OutputId| (id.0 == "B").then_some(Point::new(100., 50.));
+    assert_eq!(
+        remembered(home.clone(), &two, BARSIZE, spots),
+        Placement::On {
+            output: OutputId("B".into()),
+            origin: Point::new(1380., 50.),
+        },
+        "offset from the output's corner"
+    );
+    let elsewhere = Placement::On {
+        output: OutputId("A".into()),
+        origin: Point::new(499., 604.),
+    };
+    assert_eq!(
+        remembered(elsewhere.clone(), &two, BARSIZE, spots),
+        elsewhere,
+        "no spot on this output"
+    );
+    let off = |_: &OutputId| Some(Point::new(5000., 5000.));
+    assert_eq!(
+        remembered(home, &two, BARSIZE, off),
+        Placement::On {
+            output: OutputId("B".into()),
+            origin: Point::new(1280. + 1920. - BARSIZE.width, 1080. - BARSIZE.height),
+        },
+        "a spot from a larger screen is pulled back on"
+    );
+    assert_eq!(
+        remembered(Placement::Tray, &two, BARSIZE, spots),
+        Placement::Tray
+    );
+}

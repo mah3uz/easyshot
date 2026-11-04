@@ -48,7 +48,7 @@ struct FakeUi;
 struct FakeShown;
 
 impl Shown for FakeShown {
-    fn resized(&self, _: &Entity<ControlBar>, _: &mut App) {}
+    fn resized(&self, _: &Entity<ControlBar>, _: bool, _: &mut App) {}
     fn close(&self, _: &mut App) {}
 }
 

@@ -5,6 +5,8 @@ pub mod fake;
 mod finish;
 mod focus;
 pub mod input;
+mod mute;
+mod spot;
 mod target;
 #[cfg(test)]
 mod tests;
@@ -42,7 +44,8 @@ const TRAY_TICK: Duration = Duration::from_secs(1);
 
 /// The surfaces and tray state of a running recording.
 pub trait Shown {
-    fn resized(&self, bar: &Entity<ControlBar>, cx: &mut App);
+    /// The bar moved or changed size; `dropped` when a drag ended there, to remember the spot.
+    fn resized(&self, bar: &Entity<ControlBar>, dropped: bool, cx: &mut App);
     fn close(&self, cx: &mut App);
 }
 
@@ -345,7 +348,9 @@ impl Recordings {
                 input::halt(me.take_input(), cx);
             }
         });
-        let bar = cx.new(|cx| ControlBar::new(deps.clock.clone(), cx));
+        let audio =
+            es_record::mute::sources(start.request.system_audio, start.request.mic.is_some());
+        let bar = cx.new(|cx| ControlBar::new(deps.clock.clone(), audio, cx));
         let shown = deps.ui.show(&recorded, cfg.whole_screen_bar, &bar, cx);
         let me = self.clone();
         let bar_events = cx.subscribe(&bar, move |bar, event: &ControlEvent, cx| match event {
@@ -354,11 +359,12 @@ impl Recordings {
                     tracing::warn!(error = %e, "recording control");
                 }
             }
-            ControlEvent::Resized => {
+            ControlEvent::Resized | ControlEvent::Moved | ControlEvent::Dropped => {
                 if let Some(s) = me.0.active.borrow().as_ref() {
-                    s.shown.resized(&bar, cx);
+                    s.shown.resized(&bar, *event == ControlEvent::Dropped, cx);
                 }
             }
+            ControlEvent::Mute(source, muted) => me.mute(*source, *muted, &bar, cx),
         });
         let me = self.clone();
         let events_task = cx.spawn(async move |cx| {

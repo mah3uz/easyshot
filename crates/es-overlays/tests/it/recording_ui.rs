@@ -3,7 +3,7 @@ use crate::window_mode_support;
 use es_geom::{Point, Rect, Size};
 use es_model::platform::{OutputId, OutputInfo, Transform, WindowId, WindowInfo};
 use es_overlays::record::bar::{BAR, Popup};
-use es_overlays::record::control::{BAR as CONTROL, CONFIRM};
+use es_overlays::record::control::{BAR as CONTROL, CONFIRM, TIP_ROOM};
 use es_overlays::record::options::WIDTH;
 use es_overlays::record::{
     BarEvent, CaptureBar, Confirm, ControlBar, ControlEvent, OptionsEvent, Phase, Placement,
@@ -290,18 +290,22 @@ fn a_single_display_records_without_a_menu() {
     assert_eq!(s.app.cx.update(|cx| view.read(cx).menu()), None);
 }
 
-const PAUSE_X: f32 = 1. + 132. + 1. + 21.;
+const GRIP: f32 = 18.;
+const BAR_Y: f32 = TIP_ROOM as f32 + 19.;
+const PAUSE_X: f32 = GRIP + 1. + 132. + 1. + 21.;
 const RESTART_X: f32 = PAUSE_X + 43.;
 const DISCARD_X: f32 = RESTART_X + 43.;
-const STOP_X: f32 = 60.;
+const STOP_X: f32 = GRIP + 60.;
 
 #[test]
 fn the_timer_leaves_out_paused_time() {
     let clock = Arc::new(TestClock::default());
     let c = clock.clone();
-    let mut s = Surface::open(CONTROL.width as f32, CONTROL.height as f32, move |cx| {
-        ControlBar::new(c, cx)
-    });
+    let mut s = Surface::open(
+        CONTROL.width as f32,
+        (CONTROL.height + TIP_ROOM) as f32,
+        move |cx| ControlBar::new(c, Vec::new(), cx),
+    );
     let view = s.view.clone();
     let read = |s: &mut Surface<ControlBar>| {
         let v = view.clone();
@@ -330,6 +334,7 @@ fn the_timer_leaves_out_paused_time() {
         .update(|cx| view.update(cx, |b, cx| b.set_paused(false, cx)));
     clock.advance(2);
     assert_eq!(read(&mut s), (Phase::Recording, 7));
+    s.app.cx.advance_clock(Duration::from_millis(300));
     s.app.cx.update(|cx| view.update(cx, |_, cx| cx.notify()));
     let shot = s.app.screenshot("control-bar-recording");
     s.app.cx.update(|cx| {
@@ -337,7 +342,7 @@ fn the_timer_leaves_out_paused_time() {
         view.update(cx, |_, cx| cx.notify());
     });
     s.app.screenshot("control-bar-recording-light");
-    let red = rgb(&shot, 18., 19.);
+    let red = rgb(&shot, 18. + GRIP, BAR_Y);
     assert!(
         i32::from(red[0]) > i32::from(red[2]) + 60,
         "the stop glyph is red: {red:?}"
@@ -347,12 +352,14 @@ fn the_timer_leaves_out_paused_time() {
 #[test]
 fn nothing_answers_while_starting_or_finishing() {
     let clock: Arc<dyn Clock> = Arc::new(TestClock::default());
-    let mut s = Surface::open(CONTROL.width as f32, CONTROL.height as f32, move |cx| {
-        ControlBar::new(clock, cx)
-    });
+    let mut s = Surface::open(
+        CONTROL.width as f32,
+        (CONTROL.height + TIP_ROOM) as f32,
+        move |cx| ControlBar::new(clock, Vec::new(), cx),
+    );
     let (events, _sub) = s.record::<ControlEvent>();
     for x in [STOP_X, PAUSE_X, RESTART_X, DISCARD_X] {
-        s.click(x, 19.);
+        s.click(x, BAR_Y);
     }
     assert!(events.borrow().is_empty(), "{:?}", events.borrow());
     let view = s.view.clone();
@@ -368,15 +375,21 @@ fn nothing_answers_while_starting_or_finishing() {
 }
 
 // The confirm card's buttons are 88 wide, 8 apart, inside 14 of padding.
-const CANCEL: (f32, f32) = (185., 96.);
-const OK: (f32, f32) = (281., 96.);
+const CANCEL: (f32, f32) = (185., 96. + TIP_ROOM as f32);
+const OK: (f32, f32) = (281., 96. + TIP_ROOM as f32);
+const BAR_IN_CONFIRM: (f32, f32) = (
+    (CONFIRM.width as f32 - CONTROL.width as f32) / 2.,
+    (CONFIRM.height + TIP_ROOM - CONTROL.height) as f32 + 19.,
+);
 
 #[test]
 fn start_over_and_discard_ask_first() {
     let clock: Arc<dyn Clock> = Arc::new(TestClock::default());
-    let mut s = Surface::open(CONFIRM.width as f32, CONFIRM.height as f32, move |cx| {
-        ControlBar::new(clock, cx)
-    });
+    let mut s = Surface::open(
+        CONFIRM.width as f32,
+        (CONFIRM.height + TIP_ROOM) as f32,
+        move |cx| ControlBar::new(clock, Vec::new(), cx),
+    );
     let view = s.view.clone();
     s.app.cx.update(|cx| view.update(cx, |b, cx| b.started(cx)));
     let (events, _sub) = s.record::<ControlEvent>();
@@ -384,8 +397,8 @@ fn start_over_and_discard_ask_first() {
         let v = view.clone();
         s.app.cx.update(|cx| v.read(cx).confirm())
     };
-    s.click(STOP_X, 19.);
-    s.click(PAUSE_X, 19.);
+    s.click(STOP_X + BAR_IN_CONFIRM.0, BAR_IN_CONFIRM.1);
+    s.click(PAUSE_X + BAR_IN_CONFIRM.0, BAR_IN_CONFIRM.1);
     assert_eq!(
         *events.borrow(),
         vec![
@@ -395,7 +408,7 @@ fn start_over_and_discard_ask_first() {
     );
     events.borrow_mut().clear();
 
-    s.click(RESTART_X, 19.);
+    s.click(RESTART_X + BAR_IN_CONFIRM.0, BAR_IN_CONFIRM.1);
     assert_eq!(confirm(&mut s), Some(Confirm::Restart));
     s.app.screenshot("control-bar-confirm-restart");
     s.click(CANCEL.0, CANCEL.1);
@@ -404,17 +417,17 @@ fn start_over_and_discard_ask_first() {
         *events.borrow(),
         vec![ControlEvent::Resized, ControlEvent::Resized]
     );
-    s.click(RESTART_X, 19.);
+    s.click(RESTART_X + BAR_IN_CONFIRM.0, BAR_IN_CONFIRM.1);
     s.click(OK.0, OK.1);
     assert_eq!(
         events.borrow().last(),
         Some(&ControlEvent::Route(Route::RecordRestart))
     );
 
-    s.click(DISCARD_X, 19.);
+    s.click(DISCARD_X + BAR_IN_CONFIRM.0, BAR_IN_CONFIRM.1);
     assert_eq!(confirm(&mut s), Some(Confirm::Discard));
     let size = s.app.cx.update(|cx| view.read(cx).size());
-    assert_eq!(size, CONFIRM);
+    assert_eq!(size, Size::new(CONFIRM.width, CONFIRM.height + TIP_ROOM));
     s.app.screenshot("control-bar-confirm-discard");
     s.click(OK.0, OK.1);
     assert_eq!(
@@ -517,6 +530,7 @@ fn a_bar_without_a_recorder_disables_recording_and_says_why() {
     assert!(hint.contains("No screen recorder is installed"), "{hint}");
 }
 
+mod control_bar;
 mod placement;
 
 fn placed(id: &str, workspace: Option<&str>, shown: bool) -> WindowInfo {

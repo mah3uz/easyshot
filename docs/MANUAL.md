@@ -367,9 +367,19 @@ System sound is recorded unless you turn it off in Settings, Recording; the micr
 off until you choose one there. The capture bar's recording panel starts with those settings
 and the start delay; changing them on the bar affects only that recording. With both on, the
 video has one audio track that mixes system sound and the microphone, so any player plays both.
+Each sound the recording takes has a mute button on the control bar, system sound and
+microphone separately. A muted source is recorded as silence until you unmute it, and its
+button turns red. With gpu-screen-recorder, the first time you mute one of two sounds, the
+recorder restarts its audio on two tracks so that one can be muted alone, and they are mixed
+into one track again when you stop (the video is not re-encoded); that needs `pactl` and
+`ffmpeg`. wf-recorder records only one sound at a time, and its mute button mutes that one.
+If the recorder cannot be muted, you get a notice and the button stays as it was.
 If the microphone you chose is not found, or the area is not on any monitor, you get a notice
 that says so. There is a countdown, and then a control bar with stop,
-pause and resume, restart and discard. The recorded area is highlighted. Without
+pause and resume, restart and discard. The recorded area is highlighted. Drag the bar by the
+dotted grip on its left to put it anywhere on the screen it is on; it stays on that screen, and
+easyshot remembers where you left it for each screen, for the next recording. A tooltip names
+each button. Without
 gpu-screen-recorder or wf-recorder, nothing starts: you get a notice that names both and the
 Arch package to install.
 
@@ -440,7 +450,9 @@ are remembered in `config.toml` under `[recording]` as `export_format`, `export_
 `export_quality`, `export_look` and `export_brightness`.
 
 When you record a whole screen, Settings, Recording, "Show the control bar when recording a
-whole screen" (on by default) decides where the control bar goes. With a second monitor that
+whole screen" (on by default) decides where the control bar goes. For an area or a window,
+the bar sits outside the video when there is room, and in the bottom-right corner of the screen
+(in the video) when there is not. With a second monitor that
 is not being recorded, the bar goes there and nothing of it is in the video. With one
 monitor, or every monitor recorded, the bar sits in the bottom-right corner of the recorded
 screen, lifted clear of a bottom panel, and it is in the video: crop it out afterwards. With

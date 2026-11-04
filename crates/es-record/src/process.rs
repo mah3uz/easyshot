@@ -1,4 +1,5 @@
 use crate::{Error, Result};
+use futures::future::BoxFuture;
 use rustix::process::{Pid, Signal, kill_process, kill_process_group};
 use std::collections::{HashMap, VecDeque};
 use std::ffi::OsStr;
@@ -217,6 +218,10 @@ impl Helper {
         })
     }
 
+    pub fn pid(&self) -> u32 {
+        self.pid
+    }
+
     pub fn exited(&self) -> Option<ExitStatus> {
         self.shared.status.lock().ok().and_then(|g| *g)
     }
@@ -307,6 +312,19 @@ pub fn which(program: impl AsRef<OsStr>) -> Option<std::path::PathBuf> {
         .split(':')
         .map(|d| Path::new(d).join(p))
         .find(|c| c.is_file())
+}
+
+pub(crate) fn run_blocking<T: Send + 'static>(
+    f: impl FnOnce() -> Result<T> + Send + 'static,
+) -> BoxFuture<'static, Result<T>> {
+    let (tx, rx) = futures::channel::oneshot::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(f());
+    });
+    Box::pin(async move {
+        rx.await
+            .unwrap_or_else(|_| Err(Error::Protocol("stop thread died".into())))
+    })
 }
 
 #[cfg(test)]

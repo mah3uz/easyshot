@@ -49,7 +49,7 @@ struct FakeUi(Rc<RefCell<Log>>);
 struct FakeShown(Rc<RefCell<Log>>);
 
 impl Shown for FakeShown {
-    fn resized(&self, _: &Entity<ControlBar>, _: &mut App) {}
+    fn resized(&self, _: &Entity<ControlBar>, _: bool, _: &mut App) {}
     fn close(&self, _: &mut App) {
         self.0.borrow_mut().closed += 1;
     }

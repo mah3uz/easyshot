@@ -202,3 +202,84 @@ fn system_sound_reaches_the_command_line_only_when_a_monitor_is_known() {
     let audio_flags = rig.lines().iter().filter(|l| l.contains("--audio")).count();
     assert_eq!(audio_flags, 1, "the second recording has no audio flag");
 }
+
+struct OneStream {
+    log: PathBuf,
+    calls: std::sync::Mutex<Vec<String>>,
+}
+
+impl es_record::CommandRunner for OneStream {
+    fn run(&self, _: &str, args: &[String]) -> std::io::Result<std::process::Output> {
+        use std::os::unix::process::ExitStatusExt as _;
+        self.calls.lock().unwrap().push(args.join(" "));
+        let pids: Vec<String> = read_log(&self.log)
+            .iter()
+            .filter_map(|l| l.strip_prefix("pid ").map(str::to_owned))
+            .collect();
+        let json = match pids.last() {
+            Some(pid) if args[0] == "-f" => format!(
+                r#"[{{"index":{},"properties":{{"application.process.id":"{pid}"}}}}]"#,
+                70 + pids.len()
+            ),
+            _ => "[]".into(),
+        };
+        Ok(std::process::Output {
+            status: std::process::ExitStatus::from_raw(0),
+            stdout: json.into_bytes(),
+            stderr: Vec::new(),
+        })
+    }
+}
+
+#[test]
+fn the_one_source_is_muted_on_the_current_segments_stream_and_again_after_a_resume() {
+    use es_record::AudioSource;
+    let rig = Rig {
+        tmp: tempfile::tempdir().unwrap(),
+    };
+    let pactl = Arc::new(OneStream {
+        log: rig.tmp.path().join("log"),
+        calls: Default::default(),
+    });
+    let mut s = spec(rig.tmp.path(), output("DP-2"));
+    s.system_audio = true;
+    let recorder = rig
+        .recorder()
+        .with_system_audio_device("out.monitor")
+        .with_audio_runner(pactl.clone());
+    let mut h = recorder.start(s).unwrap();
+    h.set_muted(AudioSource::System, true).unwrap();
+    h.pause().unwrap();
+    h.resume().unwrap();
+    block_on(h.stop()).unwrap();
+    let mutes: Vec<String> = pactl
+        .calls
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|c| c.starts_with("set-source-output-mute"))
+        .cloned()
+        .collect();
+    assert_eq!(
+        mutes,
+        ["set-source-output-mute 71 1", "set-source-output-mute 72 1"],
+        "each wf-recorder process is a new stream"
+    );
+}
+
+#[test]
+fn without_a_sound_server_runner_wf_recorder_mutes_nothing() {
+    use es_record::AudioSource;
+    let rig = Rig {
+        tmp: tempfile::tempdir().unwrap(),
+    };
+    let mut s = spec(rig.tmp.path(), output("DP-2"));
+    s.system_audio = true;
+    let recorder = rig.recorder().with_system_audio_device("out.monitor");
+    let mut h = recorder.start(s).unwrap();
+    assert!(matches!(
+        h.set_muted(AudioSource::System, true),
+        Err(Error::Unsupported)
+    ));
+    block_on(h.stop()).unwrap();
+}

@@ -76,6 +76,10 @@ impl RecordingHandle for FakeHandle {
         Ok(())
     }
 
+    fn set_muted(&mut self, _: es_record::AudioSource, _: bool) -> Result<()> {
+        Ok(())
+    }
+
     fn resume(&mut self) -> Result<()> {
         if self.running_since.is_none() {
             self.running_since = Some(self.now());
@@ -115,6 +119,7 @@ impl RecordingHandle for FakeHandle {
                 file,
                 first_frame_monotonic_us: first,
                 segments,
+                split_audio: false,
             })
         })
     }

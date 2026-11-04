@@ -71,6 +71,7 @@ impl RecordingHandle for FakeHandle {
                 file,
                 first_frame_monotonic_us: 0,
                 segments: Vec::new(),
+                split_audio: false,
             })
         })
     }
@@ -272,7 +273,7 @@ fn record(
         handle.set_content(cx.new(|_| Dim).into(), cx);
         handles.push(handle);
     }
-    let control = cx.new(|cx| ControlBar::new(Arc::new(SystemClock::default()), cx));
+    let control = cx.new(|cx| ControlBar::new(Arc::new(SystemClock::default()), Vec::new(), cx));
     let handle = open(surfaces, SurfaceRole::Bar, out, placed, cx);
     handle.set_content(control.clone().into(), cx);
     handles.push(handle);

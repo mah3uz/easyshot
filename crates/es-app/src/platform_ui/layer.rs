@@ -47,7 +47,7 @@ pub fn layer_options(role: SurfaceRole, exclusive_keyboard: bool) -> LayerShellO
         ),
         SurfaceRole::Pin => (Layer::Top, placed, free, K::OnDemand),
         SurfaceRole::Bar => (Layer::Top, Anchor::BOTTOM, None, K::OnDemand),
-        SurfaceRole::RecordControl => (Layer::Top, Anchor::BOTTOM, None, K::None),
+        SurfaceRole::RecordControl => (Layer::Top, placed, free, K::None),
         SurfaceRole::Highlight | SurfaceRole::Scroll => (Layer::Overlay, placed, free, K::None),
         SurfaceRole::Consent => (Layer::Overlay, Anchor::empty(), None, grab),
     };

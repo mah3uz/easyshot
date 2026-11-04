@@ -1,25 +1,35 @@
+use super::placement::clamp;
 use super::session::{Phase, Stopwatch, format_elapsed};
 use super::{CELL, digits};
 use crate::capture::strings::fl;
-use es_geom::Size;
+use crate::pin::{PointerGlobal, dragged};
+use es_geom::{Point, Rect, Size};
 use es_protocol::Route;
-use es_record::Clock;
+use es_record::{AudioSource, Clock};
 use es_ui::a11y::{Accessible as _, Role};
 use es_ui::icons::IconName;
+use es_ui::motion::{Clocked, HANDOFF, HANDOFF_SCALE, progress};
 use es_ui::theme::{UI_FONT, tokens};
 use gpui::{
     AnyElement, Context, EventEmitter, FontWeight, Hsla, InteractiveElement as _, IntoElement,
-    ParentElement as _, Render, StatefulInteractiveElement as _, Styled as _, Task, Window, div,
+    MouseButton, MouseMoveEvent, MouseUpEvent, ParentElement as _, Pixels, Render, SharedString,
+    Stateful, StatefulInteractiveElement as _, Styled as _, Task, Window, canvas, div,
     prelude::FluentBuilder as _, px,
 };
-use gpui_component::Icon;
+use gpui_component::{Icon, tooltip::Tooltip};
+use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
-pub const BAR: Size = Size::new(264.0, 38.0);
+mod confirm;
+
+pub const BAR: Size = Size::new(282.0, 38.0);
 pub const CONFIRM: Size = Size::new(340.0, 124.0);
+/// Clear space above the bar, so a tooltip opens over the desktop instead of over the controls.
+pub const TIP_ROOM: f64 = 30.0;
 const STOP_WIDTH: f32 = 132.0;
 const ICON_WIDTH: f32 = 42.0;
+const GRIP_WIDTH: f32 = 18.0;
 const RADIUS: f32 = 16.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,24 +38,48 @@ pub enum Confirm {
     Discard,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ControlEvent {
     Route(Route),
     /// `size()` changed: the surface follows it and is placed again.
     Resized,
+    /// Dragged to `origin()`.
+    Moved,
+    /// A drag ended at `origin()`.
+    Dropped,
+    Mute(AudioSource, bool),
+}
+
+#[derive(Clone, Copy)]
+struct Press {
+    local: Point,
+    global: Option<Point>,
+    origin: Point,
 }
 
 pub struct ControlBar {
     phase: Phase,
     watch: Stopwatch,
     confirm: Option<Confirm>,
+    audio: Vec<AudioSource>,
+    muted: Vec<AudioSource>,
+    origin: Point,
+    output: Option<Rect>,
+    pointer: PointerGlobal,
+    press: Option<Press>,
+    entry: Option<Clocked>,
     _tick: Task<()>,
 }
 
 impl EventEmitter<ControlEvent> for ControlBar {}
 
+fn local(p: gpui::Point<Pixels>) -> Point {
+    Point::new(f64::from(f32::from(p.x)), f64::from(f32::from(p.y)))
+}
+
 impl ControlBar {
-    pub fn new(clock: Arc<dyn Clock>, cx: &mut Context<Self>) -> Self {
+    /// `audio` is what the recording takes sound from; each gets a mute button.
+    pub fn new(clock: Arc<dyn Clock>, audio: Vec<AudioSource>, cx: &mut Context<Self>) -> Self {
         let tick = cx.spawn(async move |this, cx| {
             loop {
                 cx.background_executor()
@@ -60,6 +94,13 @@ impl ControlBar {
             phase: Phase::Starting,
             watch: Stopwatch::new(clock),
             confirm: None,
+            audio,
+            muted: Vec::new(),
+            origin: Point::ZERO,
+            output: None,
+            pointer: Rc::new(|| None),
+            press: None,
+            entry: Clocked::start(HANDOFF, cx),
             _tick: tick,
         }
     }
@@ -76,8 +117,58 @@ impl ControlBar {
         self.confirm
     }
 
+    /// True while the bar still fades and grows in from the capture bar it replaces.
+    pub fn entering(&self, cx: &gpui::App) -> bool {
+        self.entry.is_some_and(|e| e.value(cx) < 1.0)
+    }
+
+    fn content(&self) -> Size {
+        match self.confirm {
+            Some(_) => CONFIRM,
+            None => {
+                let mutes = self.audio.len() as f64 * (f64::from(ICON_WIDTH) + 1.0);
+                Size::new(BAR.width + mutes, BAR.height)
+            }
+        }
+    }
+
+    /// The surface: the bar or the confirm card, with the tooltip room above.
     pub fn size(&self) -> Size {
-        if self.confirm.is_some() { CONFIRM } else { BAR }
+        let c = self.content();
+        Size::new(c.width, c.height + TIP_ROOM)
+    }
+
+    /// The part that takes the pointer, in surface coordinates.
+    pub fn hit_area(&self) -> Rect {
+        let c = self.content();
+        Rect::new(0.0, TIP_ROOM, c.width, TIP_ROOM + c.height)
+    }
+
+    pub fn origin(&self) -> Point {
+        self.origin
+    }
+
+    pub fn output(&self) -> Option<Rect> {
+        self.output
+    }
+
+    /// Where the host put the surface, on which output, and how to ask for the pointer there.
+    pub fn place(&mut self, origin: Point, output: Rect, pointer: PointerGlobal) {
+        self.origin = origin;
+        self.output = Some(output);
+        self.pointer = pointer;
+    }
+
+    pub fn is_muted(&self, source: AudioSource) -> bool {
+        self.muted.contains(&source)
+    }
+
+    pub fn set_muted(&mut self, source: AudioSource, muted: bool, cx: &mut Context<Self>) {
+        self.muted.retain(|s| *s != source);
+        if muted {
+            self.muted.push(source);
+        }
+        cx.notify();
     }
 
     /// The recorder reported its first frame; a start over comes back here too.
@@ -108,9 +199,17 @@ impl ControlBar {
         self.set_confirm(None, cx);
     }
 
+    /// The bottom edge stays put and the bar stays centred on where it was.
     fn set_confirm(&mut self, confirm: Option<Confirm>, cx: &mut Context<Self>) {
         if self.confirm != confirm {
+            let old = self.size();
             self.confirm = confirm;
+            let new = self.size();
+            let moved = Point::new(
+                self.origin.x + (old.width - new.width) / 2.0,
+                self.origin.y + old.height - new.height,
+            );
+            self.origin = self.output.map_or(moved, |o| clamp(moved, new, o));
             cx.emit(ControlEvent::Resized);
         }
         cx.notify();
@@ -134,6 +233,40 @@ impl ControlBar {
             Confirm::Discard => Route::RecordDiscard,
         }));
     }
+
+    fn grab(&mut self, at: gpui::Point<Pixels>) {
+        self.press = Some(Press {
+            local: local(at),
+            global: (self.pointer)(),
+            origin: self.origin,
+        });
+    }
+
+    fn drag(&mut self, e: &MouseMoveEvent, cx: &mut Context<Self>) {
+        let Some(press) = self.press else {
+            return;
+        };
+        if e.pressed_button != Some(MouseButton::Left) {
+            self.press = None;
+            return;
+        }
+        // While the button is held, positions stay relative to the surface as it was at the press.
+        let to = match (press.global, (self.pointer)()) {
+            (Some(from), Some(to)) => dragged(press.origin, from, to),
+            _ => dragged(press.origin, press.local, local(e.position)),
+        };
+        let to = self.output.map_or(to, |o| clamp(to, self.size(), o));
+        if to != self.origin {
+            self.origin = to;
+            cx.emit(ControlEvent::Moved);
+        }
+    }
+
+    fn release(&mut self, e: &MouseUpEvent, cx: &mut Context<Self>) {
+        if e.button == MouseButton::Left && self.press.take().is_some() {
+            cx.emit(ControlEvent::Dropped);
+        }
+    }
 }
 
 fn stop_glyph(red: Hsla) -> impl IntoElement {
@@ -153,8 +286,44 @@ fn separator(colour: Hsla) -> impl IntoElement {
     div().w(px(1.)).h_full().bg(colour)
 }
 
+fn tip(d: Stateful<gpui::Div>, text: String) -> Stateful<gpui::Div> {
+    let text: SharedString = text.into();
+    d.tooltip(move |window, cx| Tooltip::new(text.clone()).build(window, cx))
+}
+
 impl ControlBar {
     fn segment(
+        &self,
+        id: &'static str,
+        icon: IconName,
+        label: String,
+        ink: Option<Hsla>,
+        cx: &mut Context<Self>,
+    ) -> Stateful<gpui::Div> {
+        let t = tokens(cx);
+        let busy = self.phase.busy();
+        let d = div()
+            .id(id)
+            .accessible(Role::Button, label.clone())
+            .flex()
+            .flex_none()
+            .items_center()
+            .justify_center()
+            .w(px(ICON_WIDTH))
+            .h_full()
+            .text_color(match (busy, ink) {
+                (true, _) => t.text_tertiary,
+                (false, Some(ink)) => ink,
+                (false, None) => t.text,
+            })
+            .when(!busy, |d| {
+                d.hover(|s| s.bg(t.hover_fill)).active(|s| s.opacity(0.55))
+            })
+            .child(Icon::new(icon).size(px(17.)));
+        tip(d, label)
+    }
+
+    fn routed(
         &self,
         id: &'static str,
         icon: IconName,
@@ -162,25 +331,64 @@ impl ControlBar {
         route: Route,
         cx: &mut Context<Self>,
     ) -> AnyElement {
+        self.segment(id, icon, label, None, cx)
+            .on_click(cx.listener(move |bar, _, _, cx| bar.act(route.clone(), cx)))
+            .into_any_element()
+    }
+
+    fn mute(&self, source: AudioSource, cx: &mut Context<Self>) -> AnyElement {
+        let muted = self.is_muted(source);
+        let (id, icon, label) = match (source, muted) {
+            (AudioSource::Mic, false) => {
+                ("rec-mute-mic", IconName::Mic, fl!("rec-bar-mute-mic-help"))
+            }
+            (AudioSource::Mic, true) => (
+                "rec-mute-mic",
+                IconName::MicOff,
+                fl!("rec-bar-unmute-mic-help"),
+            ),
+            (AudioSource::System, false) => (
+                "rec-mute-system",
+                IconName::Volume2,
+                fl!("rec-bar-mute-system-help"),
+            ),
+            (AudioSource::System, true) => (
+                "rec-mute-system",
+                IconName::VolumeOff,
+                fl!("rec-bar-unmute-system-help"),
+            ),
+        };
+        let red = muted.then(|| tokens(cx).destructive);
+        self.segment(id, icon, label, red, cx)
+            .toggled(muted)
+            .on_click(cx.listener(move |bar, _, _, cx| {
+                if !bar.phase.busy() {
+                    cx.emit(ControlEvent::Mute(source, !bar.is_muted(source)));
+                }
+            }))
+            .into_any_element()
+    }
+
+    fn grip(&self, cx: &mut Context<Self>) -> AnyElement {
         let t = tokens(cx);
-        let busy = self.phase.busy();
-        div()
-            .id(id)
-            .accessible(Role::Button, label)
+        let d = div()
+            .id("rec-grip")
+            .accessible(Role::Button, fl!("rec-bar-move-help"))
             .flex()
             .flex_none()
             .items_center()
             .justify_center()
-            .w(px(ICON_WIDTH))
+            .w(px(GRIP_WIDTH))
             .h_full()
-            .text_color(if busy { t.text_tertiary } else { t.text })
-            .when(!busy, |d| {
-                d.hover(|s| s.bg(t.hover_fill))
-                    .active(|s| s.opacity(0.55))
-                    .on_click(cx.listener(move |bar, _, _, cx| bar.act(route.clone(), cx)))
-            })
-            .child(Icon::new(icon).size(px(17.)))
-            .into_any_element()
+            .pl(px(4.))
+            .text_color(t.text_tertiary)
+            .cursor_grab()
+            .child(Icon::new(IconName::GripVertical).size(px(13.)))
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(|bar, e: &gpui::MouseDownEvent, _, _| bar.grab(e.position)),
+            );
+        tip(d, fl!("rec-bar-move-help")).into_any_element()
     }
 
     fn render_bar(&mut self, cx: &mut Context<Self>) -> AnyElement {
@@ -228,7 +436,7 @@ impl ControlBar {
                     .child(word),
             )
             .child(digits(&time, 13., CELL).font_weight(FontWeight::MEDIUM));
-        div()
+        let mut bar = div()
             .id("rec-bar")
             .accessible(Role::Toolbar, fl!("rec-bar-a11y"))
             .flex()
@@ -239,11 +447,17 @@ impl ControlBar {
             .border_1()
             .border_color(t.border)
             .font_family(UI_FONT)
-            .child(stop)
+            .child(self.grip(cx))
+            .child(tip(stop, fl!("rec-bar-stop-help")));
+        for source in self.audio.clone() {
+            bar = bar
+                .child(separator(t.separator))
+                .child(self.mute(source, cx));
+        }
+        bar.child(separator(t.separator))
+            .child(self.routed("rec-pause", pause_icon, pause_label, Route::RecordPause, cx))
             .child(separator(t.separator))
-            .child(self.segment("rec-pause", pause_icon, pause_label, Route::RecordPause, cx))
-            .child(separator(t.separator))
-            .child(self.segment(
+            .child(self.routed(
                 "rec-restart",
                 IconName::RotateCcw,
                 fl!("rec-bar-start-over-help"),
@@ -251,7 +465,7 @@ impl ControlBar {
                 cx,
             ))
             .child(separator(t.separator))
-            .child(self.segment(
+            .child(self.routed(
                 "rec-discard",
                 IconName::Trash,
                 fl!("rec-bar-discard-help"),
@@ -260,98 +474,55 @@ impl ControlBar {
             ))
             .into_any_element()
     }
-
-    fn render_confirm(&mut self, confirm: Confirm, cx: &mut Context<Self>) -> AnyElement {
-        let t = tokens(cx).clone();
-        let (title, message, action) = match confirm {
-            Confirm::Restart => (
-                fl!("rec-confirm-restart-title"),
-                fl!("rec-confirm-restart-message"),
-                fl!("rec-confirm-restart"),
-            ),
-            Confirm::Discard => (
-                fl!("rec-confirm-discard-title"),
-                fl!("rec-confirm-discard-message"),
-                fl!("rec-confirm-discard"),
-            ),
-        };
-        let button = |id: &'static str, text: String, fill: Hsla, ink: Hsla| {
-            div()
-                .id(id)
-                .accessible(Role::Button, text.clone())
-                .flex()
-                .items_center()
-                .justify_center()
-                .w(px(88.))
-                .h(px(26.))
-                .rounded(px(7.))
-                .bg(fill)
-                .text_color(ink)
-                .text_size(px(12.))
-                .font_weight(FontWeight::MEDIUM)
-                .hover(move |s| s.bg(fill.opacity(fill.a * 0.85)))
-                .child(text)
-        };
-        div()
-            .id("rec-confirm")
-            .accessible(Role::AlertDialog, title.clone())
-            .flex()
-            .flex_col()
-            .justify_between()
-            .size_full()
-            .p(px(14.))
-            .rounded(px(RADIUS))
-            .bg(t.inspector)
-            .border_1()
-            .border_color(t.border)
-            .font_family(UI_FONT)
-            .text_color(t.text)
-            .child(
-                div()
-                    .flex()
-                    .flex_col()
-                    .gap(px(3.))
-                    .child(
-                        div()
-                            .text_size(px(13.))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .child(title),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(12.))
-                            .text_color(t.text_secondary)
-                            .child(message),
-                    ),
-            )
-            .child(
-                div()
-                    .flex()
-                    .justify_end()
-                    .gap(px(8.))
-                    .child(
-                        button(
-                            "rec-confirm-cancel",
-                            fl!("rec-confirm-cancel"),
-                            t.fill,
-                            t.text,
-                        )
-                        .on_click(cx.listener(|bar, _, _, cx| bar.set_confirm(None, cx))),
-                    )
-                    .child(
-                        button("rec-confirm-ok", action, t.destructive, t.on_accent)
-                            .on_click(cx.listener(move |bar, _, _, cx| bar.confirmed(confirm, cx))),
-                    ),
-            )
-            .into_any_element()
-    }
 }
 
 impl Render for ControlBar {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        match self.confirm {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let body = match self.confirm {
             Some(confirm) => self.render_confirm(confirm, cx),
             None => self.render_bar(cx),
-        }
+        };
+        let e = progress(self.entry, window, cx);
+        let scale = HANDOFF_SCALE + (1.0 - HANDOFF_SCALE) * e;
+        let c = self.content();
+        let view = cx.entity();
+        div()
+            .size_full()
+            .flex()
+            .flex_col()
+            .items_center()
+            .justify_end()
+            .child(
+                canvas(
+                    |_, _, _| {},
+                    move |_, _, window, _| {
+                        let moving = view.clone();
+                        window.on_mouse_event(move |e: &MouseMoveEvent, _, _, cx| {
+                            moving.update(cx, |bar, cx| bar.drag(e, cx));
+                        });
+                        let releasing = view.clone();
+                        window.on_mouse_event(move |e: &MouseUpEvent, _, _, cx| {
+                            releasing.update(cx, |bar, cx| bar.release(e, cx));
+                        });
+                    },
+                )
+                .absolute()
+                .size_full(),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .w(px(c.width as f32))
+                    .h(px(c.height as f32))
+                    .child(
+                        div()
+                            .w(px(c.width as f32 * scale))
+                            .h(px(c.height as f32 * scale))
+                            .opacity(e)
+                            .child(body),
+                    ),
+            )
     }
 }

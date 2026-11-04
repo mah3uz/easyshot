@@ -8,11 +8,11 @@ use es_desktop::RecordingTrayState;
 use es_geom::{Point, Rect};
 use es_model::platform::OutputId;
 use es_overlays::countdown::{Clock, Countdown as CountdownView, CountdownStyle};
+use es_overlays::record::placement::remembered;
 use es_overlays::record::{
     ControlBar, Dim, Placement, Recorded, control_bar, highlight_strips, tray_notice,
 };
 use gpui::{App, AppContext as _, Entity};
-use std::cell::Cell;
 use std::rc::Rc;
 
 pub type TrayUpdate = Rc<dyn Fn(Option<RecordingTrayState>, &mut App)>;
@@ -39,26 +39,24 @@ pub struct LayerUi {
 
 struct LayerShown {
     dim: Vec<LayerSurfaceHandle>,
-    bar: Option<(LayerSurfaceHandle, Cell<Rect>)>,
+    bar: Option<(LayerSurfaceHandle, OutputId)>,
+    paths: es_store::Paths,
 }
 
 impl Shown for LayerShown {
-    fn resized(&self, bar: &Entity<ControlBar>, cx: &mut App) {
-        let Some((handle, rect)) = &self.bar else {
+    fn resized(&self, bar: &Entity<ControlBar>, dropped: bool, cx: &mut App) {
+        let Some((handle, output)) = &self.bar else {
             return;
         };
-        let size = bar.read(cx).size();
-        let old = rect.get();
-        let moved = Rect::from_origin_size(
-            Point::new(
-                old.x0 + (old.width() - size.width) / 2.0,
-                old.y1 - size.height,
-            ),
-            (size.width, size.height),
-        );
-        rect.set(moved);
+        let b = bar.read(cx);
+        let (size, origin, hit, out) = (b.size(), b.origin(), b.hit_area(), b.output());
         handle.resize(size, cx);
-        handle.set_position(Point::new(moved.x0, moved.y0), cx);
+        handle.set_position(origin, cx);
+        handle.set_input_region(&[hit], cx);
+        if let (true, Some(out)) = (dropped, out) {
+            let offset = Point::new(origin.x - out.x0, origin.y - out.y0);
+            super::spot::remember(&self.paths, output, offset);
+        }
     }
 
     fn close(&self, cx: &mut App) {
@@ -92,6 +90,7 @@ impl RecordingUi for LayerUi {
         let mut shown = LayerShown {
             dim: Vec::new(),
             bar: None,
+            paths: self.paths.clone(),
         };
         if let Recorded::Area(area) = recorded {
             let main = outputs.iter().max_by(|a, b| {
@@ -113,7 +112,9 @@ impl RecordingUi for LayerUi {
             }
         }
         let size = bar.read(cx).size();
-        match control_bar(recorded, &outputs, size, whole_screen_bar) {
+        let placement = control_bar(recorded, &outputs, size, whole_screen_bar);
+        let spots = super::spot::load(&self.paths);
+        match remembered(placement, &outputs, size, |id| spots.get(&id.0).copied()) {
             Placement::On { output, origin } => {
                 let rect = Rect::from_origin_size(origin, (size.width, size.height));
                 match open(
@@ -124,13 +125,21 @@ impl RecordingUi for LayerUi {
                     cx,
                 ) {
                     Ok(handle) => {
+                        let surfaces = self.surfaces.clone();
+                        let pointer: es_overlays::pin::PointerGlobal =
+                            Rc::new(move || surfaces.source().pointer_global());
+                        if let Some(out) = outputs.iter().find(|o| o.id == output) {
+                            let logical = out.logical;
+                            bar.update(cx, |b, _| b.place(origin, logical, pointer));
+                        }
+                        handle.set_input_region(&[bar.read(cx).hit_area()], cx);
                         handle.set_content(bar.clone().into(), cx);
                         tracing::info!(
                             top = rect.y0,
                             bottom = rect.y1,
                             "recording control bar placed"
                         );
-                        shown.bar = Some((handle, Cell::new(rect)));
+                        shown.bar = Some((handle, output.clone()));
                     }
                     Err(e) => tracing::warn!(error = %e, "control bar"),
                 }

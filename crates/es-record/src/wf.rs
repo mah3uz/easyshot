@@ -1,8 +1,9 @@
-use crate::gsr::{container_ext, run_blocking};
-use crate::process::{Clock, Helper, SystemClock, Timing, which};
+use crate::gsr::container_ext;
+use crate::mute::{Mutes, sources};
+use crate::process::{Clock, Helper, SystemClock, Timing, run_blocking, which};
 use crate::{
-    Codec, Error, RecordSource, RecordSpec, Recorder, RecorderEvent, RecorderProbe,
-    RecordingHandle, RecordingOutput, Result,
+    AudioSource, Codec, CommandRunner, Error, RecordSource, RecordSpec, Recorder, RecorderEvent,
+    RecorderProbe, RecordingHandle, RecordingOutput, Result,
 };
 use es_geom::Rect;
 use futures::future::BoxFuture;
@@ -105,6 +106,7 @@ pub struct WfRecorder {
     timing: Timing,
     clock: Arc<dyn Clock>,
     env: HashMap<String, String>,
+    audio: Option<Arc<dyn CommandRunner>>,
 }
 
 impl WfRecorder {
@@ -119,6 +121,7 @@ impl WfRecorder {
             timing: Timing::default(),
             clock: Arc::new(SystemClock::default()),
             env: HashMap::new(),
+            audio: None,
         }
     }
 
@@ -140,6 +143,12 @@ impl WfRecorder {
 
     pub fn with_clock(mut self, clock: Arc<dyn Clock>) -> Self {
         self.clock = clock;
+        self
+    }
+
+    /// Runs `pactl` to find and mute the recorder's own sound stream; without it nothing is muted.
+    pub fn with_audio_runner(mut self, runner: Arc<dyn CommandRunner>) -> Self {
+        self.audio = Some(runner);
         self
     }
 
@@ -187,6 +196,7 @@ impl Recorder for WfRecorder {
             self.system_device.as_deref(),
             Path::new("probe"),
         )?;
+        let (spec_system, spec_mic) = (spec.system_audio, spec.mic.is_some());
         let (tx, rx) = async_channel::unbounded();
         let mut h = WfHandle {
             program: self.program.clone(),
@@ -198,6 +208,11 @@ impl Recorder for WfRecorder {
             spec,
             clock: self.clock.clone(),
             timing: self.timing,
+            mutes: self
+                .audio
+                .clone()
+                .map(|r| Mutes::new(r, sources(spec_system, spec_mic))),
+            muted: Vec::new(),
             tx,
             rx,
             current: None,
@@ -224,6 +239,8 @@ struct WfHandle {
     spec: RecordSpec,
     clock: Arc<dyn Clock>,
     timing: Timing,
+    mutes: Option<Mutes>,
+    muted: Vec<AudioSource>,
     tx: async_channel::Sender<RecorderEvent>,
     rx: async_channel::Receiver<RecorderEvent>,
     current: Option<Helper>,
@@ -268,6 +285,24 @@ impl WfHandle {
         self.seg_start = self.clock.monotonic_us();
         self.files.push(file);
         self.current = Some(helper);
+        Ok(())
+    }
+
+    /// A new wf-recorder process opens a new stream, so the mutes are applied to it again.
+    fn remute(&self) -> Result<()> {
+        let (Some(mutes), Some(helper)) = (&self.mutes, &self.current) else {
+            return Ok(());
+        };
+        for source in &self.muted {
+            let mut tries = 0;
+            while let Err(e) = mutes.set(helper.pid(), *source, true) {
+                tries += 1;
+                if tries == 5 {
+                    return Err(e);
+                }
+                self.clock.sleep(self.timing.poll);
+            }
+        }
         Ok(())
     }
 
@@ -340,6 +375,18 @@ impl RecordingHandle for WfHandle {
         }
         self.spawn_segment()?;
         let _ = self.tx.try_send(RecorderEvent::Resumed);
+        self.remute()
+    }
+
+    fn set_muted(&mut self, source: AudioSource, muted: bool) -> Result<()> {
+        let mutes = self.mutes.as_ref().ok_or(Error::Unsupported)?;
+        if let Some(helper) = &self.current {
+            mutes.set(helper.pid(), source, muted)?;
+        }
+        self.muted.retain(|s| *s != source);
+        if muted {
+            self.muted.push(source);
+        }
         Ok(())
     }
 
@@ -351,6 +398,7 @@ impl RecordingHandle for WfHandle {
                 file,
                 first_frame_monotonic_us: self.first,
                 segments: std::mem::take(&mut self.segments),
+                split_audio: false,
             })
         })
     }

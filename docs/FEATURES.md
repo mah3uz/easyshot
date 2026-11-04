@@ -199,7 +199,9 @@ More in the manual: [The Home window](MANUAL.md#the-home-window) and [History an
 - Mixes system sound and your microphone into one audio track, so every player plays both.
 - Starts the capture bar's recording panel with your Recording settings: microphone, system sound and start delay.
 - Says plainly when a recording can't start because a sound device or the chosen area is missing.
-- Counts down, then shows a control bar with stop, pause, resume, restart and discard.
+- Counts down, then shows a control bar with stop, pause, resume, restart and discard, handed over from the capture bar with a short fade.
+- Drags the control bar by its grip anywhere on its screen, and remembers the spot for each screen.
+- Mutes system sound and the microphone separately from the control bar during a recording, with a button for each sound being recorded.
 - Highlights the area being recorded.
 - Opens and closes the capture bar with `easyshot capture-bar`, its key or the tray.
 - Closes the capture bar with Esc, or closes its open menu first.

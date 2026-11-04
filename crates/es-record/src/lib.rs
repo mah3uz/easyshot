@@ -7,6 +7,7 @@ pub mod audio;
 pub mod clip;
 pub mod gsr;
 pub mod input;
+pub mod mute;
 pub mod process;
 pub mod project;
 pub mod recovery;
@@ -16,6 +17,7 @@ pub mod wf;
 pub use audio::{AudioDevice, AudioKind, list_audio_devices, parse_pactl_sources};
 pub use gsr::GsrRecorder;
 pub use input::{InputBuilder, InputCollector, RawEvent, movie_time, write_input};
+pub use mute::AudioSource;
 pub use process::{Clock, SystemClock, Timing};
 pub use project::{CommandRunner, ProjectFolder, SystemRunner, make_poster};
 pub use recovery::{RecoveryReport, recover};
@@ -128,6 +130,8 @@ pub struct RecordingOutput {
     pub file: PathBuf,
     pub first_frame_monotonic_us: u64,
     pub segments: Vec<(u64, u64)>,
+    /// The system sound and the microphone are on two tracks that still need mixing into one.
+    pub split_audio: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -141,6 +145,10 @@ pub enum RecorderEvent {
 pub trait RecordingHandle: Send {
     fn pause(&mut self) -> Result<()>;
     fn resume(&mut self) -> Result<()>;
+    /// Silences what the recording takes from `source`, while it runs.
+    fn set_muted(&mut self, _source: AudioSource, _muted: bool) -> Result<()> {
+        Err(Error::Unsupported)
+    }
     fn stop(self: Box<Self>) -> BoxFuture<'static, Result<RecordingOutput>>;
     fn discard(self: Box<Self>) -> BoxFuture<'static, Result<()>>;
     fn events(&self) -> async_channel::Receiver<RecorderEvent>;

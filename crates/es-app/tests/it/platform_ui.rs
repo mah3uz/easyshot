@@ -150,7 +150,11 @@ fn each_role_sits_on_its_layer_and_edges() {
         ),
         (SurfaceRole::Pin, Layer::Top, Anchor::TOP | Anchor::LEFT),
         (SurfaceRole::Bar, Layer::Top, Anchor::BOTTOM),
-        (SurfaceRole::RecordControl, Layer::Top, Anchor::BOTTOM),
+        (
+            SurfaceRole::RecordControl,
+            Layer::Top,
+            Anchor::TOP | Anchor::LEFT,
+        ),
         (
             SurfaceRole::Highlight,
             Layer::Overlay,

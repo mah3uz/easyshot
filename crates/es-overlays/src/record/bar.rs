@@ -6,6 +6,7 @@ use es_protocol::{Route, TimedMode};
 use es_record::AudioDevice;
 use es_ui::a11y::{Accessible as _, Role};
 use es_ui::icons::IconName;
+use es_ui::motion::{Clocked, HANDOFF, HANDOFF_SCALE};
 use es_ui::theme::{UI_FONT, tokens};
 use gpui::{
     AnyElement, App, AppContext as _, ClickEvent, Context, Div, Entity, EventEmitter, FocusHandle,
@@ -84,6 +85,7 @@ pub struct CaptureBar {
     options: Entity<RecordingOptions>,
     focus: FocusHandle,
     focused: bool,
+    leaving: Option<Clocked>,
     _options: Subscription,
 }
 
@@ -122,8 +124,18 @@ impl CaptureBar {
             options,
             focus: cx.focus_handle(),
             focused: false,
+            leaving: None,
             _options: sub,
         }
+    }
+
+    /// Fades and shrinks the bar as the recording's control bar takes over; returns how long the
+    /// surface must stay open for it, zero under Reduce Motion.
+    pub fn leave(&mut self, cx: &mut Context<Self>) -> std::time::Duration {
+        self.leaving = Clocked::start(HANDOFF, cx);
+        cx.notify();
+        self.leaving
+            .map_or(std::time::Duration::ZERO, |_| HANDOFF.duration)
     }
 
     pub fn options(&self) -> &Entity<RecordingOptions> {
@@ -310,6 +322,8 @@ impl Render for CaptureBar {
             window.focus(&self.focus, cx);
         }
         let t = tokens(cx).clone();
+        let out = self.leaving.map_or(0.0, |c| c.progress(window, cx));
+        let scale = 1.0 - (1.0 - HANDOFF_SCALE) * out;
         let mut bar = div()
             .id("capture-bar")
             .accessible(Role::Toolbar, fl!("bar-a11y"))
@@ -318,8 +332,9 @@ impl Render for CaptureBar {
             .items_center()
             .gap(px(4.))
             .px(px(6.))
-            .w(px(BAR.width as f32))
-            .h(px(BAR.height as f32))
+            .w(px(BAR.width as f32 * scale))
+            .h(px(BAR.height as f32 * scale))
+            .overflow_hidden()
             .rounded(px(16.))
             .bg(t.inspector)
             .border_1()
@@ -412,6 +427,7 @@ impl Render for CaptureBar {
             .gap(px(POPUP_GAP as f32))
             .font_family(UI_FONT)
             .text_color(t.text)
+            .opacity(1.0 - out)
             .when_some(popup, |d, p| d.child(p))
             .child(bar)
     }

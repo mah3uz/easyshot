@@ -169,7 +169,10 @@ pub const GSR_NATIVE: Provider<dyn Recorder> = Provider {
         if test_mode(p) {
             return not_in_test_mode("recorder");
         }
-        usable(es_record::GsrRecorder::native())
+        usable(
+            es_record::GsrRecorder::native()
+                .with_audio_runner(Arc::new(es_record::project::SystemRunner)),
+        )
     },
 };
 
@@ -194,7 +197,7 @@ pub const WF_RECORDER: Provider<dyn Recorder> = Provider {
             Some(monitor) => recorder.with_system_audio_device(monitor),
             None => recorder,
         };
-        usable(recorder)
+        usable(recorder.with_audio_runner(Arc::new(es_record::project::SystemRunner)))
     },
 };
 

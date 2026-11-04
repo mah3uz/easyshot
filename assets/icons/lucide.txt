@@ -32,6 +32,7 @@ flip-vertical-2
 folder
 folder-open
 grid-2x2
+grip-vertical
 hard-drive
 house
 image

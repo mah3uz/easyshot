@@ -55,7 +55,8 @@ fn corner(output: Rect, bar: Size) -> Point {
 }
 
 /// Keeps the control bar out of the video: home if that misses the area, else just below it, else
-/// just above it, else home on another output; the bar stays horizontally centred on its output.
+/// just above it, else home on another output, else inside the video in the bottom-right corner;
+/// the bar stays horizontally centred on its output.
 /// A whole-screen recording puts the bar on another output, or with none free in the bottom-right
 /// corner of the recorded one (where the video shows it); with `whole_screen_bar` off it has none.
 pub fn control_bar(
@@ -107,14 +108,54 @@ pub fn control_bar(
             };
         }
     }
-    outputs
+    let elsewhere = outputs
         .iter()
         .map(|o| (o, home(o.logical, bar)))
-        .find(|(o, p)| Some(&o.id) != main.map(|m| &m.id) && clear(*p))
-        .map_or(Placement::Tray, |(o, origin)| Placement::On {
+        .find(|(o, p)| Some(&o.id) != main.map(|m| &m.id) && clear(*p));
+    match (elsewhere, main) {
+        (Some((o, origin)), _) => Placement::On {
             output: o.id.clone(),
             origin,
+        },
+        (None, Some(main)) => Placement::On {
+            output: main.id.clone(),
+            origin: corner(main.logical, bar),
+        },
+        (None, None) => Placement::Tray,
+    }
+}
+
+/// `origin` moved the least so the whole bar stays on the output.
+pub fn clamp(origin: Point, bar: Size, output: Rect) -> Point {
+    Point::new(
+        origin.x.min(output.x1 - bar.width).max(output.x0),
+        origin.y.min(output.y1 - bar.height).max(output.y0),
+    )
+}
+
+/// Where the user last left the bar on `output`, as an offset from its top-left corner.
+pub fn remembered(
+    placement: Placement,
+    outputs: &[OutputInfo],
+    bar: Size,
+    offset: impl Fn(&OutputId) -> Option<Point>,
+) -> Placement {
+    let Placement::On { output, origin } = placement else {
+        return placement;
+    };
+    let spot = outputs.iter().find(|o| o.id == output).and_then(|o| {
+        offset(&o.id).map(|d| {
+            clamp(
+                Point::new(o.logical.x0 + d.x, o.logical.y0 + d.y),
+                bar,
+                o.logical,
+            )
         })
+    });
+    Placement::On {
+        origin: spot.unwrap_or(origin),
+        output,
+    }
 }
 
 /// Four strips covering the output outside the area; empty ones are dropped.

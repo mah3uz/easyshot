@@ -72,6 +72,7 @@ icons! {
         Folder = "folder",
         FolderOpen = "folder-open",
         Grid2x2 = "grid-2x2",
+        GripVertical = "grip-vertical",
         HardDrive = "hard-drive",
         House = "house",
         Image = "image",
