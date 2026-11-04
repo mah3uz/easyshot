@@ -109,6 +109,7 @@ fn sources() -> Sources {
 struct Rig {
     gate: GateRig,
     recordings: Recordings,
+    coordinator: es_app::capture_coordinator::CaptureCoordinator,
     clock: Arc<ManualClock>,
     handler: es_app::dispatcher::AgentHandler,
     finished: async_channel::Receiver<es_app::jobs::JobFinished>,
@@ -124,6 +125,7 @@ fn rig_for(agent: AgentCfg, cx: &mut TestAppContext) -> Rig {
     paths.ensure_all().unwrap();
     let clock = Arc::new(ManualClock(Mutex::new(Duration::from_secs(100))));
     let (jobs, finished) = Jobs::new();
+    let coordinator = es_app::capture_coordinator::CaptureCoordinator::new(jobs.clone());
     let (recordings, handler) = cx.update(|cx| {
         let recordings = Recordings::new(Deps {
             settings: gate.settings.clone(),
@@ -146,7 +148,14 @@ fn rig_for(agent: AgentCfg, cx: &mut TestAppContext) -> Rig {
                 },
             },
         });
-        let record = install(cx, &recordings, sources(), &gate.access, &gate.settings);
+        let record = install(
+            cx,
+            &recordings,
+            &coordinator,
+            sources(),
+            &gate.access,
+            &gate.settings,
+        );
         let handler = handler_full(
             sources(),
             jobs.clone(),
@@ -160,6 +169,7 @@ fn rig_for(agent: AgentCfg, cx: &mut TestAppContext) -> Rig {
     Rig {
         gate,
         recordings,
+        coordinator,
         clock,
         handler,
         finished,
@@ -357,6 +367,23 @@ async fn a_recording_that_nobody_started_for_an_agent_is_not_the_agents_to_stop(
     assert!(rig.recording());
     let busy = rig.start(AgentTarget::Fullscreen, 120, cx);
     assert_eq!(code(&busy), "invalid_arguments");
+}
+
+// A recording started under the user's frozen pick would film the overlay.
+#[gpui::test]
+async fn an_agent_recording_waits_for_no_capture_and_is_told_busy(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    let claim = rig.coordinator.claim().unwrap();
+    let busy = rig.start(AgentTarget::Fullscreen, 120, cx);
+    assert_eq!(code(&busy), "invalid_arguments", "{busy}");
+    assert!(!rig.recording());
+    drop(claim);
+    rig.start(AgentTarget::Fullscreen, 120, cx);
+    assert!(rig.recording());
+    assert!(
+        rig.coordinator.is_idle(),
+        "the recording does not hold the screen"
+    );
 }
 
 #[gpui::test]

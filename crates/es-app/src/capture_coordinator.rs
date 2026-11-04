@@ -6,6 +6,10 @@ use es_model::capture::CaptureVariant;
 use gpui::{App, AsyncApp, Task};
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
+use std::time::Duration;
+
+/// A closed layer surface stays on screen until the compositor repaints without it.
+pub const UNMAP_SETTLE: Duration = Duration::from_millis(150);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CaptureKind {
@@ -20,6 +24,8 @@ pub enum CaptureKind {
     Color,
     Recording,
     RecordingArea,
+    /// An area handed back to the caller that asked for it, as the capture bar's recording area.
+    Area,
 }
 
 impl CaptureKind {
@@ -74,6 +80,8 @@ pub trait DirectCapture {
 pub type Pipeline = Rc<dyn Fn(CaptureRequest, Selection, &mut App) -> Task<Result<()>>>;
 pub type Countdown = Rc<dyn Fn(Timer, &mut App) -> Task<Result<()>>>;
 pub type Hook = Rc<dyn Fn(&mut App)>;
+/// True when it closed a surface that could still be on screen.
+pub type Closing = Rc<dyn Fn(&mut App) -> bool>;
 pub type Gate = Rc<dyn Fn(CaptureRequest, &mut App) -> Result<()>>;
 pub type Captured = Rc<dyn Fn(CaptureKind, &Selection, &mut App)>;
 
@@ -83,7 +91,7 @@ struct Hooks {
     direct: Option<Rc<dyn DirectCapture>>,
     pipeline: Option<Pipeline>,
     countdown: Option<Countdown>,
-    before_capture: Option<Hook>,
+    before_capture: Option<Closing>,
     captured: Option<Captured>,
     scroll_stop: Option<Hook>,
     gate: Option<Gate>,
@@ -111,6 +119,8 @@ struct Inner {
     jobs: Jobs,
     hooks: RefCell<Hooks>,
     phase: Cell<Phase>,
+    /// Where an `Area` pick goes; dropping it answers the caller that the pick ended.
+    area: RefCell<Option<async_channel::Sender<Result<Selection>>>>,
 }
 
 pub fn busy() -> Error {
@@ -124,37 +134,45 @@ fn busy_toast(cx: &mut App) {
 /// The capture task's hold on the phase; dropping it while it holds ends the capture.
 struct Turn {
     inner: Rc<Inner>,
+    runner: JobId,
     held: bool,
 }
 
 impl Turn {
-    fn commit(&self, fallback: Current) -> Current {
+    fn current(&self) -> Option<Current> {
         match self.inner.phase.get() {
-            Phase::Picking(c) | Phase::Committed(c) => {
-                self.inner.phase.set(Phase::Committed(c));
-                c
+            Phase::Picking(c) | Phase::Committed(c) if self.held && c.runner == self.runner => {
+                Some(c)
             }
-            Phase::Idle | Phase::Held => fallback,
+            _ => None,
         }
     }
 
+    fn commit(&self, fallback: Current) -> Current {
+        let Some(c) = self.current() else {
+            return fallback;
+        };
+        self.inner.phase.set(Phase::Committed(c));
+        c
+    }
+
     fn release(&mut self) {
-        if std::mem::take(&mut self.held) {
+        if self.current().is_some() {
             self.inner.phase.set(Phase::Idle);
         }
+        self.held = false;
     }
 }
 
 impl Drop for Turn {
     fn drop(&mut self) {
-        if !self.held {
+        let Some(c) = self.current() else {
             return;
-        }
-        if let Phase::Picking(c) | Phase::Committed(c) = self.inner.phase.get()
-            && c.owner != c.runner
-        {
+        };
+        if c.owner != c.runner {
             self.inner.jobs.report(c.owner, &Err(Error::Cancelled));
         }
+        self.inner.area.borrow_mut().take();
         self.inner.phase.set(Phase::Idle);
     }
 }
@@ -164,7 +182,9 @@ pub struct Claim(Rc<Inner>);
 
 impl Drop for Claim {
     fn drop(&mut self) {
-        self.0.phase.set(Phase::Idle);
+        if matches!(self.0.phase.get(), Phase::Held) {
+            self.0.phase.set(Phase::Idle);
+        }
     }
 }
 
@@ -181,6 +201,7 @@ impl CaptureCoordinator {
                 jobs,
                 hooks: RefCell::default(),
                 phase: Cell::new(Phase::Idle),
+                area: RefCell::default(),
             }),
         }
     }
@@ -201,8 +222,8 @@ impl CaptureCoordinator {
         self.inner.hooks.borrow_mut().countdown = Some(countdown);
     }
 
-    /// Runs before every capture starts, so the recording picker is gone from the frame.
-    pub fn set_before_capture(&self, hook: Hook) {
+    /// Runs as a capture is claimed, so the capture bar is gone from the frame.
+    pub fn set_before_capture(&self, hook: Closing) {
         self.inner.hooks.borrow_mut().before_capture = Some(hook);
     }
 
@@ -253,18 +274,15 @@ impl CaptureCoordinator {
         self.inner.jobs.report(job, &Err(busy()));
     }
 
-    /// The same request again closes the pick; another one takes it over on the same frames.
+    /// The mode already shown closes the pick; another one takes it over on the same frames.
     fn replace(&self, job: JobId, current: Current, request: CaptureRequest, cx: &mut App) -> bool {
         let flow = self.inner.hooks.borrow().flow.clone();
         let Some(flow) = flow else {
             return false;
         };
-        let same = current.request == request;
-        let to = if same {
-            Switch::Close
-        } else {
-            switch_for(request.kind)
-        };
+        let wanted = switch_for(request.kind);
+        let same = matches!(wanted, Switch::To(mode) if flow.showing() == Some(mode));
+        let to = if same { Switch::Close } else { wanted };
         if !flow.switch(to, cx) {
             return false;
         }
@@ -272,11 +290,7 @@ impl CaptureCoordinator {
             self.inner.jobs.report(job, &Ok(()));
             return true;
         }
-        if current.owner != current.runner {
-            self.inner
-                .jobs
-                .report(current.owner, &Err(Error::Cancelled));
-        }
+        self.answer_replaced(current);
         let next = Current {
             request,
             owner: job,
@@ -287,6 +301,16 @@ impl CaptureCoordinator {
             Switch::Whole | Switch::Close => Phase::Committed(next),
         });
         true
+    }
+
+    fn answer_replaced(&self, current: Current) {
+        let cancelled = Err(Error::Cancelled);
+        if current.owner == current.runner {
+            self.inner.area.borrow_mut().take();
+            self.inner.jobs.answer(current.runner, &cancelled);
+        } else {
+            self.inner.jobs.report(current.owner, &cancelled);
+        }
     }
 
     fn start(&self, job: JobId, request: CaptureRequest, cx: &mut App) {
@@ -302,29 +326,30 @@ impl CaptureCoordinator {
         });
         let mut turn = Turn {
             inner: inner.clone(),
+            runner: job,
             held: true,
         };
+        let hooks = inner.hooks.borrow().clone();
+        let closed = hooks.before_capture.as_ref().is_some_and(|close| close(cx));
         let async_cx = cx.to_async();
         let jobs = inner.jobs.clone();
         jobs.spawn(job, cx, move |_| async move {
-            let hooks = inner.hooks.borrow().clone();
-            if let Some(before) = &hooks.before_capture {
-                async_cx.update(|cx| before(cx));
+            if closed {
+                settle(&async_cx).await;
             }
             let picked = match async_cx.update(|cx| select(request.kind, &hooks, cx)) {
                 Ok(task) => task.await,
                 Err(e) => Err(e),
             };
             let current = turn.commit(first);
-            let result = finish(
-                current.request,
-                request.kind,
-                picked,
-                &hooks,
-                &mut turn,
-                &async_cx,
-            )
-            .await;
+            if current.owner == job
+                && let Some(area) = inner.area.borrow_mut().take()
+            {
+                turn.release();
+                let _ = area.try_send(picked);
+                return Ok(());
+            }
+            let result = finish(current.request, request.kind, picked, &hooks, &async_cx).await;
             turn.release();
             if current.owner == job {
                 return result;
@@ -345,29 +370,32 @@ impl CaptureCoordinator {
         }
     }
 
-    /// An area picked for the capture bar's recording, under the same one-capture rule.
+    /// An area picked for the capture bar's recording, which another request can take over.
     pub fn select_area(&self, cx: &mut App) -> Task<Result<Selection>> {
-        let claim = match self.claim() {
-            Ok(claim) => claim,
-            Err(e) => {
-                busy_toast(cx);
-                return Task::ready(Err(e));
-            }
-        };
-        let flow = self.inner.hooks.borrow().flow.clone();
-        let Some(flow) = flow else {
+        if !self.is_idle() {
+            busy_toast(cx);
+            return Task::ready(Err(Error::Cancelled));
+        }
+        if self.inner.hooks.borrow().flow.is_none() {
             return Task::ready(Err(Error::Unsupported));
-        };
-        let picked = flow.run(SelectMode::Region, cx);
-        cx.spawn(async move |_| {
-            let _claim = claim;
-            picked.await
+        }
+        let (tx, rx) = async_channel::bounded(1);
+        *self.inner.area.borrow_mut() = Some(tx);
+        let request = CaptureRequest::new(CaptureKind::Area, CaptureVariant::Normal);
+        self.start(self.inner.jobs.allocate(), request, cx);
+        cx.spawn(async move |_| match rx.recv().await {
+            Ok(Ok(Selection::Cancelled)) => Err(Error::Cancelled),
+            Ok(Ok(picked)) => Ok(picked),
+            // The flow has shown why a pick failed; its caller only learns that it ended.
+            Ok(Err(_)) | Err(_) => Err(Error::Cancelled),
         })
     }
 
-    /// A request that took a pick over is cancelled through the job that runs it.
+    /// A request that took a pick over is cancelled through the job that runs it; the request it
+    /// replaced was answered then, and its cancel no longer reaches the work.
     pub fn cancel(&self, job: JobId) -> bool {
         match self.inner.phase.get() {
+            Phase::Picking(c) | Phase::Committed(c) if c.runner == job && c.owner != job => true,
             Phase::Picking(c) | Phase::Committed(c) if c.owner == job && c.runner != job => {
                 self.inner.jobs.cancel(c.runner)
             }
@@ -376,16 +404,20 @@ impl CaptureCoordinator {
     }
 }
 
+async fn settle(cx: &AsyncApp) {
+    cx.background_executor().timer(UNMAP_SETTLE).await;
+}
+
 async fn finish(
     request: CaptureRequest,
     first: CaptureKind,
     picked: Result<Selection>,
     hooks: &Hooks,
-    turn: &mut Turn,
     cx: &AsyncApp,
 ) -> Result<()> {
     let picked = match picked? {
         Selection::Cancelled if request.kind == CaptureKind::Previous && first != request.kind => {
+            settle(cx).await;
             cx.update(|cx| direct(hooks, Direct::Previous, cx))?.await?
         }
         Selection::Cancelled => return Err(Error::Cancelled),
@@ -404,13 +436,6 @@ async fn finish(
         cx.update(|cx| captured(request.kind, &selection, cx));
     }
     let pipeline = hooks.pipeline.clone().ok_or(Error::Unsupported)?;
-    // A recording runs alongside screenshots; its own start rules keep a second one out.
-    if matches!(
-        request.kind,
-        CaptureKind::Recording | CaptureKind::RecordingArea
-    ) {
-        turn.release();
-    }
     cx.update(|cx| pipeline(request, selection, cx)).await
 }
 
@@ -423,7 +448,9 @@ fn source(kind: CaptureKind) -> Source {
     match kind {
         CaptureKind::Fullscreen | CaptureKind::Recording => Source::Direct(Direct::Fullscreen),
         CaptureKind::Previous => Source::Direct(Direct::Previous),
-        CaptureKind::Region | CaptureKind::RecordingArea => Source::Pick(SelectMode::Region),
+        CaptureKind::Region | CaptureKind::RecordingArea | CaptureKind::Area => {
+            Source::Pick(SelectMode::Region)
+        }
         CaptureKind::Window => Source::Pick(SelectMode::Window),
         CaptureKind::Scroll => Source::Pick(SelectMode::Scroll),
         CaptureKind::ScrollRegion => Source::Pick(SelectMode::ScrollRegion),

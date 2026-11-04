@@ -1,9 +1,10 @@
 use super::Sources;
-use super::capture::{Fail, check_caps, fail_of, resolve_window};
+use super::capture::{Fail, check_caps, fail_of, hold, resolve_window};
 use super::gate::scope::{Scope, describe};
 use crate::daemon::recording::agent::{Ended, Kept, Options};
 use crate::daemon::recording::{Recordings, Start};
 use es_app::agent_access::{AccessEvent, AgentAccess};
+use es_app::capture_coordinator::CaptureCoordinator;
 use es_app::settings_model::SettingsModel;
 use es_geom::Rect;
 use es_model::platform::{OutputId, OutputInfo, WindowInfo};
@@ -48,6 +49,7 @@ struct State {
 #[derive(Clone)]
 struct Runner {
     recordings: Recordings,
+    coordinator: CaptureCoordinator,
     sources: Sources,
     state: Rc<RefCell<State>>,
 }
@@ -56,12 +58,14 @@ struct Runner {
 pub fn install(
     cx: &mut App,
     recordings: &Recordings,
+    coordinator: &CaptureCoordinator,
     sources: Sources,
     access: &Entity<AgentAccess>,
     settings: &Entity<SettingsModel>,
 ) -> RecordRunner {
     let runner = Runner {
         recordings: recordings.clone(),
+        coordinator: coordinator.clone(),
         sources,
         state: Rc::default(),
     };
@@ -142,6 +146,7 @@ impl Runner {
                 keystrokes: spec.keystrokes,
             },
         };
+        drop(hold(&self.coordinator)?);
         self.recordings.start(start, cx).map_err(fail_of)?;
         let id = format!("rec-{}", &uuid::Uuid::new_v4().simple().to_string()[..8]);
         let (me, max) = (self.clone(), spec.max_seconds);

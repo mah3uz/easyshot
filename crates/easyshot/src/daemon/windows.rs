@@ -544,17 +544,17 @@ fn open_bar(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>> {
     cx.subscribe(&bar, move |_, event: &BarEvent, cx| match event {
         BarEvent::Resized => place(cx),
         BarEvent::Close => surface.close(cx),
+        // The capture closes the bar itself, so it knows to wait for the bar to leave the screen.
         BarEvent::Route(route) => {
-            surface.close(cx);
             w.dispatch(route.clone(), cx);
+            surface.close(cx);
         }
         BarEvent::Record(request) => {
-            surface.close(cx);
             let recordings = w.recordings.borrow().clone();
-            let Some(recordings) = recordings else {
-                return;
-            };
-            start_recording(&recordings, (**request).clone(), cx);
+            if let Some(recordings) = recordings {
+                start_recording(&recordings, (**request).clone(), cx);
+            }
+            surface.close(cx);
         }
         _ => {}
     })

@@ -559,6 +559,10 @@ impl<T: SelectionFlow + ?Sized> SelectionFlow for Reporting<T> {
     fn switch(&self, to: Switch, cx: &mut App) -> bool {
         self.0.switch(to, cx)
     }
+
+    fn showing(&self) -> Option<SelectMode> {
+        self.0.showing()
+    }
 }
 
 impl<T: DirectCapture + ?Sized> DirectCapture for Reporting<T> {

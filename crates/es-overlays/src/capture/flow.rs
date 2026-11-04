@@ -17,6 +17,7 @@ use es_geom::{Rect, Rgba};
 use es_model::LastRegion;
 use es_model::platform::{CaptureOpts, Frame, OutputId, WindowId, WindowInfo};
 use gpui::{AnyView, App, AppContext as _, AsyncApp, Entity, Subscription, Task};
+use std::cell::Cell;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -47,6 +48,7 @@ pub struct LayerShellSelectionFlow {
     remember: Remember,
     scroll: Control,
     picking: Slot<(usize, Pick)>,
+    showing: Rc<Cell<Option<View>>>,
 }
 
 impl LayerShellSelectionFlow {
@@ -59,6 +61,7 @@ impl LayerShellSelectionFlow {
             remember: Rc::new(|_, _| {}),
             scroll: Control::default(),
             picking: Slot::default(),
+            showing: Rc::default(),
         }
     }
 
@@ -93,6 +96,7 @@ impl LayerShellSelectionFlow {
             remember: self.remember.clone(),
             scroll: self.scroll.clone(),
             picking: self.picking.clone(),
+            showing: self.showing.clone(),
         }
     }
 }
@@ -160,6 +164,7 @@ struct Open {
     subscriptions: Vec<Subscription>,
     tx: async_channel::Sender<(u64, (usize, Pick))>,
     listening: Listening<(usize, Pick)>,
+    showing: Rc<Cell<Option<View>>>,
     cx: AsyncApp,
 }
 
@@ -237,6 +242,7 @@ impl Open {
     }
 
     fn show(&mut self, view: View, setup: &Setup, cx: &mut App) {
+        self.showing.set(Some(view));
         self.subscriptions.clear();
         for index in 0..self.overlays.len() {
             let content = self.content(view, index, setup, cx);
@@ -308,6 +314,7 @@ impl LayerShellSelectionFlow {
             subscriptions: Vec::new(),
             tx,
             listening,
+            showing: self.showing.clone(),
             cx: cx.to_async(),
         };
         let pointer = self.surfaces.source().pointer_output();
@@ -370,11 +377,22 @@ fn usable(view: View, setup: &Setup) -> View {
     }
 }
 
+fn mode_of(view: View) -> SelectMode {
+    match view {
+        View::Region => SelectMode::Region,
+        View::Text => SelectMode::Text,
+        View::Window => SelectMode::Window,
+        View::Color => SelectMode::Color,
+        View::Scroll => SelectMode::Scroll,
+    }
+}
+
 impl SelectionFlow for LayerShellSelectionFlow {
     fn run(&self, mode: SelectMode, cx: &mut App) -> Task<Result<Selection>> {
         let Some(first) = view_for(mode) else {
             return Task::ready(Err(Error::Unsupported));
         };
+        self.showing.set(Some(first));
         let ids: Vec<OutputId> = self
             .surfaces
             .source()
@@ -386,10 +404,10 @@ impl SelectionFlow for LayerShellSelectionFlow {
         let (tx, rx) = async_channel::unbounded();
         let listening = Listening::start(&self.picking, tx.clone());
         let frozen = cx.background_spawn(async move {
-            let windows = (backend.windows.snapshot(), backend.windows.has_geometry());
             let frames = backend
                 .capture
                 .capture_outputs(&ids, CaptureOpts { cursor: false });
+            let windows = (backend.windows.snapshot(), backend.windows.has_geometry());
             (frames, windows)
         });
         let options = (self.options)(cx);
@@ -434,9 +452,7 @@ impl SelectionFlow for LayerShellSelectionFlow {
                         }
                     }
                     Pick::Switch(next) if usable(next, &setup) == view => {}
-                    Pick::Switch(View::Window) if setup.windows.is_empty() && !setup.geometry => {
-                        return Err(Error::Unsupported);
-                    }
+                    Pick::Switch(View::Window) if setup.windows.is_empty() && !setup.geometry => {}
                     Pick::Switch(next) => {
                         view = usable(next, &setup);
                         cx.update(|cx| open.show(view, &setup, cx));
@@ -528,6 +544,11 @@ impl SelectionFlow for LayerShellSelectionFlow {
             Switch::Close => Pick::Cancel,
         };
         live::switch(&self.picking, (0, pick))
+    }
+
+    fn showing(&self) -> Option<SelectMode> {
+        self.picking.borrow().as_ref()?;
+        self.showing.get().map(mode_of)
     }
 }
 

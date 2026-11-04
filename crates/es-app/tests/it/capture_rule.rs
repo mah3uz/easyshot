@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used)]
 use es_app::capture_coordinator::{
-    CaptureCoordinator, CaptureKind, CaptureRequest, Direct, DirectCapture, Timer,
+    CaptureCoordinator, CaptureKind, CaptureRequest, Direct, DirectCapture, Timer, UNMAP_SETTLE,
 };
 use es_app::errors::{Error, Result};
 use es_app::jobs::{JobFinished, JobId, Jobs};
@@ -15,6 +15,8 @@ use gpui::{App, Task, TestAppContext};
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::Arc;
+
+mod takeover;
 
 type Log = Rc<RefCell<Vec<String>>>;
 
@@ -36,6 +38,7 @@ struct Screen {
     freezes: Cell<usize>,
     open: Cell<usize>,
     most_open: Cell<usize>,
+    showing: Cell<Option<SelectMode>>,
 }
 
 struct Shown(Rc<Screen>);
@@ -56,6 +59,7 @@ impl SelectionFlow for Flow {
         s.open.set(s.open.get() + 1);
         s.most_open.set(s.most_open.get().max(s.open.get()));
         s.log.borrow_mut().push(format!("select {mode:?}"));
+        s.showing.set(Some(mode));
         let (tx, rx) = async_channel::bounded(1);
         s.gates.borrow_mut().push(tx.clone());
         *s.live.borrow_mut() = Some(Live {
@@ -79,11 +83,16 @@ impl SelectionFlow for Flow {
             .borrow_mut()
             .push(format!("{to:?} on frame {}", live.frame));
         match to {
-            Switch::To(_) => {}
+            Switch::To(mode) => self.0.showing.set(Some(mode)),
             Switch::Whole => live.tx.try_send(color()).unwrap(),
             Switch::Close => live.tx.try_send(Selection::Cancelled).unwrap(),
         }
         true
+    }
+
+    fn showing(&self) -> Option<SelectMode> {
+        self.0.live.borrow().as_ref()?;
+        self.0.showing.get()
     }
 }
 
@@ -224,7 +233,8 @@ fn another_mode_while_picking_takes_the_pick_over_on_the_same_frame(cx: &mut Tes
     );
     assert_eq!(
         rig.finished(),
-        [(second, JobStatus::Ok), (first, JobStatus::Cancelled)]
+        [(first, JobStatus::Cancelled), (second, JobStatus::Ok)],
+        "the replaced request is answered when it is replaced"
     );
     assert!(rig.coordinator.is_idle());
 }
@@ -267,6 +277,13 @@ fn previous_while_picking_closes_the_pick_and_takes_the_previous_target(cx: &mut
     let rig = rig(cx);
     rig.submit(cx, CaptureKind::Region);
     let previous = rig.submit(cx, CaptureKind::Previous);
+    assert_eq!(
+        rig.log(),
+        ["select Region", "Close on frame 1"],
+        "the overlay leaves the screen before the grab"
+    );
+    cx.executor().advance_clock(UNMAP_SETTLE);
+    cx.run_until_parked();
     assert_eq!(
         rig.log(),
         [
@@ -355,26 +372,6 @@ fn a_timed_capture_is_replaceable_while_picking_and_committed_during_the_countdo
 }
 
 #[gpui::test]
-fn a_screenshot_runs_while_a_recording_does(cx: &mut TestAppContext) {
-    let rig = rig(cx);
-    rig.slow.borrow_mut().push(CaptureKind::Recording);
-    let recording = rig.submit(cx, CaptureKind::Recording);
-    let shot = rig.submit(cx, CaptureKind::Fullscreen);
-
-    assert_eq!(
-        rig.log(),
-        [
-            "direct Fullscreen",
-            "pipeline Recording",
-            "direct Fullscreen",
-            "pipeline Fullscreen"
-        ]
-    );
-    assert_eq!(rig.finished(), [(shot, JobStatus::Ok)]);
-    assert!(rig.jobs.is_running(recording));
-}
-
-#[gpui::test]
 fn a_burst_of_mixed_requests_leaves_one_overlay_and_nothing_waiting(cx: &mut TestAppContext) {
     use CaptureKind::*;
     let rig = rig(cx);
@@ -392,11 +389,7 @@ fn a_burst_of_mixed_requests_leaves_one_overlay_and_nothing_waiting(cx: &mut Tes
     let running: Vec<_> = jobs.iter().filter(|j| rig.jobs.is_running(**j)).collect();
     assert_eq!(running.len(), 1);
     let finished: Vec<JobId> = rig.finished().into_iter().map(|f| f.0).collect();
-    assert_eq!(
-        finished.len(),
-        jobs.len() - 2,
-        "all but the runner and the owner answered"
-    );
+    assert_eq!(finished.len(), jobs.len() - 1, "all but the owner answered");
     rig.release(cx, 1);
     assert_eq!(rig.log().last().unwrap(), "pipeline Region");
     assert!(rig.coordinator.is_idle());
@@ -407,20 +400,12 @@ fn cancelling_the_request_that_took_over_ends_the_capture(cx: &mut TestAppContex
     let rig = rig(cx);
     let first = rig.submit(cx, CaptureKind::Region);
     let second = rig.submit(cx, CaptureKind::Window);
-    rig.finished();
+    assert_eq!(rig.finished(), [(first, JobStatus::Cancelled)]);
 
     let dispatcher_cancel = rig.coordinator.cancel(second) || rig.jobs.cancel(second);
     cx.run_until_parked();
     assert!(dispatcher_cancel);
-    let mut statuses = rig.finished();
-    statuses.sort_by_key(|f| f.0.0);
-    assert_eq!(
-        statuses,
-        [
-            (first, JobStatus::Cancelled),
-            (second, JobStatus::Cancelled)
-        ]
-    );
+    assert_eq!(rig.finished(), [(second, JobStatus::Cancelled)]);
     assert_eq!(rig.screen.open.get(), 0);
     assert!(rig.coordinator.is_idle());
 }
@@ -439,19 +424,6 @@ fn a_claim_keeps_captures_out_and_is_refused_while_one_runs(cx: &mut TestAppCont
 
     rig.submit(cx, CaptureKind::Region);
     assert!(rig.coordinator.claim().is_err());
-}
-
-#[gpui::test]
-fn the_bar_s_recording_area_is_picked_under_the_same_rule(cx: &mut TestAppContext) {
-    let rig = rig(cx);
-    let area = cx.update(|cx| rig.coordinator.select_area(cx));
-    cx.run_until_parked();
-    let refused = rig.submit(cx, CaptureKind::Window);
-    assert_eq!(rig.finished(), [(refused, JobStatus::Error)]);
-    assert_eq!(rig.screen.most_open.get(), 1);
-    rig.release(cx, 0);
-    assert!(area.now_or_never().unwrap().is_ok());
-    assert!(rig.coordinator.is_idle());
 }
 
 #[gpui::test]
@@ -493,7 +465,8 @@ fn a_timed_capture_picks_then_counts_down_then_captures_afresh(cx: &mut TestAppC
     let rig = rig(cx);
     let hide = rig.log.clone();
     rig.coordinator.set_before_capture(Rc::new(move |_| {
-        hide.borrow_mut().push("hide picker".into())
+        hide.borrow_mut().push("hide picker".into());
+        false
     }));
     let count = rig.log.clone();
     rig.coordinator.set_countdown(Rc::new(move |timer, _| {

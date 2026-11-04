@@ -39,6 +39,7 @@ pub struct JobFinished {
 struct Running {
     _task: Task<()>,
     cancel: CancelToken,
+    answered: bool,
 }
 
 struct Inner {
@@ -53,7 +54,9 @@ impl Inner {
             return false;
         };
         job.cancel.0.store(true, Ordering::Relaxed);
-        let _ = self.finished.try_send(JobFinished { id, status, detail });
+        if !job.answered {
+            let _ = self.finished.try_send(JobFinished { id, status, detail });
+        }
         true
     }
 }
@@ -127,6 +130,7 @@ impl Jobs {
             Running {
                 _task: task,
                 cancel: cancel.clone(),
+                answered: false,
             },
         );
         cancel
@@ -145,6 +149,14 @@ impl Jobs {
             status: status_of(result),
             detail,
         });
+    }
+
+    /// Reports a running job now; its task goes on for someone else and ends without a second report.
+    pub fn answer(&self, id: JobId, result: &Result<()>) {
+        if let Some(job) = self.inner.running.borrow_mut().get_mut(&id) {
+            job.answered = true;
+        }
+        self.report(id, result);
     }
 }
 

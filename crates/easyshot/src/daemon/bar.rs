@@ -1,6 +1,6 @@
 use super::recording::Recordings;
 use super::windows::Wiring;
-use es_app::capture_coordinator::Hook;
+use es_app::capture_coordinator::Closing;
 use es_app::errors::Error;
 use es_app::toast::{Toast, show_toast};
 use es_app::windows::{WindowKey, WindowKind, Windows};
@@ -13,7 +13,7 @@ use gpui::{App, AppContext as _, Entity};
 use std::rc::Rc;
 
 /// A capture started while the bar is open would otherwise show the bar in the frame.
-pub fn close_before_capture(windows: &Windows) -> Hook {
+pub fn close_before_capture(windows: &Windows) -> Closing {
     let windows = windows.clone();
     Rc::new(move |cx| windows.close(WindowKind::CaptureBar, &WindowKey::Single, cx))
 }

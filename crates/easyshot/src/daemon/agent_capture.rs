@@ -97,6 +97,7 @@ pub fn install(
     let record = super::record::install(
         cx,
         &cx.global::<Recordings>().clone(),
+        &deps.coordinator,
         super::sources(backend),
         &access,
         &pipeline.settings,

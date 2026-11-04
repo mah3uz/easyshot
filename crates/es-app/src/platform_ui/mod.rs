@@ -91,6 +91,11 @@ pub trait SelectionFlow {
     fn switch(&self, _to: Switch, _cx: &mut App) -> bool {
         false
     }
+
+    /// The mode the running pick shows now, which the user may have changed.
+    fn showing(&self) -> Option<SelectMode> {
+        None
+    }
 }
 
 pub trait ClipboardSink {

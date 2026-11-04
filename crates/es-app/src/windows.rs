@@ -101,15 +101,19 @@ impl Windows {
         Ok(())
     }
 
-    pub fn close(&self, kind: WindowKind, key: &WindowKey, cx: &mut App) {
+    /// True when the window was open.
+    pub fn close(&self, kind: WindowKind, key: &WindowKey, cx: &mut App) -> bool {
         let key = key.clone().canonical();
         let existing = self.inner.open.borrow().get(&(kind, key.clone())).cloned();
-        if let Some(handle) = existing {
-            if handle.is_open(cx) {
-                handle.close(cx);
-            }
-            self.forget(kind, &key);
+        let Some(handle) = existing else {
+            return false;
+        };
+        let open = handle.is_open(cx);
+        if open {
+            handle.close(cx);
         }
+        self.forget(kind, &key);
+        open
     }
 
     pub fn forget(&self, kind: WindowKind, key: &WindowKey) {
