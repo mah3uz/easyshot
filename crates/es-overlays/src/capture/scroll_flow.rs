@@ -1,5 +1,5 @@
 use super::geometry;
-use super::scroll::{self, AUTO_SPEED, Command, Outcome, Params, Source, Update};
+use super::scroll::{self, Command, Outcome, Params, Source, Update};
 use super::scroll_hud::{
     HUD, HudEvent, PREVIEW_WIDTH, ScrollHud, ScrollPreview, Strip, hud_origin, outline,
     preview_column,
@@ -16,6 +16,9 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::{Arc, mpsc};
 use std::time::{Duration, Instant};
+
+// The axis value of one wheel click on Wayland; how far a click moves the page is up to the app.
+const WHEEL_CLICK: f64 = 15.0;
 
 /// The running capture's command line, so the shortcut pressed again can stop it.
 pub type Control = Rc<RefCell<Option<mpsc::Sender<Command>>>>;
@@ -44,7 +47,8 @@ impl Source for Live {
         es_scroll::Frame::new(w as usize, h as usize, cropped.bgra.to_vec())
     }
 
-    fn scroll(&mut self, dy: f64) -> bool {
+    fn scroll(&mut self, clicks: u32) -> bool {
+        let dy = f64::from(clicks) * WHEEL_CLICK;
         self.backend
             .virtual_input
             .as_ref()
@@ -143,10 +147,6 @@ pub(crate) async fn capture(
     });
     let params = Params {
         auto_available,
-        step: f64::from(es_scroll::auto_scroll_step(
-            area.height() as u32,
-            AUTO_SPEED,
-        )),
         preview: preview_px,
         max_height: es_scroll::MAX_HEIGHT,
     };

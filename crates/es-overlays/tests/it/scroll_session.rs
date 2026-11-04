@@ -38,6 +38,8 @@ struct Fake {
     at: Vec<(u64, Command)>,
     inside: bool,
     flicker: bool,
+    /// How many rows one wheel click moves this app.
+    per_click: usize,
     grabs: usize,
     scrolls: usize,
     sleeps: Vec<Duration>,
@@ -56,6 +58,7 @@ impl Fake {
             at: Vec::new(),
             inside: true,
             flicker: false,
+            per_click: 15,
             grabs: 0,
             scrolls: 0,
             sleeps: Vec::new(),
@@ -81,9 +84,9 @@ impl Source for Fake {
         Frame::new(W, VIEW, data)
     }
 
-    fn scroll(&mut self, dy: f64) -> bool {
+    fn scroll(&mut self, clicks: u32) -> bool {
         self.scrolls += 1;
-        self.offset = (self.offset + dy as usize).min(self.rows - VIEW);
+        self.offset = (self.offset + clicks as usize * self.per_click).min(self.rows - VIEW);
         true
     }
 
@@ -115,7 +118,6 @@ impl Source for Fake {
 fn params(max_height: usize) -> Params {
     Params {
         auto_available: true,
-        step: 45.0,
         preview: (50, 200),
         max_height,
     }
@@ -156,6 +158,42 @@ fn auto_scroll_runs_to_the_end_of_the_page_and_stitches_it_exactly() {
     );
     assert!(updates.contains(&Update::Auto(true)));
     assert_eq!(heights(&updates).last(), Some(&1000));
+}
+
+fn auto_capture(per_click: usize) -> (Fake, Outcome) {
+    let (tx, rx) = mpsc::channel();
+    let mut fake = Fake::new(1000, tx.clone());
+    fake.per_click = per_click;
+    tx.send(Command::Auto(true)).expect("queued");
+    let (outcome, _) = run(&mut fake, &rx, es_scroll::MAX_HEIGHT);
+    (fake, outcome)
+}
+
+// One click moves a browser or terminal about a tenth of a typical area; a step sized in points jumped past the area entirely.
+#[test]
+fn auto_scroll_learns_how_far_a_click_moves_and_never_jumps_past_the_area() {
+    let (fake, outcome) = auto_capture(40);
+    let Outcome::Done(image) = outcome else {
+        panic!("auto scroll ends with an image, got {outcome:?}");
+    };
+    assert_eq!(
+        image.height, 1000,
+        "more than the first view: the whole page"
+    );
+    assert!(image.data == fake.page, "every row in its place");
+}
+
+#[test]
+fn auto_scroll_reaches_the_end_of_an_app_that_moves_one_row_per_click() {
+    let (fake, outcome) = auto_capture(1);
+    let Outcome::Done(image) = outcome else {
+        panic!("auto scroll ends with an image, got {outcome:?}");
+    };
+    assert_eq!(
+        image.height, 1000,
+        "tiny clicks are not taken for the end of the page"
+    );
+    assert!(image.data == fake.page);
 }
 
 #[test]

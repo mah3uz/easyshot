@@ -1,4 +1,6 @@
-use es_scroll::{AutoScrollStop, Frame, Push, Settle, SettleStep, Stitcher, frame_hash};
+use es_scroll::{
+    AutoScrollStop, Frame, Push, Settle, SettleStep, Stitcher, auto_scroll_step, frame_hash,
+};
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::time::{Duration, Instant};
 
@@ -12,8 +14,8 @@ pub const AUTO_SPEED: u32 = 3;
 pub trait Source {
     /// The area as it is now, or `None` when the capture failed.
     fn grab(&mut self) -> Option<Frame>;
-    /// `false` when the scroll could not be sent.
-    fn scroll(&mut self, dy: f64) -> bool;
+    /// Wheel clicks down; `false` when the scroll could not be sent.
+    fn scroll(&mut self, clicks: u32) -> bool;
     fn pointer_inside(&self) -> bool;
     fn sleep(&mut self, d: Duration);
     fn now(&self) -> Instant;
@@ -44,8 +46,6 @@ pub enum Outcome {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Params {
     pub auto_available: bool,
-    /// Logical points per automatic scroll.
-    pub step: f64,
     /// The largest preview image, in pixels.
     pub preview: (usize, usize),
     pub max_height: usize,
@@ -83,6 +83,44 @@ pub fn fit(frame: &Frame, max: (usize, usize)) -> Frame {
         width: w,
         height: h,
         data,
+    }
+}
+
+/// Each app picks how far one wheel click moves it, so the clicks per step are learned from the shifts the stitcher measures.
+struct Pace {
+    target: usize,
+    per_click: Option<f64>,
+    unmatched: u32,
+}
+
+impl Pace {
+    fn new(frame_height: usize) -> Self {
+        Pace {
+            target: auto_scroll_step(frame_height as u32, AUTO_SPEED) as usize,
+            per_click: None,
+            unmatched: 0,
+        }
+    }
+
+    /// Until a shift is measured, each step doubles the clicks so far, so no step can jump past the area.
+    fn clicks(&self) -> u32 {
+        match self.per_click {
+            Some(p) => ((self.target as f64 / p).floor() as u32).max(1),
+            None => self.unmatched.max(1),
+        }
+    }
+
+    fn sent(&mut self, clicks: u32) {
+        self.unmatched += clicks;
+    }
+
+    fn observe(&mut self, push: Push) {
+        if let Push::Appended(dy) = push
+            && self.unmatched > 0
+        {
+            self.per_click = Some(dy as f64 / f64::from(self.unmatched));
+            self.unmatched = 0;
+        }
     }
 }
 
@@ -144,6 +182,7 @@ pub fn run(
     }
     let mut auto = false;
     let mut stop = AutoScrollStop::new();
+    let mut pace = Pace::new(first.height);
     let mut seen = frame_hash(&first);
     let mut moved: Option<Instant> = None;
     loop {
@@ -162,12 +201,15 @@ pub fn run(
             }
         }
         let push = if auto {
-            if !src.scroll(params.step) {
+            let clicks = pace.clicks();
+            if !src.scroll(clicks) {
                 auto = false;
                 (session.emit)(Update::Auto(false));
                 continue;
             }
+            pace.sent(clicks);
             let push = settled(src).map_or(Push::NoOverlap, |f| session.push(&f, false));
+            pace.observe(push);
             if push != Push::Full && stop.record(matches!(push, Push::Appended(_))) {
                 return session.finish_with(src);
             }
