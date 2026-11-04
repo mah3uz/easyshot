@@ -19,7 +19,6 @@ const TICK: Duration = Duration::from_secs(1);
 const EXIT: Duration = Duration::from_millis(300);
 const EXIT_REDUCED: Duration = Duration::from_millis(120);
 // The overlay's frame callback stops once it is unmapped, so a frame period stands in for it.
-const UNMAP_SETTLE: Duration = Duration::from_millis(34);
 const DIAL: f32 = 152.;
 const DIGIT: f32 = 68.;
 const RING: f32 = 5.;
@@ -374,7 +373,7 @@ pub fn hook(surfaces: Rc<LayerShellSurfaces>, delay: Rc<dyn Fn(&App) -> u32>) ->
         cx.spawn(async move |cx| {
             run.await;
             cx.update(|cx| handle.close(cx));
-            settle(cx, UNMAP_SETTLE).await;
+            settle(cx).await;
             Ok(())
         })
     })

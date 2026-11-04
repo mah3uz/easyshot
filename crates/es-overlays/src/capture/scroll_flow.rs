@@ -4,6 +4,7 @@ use super::scroll_hud::{
     HUD, HudEvent, PREVIEW_WIDTH, ScrollHud, ScrollPreview, Strip, hud_origin, outline,
     preview_column,
 };
+use es_app::capture_coordinator::settle;
 use es_app::errors::{Error, Result};
 use es_app::platform_ui::{
     LayerShellSurfaces, LayerSurfaceHandle, Selection, SurfaceHandle as _, SurfaceRole,
@@ -160,6 +161,7 @@ pub(crate) async fn capture(
     window: Option<WindowId>,
     cx: &mut AsyncApp,
 ) -> Result<Selection> {
+    settle(cx).await;
     let info = surfaces.output_info(&output)?;
     let (visible, scale) = (info.logical, info.scale);
     let area = local + Point::new(visible.x0, visible.y0).to_vec2();

@@ -8,8 +8,6 @@ use std::time::{Duration, Instant};
 /// Wayland reports no scroll events from other clients, so manual mode watches the frames instead.
 pub const POLL: Duration = Duration::from_millis(150);
 pub const QUIET: Duration = Duration::from_millis(250);
-// The selector's surfaces are still on screen for a frame or two after they close.
-pub const UNMAP: Duration = Duration::from_millis(80);
 pub const AUTO_SPEED: u32 = 3;
 
 pub trait Source {
@@ -194,7 +192,6 @@ pub fn run(
     params: Params,
     emit: &mut dyn FnMut(Update),
 ) -> Outcome {
-    src.sleep(UNMAP);
     let mut session = Session {
         stitcher: Stitcher::with_max_height(params.max_height),
         params,

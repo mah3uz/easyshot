@@ -7,6 +7,7 @@ use es_model::platform::{
 use es_protocol::Route;
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BindSyntax {
@@ -68,6 +69,12 @@ pub trait Clipboard: Send + Sync {
 
 pub trait VirtualInput: Send + Sync {
     fn scroll(&self, at: Point, dy: f64) -> Result<()>;
+}
+
+/// The compositor's own report of how it animates a layer surface away.
+pub trait LayerFade: Send + Sync {
+    /// How long a closed layer surface stays on screen, as the compositor is set up now.
+    fn linger(&self) -> Result<Duration>;
 }
 
 /// The compositor's own report of its screen lock.

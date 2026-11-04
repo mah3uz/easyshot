@@ -1,8 +1,10 @@
+mod fade;
 mod ipc;
 mod json;
 mod rules;
 mod windows;
 
+pub use fade::{Animation, HyprFade, layer_close, parse as parse_fade};
 pub use ipc::{EVENT_SOCKET, Ipc, REQUEST_SOCKET, REQUEST_TIMEOUT};
 pub use json::{
     Client, CursorPos, Monitor, focused_monitor, join_toplevels, output_at, visible_windows,
@@ -12,7 +14,7 @@ pub use windows::{HyprEvent, HyprWindows, Toplevels, parse_event};
 
 use crate::error::BackendError;
 use crate::probe::{Env, Probe, Provider};
-use crate::traits::{BindHelper, BindSyntax, PointerQuery, WindowList};
+use crate::traits::{BindHelper, BindSyntax, LayerFade, PointerQuery, WindowList};
 use es_geom::Point;
 use es_model::platform::{CursorSource, OutputId};
 use std::path::{Path, PathBuf};
@@ -143,4 +145,10 @@ pub const CURSOR: Provider<dyn CursorSource> = Provider {
     name: "hyprland",
     probe: |p| detected(p).map(|_| 10),
     build: |p| Ok(Box::new(HyprPointer { ipc: ipc(p)? })),
+};
+
+pub const FADE: Provider<dyn LayerFade> = Provider {
+    name: "hyprland",
+    probe: detected,
+    build: |p| Ok(Box::new(HyprFade { ipc: ipc(p)? })),
 };

@@ -1,15 +1,20 @@
 use crate::errors::{Error, Result};
 use crate::jobs::{JobId, Jobs};
 use crate::platform_ui::{SelectMode, Selection, SelectionFlow, Switch};
+use crate::services::Services;
 use crate::toast::{IconName, Toast, show_toast};
+use es_backend::Backend;
 use es_model::capture::CaptureVariant;
 use gpui::{App, AsyncApp, Task};
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::time::Duration;
 
-/// A closed layer surface stays on screen until the compositor repaints without it.
+/// A closed layer surface stays on screen until the compositor repaints without it; this is the
+/// wait when the compositor does not say how long it animates one away.
 pub const UNMAP_SETTLE: Duration = Duration::from_millis(150);
+/// The close reaching the compositor and its next repaint, past the animation it reports.
+pub const REPAINT_MARGIN: Duration = Duration::from_millis(50);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CaptureKind {
@@ -335,7 +340,7 @@ impl CaptureCoordinator {
         let jobs = inner.jobs.clone();
         jobs.spawn(job, cx, move |_| async move {
             if closed {
-                settle(&async_cx, UNMAP_SETTLE).await;
+                settle(&async_cx).await;
             }
             let picked = match async_cx.update(|cx| select(request.kind, &hooks, cx)) {
                 Ok(task) => task.await,
@@ -404,9 +409,30 @@ impl CaptureCoordinator {
     }
 }
 
-/// Waits after a surface of ours closes, before the screen is grabbed.
-pub async fn settle(cx: &AsyncApp, wait: Duration) {
-    cx.background_executor().timer(wait).await;
+pub fn unmap_settle(linger: Option<Duration>) -> Duration {
+    linger.map_or(UNMAP_SETTLE, |l| l + REPAINT_MARGIN)
+}
+
+/// Waits after a surface of ours closes, before the screen is grabbed, for as long as the
+/// compositor keeps drawing it.
+pub async fn settle(cx: &AsyncApp) {
+    let backend = cx.try_read_global(|s: &Services, _| s.backend.clone());
+    let linger = match backend {
+        Some(backend) => {
+            cx.background_executor()
+                .spawn(async move { linger(&backend) })
+                .await
+        }
+        None => None,
+    };
+    cx.background_executor().timer(unmap_settle(linger)).await;
+}
+
+fn linger(backend: &Backend) -> Option<Duration> {
+    let fade = backend.fade.as_ref()?;
+    fade.linger()
+        .inspect_err(|e| tracing::debug!("layer fade: {e}"))
+        .ok()
 }
 
 async fn finish(
@@ -418,7 +444,7 @@ async fn finish(
 ) -> Result<()> {
     let picked = match picked? {
         Selection::Cancelled if request.kind == CaptureKind::Previous && first != request.kind => {
-            settle(cx, UNMAP_SETTLE).await;
+            settle(cx).await;
             cx.update(|cx| direct(hooks, Direct::Previous, cx))?.await?
         }
         Selection::Cancelled => return Err(Error::Cancelled),

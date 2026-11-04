@@ -6,3 +6,4 @@ mod platform_daemon;
 mod platform_previous;
 mod platform_recording;
 mod platform_scroll;
+mod platform_settle;

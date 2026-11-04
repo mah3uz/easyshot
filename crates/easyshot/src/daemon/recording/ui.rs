@@ -1,5 +1,5 @@
 use super::{Countdown, RecordingUi, Shown};
-use es_app::capture_coordinator::{UNMAP_SETTLE, settle};
+use es_app::capture_coordinator::settle;
 use es_app::errors::{Error, Result};
 use es_app::platform_ui::{
     LayerShellSurfaces, LayerSurfaceHandle, SurfaceHandle as _, SurfaceRole,
@@ -175,7 +175,7 @@ pub fn countdown(surfaces: Rc<LayerShellSurfaces>) -> Countdown {
         cx.spawn(async move |cx| {
             run.await;
             cx.update(|cx| handle.close(cx));
-            settle(cx, UNMAP_SETTLE).await;
+            settle(cx).await;
             Ok(())
         })
     })

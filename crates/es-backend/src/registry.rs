@@ -1,6 +1,8 @@
 use crate::backend::{ProviderReport, ReportEntry};
 use crate::probe::{Probe, Provider};
-use crate::traits::{BindHelper, Capture, Clipboard, PointerQuery, VirtualInput, WindowList};
+use crate::traits::{
+    BindHelper, Capture, Clipboard, LayerFade, PointerQuery, VirtualInput, WindowList,
+};
 use crate::{desktop, wayland};
 use es_desktop::{Appearance, FilePicker, Notifier, Shortcuts, Tray};
 use es_model::platform::CursorSource;
@@ -43,6 +45,11 @@ pub static BINDS: &[Provider<dyn BindHelper>] = &[
     niri::BINDS,
 ];
 
+pub static FADE: &[Provider<dyn LayerFade>] = &[
+    #[cfg(feature = "hyprland")]
+    hyprland::FADE,
+];
+
 pub static CLIPBOARD: &[Provider<dyn Clipboard>] = &[wayland::DATA_CONTROL];
 
 pub static VIRTUAL_INPUT: &[Provider<dyn VirtualInput>] = &[wayland::VIRTUAL_POINTER];
@@ -71,6 +78,7 @@ pub struct Registry {
     pub windows: &'static [Provider<dyn WindowList>],
     pub pointer: &'static [Provider<dyn PointerQuery>],
     pub binds: &'static [Provider<dyn BindHelper>],
+    pub fade: &'static [Provider<dyn LayerFade>],
     pub clipboard: &'static [Provider<dyn Clipboard>],
     pub virtual_input: &'static [Provider<dyn VirtualInput>],
     pub cursor: &'static [Provider<dyn CursorSource>],
@@ -88,6 +96,7 @@ impl Registry {
         windows: &[],
         pointer: &[],
         binds: &[],
+        fade: &[],
         clipboard: &[],
         virtual_input: &[],
         cursor: &[],
@@ -107,6 +116,7 @@ impl Default for Registry {
             windows: WINDOWS,
             pointer: POINTER,
             binds: BINDS,
+            fade: FADE,
             clipboard: CLIPBOARD,
             virtual_input: VIRTUAL_INPUT,
             cursor: CURSOR,

@@ -2,7 +2,7 @@ use crate::error::{Error, Result};
 use crate::probe::{Probe, TOOL_PACKAGES};
 use crate::registry::{Registry, select, select_all};
 use crate::traits::{
-    BindHelper, Capture, Clipboard, PointerQuery, ScreenLock, VirtualInput, WindowList,
+    BindHelper, Capture, Clipboard, LayerFade, PointerQuery, ScreenLock, VirtualInput, WindowList,
 };
 use crate::{desktop, wayland};
 use bitflags::bitflags;
@@ -83,6 +83,7 @@ pub struct Backend {
     pub windows: Box<dyn WindowList>,
     pub pointer: Option<Box<dyn PointerQuery>>,
     pub binds: Option<Box<dyn BindHelper>>,
+    pub fade: Option<Box<dyn LayerFade>>,
     pub clipboard: Box<dyn Clipboard>,
     pub shortcuts: Box<dyn Shortcuts>,
     pub tray: Option<Box<dyn Tray>>,
@@ -154,6 +155,7 @@ impl Backend {
             windows: Box::new(windows),
             pointer: select("pointer", reg.pointer, probe, &mut report),
             binds: select("binds", reg.binds, probe, &mut report),
+            fade: select("fade", reg.fade, probe, &mut report),
             clipboard: select("clipboard", reg.clipboard, probe, &mut report)
                 .unwrap_or_else(|| Box::new(NoClipboard)),
             virtual_input: select("virtual_input", reg.virtual_input, probe, &mut report),

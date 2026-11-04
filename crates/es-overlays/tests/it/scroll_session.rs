@@ -249,7 +249,7 @@ fn an_area_that_never_settles_is_retried_with_growing_pauses_then_taken() {
         fake.grabs, 8,
         "seven tries within 200 ms, the last frame is used, then one more shows what animates in place"
     );
-    let ms: Vec<u128> = fake.sleeps[1..].iter().map(|d| d.as_millis()).collect();
+    let ms: Vec<u128> = fake.sleeps.iter().map(|d| d.as_millis()).collect();
     assert_eq!(ms, vec![10, 15, 22, 33, 50, 75]);
     assert_eq!(heights(&updates), vec![VIEW]);
 }

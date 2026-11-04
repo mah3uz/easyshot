@@ -114,8 +114,16 @@ enum View {
 #[derive(Debug, Clone, PartialEq)]
 enum Pick {
     Began,
-    Region(Rect),
-    Window { id: WindowId, local: Option<Rect> },
+    /// `made` is the view the pick was made in, which a Space queued before it may have left.
+    Region {
+        local: Rect,
+        made: View,
+    },
+    Window {
+        id: WindowId,
+        local: Option<Rect>,
+        made: View,
+    },
     Color(Rgba),
     Cancel,
     ToWindow,
@@ -196,11 +204,12 @@ fn remembered(output: &OutputId, local: Rect) -> LastRegion {
     }
 }
 
-fn pick(event: &PickEvent) -> Pick {
+fn pick(event: &PickEvent, made: View) -> Pick {
     match event {
         PickEvent::Window { id, local } => Pick::Window {
             id: id.clone(),
             local: *local,
+            made,
         },
         PickEvent::Cancel => Pick::Cancel,
         PickEvent::Region => Pick::ToRegion,
@@ -276,17 +285,17 @@ impl Open {
                         }
                         send(match *event {
                             SelectorEvent::Began => Pick::Began,
-                            SelectorEvent::Capture(r) => Pick::Region(r),
+                            SelectorEvent::Capture(local) => Pick::Region { local, made: view },
                             SelectorEvent::Cancel => Pick::Cancel,
                             SelectorEvent::WindowMode => Pick::ToWindow,
                         });
                     })
                 }
                 Some(Content::Window(e)) => {
-                    cx.subscribe(e, move |_, event: &PickEvent, _| send(pick(event)))
+                    cx.subscribe(e, move |_, event: &PickEvent, _| send(pick(event, view)))
                 }
                 Some(Content::Picker(e)) => {
-                    cx.subscribe(e, move |_, event: &PickEvent, _| send(pick(event)))
+                    cx.subscribe(e, move |_, event: &PickEvent, _| send(pick(event, view)))
                 }
                 Some(Content::Color(e)) => cx.subscribe(e, move |_, event: &ColorEvent, _| {
                     send(match *event {
@@ -473,7 +482,10 @@ impl SelectionFlow for LayerShellSelectionFlow {
                         });
                     }
                     Pick::Color(c) => return Ok(Selection::Color(c)),
-                    Pick::Region(local) if view == View::Scroll => {
+                    Pick::Region {
+                        local,
+                        made: View::Scroll,
+                    } => {
                         drop(open);
                         let (surfaces, backend) = (this.surfaces.clone(), this.backend.clone());
                         let control = this.scroll.clone();
@@ -482,7 +494,11 @@ impl SelectionFlow for LayerShellSelectionFlow {
                         )
                         .await;
                     }
-                    Pick::Window { id, local } if view == View::ScrollWindow => {
+                    Pick::Window {
+                        id,
+                        local,
+                        made: View::ScrollWindow,
+                    } => {
                         let bounds =
                             Rect::new(0.0, 0.0, frame.logical.width(), frame.logical.height());
                         let area = local
@@ -507,11 +523,11 @@ impl SelectionFlow for LayerShellSelectionFlow {
                         )
                         .await;
                     }
-                    Pick::Region(local) => {
+                    Pick::Region { local, made } => {
                         let cropped = geometry::crop(&frame, local)
                             .ok_or_else(|| Error::Internal("empty selection".into()))?;
                         drop(open);
-                        if view == View::Region {
+                        if made == View::Region {
                             let remember = this.remember.clone();
                             let last = remembered(&output, local);
                             cx.update(|cx| remember(last, cx));
@@ -522,7 +538,7 @@ impl SelectionFlow for LayerShellSelectionFlow {
                             frame: Arc::new(cropped),
                         });
                     }
-                    Pick::Window { id, local } => {
+                    Pick::Window { id, local, .. } => {
                         drop(open);
                         let backend = this.backend.clone();
                         let wanted = id.clone();

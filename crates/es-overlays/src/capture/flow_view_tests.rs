@@ -50,3 +50,28 @@ fn with_no_window_to_pick_a_scroll_capture_starts_on_a_region() {
     setup.geometry = true;
     assert_eq!(usable(View::ScrollWindow, &setup), View::ScrollWindow);
 }
+
+// Space and a click in one input batch: the click reaches the window view before the region
+// view replaces it, so it must still start a scroll capture of that window.
+#[test]
+fn a_pick_keeps_the_view_it_was_made_in_after_space_leaves_it() {
+    let click = PickEvent::Window {
+        id: WindowId("page".into()),
+        local: None,
+    };
+    assert_eq!(toggled(View::ScrollWindow, false), Some(View::Scroll));
+    assert!(matches!(
+        pick(&click, View::ScrollWindow),
+        Pick::Window {
+            made: View::ScrollWindow,
+            ..
+        }
+    ));
+    assert!(matches!(
+        pick(&click, View::Window),
+        Pick::Window {
+            made: View::Window,
+            ..
+        }
+    ));
+}

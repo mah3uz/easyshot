@@ -2,6 +2,7 @@ mod binds_file;
 mod caps;
 mod desktop;
 mod hyprland;
+mod hyprland_fade;
 mod niri;
 mod normalise;
 mod registry;

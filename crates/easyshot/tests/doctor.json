@@ -81,6 +81,17 @@
       ]
     },
     {
+      "capability": "fade",
+      "chosen": null,
+      "forced": null,
+      "rejected": [
+        {
+          "provider": "hyprland",
+          "reason": "not detected"
+        }
+      ]
+    },
+    {
       "capability": "clipboard",
       "chosen": null,
       "forced": null,

@@ -266,8 +266,14 @@ as a missing wallpaper. `es_store::wallpapers::read` reads only a regular file o
   while Committed is refused with the "A capture is in progress" toast, except a second
   scroll trigger, which stops the scroll. The capture bar's recording-area pick is an
   ordinary pick of kind `Area`, handed back to the bar unless another request takes it
-  over. A capture that closed the bar, and a Previous takeover that closed the picker,
-  wait `UNMAP_SETTLE` before freezing or grabbing. Agent captures and agent recording
+  over. A capture that closed the bar, a Previous takeover that closed the picker, a
+  countdown that ended and a scroll capture that closed the picker wait with
+  `capture_coordinator::settle` before freezing or grabbing: a compositor can keep drawing a
+  closed layer surface while it animates it away (on Hyprland its layer fade, measured at
+  about 250 ms on a 270 ms `fadeLayersOut`). The wait is what the `fade` provider
+  (`LayerFade`, Hyprland only: `animations:enabled` and the longer of `layersOut` and
+  `fadeLayersOut`, read when the wait starts) reports plus `REPAINT_MARGIN` (50 ms), or
+  `UNMAP_SETTLE` (150 ms) without one. Agent captures and agent recording
   starts take a `Claim`, which refuses while anything runs; agents get
   `invalid_arguments` "busy". A recording holds the coordinator through its start delay
   and releases it once the recorder runs, so screenshots run during a recording, and
