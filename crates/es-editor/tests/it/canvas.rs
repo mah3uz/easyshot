@@ -120,7 +120,7 @@ fn zoomed_in_the_canvas_paints_the_shapes_larger_and_sharper() {
 #[test]
 fn a_gradient_look_draws_its_background_around_the_card() {
     let look = BackgroundSettings {
-        style: BackgroundStyle::Gradient(GradientPreset::by_id("soft-lilac").unwrap().style()),
+        style: BackgroundStyle::Gradient(GradientPreset::by_id("periwinkle").unwrap().style()),
         ..BackgroundSettings::default()
     };
     let (mut app, session) = open(
@@ -145,8 +145,13 @@ fn a_gradient_look_draws_its_background_around_the_card() {
         "the padding shows the gradient, not the workspace"
     );
     let [r, g, b, _] = pad;
-    assert!(r > 150 && b > 150, "soft lilac is light: {pad:?}");
-    assert!(g < r.max(b), "and tinted: {pad:?}");
+    let want = [0x96u8, 0xA6, 0xEC];
+    for (got, want) in [r, g, b].into_iter().zip(want) {
+        assert!(
+            got.abs_diff(want) <= 12,
+            "the padding is the periwinkle top: {pad:?}"
+        );
+    }
 }
 
 #[test]

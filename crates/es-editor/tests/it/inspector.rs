@@ -33,7 +33,7 @@ struct Rig {
 }
 
 fn gradient() -> BackgroundStyle {
-    GradientPreset::by_id("soft-lilac")
+    GradientPreset::by_id("periwinkle")
         .map(|g| BackgroundStyle::Gradient(g.style()))
         .expect("a bundled gradient")
 }

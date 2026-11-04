@@ -280,7 +280,7 @@ fn timing_of_a_large_capture_with_fifty_shapes_on_a_gradient() {
         .collect();
     let notes = DrawList { items };
     let look = BackgroundSettings {
-        style: BackgroundStyle::Gradient(GradientPreset::by_id("soft-blue").unwrap().style()),
+        style: BackgroundStyle::Gradient(GradientPreset::by_id("azure").unwrap().style()),
         ..BackgroundSettings::default()
     };
     for (name, format) in [

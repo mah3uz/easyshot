@@ -1,6 +1,7 @@
 #![allow(clippy::unwrap_used)]
 
 use es_model::{BackgroundColor, BackgroundGradient, BackgroundStyle, UnitPoint};
+use es_render::beautify::GradientPreset;
 use es_render::beautify::gradients::{PRESETS, render_background, render_gradient};
 use tiny_skia::Pixmap;
 
@@ -15,14 +16,6 @@ fn channels(hex: u32) -> [f32; 3] {
         ((hex >> 8) & 255) as f32,
         (hex & 255) as f32,
     ]
-}
-
-fn stop_colour(stops: &[(u32, f32); 3], t: f32) -> [f32; 3] {
-    let i = if t <= stops[1].1 { 0 } else { 1 };
-    let (a, b) = (stops[i], stops[i + 1]);
-    let k = ((t - a.1) / (b.1 - a.1)).clamp(0.0, 1.0);
-    let (ca, cb) = (channels(a.0), channels(b.0));
-    [0, 1, 2].map(|c| ca[c] + (cb[c] - ca[c]) * k)
 }
 
 #[test]
@@ -45,24 +38,81 @@ fn a_plain_three_colour_gradient_hits_each_colour_at_its_position() {
     assert!(end[2] > 250.0 && end[0] < 4.0, "{end:?}");
 }
 
+type Expected = (&'static str, u32, u32, (f64, f64, f64, f64));
+
+const EXPECTED: [Expected; 24] = [
+    ("violet", 0x8728E2, 0x5105E0, (0.0, 0.0, 1.0, 1.0)),
+    ("jade", 0x8CDFB8, 0x2C5447, (0.0, 0.0, 1.0, 1.0)),
+    ("magenta", 0xF24DBD, 0xC0237C, (0.0, 0.0, 1.0, 1.0)),
+    ("sky", 0x8FDFE3, 0x818BD6, (0.0, 0.0, 1.0, 1.0)),
+    ("sunset", 0xF5A019, 0xF13612, (0.0, 0.0, 1.0, 1.0)),
+    ("rose", 0xEBA1BB, 0xEC3D59, (0.0, 0.0, 1.0, 1.0)),
+    ("orchid", 0xEE78B3, 0x7653A5, (0.0, 0.0, 1.0, 1.0)),
+    ("ocean", 0x00A6CD, 0x004165, (0.0, 0.0, 1.0, 1.0)),
+    ("periwinkle", 0x96A6EC, 0x5245A9, (0.5, 0.0, 0.5, 1.0)),
+    ("crimson", 0x4A0404, 0xCB1616, (0.0, 1.0, 1.0, 0.0)),
+    ("sandstone", 0xCDBE9B, 0x4F5E5A, (0.0, 0.0, 1.0, 1.0)),
+    ("dusk", 0x6A59DB, 0xD24C8C, (0.0, 0.5, 1.0, 0.5)),
+    ("steel", 0x42424B, 0xAFB1C2, (0.0, 0.5, 1.0, 0.5)),
+    ("azure", 0x1252C4, 0x569BF3, (0.0, 0.5, 1.0, 0.5)),
+    ("mist", 0x6D7DB2, 0xB6C3EF, (0.0, 0.5, 1.0, 0.5)),
+    ("graphite", 0x1D1D21, 0x4F4F50, (0.0, 0.5, 1.0, 0.5)),
+    ("indigo", 0x5F52DB, 0x383271, (0.5, 0.0, 0.5, 1.0)),
+    ("charcoal", 0x444444, 0x232323, (0.5, 0.0, 0.5, 1.0)),
+    ("amber", 0xF5AA19, 0xF37A16, (0.5, 0.0, 0.5, 1.0)),
+    ("forest", 0x1A6440, 0x0F3F29, (0.5, 0.0, 0.5, 1.0)),
+    ("silver", 0xABABAB, 0xEDEDED, (0.5, 0.0, 0.5, 1.0)),
+    ("glacier", 0x617EA9, 0xC0D9E7, (0.5, 0.0, 0.5, 1.0)),
+    ("ruby", 0xF55053, 0xC93335, (0.5, 0.0, 0.5, 1.0)),
+    ("gold", 0xFFC009, 0xFFD42A, (0.5, 0.0, 0.5, 1.0)),
+];
+
 #[test]
-fn every_preset_follows_its_stops_and_only_lightens_them_with_the_glows() {
-    let (w, h) = (400u32, 300u32);
+fn the_presets_are_the_24_swatches_in_grid_order() {
+    assert_eq!(PRESETS.len(), EXPECTED.len());
+    for (preset, (id, from, to, (sx, sy, ex, ey))) in PRESETS.iter().zip(EXPECTED) {
+        assert_eq!(preset.id, id);
+        assert_eq!(preset.colors, [from, to], "{id}");
+        assert_eq!((preset.start.x, preset.start.y), (sx, sy), "{id}");
+        assert_eq!((preset.end.x, preset.end.y), (ex, ey), "{id}");
+    }
+}
+
+#[test]
+fn preset_ids_and_titles_are_unique_and_found_by_id() {
+    for (i, preset) in PRESETS.iter().enumerate() {
+        assert!(!preset.title.is_empty());
+        assert_eq!(
+            GradientPreset::by_id(preset.id).map(|p| p.id),
+            Some(preset.id)
+        );
+        for other in &PRESETS[i + 1..] {
+            assert_ne!(preset.id, other.id);
+            assert_ne!(preset.title, other.title);
+        }
+    }
+}
+
+#[test]
+fn every_preset_paints_its_first_colour_at_its_start_and_its_last_at_its_end() {
+    let (w, h) = (64u32, 64u32);
     for preset in PRESETS {
         let p = render_gradient(&preset.style(), w, h).unwrap();
-        let max_lift = preset.highlights.iter().map(|g| g.opacity).sum::<f32>();
-        for y in [0, h / 2, h - 1] {
-            let t = (y as f32 + 0.5) / h as f32;
-            let base = stop_colour(&preset.stops, t);
-            let got = rgb(&p, w / 2, y);
+        let at = |u: es_model::UnitPoint| {
+            let x = ((u.x * w as f64) as u32).min(w - 1);
+            let y = ((u.y * h as f64) as u32).min(h - 1);
+            rgb(&p, x, y)
+        };
+        for (got, hex) in [
+            (at(preset.start), preset.colors[0]),
+            (at(preset.end), preset.colors[1]),
+        ] {
+            let want = channels(hex);
             for c in 0..3 {
-                let ceiling = base[c] + (255.0 - base[c]) * max_lift + 3.0;
                 assert!(
-                    got[c] >= base[c] - 3.0 && got[c] <= ceiling,
-                    "{} y={y} channel {c}: {} vs base {}",
-                    preset.id,
-                    got[c],
-                    base[c]
+                    (got[c] - want[c]).abs() <= 8.0,
+                    "{} {got:?} vs {want:?}",
+                    preset.id
                 );
             }
         }
@@ -70,22 +120,13 @@ fn every_preset_follows_its_stops_and_only_lightens_them_with_the_glows() {
 }
 
 #[test]
-fn the_first_glow_lightens_its_centre_by_about_its_opacity() {
-    let (w, h) = (400u32, 300u32);
-    for preset in PRESETS {
-        let glow = preset.highlights[0];
-        let p = render_gradient(&preset.style(), w, h).unwrap();
-        let (x, y) = ((glow.x * w as f32) as u32, (glow.y * h as f32) as u32);
-        let base = stop_colour(&preset.stops, glow.y);
-        let got = rgb(&p, x, y);
-        let lift = (255.0 - base[2]) * glow.opacity;
-        assert!(
-            got[2] - base[2] >= lift * 0.9 - 2.0,
-            "{}: lifted {} wanted about {lift}",
-            preset.id,
-            got[2] - base[2]
-        );
-    }
+fn a_wallpaper_without_an_image_falls_back_to_the_first_preset() {
+    let style = BackgroundStyle::Wallpaper {
+        path: "/missing.png".into(),
+    };
+    let fallback = render_background(&style, 32, 32).unwrap();
+    let first = render_gradient(&PRESETS[0].style(), 32, 32).unwrap();
+    assert_eq!(fallback.data(), first.data());
 }
 
 #[test]

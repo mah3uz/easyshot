@@ -38,7 +38,7 @@ struct Rig {
 
 fn mint(padding: f64) -> BackgroundSettings {
     BackgroundSettings {
-        style: BackgroundStyle::Gradient(GradientPreset::by_id("soft-mint").unwrap().style()),
+        style: BackgroundStyle::Gradient(GradientPreset::by_id("sky").unwrap().style()),
         padding,
         ..BackgroundSettings::default()
     }

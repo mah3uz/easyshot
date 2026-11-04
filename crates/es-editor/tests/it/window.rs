@@ -68,7 +68,7 @@ fn sample() -> Opened {
 
 fn styled(name: &str) -> Opened {
     let look = BackgroundSettings {
-        style: GradientPreset::by_id("soft-lilac")
+        style: GradientPreset::by_id("periwinkle")
             .map(|g| BackgroundStyle::Gradient(g.style()))
             .unwrap_or_default(),
         ..BackgroundSettings::default()

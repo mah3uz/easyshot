@@ -421,7 +421,7 @@ fn watermark_text_switches_the_watermark_and_its_controls() {
 
 fn screenshot(mode: ThemeMode, name: &str) {
     let mut look = BackgroundSettings {
-        style: GradientPreset::by_id("soft-lilac")
+        style: GradientPreset::by_id("periwinkle")
             .map(|g| BackgroundStyle::Gradient(g.style()))
             .unwrap(),
         ..BackgroundSettings::default()

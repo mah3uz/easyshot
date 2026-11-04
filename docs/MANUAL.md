@@ -209,7 +209,7 @@ Your annotations move with the pixels under them. Crop, rotate and flip are undo
 first steps back through the edits you made after them. The editor keeps the last 16 image
 steps, and drops the oldest sooner when they would hold more than 768 MiB of pixels.
 
-Beautify options: background (colour, gradient, wallpaper), padding, corners, shadow and
+Beautify options: background (colour, one of 24 gradients, wallpaper), padding, corners, shadow and
 its style, alignment, canvas shape, camera 3D, progressive blur, border, watermark and
 presets.
 

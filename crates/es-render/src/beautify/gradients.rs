@@ -3,93 +3,66 @@ use es_model::{BackgroundColor, BackgroundGradient, BackgroundStyle, UnitPoint};
 use rayon::prelude::*;
 use tiny_skia::{Color, Pixmap};
 
-/// A white glow in unit coordinates; `extent` is the end radius in the glow's own elliptical space.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Highlight {
-    pub x: f32,
-    pub y: f32,
-    pub opacity: f32,
-    pub extent: f32,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct GradientPreset {
     pub id: &'static str,
     pub title: &'static str,
-    pub stops: [(u32, f32); 3],
-    pub highlights: [Highlight; 2],
+    pub colors: [u32; 2],
+    pub start: UnitPoint,
+    pub end: UnitPoint,
 }
 
-const fn h(x: f32, y: f32, opacity: f32, extent: f32) -> Highlight {
-    Highlight {
-        x,
-        y,
-        opacity,
-        extent,
+type Axis = (UnitPoint, UnitPoint);
+
+const fn at(x: f64, y: f64) -> UnitPoint {
+    UnitPoint { x, y }
+}
+
+const VERTICAL: Axis = (at(0.5, 0.0), at(0.5, 1.0));
+const HORIZONTAL: Axis = (at(0.0, 0.5), at(1.0, 0.5));
+const DIAGONAL: Axis = (at(0.0, 0.0), at(1.0, 1.0));
+const RISING: Axis = (at(0.0, 1.0), at(1.0, 0.0));
+
+const fn preset(
+    id: &'static str,
+    title: &'static str,
+    colors: [u32; 2],
+    axis: Axis,
+) -> GradientPreset {
+    GradientPreset {
+        id,
+        title,
+        colors,
+        start: axis.0,
+        end: axis.1,
     }
 }
 
-pub const PRESETS: [GradientPreset; 10] = [
-    GradientPreset {
-        id: "soft-blush",
-        title: "Blush / Lavender",
-        stops: [(0xFAFAFA, 0.0), (0xF9E8F3, 0.48), (0xE7C8F1, 1.0)],
-        highlights: [h(0.18, 0.08, 0.32, 0.35), h(0.86, 0.90, 0.16, 0.34)],
-    },
-    GradientPreset {
-        id: "soft-peach",
-        title: "Peach / Apricot",
-        stops: [(0xFCFAF7, 0.0), (0xFBE6D8, 0.5), (0xFFB98D, 1.0)],
-        highlights: [h(0.82, 0.08, 0.30, 0.34), h(0.14, 0.88, 0.18, 0.32)],
-    },
-    GradientPreset {
-        id: "soft-mint",
-        title: "Mint",
-        stops: [(0xFBFCFA, 0.0), (0xE8F8F0, 0.48), (0xAEEACD, 1.0)],
-        highlights: [h(0.18, 0.10, 0.34, 0.36), h(0.88, 0.86, 0.20, 0.34)],
-    },
-    GradientPreset {
-        id: "soft-blue",
-        title: "Powder Blue",
-        stops: [(0xFBFCFD, 0.0), (0xE5F2FD, 0.5), (0xA8D7FF, 1.0)],
-        highlights: [h(0.16, 0.08, 0.34, 0.35), h(0.88, 0.88, 0.22, 0.33)],
-    },
-    GradientPreset {
-        id: "soft-butter",
-        title: "Butter Yellow",
-        stops: [(0xFDFCF7, 0.0), (0xFFF8D6, 0.48), (0xFFE677, 1.0)],
-        highlights: [h(0.16, 0.08, 0.36, 0.36), h(0.88, 0.86, 0.22, 0.32)],
-    },
-    GradientPreset {
-        id: "soft-lilac",
-        title: "Lilac / Periwinkle",
-        stops: [(0xFCFBFD, 0.0), (0xEEEAFE, 0.44), (0xAFAEFF, 1.0)],
-        highlights: [h(0.18, 0.07, 0.34, 0.36), h(0.86, 0.84, 0.16, 0.34)],
-    },
-    GradientPreset {
-        id: "soft-sage",
-        title: "Sage Green",
-        stops: [(0xFCFBF7, 0.0), (0xE8EDE1, 0.42), (0x91AD8A, 1.0)],
-        highlights: [h(0.16, 0.08, 0.30, 0.36), h(0.88, 0.42, 0.20, 0.31)],
-    },
-    GradientPreset {
-        id: "soft-coral",
-        title: "Coral / Rose",
-        stops: [(0xFCF9F7, 0.0), (0xF9D3CD, 0.46), (0xFF6F73, 1.0)],
-        highlights: [h(0.18, 0.07, 0.30, 0.36), h(0.82, 0.70, 0.20, 0.31)],
-    },
-    GradientPreset {
-        id: "soft-aqua",
-        title: "Aqua / Cyan",
-        stops: [(0xFBFDFD, 0.0), (0xDFF9FC, 0.48), (0x6FE2ED, 1.0)],
-        highlights: [h(0.15, 0.08, 0.34, 0.36), h(0.88, 0.87, 0.24, 0.34)],
-    },
-    GradientPreset {
-        id: "soft-mauve",
-        title: "Dusty Mauve",
-        stops: [(0xFBF8F6, 0.0), (0xE8DADB, 0.42), (0xB7949F, 1.0)],
-        highlights: [h(0.17, 0.07, 0.30, 0.36), h(0.86, 0.38, 0.18, 0.32)],
-    },
+pub const PRESETS: [GradientPreset; 24] = [
+    preset("violet", "Violet", [0x8728E2, 0x5105E0], DIAGONAL),
+    preset("jade", "Jade", [0x8CDFB8, 0x2C5447], DIAGONAL),
+    preset("magenta", "Magenta", [0xF24DBD, 0xC0237C], DIAGONAL),
+    preset("sky", "Sky", [0x8FDFE3, 0x818BD6], DIAGONAL),
+    preset("sunset", "Sunset", [0xF5A019, 0xF13612], DIAGONAL),
+    preset("rose", "Rose", [0xEBA1BB, 0xEC3D59], DIAGONAL),
+    preset("orchid", "Orchid", [0xEE78B3, 0x7653A5], DIAGONAL),
+    preset("ocean", "Ocean", [0x00A6CD, 0x004165], DIAGONAL),
+    preset("periwinkle", "Periwinkle", [0x96A6EC, 0x5245A9], VERTICAL),
+    preset("crimson", "Crimson", [0x4A0404, 0xCB1616], RISING),
+    preset("sandstone", "Sandstone", [0xCDBE9B, 0x4F5E5A], DIAGONAL),
+    preset("dusk", "Dusk", [0x6A59DB, 0xD24C8C], HORIZONTAL),
+    preset("steel", "Steel", [0x42424B, 0xAFB1C2], HORIZONTAL),
+    preset("azure", "Azure", [0x1252C4, 0x569BF3], HORIZONTAL),
+    preset("mist", "Mist", [0x6D7DB2, 0xB6C3EF], HORIZONTAL),
+    preset("graphite", "Graphite", [0x1D1D21, 0x4F4F50], HORIZONTAL),
+    preset("indigo", "Indigo", [0x5F52DB, 0x383271], VERTICAL),
+    preset("charcoal", "Charcoal", [0x444444, 0x232323], VERTICAL),
+    preset("amber", "Amber", [0xF5AA19, 0xF37A16], VERTICAL),
+    preset("forest", "Forest", [0x1A6440, 0x0F3F29], VERTICAL),
+    preset("silver", "Silver", [0xABABAB, 0xEDEDED], VERTICAL),
+    preset("glacier", "Glacier", [0x617EA9, 0xC0D9E7], VERTICAL),
+    preset("ruby", "Ruby", [0xF55053, 0xC93335], VERTICAL),
+    preset("gold", "Gold", [0xFFC009, 0xFFD42A], VERTICAL),
 ];
 
 fn hex_color(hex: u32) -> BackgroundColor {
@@ -106,9 +79,9 @@ impl GradientPreset {
         BackgroundGradient {
             id: self.id.into(),
             title: self.title.into(),
-            colors: self.stops.iter().map(|&(hex, _)| hex_color(hex)).collect(),
-            start: UnitPoint { x: 0.5, y: 0.0 },
-            end: UnitPoint { x: 0.5, y: 1.0 },
+            colors: self.colors.iter().map(|&hex| hex_color(hex)).collect(),
+            start: self.start,
+            end: self.end,
         }
     }
 }
@@ -125,21 +98,13 @@ fn premul(c: &BackgroundColor) -> Premul {
     ]
 }
 
-/// Locations and highlights come from the bundled preset with the same id when the colour count
-/// matches; any other gradient spreads its colours evenly and has no glows.
-fn stops_and_highlights(g: &BackgroundGradient) -> (Vec<(f32, Premul)>, &'static [Highlight]) {
-    let preset = GradientPreset::by_id(&g.id).filter(|p| p.stops.len() == g.colors.len());
+fn even_stops(g: &BackgroundGradient) -> Vec<(f32, Premul)> {
     let last = g.colors.len().saturating_sub(1).max(1) as f32;
-    let stops = g
-        .colors
+    g.colors
         .iter()
         .enumerate()
-        .map(|(i, c)| {
-            let at = preset.map_or(i as f32 / last, |p| p.stops[i].1);
-            (at, premul(c))
-        })
-        .collect();
-    (stops, preset.map_or(&[], |p| &p.highlights[..]))
+        .map(|(i, c)| (i as f32 / last, premul(c)))
+        .collect()
 }
 
 fn sample(stops: &[(f32, Premul)], t: f32) -> Premul {
@@ -172,7 +137,7 @@ pub fn fill_solid(target: &mut Pixmap, c: &BackgroundColor) {
 /// Rendered per pixel on all cores: tiny-skia's gradient pipeline needs over 300 ms at 2560x1600.
 pub fn draw_gradient(target: &mut Pixmap, gradient: &BackgroundGradient) {
     let (w, h) = (target.width() as usize, target.height() as usize);
-    let (stops, highlights) = stops_and_highlights(gradient);
+    let stops = even_stops(gradient);
     if stops.is_empty() || w == 0 || h == 0 {
         return;
     }
@@ -183,22 +148,6 @@ pub fn draw_gradient(target: &mut Pixmap, gradient: &BackgroundGradient) {
         gradient.end.y as f32 * hf - start.1,
     );
     let len2 = axis.0 * axis.0 + axis.1 * axis.1;
-    let glows: Vec<[f32; 5]> = highlights
-        .iter()
-        .rev()
-        .filter_map(|g| {
-            let rx = g.x.max(1.0 - g.x) * wf * std::f32::consts::SQRT_2;
-            let ry = g.y.max(1.0 - g.y) * hf * std::f32::consts::SQRT_2;
-            (rx > 0.0 && ry > 0.0 && g.extent > 0.0).then_some([
-                g.x * wf,
-                g.y * hf,
-                1.0 / (rx * g.extent),
-                1.0 / (ry * g.extent),
-                g.opacity,
-            ])
-        })
-        .collect();
-
     let constant_along_x = axis.0 == 0.0;
     target
         .data_mut()
@@ -210,7 +159,7 @@ pub fn draw_gradient(target: &mut Pixmap, gradient: &BackgroundGradient) {
             let mut cached = None;
             for (x, px) in row.as_chunks_mut::<4>().0.iter_mut().enumerate() {
                 let pxf = x as f32 + 0.5;
-                let mut c = match cached {
+                let c = match cached {
                     Some(c) => c,
                     None => {
                         let t = if len2 > 0.0 {
@@ -225,16 +174,6 @@ pub fn draw_gradient(target: &mut Pixmap, gradient: &BackgroundGradient) {
                         c
                     }
                 };
-                for g in &glows {
-                    let (dx, dy) = ((pxf - g[0]) * g[2], (py - g[1]) * g[3]);
-                    let d2 = dx * dx + dy * dy;
-                    if d2 < 1.0 {
-                        let a = g[4] * (1.0 - d2.sqrt());
-                        for ch in &mut c {
-                            *ch = a + *ch * (1.0 - a);
-                        }
-                    }
-                }
                 for (out, v) in px.iter_mut().zip(c) {
                     *out = (v.clamp(0.0, 1.0) * 255.0 + 0.5) as u8;
                 }

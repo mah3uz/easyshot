@@ -15,7 +15,7 @@ fn main() {
         .run(|cx: &mut App| {
             es_ui::init(cx);
             let look = BackgroundSettings {
-                style: GradientPreset::by_id("soft-lilac")
+                style: GradientPreset::by_id("periwinkle")
                     .map(|g| BackgroundStyle::Gradient(g.style()))
                     .unwrap_or_default(),
                 ..BackgroundSettings::default()

@@ -106,7 +106,7 @@ fn colour_gradient_and_built_in_tiles_set_the_look_and_the_canvas() {
         );
 
         body.update(cx, |b, cx| b.pick_gradient(1, cx));
-        let peach = BackgroundStyle::Gradient(GradientPreset::by_id("soft-peach").unwrap().style());
+        let peach = BackgroundStyle::Gradient(GradientPreset::by_id("jade").unwrap().style());
         assert_eq!(canvas.read(cx).background().style, peach);
         assert_eq!(body.read(cx).library(), Library::Gradient);
 
@@ -207,7 +207,7 @@ fn a_dismissed_chooser_changes_nothing() {
 #[test]
 fn layout_sliders_change_the_look_and_bracket_each_drag() {
     let mut r = rig(BackgroundSettings {
-        style: BackgroundStyle::Gradient(GradientPreset::by_id("soft-mint").unwrap().style()),
+        style: BackgroundStyle::Gradient(GradientPreset::by_id("sky").unwrap().style()),
         ..BackgroundSettings::default()
     });
     let seen: Rc<RefCell<Vec<LookEvent>>> = Rc::default();
@@ -263,7 +263,7 @@ fn canvas_aspect(s: &BackgroundSettings) -> f64 {
 #[test]
 fn a_canvas_shape_on_a_padless_background_turns_padding_on_so_the_shape_shows() {
     let mut r = rig(BackgroundSettings {
-        style: BackgroundStyle::Gradient(GradientPreset::by_id("soft-mint").unwrap().style()),
+        style: BackgroundStyle::Gradient(GradientPreset::by_id("sky").unwrap().style()),
         padding: 0.0,
         ..BackgroundSettings::default()
     });
@@ -286,7 +286,7 @@ fn a_canvas_shape_on_a_padless_background_turns_padding_on_so_the_shape_shows() 
 #[test]
 fn a_canvas_shape_keeps_chosen_padding_and_free_never_adds_any() {
     let mut r = rig(BackgroundSettings {
-        style: BackgroundStyle::Gradient(GradientPreset::by_id("soft-mint").unwrap().style()),
+        style: BackgroundStyle::Gradient(GradientPreset::by_id("sky").unwrap().style()),
         padding: 0.2,
         ..BackgroundSettings::default()
     });
@@ -315,7 +315,7 @@ fn without_a_stage_the_canvas_shape_is_off() {
 
 pub(crate) fn window(mode: ThemeMode) -> (Headless<Root>, Entity<EditorWindow>) {
     let look = BackgroundSettings {
-        style: BackgroundStyle::Gradient(GradientPreset::by_id("soft-blush").unwrap().style()),
+        style: BackgroundStyle::Gradient(GradientPreset::by_id("violet").unwrap().style()),
         padding: 0.11,
         shadow: 0.3,
         corner_radius: 0.02,

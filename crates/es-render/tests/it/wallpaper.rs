@@ -86,14 +86,14 @@ fn the_wallpaper_fills_the_whole_stage_around_the_card() {
 }
 
 #[test]
-fn a_missing_wallpaper_falls_back_to_a_light_look_not_black() {
+fn a_missing_wallpaper_falls_back_to_the_first_preset_not_black() {
     let image = Pixmap::new(40, 40).unwrap();
     let out =
         compose_with_wallpaper(&image, &DrawList::default(), &wallpaper_settings(), None).unwrap();
     let [r, g, b, a] = px(&out, 1, 1);
     assert_eq!(a, 255);
     assert!(
-        u32::from(r) + u32::from(g) + u32::from(b) > 600,
+        u32::from(r) + u32::from(g) + u32::from(b) > 300,
         "{r} {g} {b}"
     );
 }

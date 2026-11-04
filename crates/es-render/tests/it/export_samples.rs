@@ -51,7 +51,7 @@ fn write_sample_exports() {
         ],
     };
     let look = BackgroundSettings {
-        style: BackgroundStyle::Gradient(GradientPreset::by_id("soft-lilac").unwrap().style()),
+        style: BackgroundStyle::Gradient(GradientPreset::by_id("periwinkle").unwrap().style()),
         watermark: WatermarkSettings {
             text: "easyshot".into(),
             font_size: 40.0,
