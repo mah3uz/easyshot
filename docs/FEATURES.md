@@ -111,7 +111,7 @@ More in the manual: [Pinned screenshots](MANUAL.md#pinned-screenshots).
 - Applies a change to new shapes and to the selection as one undo step.
 - Remembers your last colours, widths, arrowheads, text options and tool for next time.
 - Resets a tool's options with Reset to defaults.
-- Shows a different pointer for each kind of tool.
+- Shows a pointer for each tool that says what a press makes: a cross with a rectangle, circle, line or arrow, a pen, a text cursor, a badge, a dotted square, or an eraser for Pixelate and Blur.
 - Paints translucent colour over text without hiding it with the Highlighter (key M).
 - Draws Highlighter strokes freehand or as a straight line, and press M again to switch.
 - Snaps a straight Highlighter line to 15 degrees when you hold Shift.
@@ -128,7 +128,7 @@ More in the manual: [Pinned screenshots](MANUAL.md#pinned-screenshots).
 - Undoes crop, rotate and flip, keeping the last 16 image steps.
 - Adds a background of a colour, one of 24 gradients or a wallpaper.
 - Adjusts padding, corners, shadow, shadow style and alignment.
-- Sets the shape of the whole picture: Free, 1:1, 4:3, 3:2 or 16:9.
+- Sets the shape of the whole picture: Free, 1:1, 4:3, 3:2 or 16:9, shown once there is a background.
 - Tilts and rolls the picture in 3D, with lens, zoom, pan and card rotation.
 - Blurs the screenshot or the whole scene around a round or band-shaped sharp area, with Progressive Blur.
 - Moves the sharp area by dragging its focus pad, and centres it with a double-click.

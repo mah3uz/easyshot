@@ -24,6 +24,7 @@ use super::{
     WallpaperTab,
 };
 use crate::strings::fl;
+use crate::toolbar::track;
 
 fn colour_name(id: &str) -> String {
     match id {
@@ -319,6 +320,7 @@ impl BackgroundBody {
     }
 
     fn layout(&self, t: &Tokens, cx: &mut Context<Self>) -> AnyElement {
+        self.shape_drawn.borrow_mut().clear();
         let s = self.settings(cx).clone();
         let this = cx.entity().downgrade();
         let sliders = self.controls.as_ref().map(|c| {
@@ -384,7 +386,6 @@ impl BackgroundBody {
                 .position(|&x| x == s.aspect_ratio)
                 .unwrap_or(0),
         )
-        .disabled(!shape_on)
         .on_select({
             let this = this.clone();
             move |i, _, cx| {
@@ -412,7 +413,13 @@ impl BackgroundBody {
             .flex()
             .flex_col()
             .gap(GROUP_GAP)
-            .child(group(t, fl!("editor-bg-canvas-shape"), shape))
+            .when(shape_on, |d| {
+                d.child(track(
+                    &self.shape_drawn,
+                    (),
+                    group(t, fl!("editor-bg-canvas-shape"), shape),
+                ))
+            })
             .child(group(t, fl!("editor-bg-layout"), div().children(sliders)))
             .child(group(
                 t,

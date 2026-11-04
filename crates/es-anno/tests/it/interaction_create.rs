@@ -45,7 +45,7 @@ fn a_rectangle_drag_spans_press_to_release_in_the_current_style_and_is_one_undo_
     ed.pointer_down(at(100.0, 100.0));
     assert_eq!(
         ed.cursor_for(Point::new(100.0, 100.0)),
-        CursorKind::AnnotationPlus
+        CursorKind::DrawRectangle
     );
     for x in [120.0, 180.0, 250.0] {
         ed.pointer_move(at(x, 160.0));
@@ -185,7 +185,7 @@ fn an_arrow_runs_from_the_press_to_the_pointer_with_the_current_heads() {
     ed.pointer_move(at(150.0, 130.0));
     assert_eq!(
         ed.cursor_for(Point::new(150.0, 130.0)),
-        CursorKind::AnnotationPlus
+        CursorKind::DrawArrow
     );
     ed.pointer_move(at(200.0, 140.0));
     ed.pointer_up(at(200.0, 140.0));
@@ -385,22 +385,22 @@ fn counters_never_shrink_below_24_on_small_images() {
 }
 
 #[test]
-fn each_drawing_tool_shows_its_family_cursor_even_over_existing_shapes() {
+fn each_drawing_tool_shows_what_a_press_makes_even_over_existing_shapes() {
     let r = filled_rect(0.0, 0.0, 100.0, 100.0);
     let mut ed = editor(vec![r], vec![]);
     let families = [
-        (Tool::Rectangle, CursorKind::AnnotationPlus),
-        (Tool::FilledRectangle, CursorKind::AnnotationPlus),
-        (Tool::Ellipse, CursorKind::AnnotationPlus),
-        (Tool::Line, CursorKind::AnnotationPlus),
-        (Tool::Arrow, CursorKind::AnnotationPlus),
+        (Tool::Rectangle, CursorKind::DrawRectangle),
+        (Tool::FilledRectangle, CursorKind::DrawRectangle),
+        (Tool::Ellipse, CursorKind::DrawEllipse),
+        (Tool::Line, CursorKind::DrawLine),
+        (Tool::Arrow, CursorKind::DrawArrow),
         (Tool::Freehand, CursorKind::Pen),
         (Tool::Highlighter, CursorKind::Pen),
         (Tool::Text, CursorKind::IBeam),
         (Tool::NumberedCircle, CursorKind::Badge),
         (Tool::Highlight, CursorKind::Area),
-        (Tool::Pixelate, CursorKind::Area),
-        (Tool::Blur, CursorKind::Area),
+        (Tool::Pixelate, CursorKind::Eraser),
+        (Tool::Blur, CursorKind::Eraser),
     ];
     for (tool, want) in families {
         ed.select_tool(tool);

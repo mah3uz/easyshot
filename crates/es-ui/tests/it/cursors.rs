@@ -1,4 +1,6 @@
-use es_ui::cursors::{SCALES, annotation_plus, area, badge, pen, rotate, window_camera};
+use es_ui::cursors::{
+    SCALES, area, arrow, badge, ellipse, eraser, line, pen, rectangle, rotate, window_camera,
+};
 use gpui::CursorImage;
 
 struct Bitmap<'a> {
@@ -73,14 +75,24 @@ fn bitmaps(image: &CursorImage) -> Vec<Bitmap<'_>> {
 
 fn all() -> Vec<(String, CursorImage)> {
     let mut all = vec![
-        ("annotationPlus".to_string(), annotation_plus()),
         ("windowCamera".to_string(), window_camera()),
         ("pen".to_string(), pen()),
+        ("eraser".to_string(), eraser()),
         ("badge".to_string(), badge()),
         ("area".to_string(), area()),
     ];
+    all.extend(shapes().map(|(name, image)| (name.to_string(), image)));
     all.extend((0..8).map(|k| (format!("rotate {k}"), rotate(k))));
     all
+}
+
+fn shapes() -> [(&'static str, CursorImage); 4] {
+    [
+        ("rectangle", rectangle()),
+        ("ellipse", ellipse()),
+        ("line", line()),
+        ("arrow", arrow()),
+    ]
 }
 
 #[test]
@@ -135,21 +147,32 @@ fn every_cursor_is_drawn_at_each_scale_inside_its_canvas() {
 
 #[test]
 fn the_hotspot_is_where_the_glyph_points() {
-    let plus = annotation_plus();
-    assert_eq!(
-        (plus.size.width, plus.hotspot.x, plus.hotspot.y),
-        (22, 11, 11)
-    );
-    for b in bitmaps(&plus) {
-        let h = (11.0 * b.scale) as usize;
-        assert!(
-            b.opaque_black(h, h),
-            "the cross centre at {} is not under the hotspot",
-            b.scale
+    for (name, image) in shapes() {
+        assert_eq!(
+            (image.size.width, image.hotspot.x, image.hotspot.y),
+            (24, 9, 9),
+            "{name}"
         );
-        assert!(
-            b.mirrors_about(11, true, true),
-            "the cross at {} is off-centre",
+        for b in bitmaps(&image) {
+            assert_eq!(
+                b.at(9.0, 9.0),
+                [0, 0, 0, 255],
+                "the {name} cross centre at {} is not under the hotspot",
+                b.scale
+            );
+        }
+    }
+
+    let rubber = eraser();
+    assert_eq!(
+        (rubber.size.width, rubber.hotspot.x, rubber.hotspot.y),
+        (22, 7, 15)
+    );
+    for b in bitmaps(&rubber) {
+        assert_eq!(
+            b.at(7.0, 15.0),
+            [0, 0, 0, 255],
+            "the eraser at {} has no solid rubber under the hotspot",
             b.scale
         );
     }
@@ -184,17 +207,45 @@ fn the_hotspot_is_where_the_glyph_points() {
 }
 
 #[test]
-fn annotation_plus_is_drawn_at_its_own_resolution() {
-    let plus = annotation_plus();
-    let b = &bitmaps(&plus)[1];
-    assert_eq!((b.scale, b.side), (1.5, 33));
-    let column = 8;
-    let rows: Vec<bool> = (13..20).map(|y| b.opaque_black(column, y)).collect();
-    assert_eq!(
-        rows,
-        [false, false, true, true, true, false, false],
-        "the 2 pt arm is not 3 crisp pixels at 1.5x"
-    );
+fn the_shape_cursors_share_one_crisp_cross_and_differ_in_the_corner_glyph() {
+    let images = shapes();
+    for (name, image) in &images {
+        let b = &bitmaps(image)[1];
+        assert_eq!((b.scale, b.side), (1.5, 36));
+        let rows: Vec<bool> = (10..17).map(|y| b.opaque_black(7, y)).collect();
+        assert_eq!(
+            rows,
+            [false, false, true, true, true, false, false],
+            "the 2 pt arm of the {name} cross is not 3 crisp pixels at 1.5x"
+        );
+    }
+    let quadrant = |image: &CursorImage, glyph: bool| -> Vec<[u8; 4]> {
+        let b = &bitmaps(image)[2];
+        let (lo, hi) = if glyph { (26, 48) } else { (0, 24) };
+        (lo..hi)
+            .flat_map(|y| (lo..hi).map(move |x| (x, y)))
+            .map(|(x, y)| b.px(x, y))
+            .collect()
+    };
+    let cross = quadrant(&images[0].1, false);
+    for (name, image) in &images {
+        assert_eq!(quadrant(image, false), cross, "{name} has its own cross");
+        assert!(
+            quadrant(image, true).contains(&[0, 0, 0, 255]),
+            "{name} draws no glyph below and right of the cross"
+        );
+    }
+    for i in 0..images.len() {
+        for j in i + 1..images.len() {
+            assert_ne!(
+                quadrant(&images[i].1, true),
+                quadrant(&images[j].1, true),
+                "{} and {} show the same glyph",
+                images[i].0,
+                images[j].0
+            );
+        }
+    }
 }
 
 #[test]

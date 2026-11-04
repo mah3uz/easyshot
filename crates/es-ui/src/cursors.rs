@@ -9,8 +9,12 @@ pub const SCALES: [f32; 3] = [1.0, 1.5, 2.0];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Cursors {
-    pub annotation_plus: CustomCursorId,
+    pub rectangle: CustomCursorId,
+    pub ellipse: CustomCursorId,
+    pub line: CustomCursorId,
+    pub arrow: CustomCursorId,
     pub pen: CustomCursorId,
+    pub eraser: CustomCursorId,
     pub badge: CustomCursorId,
     pub area: CustomCursorId,
     // rotate[k] bulges toward k * 45° clockwise from +x in screen space (y down).
@@ -20,8 +24,12 @@ pub struct Cursors {
 
 pub fn register(cx: &mut App) -> Cursors {
     Cursors {
-        annotation_plus: cx.register_cursor_image(annotation_plus()),
+        rectangle: cx.register_cursor_image(rectangle()),
+        ellipse: cx.register_cursor_image(ellipse()),
+        line: cx.register_cursor_image(line()),
+        arrow: cx.register_cursor_image(arrow()),
         pen: cx.register_cursor_image(pen()),
+        eraser: cx.register_cursor_image(eraser()),
         badge: cx.register_cursor_image(badge()),
         area: cx.register_cursor_image(area()),
         rotate: std::array::from_fn(|k| cx.register_cursor_image(rotate(k))),
@@ -29,12 +37,50 @@ pub fn register(cx: &mut App) -> Cursors {
     }
 }
 
-pub fn annotation_plus() -> CursorImage {
+/// A cross centred on the hotspot, with what a press draws in the corner below and right of it.
+fn shape_cursor(glyph: impl Fn(P) -> f32 + 'static) -> CursorImage {
     let arms = [
-        Shape::Segment(P(5.0, 11.0), P(17.0, 11.0)),
-        Shape::Segment(P(11.0, 5.0), P(11.0, 17.0)),
+        Shape::Segment(P(4.0, 9.0), P(14.0, 9.0)),
+        Shape::Segment(P(9.0, 4.0), P(9.0, 14.0)),
     ];
-    cursor(22, (11, 11), 1.5, move |p| distance(&arms, p) - 1.0)
+    cursor(24, (9, 9), 1.5, move |p| {
+        (distance(&arms, p) - 1.0).min(glyph(p))
+    })
+}
+
+pub fn rectangle() -> CursorImage {
+    let (x0, y0, x1, y1) = (13.5, 14.5, 20.5, 19.5);
+    let edges = [
+        Shape::Segment(P(x0, y0), P(x1, y0)),
+        Shape::Segment(P(x1, y0), P(x1, y1)),
+        Shape::Segment(P(x1, y1), P(x0, y1)),
+        Shape::Segment(P(x0, y1), P(x0, y0)),
+    ];
+    shape_cursor(move |p| distance(&edges, p) - 0.75)
+}
+
+pub fn ellipse() -> CursorImage {
+    let ring = Shape::Arc {
+        centre: P(17.0, 17.0),
+        radius: 3.5,
+        mid: 0.0,
+        half: PI,
+    };
+    shape_cursor(move |p| ring.distance(p) - 0.75)
+}
+
+pub fn line() -> CursorImage {
+    let stroke = Shape::Segment(P(14.0, 20.0), P(20.0, 14.0));
+    shape_cursor(move |p| stroke.distance(p) - 0.75)
+}
+
+pub fn arrow() -> CursorImage {
+    let tip = P(20.5, 13.5);
+    let back = tip.sub(P(1.0, -1.0).mul(std::f32::consts::FRAC_1_SQRT_2 * 3.5));
+    let wing = P(1.0, 1.0).mul(std::f32::consts::FRAC_1_SQRT_2 * 2.0);
+    let shaft = Shape::Segment(P(14.0, 20.0), back);
+    let head = Shape::Triangle(tip, back.add(wing), back.sub(wing));
+    shape_cursor(move |p| (shaft.distance(p) - 0.75).min(head.distance(p)))
 }
 
 /// A pencil whose lead is the hotspot, so a stroke starts under its tip.
@@ -54,6 +100,31 @@ pub fn pen() -> CursorImage {
     let lead = Shape::Triangle(tip, at(2.5, 1.4), at(2.5, -1.4));
     cursor(22, (4, 18), 1.5, move |p| {
         (distance(&outline, p) - 0.75).min(lead.distance(p))
+    })
+}
+
+/// An eraser whose rubber edge holds the hotspot, so the area starts under it.
+pub fn eraser() -> CursorImage {
+    let edge = P(7.0, 15.0);
+    let along = P(1.0, -1.0).mul(std::f32::consts::FRAC_1_SQRT_2);
+    let across = P(1.0, 1.0).mul(std::f32::consts::FRAC_1_SQRT_2);
+    let at = |a: f32, c: f32| edge.add(along.mul(a)).add(across.mul(c));
+    let (rubber, length, half) = (4.5, 12.5, 3.75);
+    let outline = [
+        Shape::Segment(at(rubber, half), at(length, half)),
+        Shape::Segment(at(rubber, -half), at(length, -half)),
+        Shape::Segment(at(length, half), at(length, -half)),
+    ];
+    let solid = move |p: P| {
+        let d = p.sub(edge);
+        let q = P(
+            (d.dot(along) - (rubber - 0.75) / 2.0).abs() - (rubber + 0.75) / 2.0,
+            d.dot(across).abs() - half - 0.75,
+        );
+        P(q.0.max(0.0), q.1.max(0.0)).len() + q.0.max(q.1).min(0.0)
+    };
+    cursor(22, (7, 15), 1.5, move |p| {
+        (distance(&outline, p) - 0.75).min(solid(p))
     })
 }
 

@@ -187,6 +187,43 @@ fn a_preset_draws_its_padding_corners_shadow_and_shape_into_place() {
     assert_moves_over(&moving, &settled, "the preset");
 }
 
+fn pick_first_gradient(r: &mut Rig) {
+    let body = r.body.clone();
+    r.app
+        .cx
+        .update(|cx| body.update(cx, |b, cx| b.pick_gradient(0, cx)));
+    r.app.settle();
+}
+
+#[test]
+fn a_first_fill_draws_padding_and_shadow_into_place_and_another_fill_just_swaps() {
+    let mut r = rig(BackgroundSettings::default());
+    frame(&mut r, "fill-stage-before");
+    pick_first_gradient(&mut r);
+    assert_eq!(
+        r.seen.borrow().last(),
+        Some(&LookEvent::Moved(PRESET_APPLY))
+    );
+    let moving = frames(&mut r, PRESET_APPLY, "fill-stage");
+
+    let mut still = rig(BackgroundSettings::default());
+    still.app.cx.update(|cx| set_reduce_motion(true, cx));
+    pick_first_gradient(&mut still);
+    let settled = frame(&mut still, "fill-stage-reduced");
+    assert_moves_over(&moving, &settled, "the first fill");
+
+    let body = r.body.clone();
+    r.app
+        .cx
+        .update(|cx| body.update(cx, |b, cx| b.pick_gradient(1, cx)));
+    r.app.settle();
+    assert_eq!(
+        r.seen.borrow().last(),
+        Some(&LookEvent::Changed),
+        "a fill on an existing stage moves nothing"
+    );
+}
+
 #[test]
 fn picking_a_shape_or_an_alignment_moves_the_card_and_slider_drags_do_not() {
     let mut r = rig(mint(0.12));

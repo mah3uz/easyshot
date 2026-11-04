@@ -334,16 +334,18 @@ impl Editor {
     }
 }
 
-/// The cursor a drawing tool shows over the canvas, one per family.
+/// The cursor a drawing tool shows over the canvas: what a press there makes.
 pub fn tool_cursor(tool: Tool) -> CursorKind {
     match tool {
         Tool::Select => CursorKind::Arrow,
-        Tool::Rectangle | Tool::FilledRectangle | Tool::Ellipse | Tool::Line | Tool::Arrow => {
-            CursorKind::AnnotationPlus
-        }
+        Tool::Rectangle | Tool::FilledRectangle => CursorKind::DrawRectangle,
+        Tool::Ellipse => CursorKind::DrawEllipse,
+        Tool::Line => CursorKind::DrawLine,
+        Tool::Arrow => CursorKind::DrawArrow,
         Tool::Freehand | Tool::Highlighter => CursorKind::Pen,
         Tool::Text => CursorKind::IBeam,
         Tool::NumberedCircle => CursorKind::Badge,
-        Tool::Highlight | Tool::Pixelate | Tool::Blur => CursorKind::Area,
+        Tool::Highlight => CursorKind::Area,
+        Tool::Pixelate | Tool::Blur => CursorKind::Eraser,
     }
 }

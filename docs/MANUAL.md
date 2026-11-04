@@ -183,10 +183,12 @@ the bottom of a tool's options, puts that tool's options back to their defaults 
 them. If the style file was made by a newer easyshot or cannot be read, the editor starts
 from the defaults and leaves the file alone.
 
-Over the image, each tool shows its own pointer: a cross for shapes, lines and arrows, a pen
-for Freehand and the Highlighter, a text cursor for Text, a numbered badge for the counter,
-and a dotted square, whose solid corner is where the drag starts, for Highlight, Pixelate
-and Blur.
+Over the image, each tool's pointer shows what a press makes. Rectangle and Filled Rectangle,
+Ellipse, Line and Arrow show a cross with a small rectangle, circle, line or arrow beside it;
+the centre of the cross is where the shape starts. Freehand and the Highlighter show a pen,
+Text a text cursor, the counter a numbered badge, Highlight a dotted square whose solid
+corner is where the drag starts, and Pixelate and Blur an eraser whose rubber edge is where
+the drag starts.
 
 The Highlighter (key M) paints translucent colour over text without hiding it: the stroke
 is multiplied into the image at about 40% strength, so dark text stays dark. It has two
@@ -222,8 +224,10 @@ presets.
 Canvas shape, in the inspector's Background section, sets the shape of the whole picture:
 Free (the image's own shape plus padding), 1:1, 4:3, 3:2 or 16:9. The background grows
 around the image to fill the shape. Picking a shape while padding is 0 sets padding to 8%,
-so you see the change at once. Canvas shape is greyed out while there is no background,
-camera effect or bleeding blur, since then there is nothing around the image to shape.
+so you see the change at once. Canvas shape is hidden while there is no background, camera
+effect or bleeding blur, since then there is nothing around the image to shape; it appears
+as soon as you pick a background. Picking a preset, or a first background on an image that
+had none, draws the padding and shadow into place; with Reduce Motion they appear at once.
 
 In the Camera section you tilt and roll the camera, set its lens (FOV), zoom and pan, and
 rotate the card itself. Progressive Blur blurs the screenshot alone or the whole scene,

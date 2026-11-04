@@ -82,8 +82,12 @@ pub struct Changes {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CursorKind {
     Arrow,
-    AnnotationPlus,
+    DrawRectangle,
+    DrawEllipse,
+    DrawLine,
+    DrawArrow,
     Pen,
+    Eraser,
     Badge,
     Area,
     OpenHand,

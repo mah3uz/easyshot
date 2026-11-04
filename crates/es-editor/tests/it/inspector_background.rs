@@ -314,13 +314,22 @@ fn without_a_stage_the_canvas_shape_is_off() {
 }
 
 pub(crate) fn window(mode: ThemeMode) -> (Headless<Root>, Entity<EditorWindow>) {
-    let look = BackgroundSettings {
-        style: BackgroundStyle::Gradient(GradientPreset::by_id("violet").unwrap().style()),
-        padding: 0.11,
-        shadow: 0.3,
-        corner_radius: 0.02,
-        ..BackgroundSettings::default()
-    };
+    window_with(
+        mode,
+        BackgroundSettings {
+            style: BackgroundStyle::Gradient(GradientPreset::by_id("violet").unwrap().style()),
+            padding: 0.11,
+            shadow: 0.3,
+            corner_radius: 0.02,
+            ..BackgroundSettings::default()
+        },
+    )
+}
+
+fn window_with(
+    mode: ThemeMode,
+    look: BackgroundSettings,
+) -> (Headless<Root>, Entity<EditorWindow>) {
     let doc = opened(1200, 640, every_kind(false, true), look);
     let slot: Rc<RefCell<Option<Entity<EditorWindow>>>> = Rc::default();
     let out = slot.clone();
@@ -341,6 +350,54 @@ pub(crate) fn window(mode: ThemeMode) -> (Headless<Root>, Entity<EditorWindow>) 
     );
     let editor = slot.borrow_mut().take().unwrap();
     (app, editor)
+}
+
+fn background_body(
+    app: &mut Headless<Root>,
+    editor: &Entity<EditorWindow>,
+) -> Entity<BackgroundBody> {
+    app.cx.update(|cx| {
+        let inspector = editor.read(cx).inspector().unwrap();
+        let view = inspector
+            .read(cx)
+            .body(Section::Background)
+            .unwrap()
+            .clone();
+        view.downcast::<BackgroundBody>().unwrap()
+    })
+}
+
+#[test]
+fn the_canvas_shape_is_hidden_until_a_background_gives_the_card_a_stage() {
+    for (mode, tag) in [(ThemeMode::Dark, "dark"), (ThemeMode::Light, "light")] {
+        let (mut app, editor) = window_with(mode, BackgroundSettings::default());
+        let body = background_body(&mut app, &editor);
+        app.screenshot(&format!("background-none-{tag}"));
+        assert!(
+            app.cx
+                .update(|cx| body.read(cx).canvas_shape_bounds())
+                .is_none(),
+            "a card without a background has no stage to shape"
+        );
+
+        app.cx
+            .update(|cx| body.update(cx, |b, cx| b.pick_gradient(0, cx)));
+        app.screenshot(&format!("background-picked-{tag}"));
+        assert!(
+            app.cx
+                .update(|cx| body.read(cx).canvas_shape_bounds())
+                .is_some(),
+            "a background brings the Canvas shape back"
+        );
+
+        app.cx.update(|cx| body.update(cx, |b, cx| b.pick_none(cx)));
+        app.settle();
+        assert!(
+            app.cx
+                .update(|cx| body.read(cx).canvas_shape_bounds())
+                .is_none()
+        );
+    }
 }
 
 #[test]

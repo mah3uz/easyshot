@@ -9,32 +9,41 @@ use gpui::{CursorImage, CursorStyle};
 use image::{Rgba, RgbaImage};
 
 #[test]
-fn each_tool_family_shows_its_own_cursor() {
+fn each_drawing_tool_shows_what_a_press_makes() {
     let (mut app, _) = open(400., 300., opened(200, 100, vec![], Default::default()));
     let c = app.cx.update(cursors);
     let custom = CursorStyle::Custom;
-    let families = [
-        (Tool::Rectangle, custom(c.annotation_plus)),
-        (Tool::FilledRectangle, custom(c.annotation_plus)),
-        (Tool::Ellipse, custom(c.annotation_plus)),
-        (Tool::Line, custom(c.annotation_plus)),
-        (Tool::Arrow, custom(c.annotation_plus)),
+    let tools = [
+        (Tool::Rectangle, custom(c.rectangle)),
+        (Tool::FilledRectangle, custom(c.rectangle)),
+        (Tool::Ellipse, custom(c.ellipse)),
+        (Tool::Line, custom(c.line)),
+        (Tool::Arrow, custom(c.arrow)),
         (Tool::Freehand, custom(c.pen)),
         (Tool::Highlighter, custom(c.pen)),
         (Tool::Text, CursorStyle::IBeam),
         (Tool::NumberedCircle, custom(c.badge)),
         (Tool::Highlight, custom(c.area)),
-        (Tool::Pixelate, custom(c.area)),
-        (Tool::Blur, custom(c.area)),
+        (Tool::Pixelate, custom(c.eraser)),
+        (Tool::Blur, custom(c.eraser)),
     ];
-    for (tool, want) in families {
+    for (tool, want) in tools {
         assert_eq!(style(tool_cursor(tool), &c), want, "{tool:?}");
     }
-    let ids = [c.annotation_plus, c.pen, c.badge, c.area];
+    let ids = [
+        c.rectangle,
+        c.ellipse,
+        c.line,
+        c.arrow,
+        c.pen,
+        c.eraser,
+        c.badge,
+        c.area,
+    ];
     for (i, a) in ids.iter().enumerate() {
         assert!(
             ids[i + 1..].iter().all(|b| a != b),
-            "every family has its own image"
+            "every cursor has its own image"
         );
     }
 }
@@ -42,8 +51,17 @@ fn each_tool_family_shows_its_own_cursor() {
 /// Each tool cursor at 2x on a light and a dark ground, with its hotspot in red.
 #[test]
 fn contact_sheet_of_the_tool_cursors() {
-    use es_ui::cursors::{annotation_plus, area, badge, pen};
-    let images: [CursorImage; 4] = [annotation_plus(), pen(), badge(), area()];
+    use es_ui::cursors::{area, arrow, badge, ellipse, eraser, line, pen, rectangle};
+    let images: [CursorImage; 8] = [
+        rectangle(),
+        ellipse(),
+        line(),
+        arrow(),
+        pen(),
+        eraser(),
+        badge(),
+        area(),
+    ];
     let (tile, zoom) = (64u32, 3u32);
     let grounds = [[236u8, 236, 236], [40, 40, 44]];
     let mut sheet = RgbaImage::new(

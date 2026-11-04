@@ -240,10 +240,12 @@ What was rejected beyond that, and why: not recorded.
     you were drawing on. Rejected: the style strip in the tool row, which had no room for
     arrowheads and line style, and crop's buttons in the title bar, far from the crop
     button.
-25. **A cursor per tool family** (maintainer's decision, 2026-11-03): a cross for shapes and
-    arrows, a pen for freehand and the highlighter, an I-beam for text, a badge for the
-    counter, a dotted square for Highlight, Pixelate and Blur. Rejected: one plus for every
-    drawing tool, which did not say what a press would make.
+25. **A cursor that shows what a press makes** (maintainer's decision, 2026-11-04): a cross
+    with a small rectangle, circle, line or arrow beside it for those shapes, the hotspot at
+    the cross's centre; a pen for freehand and the highlighter, an I-beam for text, a badge
+    for the counter, a dotted square for Highlight, and an eraser for Pixelate and Blur.
+    Rejected: one shared cross for every shape, and a dotted square for Pixelate and Blur,
+    neither of which said what a press would make.
 26. **The whole-screen control bar goes elsewhere or is recorded; no hide rules** (maintainer's
     decision, 2026-11-03): with a second monitor that is not recorded the bar goes there; with
     one monitor it sits in the bottom-right corner of the recorded screen and appears in the

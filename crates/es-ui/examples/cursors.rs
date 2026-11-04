@@ -100,12 +100,7 @@ impl Render for Tiles {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
         let c = self.cursors;
         let mut tiles = vec![
-            tile(
-                0,
-                "annotationPlus".into(),
-                CursorStyle::Custom(c.annotation_plus),
-            )
-            .into_any_element(),
+            tile(0, "rectangle".into(), CursorStyle::Custom(c.rectangle)).into_any_element(),
             tile(
                 1,
                 "windowCamera".into(),

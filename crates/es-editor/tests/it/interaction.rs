@@ -239,13 +239,13 @@ fn the_cursor_follows_the_tool_the_handle_and_the_gesture() {
     let at = at_page(&app, &session, 800.0, 500.0);
 
     hover(&mut app, at);
-    assert_eq!(cursor(&app), CursorStyle::Custom(custom.annotation_plus));
+    assert_eq!(cursor(&app), CursorStyle::Custom(custom.rectangle));
     let at = at_page(&app, &session, 300.0, 300.0);
     hover(&mut app, at);
     assert_eq!(
         cursor(&app),
-        CursorStyle::Custom(custom.annotation_plus),
-        "a drawing tool keeps the plus over shapes"
+        CursorStyle::Custom(custom.rectangle),
+        "a drawing tool keeps its cursor over shapes"
     );
     hover(&mut app, point(px(6.), px(6.)));
     assert_eq!(cursor(&app), CursorStyle::Arrow, "outside the frame");

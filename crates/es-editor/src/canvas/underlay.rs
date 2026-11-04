@@ -84,7 +84,12 @@ pub fn render(key: &UnderlayKey, wallpapers: &WallpaperCache) -> Option<Pixmap> 
     let mut settings = key.settings.clone();
     if let Some(m) = &key.morph {
         lay = layout(w, h, &m.from).pixel_aligned().lerp(&lay, m.t);
-        settings.shadow = m.from.shadow + (settings.shadow - m.from.shadow) * m.t;
+        let from_shadow = if m.from.is_enabled() || m.from.camera.has_effect() {
+            m.from.shadow
+        } else {
+            0.0
+        };
+        settings.shadow = from_shadow + (settings.shadow - from_shadow) * m.t;
     }
     let (cw, ch) = lay.canvas_pixels();
     let mut target = Pixmap::new(cw, ch)?;

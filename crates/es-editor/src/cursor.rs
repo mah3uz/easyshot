@@ -19,8 +19,12 @@ pub fn cursors(cx: &mut App) -> Cursors {
 pub fn style(kind: CursorKind, cursors: &Cursors) -> CursorStyle {
     match kind {
         CursorKind::Arrow => CursorStyle::Arrow,
-        CursorKind::AnnotationPlus => CursorStyle::Custom(cursors.annotation_plus),
+        CursorKind::DrawRectangle => CursorStyle::Custom(cursors.rectangle),
+        CursorKind::DrawEllipse => CursorStyle::Custom(cursors.ellipse),
+        CursorKind::DrawLine => CursorStyle::Custom(cursors.line),
+        CursorKind::DrawArrow => CursorStyle::Custom(cursors.arrow),
         CursorKind::Pen => CursorStyle::Custom(cursors.pen),
+        CursorKind::Eraser => CursorStyle::Custom(cursors.eraser),
         CursorKind::Badge => CursorStyle::Custom(cursors.badge),
         CursorKind::Area => CursorStyle::Custom(cursors.area),
         CursorKind::OpenHand => CursorStyle::OpenHand,

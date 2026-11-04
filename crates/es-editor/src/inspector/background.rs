@@ -11,14 +11,15 @@ use es_render::beautify::gradients::{PRESETS, render_gradient};
 use es_ui::components::{InspectorSlider, ValueFormat};
 use es_ui::motion::{PRESET_APPLY, SETTLE};
 use gpui::{
-    App, AppContext, Context, Entity, Hsla, PathPromptOptions, RenderImage, Rgba, Subscription,
-    Task, Window, px,
+    App, AppContext, Bounds, Context, Entity, Hsla, PathPromptOptions, Pixels, RenderImage, Rgba,
+    Subscription, Task, Window, px,
 };
 use gpui_component::color_picker::{ColorPickerEvent, ColorPickerState};
 
 use crate::canvas::underlay;
 use crate::session::look::LookModel;
 use crate::strings::fl;
+use crate::toolbar::Drawn;
 use wallpaper_cache::{BUILT_IN, WallpaperCache};
 
 const SHOWN_RECENT: usize = 4;
@@ -79,6 +80,7 @@ pub struct BackgroundBody {
     recent: Vec<PathBuf>,
     gradients: Vec<Option<Arc<RenderImage>>>,
     controls: Option<Controls>,
+    shape_drawn: Drawn<()>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -114,6 +116,7 @@ impl BackgroundBody {
             recent: Vec::new(),
             gradients,
             controls: None,
+            shape_drawn: Drawn::default(),
             _subscriptions: subscriptions,
         };
         this.load_recent(cx);
@@ -151,9 +154,17 @@ impl BackgroundBody {
         self.look.read(cx).settings()
     }
 
+    /// Only a fill that puts up or takes down the stage moves the card, so only that one animates.
     fn set_style(&mut self, style: BackgroundStyle, cx: &mut Context<Self>) {
-        self.look
-            .update(cx, |look, cx| look.update(|s| s.style = style, cx));
+        self.look.update(cx, |look, cx| {
+            let mut next = look.settings().clone();
+            next.style = style;
+            if next.uses_canvas_layout() == look.settings().uses_canvas_layout() {
+                look.set(next, cx);
+            } else {
+                look.animate(PRESET_APPLY, |s| *s = next, cx);
+            }
+        });
     }
 
     pub fn pick_none(&mut self, cx: &mut Context<Self>) {
@@ -246,6 +257,11 @@ impl BackgroundBody {
     /// Only a background, camera or bleeding blur puts the card on a stage that can take a shape.
     pub fn shape_enabled(&self, cx: &App) -> bool {
         self.settings(cx).uses_canvas_layout()
+    }
+
+    /// Where the Canvas shape control was last drawn; `None` while it is hidden.
+    pub fn canvas_shape_bounds(&self) -> Option<Bounds<Pixels>> {
+        self.shape_drawn.borrow().get(&()).copied()
     }
 
     pub fn set_alignment(&mut self, alignment: Alignment, cx: &mut Context<Self>) {
