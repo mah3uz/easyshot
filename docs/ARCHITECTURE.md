@@ -171,7 +171,10 @@ Each capability has an ordered list of providers. `Backend::detect(probe)` picks
 highest-priority provider whose `probe()` returns `Some` and whose `build()` succeeds, and
 records the chosen and rejected providers (with the reason) for logs and `easyshot doctor`.
 `EASYSHOT_PROVIDER_<CAP>=<name>` forces a choice. `Caps` is derived from the chosen
-providers and the probed tools, never set by hand.
+providers and the probed tools, never set by hand. `Caps::FOCUS_WINDOW` comes from the
+window list provider, which can also list every window on every workspace; recording a
+window on a workspace no output shows focuses it first and waits up to a second for an output
+to show it.
 
 The recorder providers are gpu-screen-recorder, then wf-recorder.
 

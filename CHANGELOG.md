@@ -22,6 +22,7 @@
 - Starting at login leaves easyshot in the tray: it waits for your panel's tray, adds its icon when the panel appears and again if the panel restarts, and opens the capture bar only if no tray has appeared 10 seconds after it started. The tray names itself easyshot.
 - The tray menu shows your global shortcuts beside its items, lists your recent screenshots and recordings, saved or not, and offers Unpin All while a screenshot is pinned.
 - Recording a whole screen puts the control bar on another monitor, so it is not in the video; with one monitor it sits in the bottom-right corner and is recorded. A switch in Settings › Recording turns the bar off, and the tray controls the recording either way.
+- The recording panel lists every open window grouped by workspace, with the ones on screen first; choosing a window on another workspace switches to it before recording starts, and says so if it cannot.
 - The editor remembers your last annotation style across sessions, and each tool's options have a Reset to defaults button.
 - Crop, rotate and flip the image in the editor; annotations follow, and each step can be undone.
 - In the editor the mouse wheel zooms about the pointer and touchpad scrolling pans; annotations stay on the image.

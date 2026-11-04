@@ -354,6 +354,13 @@ pause and resume, restart and discard. The recorded area is highlighted. Without
 gpu-screen-recorder or wf-recorder, nothing starts: you get a notice that names both and the
 Arch package to install.
 
+The recording panel's Window menu lists every open window, grouped by workspace, with the
+workspaces on screen first. Choosing a window on another workspace switches to it, waits up to a
+second for it to appear on a monitor, and then starts as usual; if easyshot cannot switch to
+it, you get a notice and nothing records. Switching works on Hyprland, sway and niri
+(Hyprland and niri unverified); on a desktop that cannot focus a window by command, only
+windows already on screen record.
+
 wf-recorder records one audio track. With it, system sound is the default output's monitor, and
 a recording with a microphone, or with no default output found, is made without system sound;
 easyshot says so when it starts.

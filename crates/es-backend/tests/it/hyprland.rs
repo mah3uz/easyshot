@@ -67,9 +67,9 @@ impl FakeHypr {
                     std::thread::sleep(Duration::from_secs(2));
                     continue;
                 }
-                let reply = if request.starts_with("eval ") {
-                    b"ok".to_vec()
-                } else if request.starts_with("dispatch focuswindow address:0xddd4") {
+                let reply = if request.starts_with("eval ")
+                    || request.starts_with("dispatch focuswindow address:0xddd4")
+                {
                     b"ok".to_vec()
                 } else if request.starts_with("dispatch focuswindow") {
                     b"Window not found".to_vec()
