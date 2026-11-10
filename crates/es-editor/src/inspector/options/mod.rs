@@ -242,7 +242,7 @@ impl ToolOptions {
             EditorButton::new("options-back")
                 .icon(IconName::ChevronLeft)
                 .accessible_label(fl!("editor-options-back"))
-                .tooltip(fl!("editor-options-back-help"))
+                .tip(fl!("editor-options-back-help"))
                 .padding_x(px(6.))
                 .on_click(move |_, _, cx| {
                     let _ = weak.update(cx, |o, cx| o.back(cx));
@@ -256,7 +256,7 @@ impl ToolOptions {
         let button = EditorButton::new("delete")
             .icon(IconName::Trash)
             .accessible_label(fl!("editor-delete-a11y"))
-            .tooltip(fl!("editor-delete-help", shortcut = shortcut))
+            .tip(fl!("editor-delete-help", shortcut = shortcut))
             .padding_x(tokens(cx).metrics.tool_button_padding_x)
             .on_click(move |_, _, cx| {
                 let _ = weak.update(cx, |o, cx| o.delete_selection(cx));

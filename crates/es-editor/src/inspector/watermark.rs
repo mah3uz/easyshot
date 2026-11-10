@@ -2,6 +2,7 @@ use std::ops::RangeInclusive;
 
 use es_geom::Rgba;
 use es_model::{Swatch, WatermarkSettings};
+use es_ui::components::Tip;
 use es_ui::{
     a11y::{Accessible, Role},
     components::{InspectorSlider, SwatchPick, SwatchStrip, ValueFormat},
@@ -17,7 +18,6 @@ use gpui::{
 use gpui_component::{
     Icon, Sizable,
     input::{Input, InputEvent, InputState},
-    tooltip::Tooltip,
 };
 
 use super::border::{DIMMED, bound_slider, colour_row, sync_slider};
@@ -256,7 +256,7 @@ impl WatermarkBody {
             .border_color(t.border)
             .hover(|d| d.bg(t.hover_fill))
             .accessible(Role::Button, help)
-            .tooltip(move |window, cx| Tooltip::new(tip.clone()).build(window, cx))
+            .tip(tip)
             .on_click(move |_, window, cx| {
                 let _ = this.update(cx, |this, cx| this.begin_editing(window, cx));
             })

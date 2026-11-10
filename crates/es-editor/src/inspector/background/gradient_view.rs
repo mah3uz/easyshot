@@ -3,6 +3,7 @@ use es_model::{
     background::{MAX_GRADIENT_STOPS, MIN_GRADIENT_STOPS},
 };
 use es_render::beautify::gradients::PRESETS;
+use es_ui::components::Tip;
 use es_ui::{
     a11y::{Accessible, Role},
     components::{ButtonKind, EditorButton, IconButton, Segment, Segmented, Tile, TileGrid},
@@ -17,7 +18,6 @@ use gpui::{
 };
 use gpui_component::{
     Icon, Sizable, WindowExt, button::ButtonVariant, color_picker::ColorPicker, input::Input,
-    tooltip::Tooltip,
 };
 
 use super::BackgroundBody;
@@ -90,7 +90,7 @@ impl BackgroundBody {
             .id("bg-gradient-add")
             .p(px(2.5))
             .accessible(Role::Button, add_help.clone())
-            .tooltip(move |window, cx| Tooltip::new(add_help.clone()).build(window, cx))
+            .tip(add_help)
             .child(
                 div()
                     .w_full()
@@ -177,7 +177,7 @@ impl BackgroundBody {
                         .kind(ButtonKind::Bordered)
                         .icon(IconName::Pencil)
                         .label(edit_label)
-                        .tooltip(edit_help)
+                        .tip(edit_help)
                         .on_click(move |_, window, cx| {
                             let _ = this.update(cx, |b, cx| b.edit_gradient(window, cx));
                         }),
@@ -332,7 +332,7 @@ impl BackgroundBody {
                             EditorButton::new("bg-gradient-cancel")
                                 .kind(ButtonKind::Bordered)
                                 .label(fl!("editor-gradient-cancel"))
-                                .tooltip(fl!("editor-gradient-cancel-help"))
+                                .tip(fl!("editor-gradient-cancel-help"))
                                 .on_click(move |_, _, cx| {
                                     let _ = cancel.update(cx, |b, cx| b.cancel_gradient(cx));
                                 }),
@@ -341,7 +341,7 @@ impl BackgroundBody {
                             EditorButton::new("bg-gradient-save")
                                 .kind(ButtonKind::Prominent)
                                 .label(fl!("editor-gradient-save"))
-                                .tooltip(fl!("editor-gradient-save-help"))
+                                .tip(fl!("editor-gradient-save-help"))
                                 .on_click(move |_, _, cx| {
                                     let _ = save.update(cx, |b, cx| {
                                         b.save_gradient(cx);

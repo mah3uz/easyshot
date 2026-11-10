@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use es_ui::components::Tip;
 use es_ui::{
     a11y::{Accessible, Role},
     icons::IconName,
@@ -14,7 +15,6 @@ use gpui::{
 use gpui_component::{
     Icon, Selectable,
     menu::{DropdownMenu, PopupMenuItem},
-    tooltip::Tooltip,
 };
 
 /// The dropdown keeps its trigger's open state through `Selectable`, which a plain `Div` lacks.
@@ -89,9 +89,7 @@ pub fn menu_trigger(
                 .hover(move |s| s.bg(hover_fill).border_color(hover_border))
                 .active(move |s| s.bg(press_fill))
         })
-        .when(text.is_none(), |d| {
-            d.tooltip(move |window, cx| Tooltip::new(tip.clone()).build(window, cx))
-        })
+        .when(text.is_none(), |d| d.tip(tip))
         .when_some(icon, |d, icon| {
             d.child(Icon::new(icon).size(px(16.)).flex_none())
         })

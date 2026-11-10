@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use crate::components::Tip;
 use gpui::{
     Anchor, AnyElement, App, Context, Div, ElementId, InteractiveElement, Interactivity,
     IntoElement, ParentElement, Pixels, RenderOnce, SharedString, Stateful,
@@ -8,7 +9,6 @@ use gpui::{
 use gpui_component::{
     Icon, Selectable,
     menu::{DropdownMenu, PopupMenu, PopupMenuItem},
-    tooltip::Tooltip,
 };
 
 use crate::{
@@ -216,7 +216,7 @@ impl RenderOnce for PresetBar {
             .typeset(t.type_scale.tool_button)
             .accessible(Role::ComboBox, fl!("panels-presets-a11y"))
             .aria_value(value)
-            .tooltip(move |window, cx| Tooltip::new(help.clone()).build(window, cx))
+            .tip(help)
             .when(!self.disabled, |d| d.track_focus(&focus).tab_index(0))
             .when(live, |d| {
                 d.hover(move |s| s.bg(hover_fill))

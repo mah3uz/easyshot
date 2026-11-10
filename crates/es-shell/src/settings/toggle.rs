@@ -2,7 +2,8 @@ use super::SettingsWindow;
 use super::widgets::{row, switch};
 use crate::strings::fl;
 use es_model::Config;
-use gpui::{AnyElement, Context, SharedString};
+use es_ui::components::Tip;
+use gpui::{AnyElement, Context, InteractiveElement, ParentElement, SharedString, div};
 use gpui_component::Disableable as _;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -126,14 +127,18 @@ impl SettingsWindow {
         .into_iter()
         .map(|(toggle, title, help)| {
             let on = toggle.get(&self.config(cx));
-            let control = switch(
-                toggle.id(),
-                title.clone(),
-                on,
-                cx.listener(move |this, on: &bool, _, cx| this.set_toggle(toggle, *on, cx)),
-            )
-            .tooltip(help)
-            .disabled(on && last);
+            let control = div()
+                .id(SharedString::from(format!("{}-tip", toggle.id())))
+                .tip(help)
+                .child(
+                    switch(
+                        toggle.id(),
+                        title.clone(),
+                        on,
+                        cx.listener(move |this, on: &bool, _, cx| this.set_toggle(toggle, *on, cx)),
+                    )
+                    .disabled(on && last),
+                );
             row(title, None, control, cx)
         })
         .collect()

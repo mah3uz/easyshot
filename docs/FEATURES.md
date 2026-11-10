@@ -256,7 +256,7 @@ More in the manual: [Recording](MANUAL.md#recording).
 - Has Home, General, Capture, Overlay, Recording, Shortcuts, Agents and About pages.
 - Follows your desktop's light or dark choice with the System theme, or stays Light or Dark.
 - Follows your desktop's animation setting as Reduce Motion: with it, every transition happens at once.
-- Eases windows, pages, cards, tooltips and editor controls into place; tooltips open once the pointer rests on a control, never jumping from one to the next.
+- Eases windows, pages, cards, tooltips and editor controls into place; tooltips open once the pointer rests on a control for 1.5 seconds, never jumping from one to the next, and hide by themselves after time to read them.
 - Applies every change at once and saves it to `config.toml`.
 - Applies edits you make to `config.toml` by hand while easyshot runs.
 - Shows a toast naming keys in `config.toml` that easyshot does not know, such as a misspelt one.

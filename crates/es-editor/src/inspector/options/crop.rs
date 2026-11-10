@@ -65,7 +65,7 @@ pub(super) fn content(page: &ToolOptions, cx: &mut Context<ToolOptions>) -> Div 
             Control::CropReset,
             EditorButton::new("crop-reset")
                 .label(fl!("editor-crop-reset"))
-                .tooltip(fl!("editor-crop-reset-help"))
+                .tip(fl!("editor-crop-reset-help"))
                 .on_click(move |_, _, cx| reset.update(cx, |c, cx| c.reset(cx))),
         ))
         .child(div().flex_1())

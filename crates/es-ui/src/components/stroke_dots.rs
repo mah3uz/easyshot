@@ -1,11 +1,11 @@
 use std::rc::Rc;
 
+use crate::components::Tip;
 use gpui::{
     App, ElementId, InteractiveElement, IntoElement, KeyDownEvent, ParentElement, Pixels,
     RenderOnce, SharedString, StatefulInteractiveElement, Styled, Window, div,
     prelude::FluentBuilder, px, transparent_black,
 };
-use gpui_component::tooltip::Tooltip;
 
 use crate::{
     a11y::{Accessible, Role},
@@ -135,9 +135,7 @@ impl RenderOnce for StrokeDots {
                     .when(interactive && !on && pinned(i) == Interaction::Rest, |d| {
                         d.hover(move |s| s.bg(hover_fill))
                     })
-                    .when(interactive, |d| {
-                        d.tooltip(move |window, cx| Tooltip::new(help.clone()).build(window, cx))
-                    })
+                    .when(interactive, |d| d.tip(help))
                     .child(
                         div()
                             .size(dot_diameter(width))

@@ -2,6 +2,7 @@ use super::model::{self, ART_PAD, Item, MediaKind, SortOrder, TITLE_HEIGHT};
 use super::thumbs::Thumb;
 use super::view::Gallery;
 use crate::strings::fl;
+use es_ui::components::Tip;
 use es_ui::{
     a11y::{Accessible, Role},
     icons::IconName,
@@ -17,7 +18,6 @@ use gpui::{
 use gpui_component::{
     Icon, Selectable,
     menu::{ContextMenuExt, DropdownMenu, PopupMenu, PopupMenuItem},
-    tooltip::Tooltip,
 };
 use uuid::Uuid;
 
@@ -38,10 +38,7 @@ impl MenuButton {
     pub fn new(id: impl Into<ElementId>, icon: IconName, label: impl Into<SharedString>) -> Self {
         let label: SharedString = label.into();
         let tip = label.clone();
-        let base = div()
-            .id(id)
-            .accessible(Role::Button, label)
-            .tooltip(move |window, cx| Tooltip::new(tip.clone()).build(window, cx));
+        let base = div().id(id).accessible(Role::Button, label).tip(tip);
         Self {
             base,
             icon,
@@ -249,7 +246,7 @@ fn cell(gallery: &Gallery, item: &Item, size: f32, cx: &mut Context<Gallery>) ->
         .flex_1()
         .min_w_0()
         .overflow_hidden()
-        .tooltip(move |window, cx| Tooltip::new(help.clone()).build(window, cx))
+        .tip(help)
         .child(
             div()
                 .relative()
@@ -467,7 +464,7 @@ pub fn list_row(
                 .px(px(6.))
                 .truncate()
                 .text_color(secondary)
-                .tooltip(move |window, cx| Tooltip::new(full.clone()).build(window, cx))
+                .tip(full)
                 .child(date),
         )
         .child(

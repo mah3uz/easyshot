@@ -149,7 +149,7 @@ impl ToolRow {
         let rotate = EditorButton::new("rotate")
             .icon(IconName::RotateCcw)
             .accessible_label(fl!("editor-rotate-left"))
-            .tooltip(fl!("editor-rotate-help"))
+            .tip(fl!("editor-rotate-help"))
             .padding_x(tokens(cx).metrics.tool_button_padding_x)
             .disabled(self.cropping)
             .on_click(move |_, _, cx| {
@@ -202,7 +202,7 @@ impl ToolRow {
         let trigger = EditorButton::new("redact-button")
             .icon(IconName::EyeOff)
             .accessible_label(fl!("editor-redact"))
-            .tooltip(if unavailable {
+            .tip(if unavailable {
                 fl!("editor-redact-unavailable")
             } else {
                 fl!("editor-redact-help")
@@ -325,7 +325,7 @@ impl Render for ToolRow {
             EditorButton::new("crop")
                 .icon(IconName::Crop)
                 .accessible_label(fl!("editor-crop"))
-                .tooltip(fl!("editor-crop-help"))
+                .tip(fl!("editor-crop-help"))
                 .padding_x(padding)
                 .selected(self.cropping)
                 .toggle(true)
@@ -352,7 +352,7 @@ impl Render for ToolRow {
                 let button = EditorButton::new(("tool", i))
                     .icon(icon)
                     .accessible_label(tools::title(each))
-                    .tooltip(tooltip)
+                    .tip(tooltip)
                     .padding_x(padding)
                     .selected(each == tool)
                     .toggle(true)
@@ -373,7 +373,7 @@ impl Render for ToolRow {
             EditorButton::new("inspector")
                 .icon(IconName::PanelRight)
                 .accessible_label(fl!("editor-inspector-toggle-a11y"))
-                .tooltip(tip)
+                .tip(tip)
                 .padding_x(padding)
                 .on_click(move |_, _, cx| {
                     let _ = row.update(cx, |_, cx| cx.emit(ToolRowEvent::ToggleInspector));

@@ -557,8 +557,11 @@ Interface changes ease into place; with Reduce Motion they happen at once:
   you confirm the question it stays until the bar closes.
 - A toast springs in, growing and rising into place, and shrinks away as it fades; with Reduce
   Motion it only fades in and out.
-- Tooltips open once the pointer has rested on a control for 0.7 seconds, the next control
-  included, so they never jump from one control to the next.
+- Tooltips open once the pointer has rested on a control for 1.5 seconds, the next control
+  included, so they never jump from one control to the next. A tooltip hides by itself after
+  2 seconds plus 60 milliseconds for each character of its text, at most 8 seconds, and comes
+  back only after you move off the control and rest on it again. Moving off, clicking or
+  pressing a key hides it at once. Reduce Motion does not change these times.
 
 Settings are stored in `config.toml`; see Files. You can edit it by hand. While easyshot
 runs it watches the file and applies your edits at once, without a restart, and a later change

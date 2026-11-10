@@ -7,6 +7,7 @@ use es_backend::{BindHelper, BindSyntax, Trigger as CompositorTrigger};
 use es_model::Config;
 use es_protocol::{CATALOGUE, Route, Scope, ShortcutEntry, Trigger};
 use es_store::paths::Paths;
+use es_ui::components::Tip;
 use es_ui::{
     a11y::{Accessible, Role},
     components::{ButtonKind, EditorButton, ShortcutField, ShortcutFieldEvent},
@@ -14,9 +15,9 @@ use es_ui::{
 };
 use gpui::{
     AnyElement, AppContext, Context, Entity, InteractiveElement, IntoElement, ParentElement,
-    SharedString, StatefulInteractiveElement, Styled, Subscription, Window, div, px,
+    SharedString, Styled, Subscription, Window, div, px,
 };
-use gpui_component::{ActiveTheme, h_flex, tooltip::Tooltip, v_flex};
+use gpui_component::{ActiveTheme, h_flex, v_flex};
 use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -417,7 +418,7 @@ impl SettingsWindow {
         let mut buttons = h_flex().gap(px(8.)).child(
             EditorButton::new("check-binds")
                 .label(fl!("shortcuts-check"))
-                .tooltip(fl!("shortcuts-check-help"))
+                .tip(fl!("shortcuts-check-help"))
                 .kind(ButtonKind::Bordered)
                 .on_click(cx.listener(|this, _, _, cx| this.check_binds(cx))),
         );
@@ -425,7 +426,7 @@ impl SettingsWindow {
             buttons = buttons.child(
                 EditorButton::new("reload-compositor")
                     .label(fl!("shortcuts-reload"))
-                    .tooltip(fl!("shortcuts-reload-help"))
+                    .tip(fl!("shortcuts-reload-help"))
                     .kind(ButtonKind::Bordered)
                     .on_click(cx.listener(|this, _, _, cx| this.reload_compositor(cx))),
             );
@@ -520,7 +521,7 @@ impl SettingsWindow {
                             .line_clamp(2)
                             .text_size(px(11.))
                             .text_color(t.destructive)
-                            .tooltip(move |window, cx| Tooltip::new(full.clone()).build(window, cx))
+                            .tip(full)
                             .child(text)
                             .into_any_element(),
                     )

@@ -791,6 +791,13 @@ impl Interactivity {
         self.tooltip_show_delay = Some(delay);
     }
 
+    /// Hides this element's tooltip once it has been shown for this long. It stays hidden until
+    /// the pointer leaves the element. The imperative API equivalent to
+    /// [`StatefulInteractiveElement::tooltip_hide_after`].
+    pub fn tooltip_hide_after(&mut self, after: Duration) {
+        self.tooltip_hide_after = Some(after);
+    }
+
     /// Block the mouse from all interactions with elements behind this element's hitbox. Typically
     /// `block_mouse_except_scroll` should be preferred.
     ///
@@ -1790,6 +1797,17 @@ pub trait StatefulInteractiveElement: InteractiveElement {
         self.interactivity().tooltip_show_delay(delay);
         self
     }
+
+    /// Hides this element's tooltip once it has been shown for this long. It stays hidden until
+    /// the pointer leaves the element. The fluent API equivalent to
+    /// [`Interactivity::tooltip_hide_after`].
+    fn tooltip_hide_after(mut self, after: Duration) -> Self
+    where
+        Self: Sized,
+    {
+        self.interactivity().tooltip_hide_after(after);
+        self
+    }
 }
 
 pub(crate) type MouseDownListener =
@@ -2266,6 +2284,7 @@ pub struct Interactivity {
     pub(crate) hover_listener_mode: HoverListenerMode,
     pub(crate) tooltip_builder: Option<TooltipBuilder>,
     pub(crate) tooltip_show_delay: Option<Duration>,
+    pub(crate) tooltip_hide_after: Option<Duration>,
     pub(crate) window_control: Option<WindowControlArea>,
     pub(crate) hitbox_behavior: HitboxBehavior,
     pub(crate) tab_index: Option<isize>,
@@ -3331,6 +3350,7 @@ impl Interactivity {
                     check_is_hovered_during_prepaint,
                     long_press_tooltip_active,
                     self.tooltip_show_delay,
+                    self.tooltip_hide_after,
                     window,
                 );
             }
@@ -3764,6 +3784,7 @@ pub(crate) enum ActiveTooltip {
     Visible {
         tooltip: AnyTooltip,
         is_hoverable: bool,
+        _hide: Option<Task<()>>,
     },
     /// Tooltip is visible and hoverable, but the mouse is no longer hovering. Currently delaying
     /// before hiding it.
@@ -3771,6 +3792,8 @@ pub(crate) enum ActiveTooltip {
         tooltip: AnyTooltip,
         _task: Task<()>,
     },
+    /// Tooltip was hidden after its time was up; it shows again only after the pointer leaves.
+    TimedOut,
 }
 
 pub(crate) fn clear_active_tooltip(
@@ -3779,7 +3802,7 @@ pub(crate) fn clear_active_tooltip(
 ) {
     match active_tooltip.borrow_mut().take() {
         None => {}
-        Some(ActiveTooltip::WaitingForShow { .. }) => {}
+        Some(ActiveTooltip::WaitingForShow { .. } | ActiveTooltip::TimedOut) => {}
         Some(ActiveTooltip::Visible { .. }) => window.refresh(),
         Some(ActiveTooltip::WaitingForHide { .. }) => window.refresh(),
     }
@@ -3791,7 +3814,7 @@ pub(crate) fn clear_active_tooltip_if_not_hoverable(
 ) {
     let should_clear = match active_tooltip.borrow().as_ref() {
         None => false,
-        Some(ActiveTooltip::WaitingForShow { .. }) => false,
+        Some(ActiveTooltip::WaitingForShow { .. } | ActiveTooltip::TimedOut) => false,
         Some(ActiveTooltip::Visible { is_hoverable, .. }) => !is_hoverable,
         Some(ActiveTooltip::WaitingForHide { .. }) => false,
     };
@@ -3807,7 +3830,7 @@ pub(crate) fn set_tooltip_on_window(
 ) -> Option<TooltipId> {
     let tooltip = match active_tooltip.borrow().as_ref() {
         None => return None,
-        Some(ActiveTooltip::WaitingForShow { .. }) => return None,
+        Some(ActiveTooltip::WaitingForShow { .. } | ActiveTooltip::TimedOut) => return None,
         Some(ActiveTooltip::Visible { tooltip, .. }) => tooltip.clone(),
         Some(ActiveTooltip::WaitingForHide { tooltip, .. }) => tooltip.clone(),
     };
@@ -3822,6 +3845,7 @@ pub(crate) fn register_tooltip_mouse_handlers(
     check_is_hovered_during_prepaint: Rc<dyn Fn(&Window) -> bool>,
     long_press_tooltip_active: Rc<Cell<bool>>,
     show_delay: Option<Duration>,
+    hide_after: Option<Duration>,
     window: &mut Window,
 ) {
     let current_view = window.current_view();
@@ -3841,6 +3865,7 @@ pub(crate) fn register_tooltip_mouse_handlers(
                 current_view,
                 phase,
                 show_delay,
+                hide_after,
                 window,
                 cx,
             )
@@ -3872,6 +3897,7 @@ pub(crate) fn register_tooltip_mouse_handlers(
                         &build_tooltip,
                         &check_is_hovered_during_prepaint,
                         Some(long_press_tooltip_active.clone()),
+                        hide_after,
                         window,
                         cx,
                     ) {
@@ -3924,6 +3950,7 @@ fn handle_tooltip_mouse_move(
     current_view: EntityId,
     phase: DispatchPhase,
     show_delay: Option<Duration>,
+    hide_after: Option<Duration>,
     window: &mut Window,
     cx: &mut App,
 ) {
@@ -3946,7 +3973,7 @@ fn handle_tooltip_mouse_move(
                 Action::None
             }
         }
-        Some(ActiveTooltip::WaitingForShow { .. }) => {
+        Some(ActiveTooltip::WaitingForShow { .. } | ActiveTooltip::TimedOut) => {
             let is_hovered = check_is_hovered(window);
             if is_hovered {
                 Action::None
@@ -4000,6 +4027,7 @@ fn handle_tooltip_mouse_move(
                             &build_tooltip,
                             &check_is_hovered_during_prepaint,
                             None,
+                            hide_after,
                             window,
                             cx,
                         );
@@ -4028,10 +4056,22 @@ fn show_tooltip(
     build_tooltip: &Rc<dyn Fn(&mut Window, &mut App) -> Option<(AnyView, bool)>>,
     check_is_hovered_during_prepaint: &Rc<dyn Fn(&Window) -> bool>,
     long_press_tooltip_active: Option<Rc<Cell<bool>>>,
+    hide_after: Option<Duration>,
     window: &mut Window,
     cx: &mut App,
 ) -> bool {
     let new_tooltip = build_tooltip(window, cx).map(|(view, tooltip_is_hoverable)| {
+        let hide = hide_after.map(|after| {
+            let weak_active_tooltip = Rc::downgrade(active_tooltip);
+            window.spawn(cx, async move |cx| {
+                cx.background_executor().timer(after).await;
+                let Some(active_tooltip) = weak_active_tooltip.upgrade() else {
+                    return;
+                };
+                *active_tooltip.borrow_mut() = Some(ActiveTooltip::TimedOut);
+                cx.update(|window, _| window.refresh()).ok();
+            })
+        });
         let weak_active_tooltip = Rc::downgrade(active_tooltip);
         let check_is_hovered_during_prepaint = check_is_hovered_during_prepaint.clone();
         ActiveTooltip::Visible {
@@ -4059,6 +4099,7 @@ fn show_tooltip(
                 }),
             },
             is_hoverable: tooltip_is_hoverable,
+            _hide: hide,
         }
     });
     let did_show = new_tooltip.is_some();
@@ -4108,7 +4149,9 @@ fn handle_tooltip_check_visible_and_update(
                 Action::None
             }
         }
-        None | Some(ActiveTooltip::WaitingForShow { .. }) => Action::None,
+        None | Some(ActiveTooltip::WaitingForShow { .. } | ActiveTooltip::TimedOut) => {
+            Action::None
+        }
     };
 
     match action {
@@ -4141,6 +4184,7 @@ fn handle_tooltip_check_visible_and_update(
             active_tooltip.borrow_mut().replace(ActiveTooltip::Visible {
                 tooltip,
                 is_hoverable: true,
+                _hide: None,
             });
         }
     }

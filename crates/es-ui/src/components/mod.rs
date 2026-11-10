@@ -39,6 +39,7 @@ pub mod gallery_panels;
 pub mod popover;
 pub mod preset_bar;
 pub mod toast;
+pub mod tooltip;
 
 pub use alignment_pad::{ALIGNMENT_PAD, ALIGNMENTS, AlignmentPad, alignment_title};
 pub use disclosure::DisclosureSection;
@@ -46,3 +47,4 @@ pub use focus_pad::{CENTRE, FOCUS_PAD_HEIGHT, FocusPad};
 pub use popover::{Popover, shadow as popover_shadow};
 pub use preset_bar::PresetBar;
 pub use toast::{TOAST_DURATION, Toast, ToastStyle};
+pub use tooltip::Tip;

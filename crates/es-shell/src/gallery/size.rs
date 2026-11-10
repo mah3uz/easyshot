@@ -1,6 +1,7 @@
 use super::model::{self, SIZE_MAX, SIZE_MIN, SIZE_STEP};
 use super::view::Gallery;
 use crate::strings::fl;
+use es_ui::components::Tip;
 use es_ui::{
     a11y::{Accessible, Range, Role},
     icons::IconName,
@@ -12,7 +13,7 @@ use gpui::{
     ParentElement, Pixels, ScrollDelta, ScrollEvent, StatefulInteractiveElement, Styled, Window,
     canvas, div, prelude::FluentBuilder, px,
 };
-use gpui_component::{Icon, tooltip::Tooltip};
+use gpui_component::Icon;
 
 const TRACK_WIDTH: f32 = 84.;
 const HIT_HEIGHT: f32 = 20.;
@@ -148,7 +149,7 @@ impl Gallery {
             .w(px(TRACK_WIDTH))
             .h(px(HIT_HEIGHT))
             .cursor(CursorStyle::PointingHand)
-            .tooltip(move |window, cx| Tooltip::new(help.clone()).build(window, cx))
+            .tip(help)
             .child(pointer)
             .child(
                 div()

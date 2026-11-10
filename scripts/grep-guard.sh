@@ -21,4 +21,14 @@ if [ -n "$unsafe_hits" ]; then
     printf '%s\n' "$unsafe_hits" >&2
     exit 1
 fi
+tooltip_hits=$(grep -rnIF \
+    -e '.tooltip(' -e 'managed_tooltip' -e 'Tooltip::new' -e 'tooltip_show_delay' -e 'tooltip_hide_after' \
+    --include='*.rs' --exclude-dir=target crates |
+    grep -v '^crates/es-ui/src/components/tooltip.rs:' || true)
+
+if [ -n "$tooltip_hits" ]; then
+    echo "grep-guard: a tooltip made outside crates/es-ui/src/components/tooltip.rs (use Tip::tip)" >&2
+    printf '%s\n' "$tooltip_hits" >&2
+    exit 1
+fi
 echo "grep-guard: ok"

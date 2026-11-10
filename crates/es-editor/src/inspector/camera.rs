@@ -1,6 +1,7 @@
 use std::{cell::RefCell, collections::HashMap, hash::Hash, ops::RangeInclusive, rc::Rc};
 
 use es_model::BackgroundSettings;
+use es_ui::components::Tip;
 use es_ui::{
     components::{InspectorSlider, ValueFormat},
     theme::tokens,
@@ -8,10 +9,8 @@ use es_ui::{
 };
 use gpui::{
     AnyElement, App, AppContext, Bounds, Context, Entity, InteractiveElement, IntoElement,
-    ParentElement, Pixels, Render, SharedString, StatefulInteractiveElement, Styled, Subscription,
-    Window, canvas, div,
+    ParentElement, Pixels, Render, SharedString, Styled, Subscription, Window, canvas, div,
 };
-use gpui_component::tooltip::Tooltip;
 
 use crate::session::look::LookModel;
 use crate::strings::fl;
@@ -129,7 +128,7 @@ pub(super) fn group(
         .text_color(t.text_secondary)
         .child(title);
     if let Some(help) = help {
-        caption = caption.tooltip(move |window, cx| Tooltip::new(help.clone()).build(window, cx));
+        caption = caption.tip(help);
     }
     div()
         .flex()

@@ -166,7 +166,7 @@ impl HomeWindow {
                 EditorButton::new("home-open")
                     .icon(IconName::FolderOpen)
                     .label(fl!("home-window-open"))
-                    .tooltip(fl!("home-window-open-tip"))
+                    .tip(fl!("home-window-open-tip"))
                     .kind(ButtonKind::Bordered)
                     .on_click({
                         move |_, _, cx| {

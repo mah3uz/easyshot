@@ -1,11 +1,12 @@
 use std::rc::Rc;
 
+use crate::components::Tip;
 use gpui::{
     App, ClickEvent, Div, ElementId, FocusHandle, Hsla, InteractiveElement, IntoElement,
     ParentElement, Pixels, RenderOnce, SharedString, StatefulInteractiveElement, Styled, Window,
     div, prelude::FluentBuilder, px, transparent_black,
 };
-use gpui_component::{Icon, tooltip::Tooltip};
+use gpui_component::Icon;
 
 use crate::{
     a11y::{Accessible, Role},
@@ -177,7 +178,7 @@ impl EditorButton {
         self
     }
 
-    pub fn tooltip(mut self, tooltip: impl Into<SharedString>) -> Self {
+    pub fn tip(mut self, tooltip: impl Into<SharedString>) -> Self {
         self.tooltip = Some(tooltip.into());
         self
     }
@@ -261,9 +262,7 @@ impl RenderOnce for EditorButton {
                 d.hover(move |s| s.bg(hover.fill).border_color(hover.border))
                     .active(move |s| s.bg(pressed.fill).border_color(pressed.border))
             })
-            .when_some(self.tooltip, |d, tip| {
-                d.tooltip(move |window, cx| Tooltip::new(tip.clone()).build(window, cx))
-            })
+            .when_some(self.tooltip, |d, tip| d.tip(tip))
             .when_some(self.icon, |d, icon| {
                 d.child(Icon::new(icon).size(px(16.)).flex_none())
             })

@@ -68,7 +68,7 @@ impl EditorWindow {
             Progress::Idle => EditorButton::new("save")
                 .icon(IconName::Download)
                 .label(fl!("editor-save"))
-                .tooltip(fl!("editor-save-help-plain"))
+                .tip(fl!("editor-save-help-plain"))
                 .disabled(!self.can_run(Job::Save, cx) || self.is_cropping(cx))
                 .on_click(cx.listener(|w, _, _, cx| {
                     w.request(Job::Save, cx);
@@ -87,7 +87,7 @@ impl EditorWindow {
                 .icon(IconName::CircleArrowDown)
                 .label(fl!("editor-export"))
                 .accessible_label(fl!("editor-export-a11y"))
-                .tooltip(fl!("editor-export-help"))
+                .tip(fl!("editor-export-help"))
                 .disabled(!self.can_run(Job::Export, cx) || self.is_cropping(cx))
                 .on_click(cx.listener(|w, _, _, cx| {
                     w.request(Job::Export, cx);

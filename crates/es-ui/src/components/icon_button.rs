@@ -1,11 +1,12 @@
 use std::rc::Rc;
 
+use crate::components::Tip;
 use gpui::{
     App, ClickEvent, ElementId, InteractiveElement, IntoElement, ParentElement, Pixels, RenderOnce,
     SharedString, StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
     transparent_black,
 };
-use gpui_component::{Icon, tooltip::Tooltip};
+use gpui_component::Icon;
 
 use crate::{
     a11y::{Accessible, Role},
@@ -101,7 +102,7 @@ impl RenderOnce for IconButton {
                 d.hover(move |s| s.bg(hover_fill).text_color(hover_glyph))
                     .active(move |s| s.bg(press_fill).text_color(hover_glyph))
             })
-            .tooltip(move |window, cx| Tooltip::new(label.clone()).build(window, cx))
+            .tip(label)
             .child(Icon::new(self.icon).size(self.glyph).flex_none())
             .when(ring, |d| d.child(focus_halo(&t, radius)))
             .when_some(self.on_click.filter(|_| !self.disabled), |d, on_click| {

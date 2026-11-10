@@ -2,9 +2,8 @@ use std::time::{Duration, Instant};
 
 use gpui::{
     Animation, AnimationExt, AnyElement, App, ElementId, Global, Hsla, IntoElement, Pixels, Rgba,
-    TooltipTiming, Window, px,
+    Window, px,
 };
-use gpui_component::tooltip::TooltipDefaults;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Easing {
@@ -185,7 +184,6 @@ pub const HANDOFF_IN: Transition = SNAPPY_SPRING;
 pub const HANDOFF_SCALE: f32 = 0.94;
 /// The recording bar changing in place: long enough to follow, and the old state is already gone.
 pub const BAR_SWAP: Transition = fades(220, Easing::EaseOut);
-pub const TOOLTIP_DELAY: Duration = Duration::from_millis(700);
 
 const REDUCED_FADE_LIMIT: Duration = Duration::from_millis(120);
 
@@ -392,19 +390,6 @@ pub fn set_reduce_motion(reduce: bool, cx: &mut App) {
 
 pub fn reduce_motion(cx: &App) -> bool {
     cx.try_global::<ReduceMotion>().is_some_and(|r| r.0)
-}
-
-/// Plain element tooltips and the kit's managed ones keep separate clocks, so both are set. Neither
-/// stays warm: a tooltip that opened at once on the next control reads as one jumping across.
-pub fn install_tooltip_timing(cx: &mut App) {
-    cx.set_global(TooltipTiming {
-        delay: TOOLTIP_DELAY,
-        warm: Duration::ZERO,
-    });
-    TooltipDefaults::new()
-        .with_show_delay(TOOLTIP_DELAY)
-        .with_grace_period(Duration::ZERO)
-        .install(cx);
 }
 
 /// GPUI's own reduce-motion switch would also stop the short fades, so this gate is kept separately.

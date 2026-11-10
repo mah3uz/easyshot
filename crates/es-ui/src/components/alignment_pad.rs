@@ -1,12 +1,12 @@
 use std::rc::Rc;
 
+use crate::components::Tip;
 use es_model::background::Alignment;
 use gpui::{
     App, ElementId, InteractiveElement, IntoElement, KeyDownEvent, ParentElement, Pixels,
     RenderOnce, SharedString, StatefulInteractiveElement, Styled, Window, div,
     prelude::FluentBuilder, px,
 };
-use gpui_component::tooltip::Tooltip;
 
 use crate::{
     a11y::{Accessible, Role},
@@ -194,7 +194,7 @@ impl RenderOnce for AlignmentPad {
             .rounded(m.slider_radius)
             .bg(t.track)
             .accessible(Role::RadioGroup, self.label)
-            .tooltip(move |window, cx| Tooltip::new(help.clone()).build(window, cx))
+            .tip(help)
             .when(self.disabled, |d| d.opacity(DISABLED_OPACITY))
             .when(!self.disabled, |d| d.track_focus(&focus).tab_index(0))
             .child(

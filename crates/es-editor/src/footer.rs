@@ -85,7 +85,7 @@ impl EditorWindow {
             Progress::Idle => EditorButton::new("copy")
                 .icon(IconName::Copy)
                 .label(fl!("editor-copy"))
-                .tooltip(fl!("editor-copy-help-plain"))
+                .tip(fl!("editor-copy-help-plain"))
                 .disabled(!self.can_run(Job::Copy, cx))
                 .on_click(cx.listener(|w, _, _, cx| {
                     w.request(Job::Copy, cx);

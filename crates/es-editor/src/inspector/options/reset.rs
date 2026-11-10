@@ -59,7 +59,7 @@ pub(super) fn button(page: &ToolOptions, facets: Facets, cx: &mut Context<ToolOp
         Control::ResetStyle,
         EditorButton::new("reset-style")
             .label(fl!("editor-reset-style"))
-            .tooltip(fl!("editor-reset-style-help"))
+            .tip(fl!("editor-reset-style-help"))
             .on_click(move |_, _, cx| {
                 let _ = weak.update(cx, |o, cx| o.reset_style(facets, cx));
             }),

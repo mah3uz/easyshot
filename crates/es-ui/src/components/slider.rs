@@ -1,5 +1,6 @@
 use std::{cell::Cell, ops::RangeInclusive, rc::Rc};
 
+use crate::components::Tip;
 use gpui::{
     AccessibleAction, App, AppContext, Bounds, Context, Corners, CursorStyle, DispatchPhase,
     Entity, EventEmitter, FocusHandle, Focusable, Hsla, InteractiveElement, IntoElement,
@@ -7,10 +8,7 @@ use gpui::{
     Render, SharedString, StatefulInteractiveElement, Styled, Subscription, Window, canvas, div,
     fill, point, prelude::FluentBuilder, px, size,
 };
-use gpui_component::{
-    input::{Escape, Input, InputEvent, InputState, MoveDown, MoveUp},
-    tooltip::Tooltip,
-};
+use gpui_component::input::{Escape, Input, InputEvent, InputState, MoveDown, MoveUp};
 
 use crate::{
     a11y::{Accessible, Range, Role},
@@ -511,7 +509,7 @@ impl Render for InspectorSlider {
             .rounded(radius)
             .bg(t.value_box)
             .text_color(t.text.opacity(0.9))
-            .tooltip(move |window, cx| Tooltip::new(help.clone()).build(window, cx))
+            .tip(help)
             .capture_action(cx.listener(|this, _: &Escape, window, cx| {
                 cx.stop_propagation();
                 this.revert(window, cx);

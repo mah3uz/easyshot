@@ -1,4 +1,5 @@
 use es_model::{BlurEdgeMode, BlurMode, ProgressiveBlurSettings};
+use es_ui::components::Tip;
 use es_ui::{
     components::{FocusPad, InspectorSlider, Segment, Segmented, ValueFormat},
     motion::{SECTION_EXPAND, since_change},
@@ -7,11 +8,9 @@ use es_ui::{
 };
 use gpui::{
     AnyElement, App, Bounds, ContentMask, Context, Entity, InteractiveElement, IntoElement,
-    MouseButton, ParentElement, PathBuilder, Pixels, Point, Render, SharedString,
-    StatefulInteractiveElement, Styled, Subscription, Window, canvas, div, fill, point,
-    prelude::FluentBuilder, px, size,
+    MouseButton, ParentElement, PathBuilder, Pixels, Point, Render, SharedString, Styled,
+    Subscription, Window, canvas, div, fill, point, prelude::FluentBuilder, px, size,
 };
-use gpui_component::tooltip::Tooltip;
 use std::cell::Cell;
 use std::rc::Rc;
 
@@ -183,9 +182,7 @@ impl BlurBody {
             .id(SharedString::from(format!("{id}-help")))
             .w_full()
             .child(control_el)
-            .when_some(help, |d, help| {
-                d.tooltip(move |window, cx| Tooltip::new(help.clone()).build(window, cx))
-            });
+            .when_some(help, |d, help| d.tip(help));
         div()
             .flex()
             .flex_col()
@@ -372,7 +369,7 @@ impl Render for BlurBody {
                     .id("blur-focus-size-help")
                     .w_full()
                     .child(row)
-                    .tooltip(move |window, cx| Tooltip::new(help.clone()).build(window, cx))
+                    .tip(help)
                     .into_any_element()
             } else {
                 row

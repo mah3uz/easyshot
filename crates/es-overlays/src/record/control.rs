@@ -7,6 +7,7 @@ use es_geom::{Point, Rect, Size};
 use es_protocol::Route;
 use es_record::{AudioSource, Clock};
 use es_ui::a11y::{Accessible as _, Role};
+use es_ui::components::Tip;
 use es_ui::icons::IconName;
 use es_ui::motion::{BAR_SWAP, Clocked, HANDOFF_IN, HANDOFF_SCALE, progress, since_change};
 use es_ui::theme::{UI_FONT, tokens};
@@ -16,7 +17,7 @@ use gpui::{
     Stateful, StatefulInteractiveElement as _, Styled as _, Task, Window, canvas, div,
     prelude::FluentBuilder as _, px,
 };
-use gpui_component::{Icon, tooltip::Tooltip};
+use gpui_component::Icon;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
@@ -307,7 +308,7 @@ fn separator(colour: Hsla) -> impl IntoElement {
 
 fn tip(d: Stateful<gpui::Div>, text: String) -> Stateful<gpui::Div> {
     let text: SharedString = text.into();
-    d.tooltip(move |window, cx| Tooltip::new(text.clone()).build(window, cx))
+    d.tip(text)
 }
 
 impl ControlBar {

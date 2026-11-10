@@ -1,11 +1,12 @@
 use std::rc::Rc;
 
+use crate::components::Tip;
 use gpui::{
     App, ElementId, InteractiveElement, IntoElement, KeyDownEvent, ParentElement, Pixels,
     RenderOnce, SharedString, StatefulInteractiveElement, Styled, Window, div,
     prelude::FluentBuilder, px, relative, transparent_black,
 };
-use gpui_component::{Icon, tooltip::Tooltip};
+use gpui_component::Icon;
 
 use crate::{
     a11y::{Accessible, Role},
@@ -188,8 +189,7 @@ impl RenderOnce for Segmented {
                     d.hover(move |s| s.bg(hover_fill))
                 })
                 .when_some(segment.help, |d, help| {
-                    d.aria_description(help.clone())
-                        .tooltip(move |window, cx| Tooltip::new(help.clone()).build(window, cx))
+                    d.aria_description(help.clone()).tip(help)
                 })
                 .map(|d| match segment.icon {
                     Some(icon) => d.child(Icon::new(icon).size(px(14.)).flex_none()),

@@ -5,6 +5,7 @@ use es_model::platform::OutputInfo;
 use es_protocol::{Route, TimedMode};
 use es_record::AudioDevice;
 use es_ui::a11y::{Accessible as _, Role};
+use es_ui::components::Tip;
 use es_ui::icons::IconName;
 use es_ui::motion::{Clocked, HANDOFF, HANDOFF_SCALE};
 use es_ui::theme::{UI_FONT, tokens};
@@ -14,7 +15,7 @@ use gpui::{
     Render, SharedString, Stateful, StatefulInteractiveElement as _, Styled as _, Subscription,
     Window, div, prelude::FluentBuilder as _, px,
 };
-use gpui_component::{Icon, tooltip::Tooltip};
+use gpui_component::Icon;
 
 pub const BAR: Size = Size::new(676.0, 64.0);
 const POPUP_GAP: f64 = 8.0;
@@ -69,7 +70,7 @@ pub(crate) fn captioned(
         .text_color(ink)
         .hover(move |s| s.bg(hover))
         .active(|s| s.opacity(0.55))
-        .tooltip(move |window, cx| Tooltip::new(tip.clone()).build(window, cx))
+        .tip(tip)
         .child(Icon::new(icon).size(px(22.)))
         .child(div().text_size(px(11.)).child(caption))
 }
@@ -405,7 +406,7 @@ impl Render for CaptureBar {
                     .text_color(t.text)
                     .hover(|s| s.bg(t.hover_fill))
                     .active(|s| s.opacity(0.55))
-                    .tooltip(move |window, cx| Tooltip::new(close_tip.clone()).build(window, cx))
+                    .tip(close_tip)
                     .on_click(cx.listener(|_, _, _, cx| cx.emit(BarEvent::Close)))
                     .child(Icon::new(IconName::X).size(px(17.))),
             );

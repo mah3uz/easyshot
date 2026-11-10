@@ -2,6 +2,7 @@ use std::rc::Rc;
 
 use es_anno::{CurrentStyle, StylePatch};
 use es_model::TextAlign;
+use es_ui::components::Tip;
 use es_ui::{
     a11y::{Accessible, Role},
     components::{Segment, Segmented},
@@ -17,7 +18,6 @@ use gpui::{
 use gpui_component::{
     input::{Escape, Input, InputEvent, InputState},
     select::Select,
-    tooltip::Tooltip,
 };
 
 use super::{
@@ -187,7 +187,7 @@ fn stepper(
                 .h_full()
                 .flex()
                 .items_center()
-                .tooltip(move |window, cx| Tooltip::new(help.clone()).build(window, cx))
+                .tip(help)
                 .on_mouse_up(
                     MouseButton::Left,
                     cx.listener(|this, _, window, cx| {

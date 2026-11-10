@@ -167,7 +167,8 @@ pub fn tooltip_shows_at(app: &mut App, x: f32, y: f32) -> bool {
     app.settle();
     let resting = app.screenshot("tooltip-probe-resting");
     app.cx.advance_clock(
-        es_ui::motion::TOOLTIP_DELAY.saturating_sub(es_ui::motion::HOVER_FILL.duration) + tick,
+        es_ui::components::tooltip::SHOW_DELAY.saturating_sub(es_ui::motion::HOVER_FILL.duration)
+            + tick,
     );
     app.settle();
     app.screenshot("tooltip-probe-after") != resting

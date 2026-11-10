@@ -1,12 +1,12 @@
 use std::rc::Rc;
 
+use crate::components::Tip;
 use gpui::{
     App, Bounds, DispatchPhase, ElementId, InteractiveElement, IntoElement, KeyDownEvent,
     MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, ParentElement, Pixels, Point,
     RenderOnce, SharedString, StatefulInteractiveElement, Styled, Window, canvas, div, point,
     prelude::FluentBuilder, px,
 };
-use gpui_component::tooltip::Tooltip;
 
 use crate::{
     a11y::{Accessible, Role},
@@ -224,7 +224,7 @@ impl RenderOnce for FocusPad {
             .aria_description(help.clone())
             .track_focus(&focus)
             .tab_index(0)
-            .tooltip(move |window, cx| Tooltip::new(help.clone()).build(window, cx))
+            .tip(help)
             .when(self.preview == Interaction::Rest, |d| {
                 d.hover(move |s| s.bg(hover_fill))
             })

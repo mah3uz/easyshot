@@ -1,37 +1,42 @@
 use crate::support;
 
-use std::{cell::RefCell, rc::Rc, time::Duration};
+use std::time::Duration;
 
-use es_ui::motion::TOOLTIP_DELAY;
+use es_ui::components::{Tip, tooltip::SHOW_DELAY};
 use gpui::{
     Context, InteractiveElement, IntoElement, MouseMoveEvent, ParentElement, PlatformInput, Render,
     StatefulInteractiveElement, Styled, Window, div, point, px,
 };
-use gpui_component::tooltip::{Tooltip, TooltipDefaults};
+use gpui_component::tooltip::TooltipDefaults;
+use image::RgbaImage;
 use support::*;
 
 const MS: Duration = Duration::from_millis(1);
+const REST: Duration = Duration::from_millis(1500);
+const SHORT: &str = "Crop";
+const SHORT_READ: Duration = Duration::from_millis(2000 + 60 * 4);
+const READ_CAP: Duration = Duration::from_secs(8);
+const LONG: &str = "Draws a box with a soft shadow around the part of the picture you want people to look at first, and dims the rest";
 
 struct Pair {
-    shown: Rc<RefCell<Vec<&'static str>>>,
+    a: &'static str,
 }
 
 impl Render for Pair {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
-        let tip = |name: &'static str, left: f32| {
-            let shown = self.shown.clone();
+        let tip = |name: &'static str, text: &'static str, left: f32| {
             div()
                 .id(name)
                 .absolute()
                 .left(px(left))
                 .top(px(10.))
                 .size(px(60.))
-                .tooltip(move |window, cx| {
-                    shown.borrow_mut().push(name);
-                    Tooltip::new(name).build(window, cx)
-                })
+                .tip(text)
         };
-        div().size_full().child(tip("a", 10.)).child(tip("b", 80.))
+        div()
+            .size_full()
+            .child(tip("a", self.a, 10.))
+            .child(tip("b", "Rotate", 80.))
     }
 }
 
@@ -51,55 +56,120 @@ fn wait(app: &mut App, by: Duration) {
     app.settle();
 }
 
-fn last(shown: &Rc<RefCell<Vec<&'static str>>>) -> Option<&'static str> {
-    shown.borrow().last().copied()
+fn open_pair(a: &'static str) -> (App, RgbaImage) {
+    let (mut app, _) = open(120., |_, _| Pair { a });
+    let rest = app.screenshot("tooltip-rest");
+    (app, rest)
+}
+
+fn showing(app: &mut App, rest: &RgbaImage) -> bool {
+    let handle = app.window.into();
+    app.cx
+        .update_window(handle, |_, window, _| window.refresh())
+        .expect("window is open");
+    app.screenshot("tooltip-now") != *rest
 }
 
 #[test]
-fn every_tooltip_waits_the_full_delay_even_on_the_next_control() {
-    let shown = Rc::new(RefCell::new(Vec::new()));
-    let (mut app, _) = open(120., |_, _| Pair {
-        shown: shown.clone(),
-    });
+fn every_tooltip_waits_the_rest_the_user_chose() {
+    assert_eq!(SHOW_DELAY, REST);
+}
 
+#[test]
+fn a_tooltip_shows_only_after_a_rest_of_a_second_and_a_half() {
+    let (mut app, rest) = open_pair(SHORT);
     hover(&mut app, 30.);
-    wait(&mut app, TOOLTIP_DELAY - MS);
-    assert_eq!(last(&shown), None, "a tooltip waits out its delay");
-    wait(&mut app, MS);
-    assert_eq!(last(&shown), Some("a"));
-
-    hover(&mut app, 100.);
-    wait(&mut app, TOOLTIP_DELAY - MS);
-    assert_eq!(
-        last(&shown),
-        Some("a"),
-        "moving straight to a neighbour waits the whole delay again, so no tooltip jumps across"
+    wait(&mut app, REST - MS);
+    assert!(
+        !showing(&mut app, &rest),
+        "nothing shows before the rest is over"
     );
     wait(&mut app, MS);
-    assert_eq!(last(&shown), Some("b"));
+    assert!(
+        showing(&mut app, &rest),
+        "it shows once the pointer has rested"
+    );
+}
+
+#[test]
+fn moving_straight_to_a_neighbour_waits_the_whole_rest_again() {
+    let (mut app, rest) = open_pair(SHORT);
+    hover(&mut app, 30.);
+    wait(&mut app, REST);
+    assert!(showing(&mut app, &rest));
+
+    hover(&mut app, 100.);
+    wait(&mut app, REST - MS);
+    assert!(
+        !showing(&mut app, &rest),
+        "no tooltip jumps across to the next control"
+    );
+    wait(&mut app, MS);
+    assert!(
+        showing(&mut app, &rest),
+        "the neighbour's own shows after its rest"
+    );
+}
+
+#[test]
+fn a_short_tooltip_hides_after_two_seconds_and_sixty_milliseconds_a_character() {
+    let (mut app, rest) = open_pair(SHORT);
+    hover(&mut app, 30.);
+    wait(&mut app, REST);
+    wait(&mut app, SHORT_READ - MS);
+    assert!(showing(&mut app, &rest), "it stays up while it is read");
+    wait(&mut app, MS);
+    assert!(!showing(&mut app, &rest), "then it hides by itself");
+}
+
+#[test]
+fn a_long_tooltip_hides_after_eight_seconds_at_most() {
+    assert!(
+        Duration::from_millis(2000 + 60 * LONG.chars().count() as u64) > READ_CAP,
+        "long enough that the cap applies"
+    );
+    let (mut app, rest) = open_pair(LONG);
+    hover(&mut app, 30.);
+    wait(&mut app, REST);
+    wait(&mut app, READ_CAP - MS);
+    assert!(
+        showing(&mut app, &rest),
+        "a long one gets the full eight seconds"
+    );
+    wait(&mut app, MS);
+    assert!(!showing(&mut app, &rest), "and no more");
+}
+
+#[test]
+fn a_hidden_tooltip_comes_back_only_after_the_pointer_leaves_and_rests_again() {
+    let (mut app, rest) = open_pair(SHORT);
+    hover(&mut app, 30.);
+    wait(&mut app, REST + SHORT_READ);
+    assert!(!showing(&mut app, &rest));
+
+    hover(&mut app, 32.);
+    wait(&mut app, REST * 2);
+    assert!(
+        !showing(&mut app, &rest),
+        "moving about on the same control does not bring it back"
+    );
 
     hover(&mut app, 200.);
     wait(&mut app, 10 * MS);
     hover(&mut app, 30.);
-    wait(&mut app, TOOLTIP_DELAY - MS);
-    assert_eq!(
-        shown.borrow().len(),
-        2,
-        "coming straight back after leaving waits the delay too"
-    );
+    wait(&mut app, REST - MS);
+    assert!(!showing(&mut app, &rest), "coming back waits the full rest");
     wait(&mut app, MS);
-    assert_eq!(last(&shown), Some("a"));
+    assert!(showing(&mut app, &rest), "and then it shows again");
 }
 
 #[test]
-fn the_kit_tooltips_use_the_same_delay_and_never_stay_warm() {
-    let (mut app, _) = open(120., |_, _| Pair {
-        shown: Rc::default(),
-    });
+fn the_kit_tooltips_use_the_same_rest_and_never_stay_warm() {
+    let (mut app, _) = open_pair(SHORT);
     let defaults = app.cx.update(|cx| TooltipDefaults::global(cx));
     assert_eq!(
         (defaults.show_delay(), defaults.grace_period()),
-        (TOOLTIP_DELAY, Duration::ZERO)
+        (REST, Duration::ZERO)
     );
 }
 

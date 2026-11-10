@@ -124,11 +124,16 @@ as other page changes: at the faster pace the eye lost the page it was following
 | Countdown: each new second drops in from above as the last one falls away, both fading | `DIGIT_ROLL` | 300 ms, snappy |
 | Countdown: after the last second the dial shrinks to 82 % and fades out | `COUNTDOWN_OUT` | 300 ms, snappy |
 | Editor: Saved and Copied fade in, hold, and fade out at the end of the hold; the button they replaced fades back | `FLASH`, `FLASH_HOLD` | 200 ms snappy fades, 1.4 s hold |
-| Tooltips open after a rest, on every control, including the next one you move straight on to | `TOOLTIP_DELAY` | 700 ms |
+| Tooltips open after a rest, on every control, including the next one you move straight on to | `SHOW_DELAY` (`components/tooltip.rs`) | 1.5 s |
+| A tooltip hides by itself once it has had time to be read, and stays hidden until the pointer leaves its control | `read_time` (`components/tooltip.rs`) | 2 s + 60 ms a character, at most 8 s |
 
 Tooltips open where the pointer is, not anchored to their control, so one tooltip cannot glide
 from control to control; each opens on its own, after the full rest. A tooltip that opened at once
 on the next control read as one tooltip jumping across as the pointer passed over a row.
+Every tooltip comes from one component, `Tip::tip` in `es-ui`, which holds its look and both
+times; `just grep-guard` fails on a tooltip made anywhere else. A tooltip that stayed up as
+long as the pointer rested covered the controls beside it; one that comes back without the
+pointer leaving would cover them again. Reduce Motion changes no tooltip time.
 
 Elements have no blur filter, so the countdown's entry and a new deck card scale and fade
 without a blur. Elements have no scale either: a toast grows its card around its words, which

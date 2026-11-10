@@ -76,7 +76,7 @@ impl RenderOnce for ToolButton {
         let mut button = EditorButton::new(self.id)
             .icon(self.icon)
             .accessible_label(self.title)
-            .tooltip(tooltip)
+            .tip(tooltip)
             .padding_x(tokens(cx).metrics.tool_button_padding_x)
             .selected(self.selected)
             .toggle(true)
