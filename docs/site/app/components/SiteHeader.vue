@@ -8,6 +8,7 @@ const links = [
   { to: '/#features', label: 'Features' },
   { to: '/#annotate', label: 'Annotate' },
   { to: '/#record', label: 'Record' },
+  { to: '/#agents', label: 'Agents' },
   { to: '/how-to', label: 'How-to' },
   { to: '/#install', label: 'Install' },
   { to: '/#faq', label: 'FAQ' },

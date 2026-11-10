@@ -39,7 +39,7 @@ const faq = [
   },
   {
     q: 'Can AI agents use it?',
-    a: 'Yes, once you allow it. <code>easyshot agent</code> lets an agent or script list windows, take screenshots with secrets covered, read text, record and annotate, and <code>easyshot agent mcp</code> is a Model Context Protocol server. Agent access is off until you turn it on, asks you in a dialog first, and a tray badge with one-click Revoke shows while it is granted.',
+    a: 'Yes, once you allow it, through the command line, a skill or an MCP server. Agent access is off until you turn it on, and asks you in a dialog first. See <a class="text-accent underline" href="/#agents">AI agents</a>.',
   },
 ]
 
@@ -58,6 +58,7 @@ const chips = [
   { icon: 'eye-off', text: 'Smart Redaction' },
   { icon: 'video', text: 'Screen recording' },
   { icon: 'pin', text: 'Pin to screen' },
+  { icon: 'sparkles', text: 'AI agents (MCP)' },
 ]
 
 const editorPoints = [
@@ -66,6 +67,14 @@ const editorPoints = [
   'Background, padding, corners, shadow, border, watermark and presets',
   'Camera 3D and progressive blur for a polished look',
   'Unsaved edits come back after a crash',
+]
+
+const agentSafety = [
+  'Off until you turn it on, in Settings › Agents or with <code>easyshot agent enable</code>',
+  'A dialog asks you first: once per session by default, or every time',
+  'Answers only your own user, and nothing goes over the network',
+  'A tray badge shows while access is granted, with a one-click Revoke',
+  'An agent’s recording stops, and is kept, when its access ends',
 ]
 
 useHead({
@@ -124,7 +133,7 @@ useHead({
           Capture an area, a window, text or a scrolling page, mark it up in a full editor, and record your screen. All
           from a key bind, on Hyprland, sway and niri.
         </p>
-        <ul class="rise flex max-w-[640px] flex-wrap justify-center gap-2" style="--d: 0.32s" aria-label="Features">
+        <ul class="rise flex max-w-[660px] flex-wrap justify-center gap-2" style="--d: 0.32s" aria-label="Features">
           <li v-for="c in chips" :key="c.text" class="hero-chip inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-2 text-sm text-fg-2 backdrop-blur-xl hover:border-accent hover:text-fg">
             <Icon :name="c.icon" :size="16" class="text-accent" />{{ c.text }}
           </li>
@@ -257,8 +266,30 @@ useHead({
       </div>
     </section>
 
+    <!-- AI agents -->
+    <section id="agents" class="bg-bg-2/60 py-24 sm:py-32">
+      <div class="container-x grid items-start gap-12 md:grid-cols-[1fr_1.1fr]">
+        <div v-reveal class="grid gap-4 [&_code]:rounded-md [&_code]:border [&_code]:border-line [&_code]:bg-surface-2 [&_code]:px-1.5 [&_code]:py-px [&_code]:text-[0.88em] [&_code]:whitespace-nowrap [&_code]:text-fg">
+          <span class="eyebrow"><Icon name="sparkles" :size="15" />AI agents</span>
+          <h2 class="text-[clamp(32px,4.4vw,50px)] leading-[1.05]">Let your agent<br />see your screen.</h2>
+          <p class="text-lg text-fg-2">
+            <code>easyshot agent</code> (or <code>easyshot ai</code>) lets AI agents and scripts list your windows, take
+            screenshots with secrets covered, read text and QR codes, annotate, and record and export short demos. Every
+            command can answer in JSON, with a clear exit code for each kind of error.
+          </p>
+          <ul class="grid gap-3 pt-2">
+            <li v-for="(p, i) in agentSafety" :key="p" v-reveal="i * 0.05" class="flex gap-3 text-[15px] text-fg-2">
+              <span class="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-accent-soft text-accent"><Icon name="check" :size="12" /></span>
+              <span v-html="p" />
+            </li>
+          </ul>
+        </div>
+        <div v-reveal="0.1"><AgentTabs /></div>
+      </div>
+    </section>
+
     <!-- Why -->
-    <section class="bg-bg-2/60 py-24 sm:py-32">
+    <section class="py-24 sm:py-32">
       <div class="container-x">
         <div v-reveal class="mx-auto mb-14 grid max-w-[680px] justify-items-center gap-4 text-center">
           <span class="eyebrow">Why easyshot</span>
@@ -275,7 +306,7 @@ useHead({
     </section>
 
     <!-- Install -->
-    <section id="install" class="py-24 sm:py-32">
+    <section id="install" class="bg-bg-2/60 py-24 sm:py-32">
       <div class="container-x grid items-start gap-12 md:grid-cols-[0.9fr_1.1fr]">
         <div v-reveal class="grid gap-4">
           <span class="eyebrow"><Icon name="download" :size="15" />Install</span>
@@ -293,7 +324,7 @@ useHead({
     </section>
 
     <!-- FAQ -->
-    <section id="faq" class="mb-24 bg-bg-2/60 py-24 sm:mb-28 sm:py-32">
+    <section id="faq" class="py-24 sm:py-32">
       <div class="container-x max-w-[820px]">
         <div v-reveal class="mb-12 grid justify-items-center gap-4 text-center">
           <span class="eyebrow">FAQ</span>

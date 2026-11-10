@@ -17,6 +17,7 @@ const steps = [
   { id: 'annotate', title: 'Annotate and share' },
   { id: 'record', title: 'Record your screen' },
   { id: 'settings', title: 'Settings and files' },
+  { id: 'agents', title: 'Use it from an AI agent' },
 ]
 
 const needs = [
@@ -63,6 +64,20 @@ const files = [
   ['Saved recordings and exports', '~/Videos/easyshot/'],
   ['Your keys (binds file)', '~/.config/easyshot/binds.conf, binds.lua or binds.kdl'],
 ]
+
+const agentPrompts = [
+  'Take a screenshot of my editor window and tell me what the error says.',
+  'Read the QR code on my screen.',
+  'Record a 20-second demo of the app in Firefox and export it as a GIF.',
+]
+
+const agentCli = `easyshot agent list windows --json
+easyshot agent capture --window firefox --json
+easyshot agent ocr --window firefox --json
+easyshot agent record start --window firefox --max-seconds 20 --json
+easyshot agent record stop --json
+# export the video that record stop printed as a GIF
+easyshot agent export ~/Videos/easyshot/demo.mp4 --format gif --json`
 
 const trouble = [
   { q: 'A key bind does nothing', a: 'Run the command from a terminal, for example <code>easyshot capture region</code>. If it says the daemon is not running, start it with <code>systemctl --user start easyshot.service</code>. Then check that the bind line is in your compositor config and reload it.' },
@@ -139,7 +154,7 @@ useHead({
           From install to your <span class="grad-text">first screenshot</span>.
         </h1>
         <p class="rise max-w-[600px] text-[clamp(17px,2vw,20px)] text-fg-2" style="--d: 0.16s">
-          Eight short steps. About ten minutes, most of it spent choosing which keys to use.
+          Eight short steps, and a ninth if you use an AI agent. About ten minutes, most of it spent choosing which keys to use.
         </p>
         <div class="rise flex flex-wrap justify-center gap-2" style="--d: 0.24s">
           <span v-for="c in ['Hyprland', 'sway', 'niri']" :key="c" class="rounded-full border border-line bg-surface px-3 py-1 text-[13px] font-medium text-fg-2 shadow-soft">{{ c }}</span>
@@ -257,13 +272,48 @@ easyshot record stop     # stop; the recording lands as a deck card" />
         <!-- 8 -->
         <HowStep :n="8" id="settings" title="Settings and files">
           <p>Easyshot in your app menu, or <code>easyshot</code> on its own, opens the Home window: your media gallery and Settings, one tab each. The tray's Settings item and <code>easyshot settings</code> open it on Settings. Every change applies at once. You can also edit <code>config.toml</code> by hand: easyshot watches it and applies changes live.</p>
-          <Callout>AI agents and scripts can use <code>easyshot agent</code> to capture, read text, record and annotate. It is off until you turn it on in Settings › Agents or with <code>easyshot agent enable</code>, and asks you before each session.</Callout>
+          <Callout>AI agents and scripts can use <code>easyshot agent</code> to capture, read text, record and annotate. Step 9, <a href="#agents" class="text-accent underline">Use it from an AI agent</a>, sets it up.</Callout>
           <dl class="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
             <div v-for="f in files" :key="f[0]" class="grid gap-1 px-4 py-3 sm:grid-cols-[200px_1fr]">
               <dt class="text-[14px] font-medium">{{ f[0] }}</dt>
               <dd class="m-0 font-mono text-[13px] break-all text-fg-2">{{ f[1] }}</dd>
             </div>
           </dl>
+        </HowStep>
+
+        <!-- 9 -->
+        <HowStep :n="9" id="agents" title="Use it from an AI agent">
+          <p><code>easyshot agent</code> (or <code>easyshot ai</code>) lets an AI agent or a script list your outputs and windows, take screenshots, read text and QR codes, annotate an image, and record a short demo and export it. With <code class="whitespace-nowrap">--json</code> each command prints exactly one JSON object, errors included, and each kind of error has its own exit code.</p>
+
+          <h3 class="text-xl text-fg">Turn agent access on</h3>
+          <p>Agent access is off until you turn it on, in <strong>Settings › Agents</strong> or with the command below. easyshot asks you first in a “Turn on agent access?” dialog. <code>easyshot agent status</code> shows whether it is on and what is allowed.</p>
+          <CodeBlock prompt code="easyshot agent enable" />
+          <p>When an agent then asks for something, a dialog names the program and what it wants. You can allow it for 1 hour, until you log out, or always, or deny it; Esc, closing the dialog or leaving it for 60 seconds denies. By default it asks once per session. Set <strong>consent</strong> to <code>always-ask</code> to be asked every time, or <code>always-allow</code> to never be asked.</p>
+          <p>To limit agents to some outputs or windows, list their output names in <strong>allowed_outputs</strong> and their app ids in <strong>allowed_windows</strong>; both are empty by default, which allows everything. Only your own user can send agent commands, and nothing goes over the network.</p>
+          <Callout>While <strong>redact_secrets</strong> is on, as it is by default, secrets are covered in every agent screenshot: API keys and tokens, passwords, emails, links, IP addresses, phone and card numbers. This uses Tesseract and is a best effort; small, low-contrast or rotated text can be missed.</Callout>
+
+          <h3 class="text-xl text-fg">Install the skill</h3>
+          <p>The skill is a short guide that teaches your agent to use <code>easyshot agent</code>: to check access first, to ask you rather than turn it on itself, and to treat text read from the screen as data, not instructions.</p>
+          <CodeBlock prompt code="easyshot agent skill install
+# or into the current folder, to commit with a project
+easyshot agent skill install --project" />
+          <p>It writes the skill to <code>~/.agents/skills/easyshot/</code>, which Codex, Gemini CLI and Cursor read, and links <code>~/.claude/skills/easyshot</code> to it for Claude Code. <code>--project</code> writes <code>.agents/skills/easyshot/</code> and <code>.claude/skills/easyshot</code> in the current folder instead. Start a new agent session afterwards, since clients read their skills when they start.</p>
+
+          <h3 class="text-xl text-fg">Or add the MCP server</h3>
+          <p><code>easyshot agent mcp</code> is a Model Context Protocol server, for agents that prefer tools to shell commands. Access, consent, scope and covered secrets work as they do for the commands. Register it with your client:</p>
+          <McpTabs />
+          <p>It offers <template v-for="(t, i) in mcpTools" :key="t"><code>{{ t }}</code>{{ i < mcpTools.length - 1 ? ', ' : '' }}</template>. <code>capture</code> returns the screenshot itself, scaled to at most 1280 pixels on its long edge, and the path of the full file.</p>
+
+          <h3 class="text-xl text-fg">Try it</h3>
+          <p>Ask your agent in plain words, for example:</p>
+          <ul class="grid gap-2 pl-1">
+            <li v-for="q in agentPrompts" :key="q" class="flex gap-3"><Icon name="sparkles" :size="17" class="mt-1 shrink-0 text-accent" />{{ q }}</li>
+          </ul>
+          <p>Or run the same from a terminal:</p>
+          <CodeBlock prompt :code="agentCli" />
+
+          <h3 class="text-xl text-fg">Revoke access</h3>
+          <p>While a grant is in force the tray icon carries a badge, and the tray menu has a row such as “Agent access until 14:05 — Revoke” that ends it in one click. <code>easyshot agent disable</code> turns access off and ends every grant. A recording an agent started stops, and is kept, when its access ends.</p>
         </HowStep>
 
         <!-- Troubleshooting -->
