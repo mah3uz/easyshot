@@ -47,6 +47,11 @@ struct Fake {
     /// Where each scroll left the app.
     offsets: Vec<usize>,
     sleeps: Vec<Duration>,
+    /// Smooth scrolling: a scroll starts moving the page this many ms later and glides over the second number.
+    glide: Option<(u64, u64)>,
+    glide_from: usize,
+    glide_to: usize,
+    glide_at: u64,
 }
 
 impl Fake {
@@ -68,6 +73,10 @@ impl Fake {
             scrolls: 0,
             offsets: Vec::new(),
             sleeps: Vec::new(),
+            glide: None,
+            glide_from: 0,
+            glide_to: 0,
+            glide_at: 0,
         }
     }
 
@@ -82,6 +91,12 @@ impl Source for Fake {
         let ms = self.elapsed.as_millis() as u64;
         if let Some(&(_, o)) = self.script.iter().rev().find(|(t, _)| *t <= ms) {
             self.offset = o;
+        }
+        if let Some((delay, dur)) = self.glide {
+            let t = ms.saturating_sub(self.glide_at + delay);
+            let k = (t as f64 / dur as f64).min(1.0);
+            let (a, b) = (self.glide_from as f64, self.glide_to as f64);
+            self.offset = (a + (b - a) * k).round() as usize;
         }
         let mut data = self.rows(self.offset, VIEW);
         if self.flicker {
@@ -102,11 +117,18 @@ impl Source for Fake {
             self.unready = None;
         }
         let moved = clicks as isize * self.per_click as isize;
-        self.offset = self
+        let target = self
             .offset
             .saturating_add_signed(moved)
             .min(self.rows - VIEW);
-        self.offsets.push(self.offset);
+        if self.glide.is_some() {
+            self.glide_from = self.offset;
+            self.glide_to = target;
+            self.glide_at = self.elapsed.as_millis() as u64;
+        } else {
+            self.offset = target;
+        }
+        self.offsets.push(target);
         true
     }
 
@@ -174,6 +196,31 @@ fn auto_scroll_runs_to_the_end_of_the_page_and_stitches_it_exactly() {
     );
     assert!(updates.contains(&Update::Auto(true)));
     assert_eq!(heights(&updates).last(), Some(&1000));
+}
+
+// Chromium shows the old page for a few frames before it starts to glide; two grabs of it must not read as the page having settled.
+#[test]
+fn auto_scroll_waits_for_a_smooth_scroll_to_start_before_settling() {
+    let (tx, rx) = mpsc::channel();
+    let mut fake = Fake::new(1000, tx.clone());
+    fake.glide = Some((60, 150));
+    tx.send(Command::Auto(true)).expect("queued");
+    let (outcome, updates) = run(&mut fake, &rx, es_scroll::MAX_HEIGHT);
+    let Outcome::Done(image) = outcome else {
+        panic!("auto scroll ends with an image, got {outcome:?}");
+    };
+    assert!(image.data == fake.page, "every row in its place");
+    let to_bottom = (1000 - VIEW).div_ceil(45);
+    assert_eq!(
+        fake.scrolls,
+        to_bottom + 8,
+        "every step appended its full shift, none read as a duplicate"
+    );
+    let h = heights(&updates);
+    assert!(
+        h.windows(2).all(|w| w[1] > w[0]),
+        "each step grew the image: {h:?}"
+    );
 }
 
 fn auto_capture(per_click: usize) -> (Fake, Outcome) {

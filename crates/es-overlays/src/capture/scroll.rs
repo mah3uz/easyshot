@@ -8,6 +8,8 @@ use std::time::{Duration, Instant};
 /// Wayland reports no scroll events from other clients, so manual mode watches the frames, often enough that a quick spin of the wheel still leaves consecutive frames overlapping.
 pub const POLL: Duration = Duration::from_millis(50);
 pub const QUIET: Duration = Duration::from_millis(250);
+const START_POLL: Duration = Duration::from_millis(16);
+const START_CAP: Duration = Duration::from_millis(400);
 pub const AUTO_SPEED: u32 = 3;
 
 pub trait Source {
@@ -66,6 +68,28 @@ pub fn settled(src: &mut dyn Source, moving: &[bool]) -> Option<Frame> {
             }
         }
     }
+}
+
+/// Smooth scrolling starts a few frames after the wheel step, and two grabs of the still page would pass for settled, so this first waits for the area to leave `before`.
+fn settled_after(
+    src: &mut dyn Source,
+    moving: &[bool],
+    before: &Frame,
+    cap: Duration,
+) -> Option<Frame> {
+    let end = src.now() + cap;
+    let still = still_hash(before, moving);
+    loop {
+        let frame = src.grab()?;
+        if still_hash(&frame, moving) != still && !unmoved(before, &frame) {
+            break;
+        }
+        if src.now() >= end {
+            break;
+        }
+        src.sleep(START_POLL);
+    }
+    settled(src, moving)
 }
 
 /// Nearest-neighbour, never enlarged.
@@ -250,6 +274,7 @@ pub fn run(
     let mut pace = Pace::new(first.height);
     let mut seen = frame_hash(&first);
     let mut moved: Option<Instant> = None;
+    let mut before: Option<Frame> = None;
     loop {
         loop {
             match commands.try_recv() {
@@ -260,6 +285,7 @@ pub fn run(
                 Ok(Command::Auto(on)) => {
                     auto = on && params.auto_available;
                     stop = AutoScrollStop::new();
+                    before = None;
                     (session.emit)(Update::Auto(auto));
                 }
                 Err(TryRecvError::Empty) => break,
@@ -267,14 +293,22 @@ pub fn run(
         }
         let push = if auto {
             let clicks = pace.clicks();
+            let Some(prev) = before.take().or_else(|| src.grab()) else {
+                auto = false;
+                (session.emit)(Update::Auto(false));
+                continue;
+            };
             if clicks != 0 && !src.scroll(clicks) {
                 auto = false;
                 (session.emit)(Update::Auto(false));
                 continue;
             }
             pace.sent(clicks);
-            let push = settled(src, session.stitcher.moving())
-                .map_or(Push::NoOverlap, |f| session.push_near(&f, pace.expected()));
+            let frame = settled_after(src, session.stitcher.moving(), &prev, START_CAP);
+            let push = frame
+                .as_ref()
+                .map_or(Push::NoOverlap, |f| session.push_near(f, pace.expected()));
+            before = frame.or(Some(prev));
             tracing::debug!(
                 clicks,
                 ?push,
