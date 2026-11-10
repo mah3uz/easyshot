@@ -23,7 +23,7 @@ struct Rule {
     accepts: fn(&str) -> bool,
 }
 
-const SECRET_LABEL: &str = r"(?i)\b(?:password|passcode|secret|api\s*key|access\s*key|client\s*secret|private\s*key|authorization|bearer|token)\b\s*[:=]\s*\S+";
+const SECRET_LABEL: &str = r"(?i)(?:\b|_)(?:password|passcode|secret|api[\s_-]*key|access[\s_-]*key|client[\s_-]*secret|private[\s_-]*key|authorization|bearer|token)\b\s*[:=]\s*\S+";
 
 type Accept = fn(&str) -> bool;
 
@@ -381,6 +381,56 @@ mod tests {
         assert_eq!(matches("password: hunter2rocks"), ["hunter2rocks"]);
         assert_eq!(matches("API Key = abc"), ["abc"]);
         assert!(matches("the password is in the vault").is_empty());
+    }
+
+    #[test]
+    fn labels_written_as_identifiers_box_the_value() {
+        assert_eq!(matches("api_key = abc"), ["abc"]);
+        assert_eq!(matches("API-KEY: abc"), ["abc"]);
+        assert_eq!(matches("DB_PASSWORD=hunter2"), ["hunter2"]);
+        assert_eq!(matches("client_secret: xyz"), ["xyz"]);
+        assert!(matches("my_password_manager = on").is_empty());
+    }
+
+    #[test]
+    fn key_and_email_on_two_lines_give_two_regions() {
+        let mut w = words(
+            0,
+            &[
+                ("api_key", 20.0, 120.0),
+                ("=", 130.0, 143.0),
+                ("sk-test-1234abcd5678efgh", 156.0, 511.0),
+            ],
+        );
+        w.extend(words(
+            1,
+            &[
+                ("contact:", 20.0, 125.0),
+                ("jane.doe@example.com", 135.0, 451.0),
+            ],
+        ));
+        let found = find_kinds(&w, Size::new(900.0, 400.0));
+        let kinds: Vec<Kind> = found.iter().map(|(_, k)| *k).collect();
+        assert_eq!(kinds, [Kind::Key, Kind::Email]);
+        assert!(found[0].0.y1 < found[1].0.y0 + 8.0, "{found:?}");
+    }
+
+    #[test]
+    fn key_and_email_on_one_ocr_line_still_give_two_regions() {
+        let w = words(
+            0,
+            &[
+                ("api_key", 20.0, 120.0),
+                ("=", 130.0, 143.0),
+                ("sk-test-1234abcd5678efgh", 156.0, 511.0),
+                ("jane.doe@example.com", 540.0, 856.0),
+            ],
+        );
+        let kinds: Vec<Kind> = find_kinds(&w, Size::new(900.0, 400.0))
+            .into_iter()
+            .map(|(_, k)| k)
+            .collect();
+        assert_eq!(kinds, [Kind::Key, Kind::Email]);
     }
 
     #[test]

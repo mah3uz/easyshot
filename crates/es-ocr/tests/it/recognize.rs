@@ -124,6 +124,20 @@ fn smart_redaction_boxes_the_sensitive_words_only() {
     let _: Rect = email;
 }
 
+#[test]
+fn a_key_line_and_an_email_line_are_two_regions() {
+    if !have_tesseract() {
+        return;
+    }
+    let img = fixture("key-and-email.png");
+    let got = recognize(&img, &OcrOptions::default()).unwrap();
+    assert_eq!(got.lines.len(), 2, "{:?}", got.lines);
+    let size = Size::new(f64::from(img.width()), f64::from(img.height()));
+    let rects = redact::find(&got.words, size);
+    assert_eq!(rects.len(), 2, "{rects:?}");
+    assert!(rects[0].center().y < rects[1].center().y);
+}
+
 fn fake_tesseract(dir: &tempfile::TempDir, body: &str) -> PathBuf {
     let path = dir.path().join("tesseract");
     std::fs::write(&path, format!("#!/bin/sh\n{body}\n")).unwrap();
