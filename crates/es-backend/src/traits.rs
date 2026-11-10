@@ -60,6 +60,10 @@ pub trait BindHelper: Send + Sync {
     fn file_name(&self) -> &'static str;
     /// The whole binds file for these binds; an empty list gives a valid, empty file.
     fn file_text(&self, binds: &[(Trigger, Route)]) -> String;
+    /// The binds a file written by `file_text` holds, as trigger and command.
+    fn file_binds(&self, _text: &str) -> Vec<(Trigger, String)> {
+        Vec::new()
+    }
     /// The one line the user adds to the compositor config; `dir` is easyshot's config directory as the user writes it.
     fn include_line(&self, dir: &str) -> String;
     /// Whether the compositor config, or a file it includes directly, includes the binds file in `dir`.

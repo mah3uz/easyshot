@@ -249,3 +249,44 @@ fn a_missing_main_config_is_not_found_rather_than_not_included() {
         assert!(matches!(found, Err(Error::NotFound(_))), "{name}");
     }
 }
+
+fn round_trip_binds() -> Vec<(Trigger, Route)> {
+    vec![
+        (
+            Trigger("SUPER+CTRL+ALT+SHIFT+S".into()),
+            Route::CaptureRegion,
+        ),
+        (Trigger("SUPER+SHIFT+4".into()), Route::CaptureFullscreen),
+        (Trigger("Print".into()), Route::CaptureWindow),
+        (Trigger("CTRL+ALT+apostrophe".into()), Route::CaptureRegion),
+    ]
+}
+
+#[test]
+fn the_binds_file_reads_back_as_the_binds_it_was_written_from() {
+    let home = Home::new();
+    for syntax in [BindSyntax::HyprLua, BindSyntax::Hyprlang] {
+        let helper = home.hypr(syntax);
+        let written = round_trip_binds();
+        let read = helper.file_binds(&helper.file_text(&written));
+        let expected: Vec<(Trigger, String)> = written
+            .iter()
+            .map(|(t, r)| {
+                (
+                    t.clone(),
+                    format!("easyshot {}", r.command_args().join(" ")),
+                )
+            })
+            .collect();
+        assert_eq!(read, expected, "{syntax:?}");
+    }
+}
+
+#[test]
+fn an_empty_binds_file_reads_back_as_no_binds() {
+    let home = Home::new();
+    for syntax in [BindSyntax::HyprLua, BindSyntax::Hyprlang] {
+        let helper = home.hypr(syntax);
+        assert!(helper.file_binds(&helper.file_text(&[])).is_empty());
+    }
+}

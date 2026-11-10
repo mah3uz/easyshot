@@ -36,6 +36,13 @@ impl BindHelper for BackendBinds {
     fn file_name(&self) -> &'static str {
         self.0.binds.as_ref().map_or("", |b| b.file_name())
     }
+    fn file_binds(&self, text: &str) -> Vec<(CompositorTrigger, String)> {
+        self.0
+            .binds
+            .as_ref()
+            .map(|b| b.file_binds(text))
+            .unwrap_or_default()
+    }
     fn file_text(&self, binds: &[(CompositorTrigger, Route)]) -> String {
         self.0
             .binds
@@ -89,27 +96,31 @@ pub fn trigger_string(trigger: &Trigger) -> String {
     out + &trigger.key
 }
 
+const KEYSYMS: [(&str, &str); 17] = [
+    ("Minus", "minus"),
+    ("Equal", "equal"),
+    ("Plus", "plus"),
+    ("Space", "space"),
+    ("Comma", "comma"),
+    ("Period", "period"),
+    ("Slash", "slash"),
+    ("Backslash", "backslash"),
+    ("Semicolon", "semicolon"),
+    ("Quote", "apostrophe"),
+    ("Grave", "grave"),
+    ("LeftBracket", "bracketleft"),
+    ("RightBracket", "bracketright"),
+    ("PrintScreen", "Print"),
+    ("Backspace", "BackSpace"),
+    ("PageUp", "Prior"),
+    ("PageDown", "Next"),
+];
+
 fn keysym(key: &str, syntax: BindSyntax) -> String {
-    let named = match key {
-        "Minus" => "minus",
-        "Equal" => "equal",
-        "Plus" => "plus",
-        "Space" => "space",
-        "Comma" => "comma",
-        "Period" => "period",
-        "Slash" => "slash",
-        "Backslash" => "backslash",
-        "Semicolon" => "semicolon",
-        "Quote" => "apostrophe",
-        "Grave" => "grave",
-        "LeftBracket" => "bracketleft",
-        "RightBracket" => "bracketright",
-        "PrintScreen" => "Print",
-        "Backspace" => "BackSpace",
-        "PageUp" => "Prior",
-        "PageDown" => "Next",
-        _ => "",
-    };
+    let named = KEYSYMS
+        .iter()
+        .find(|(name, _)| *name == key)
+        .map_or("", |(_, sym)| sym);
     if !named.is_empty() {
         return named.to_owned();
     }
@@ -159,6 +170,21 @@ pub(crate) fn normalise(trigger: &str) -> (Modifiers, String) {
         };
     }
     (modifiers, key)
+}
+
+/// The trigger a compositor spelling stands for, read back from a binds file.
+pub(crate) fn from_compositor(trigger: &str) -> Option<Trigger> {
+    let (modifiers, key) = normalise(trigger);
+    let key = KEYSYMS
+        .iter()
+        .find(|(_, sym)| sym.eq_ignore_ascii_case(&key))
+        .map_or(key.as_str(), |(name, _)| name);
+    let mut text = trigger_string(&Trigger {
+        modifiers,
+        key: String::new(),
+    });
+    text.push_str(key);
+    Trigger::parse(&text).ok()
 }
 
 pub(crate) fn runs(command: &str, route: &Route) -> bool {

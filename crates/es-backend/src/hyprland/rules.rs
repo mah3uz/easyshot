@@ -45,6 +45,43 @@ pub fn hyprlang_snippet(binds: &[(Trigger, Route)]) -> String {
         .collect()
 }
 
+fn lua_unquote(s: &str) -> String {
+    s.replace("\\\"", "\"").replace("\\\\", "\\")
+}
+
+fn parse_lua_file(text: &str) -> Vec<(Trigger, String)> {
+    text.lines()
+        .filter_map(|line| {
+            let rest = line.strip_prefix("hl.bind(\"")?;
+            let (trigger, rest) = rest.split_once("\", hl.dsp.exec_cmd(\"")?;
+            let command = rest.strip_suffix("\"))")?;
+            Some((
+                Trigger(lua_unquote(trigger).replace(" + ", "+")),
+                lua_unquote(command),
+            ))
+        })
+        .collect()
+}
+
+fn parse_hyprlang_file(text: &str) -> Vec<(Trigger, String)> {
+    text.lines()
+        .filter_map(|line| {
+            let rest = line.strip_prefix("bind = ")?;
+            let mut fields = rest.splitn(4, ", ");
+            let (mods, key, dispatcher, command) = (
+                fields.next()?,
+                fields.next()?,
+                fields.next()?,
+                fields.next()?,
+            );
+            (dispatcher == "exec").then(|| {
+                let trigger = mods.split_whitespace().chain([key]).collect::<Vec<_>>();
+                (Trigger(trigger.join("+")), command.to_owned())
+            })
+        })
+        .collect()
+}
+
 pub fn parse_binds(json: &[u8]) -> Result<Vec<(Trigger, String)>> {
     let binds: Vec<Bind> = serde_json::from_slice(json)
         .map_err(|e| crate::Error::Protocol(format!("hyprland binds: {e}")))?;
@@ -97,6 +134,12 @@ impl BindHelper for HyprBinds {
         match self.syntax {
             BindSyntax::Hyprlang => hyprlang_file(binds),
             _ => lua_file(binds),
+        }
+    }
+    fn file_binds(&self, text: &str) -> Vec<(Trigger, String)> {
+        match self.syntax {
+            BindSyntax::Hyprlang => parse_hyprlang_file(text),
+            _ => parse_lua_file(text),
         }
     }
     fn include_line(&self, dir: &str) -> String {

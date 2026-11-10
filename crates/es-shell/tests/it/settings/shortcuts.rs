@@ -180,3 +180,93 @@ fn long_chords_at(size: (f32, f32), size_name: &str, config: &Path) {
         fx.shot(&format!("settings-shortcuts-long-{size_name}-{name}"));
     }
 }
+
+#[test]
+fn keys_in_the_written_binds_file_count_as_bound_when_the_config_has_none() {
+    use std::io::{Read, Write};
+    let dir = tempfile::tempdir().unwrap();
+    let socket = std::os::unix::net::UnixListener::bind(dir.path().join(".socket.sock")).unwrap();
+    let bind = |key: &str, arg: &str, dispatcher: &str| {
+        format!(
+            r#"{{"modmask": 65, "submap": "", "key": "{key}", "keycode": 0, "dispatcher": "{dispatcher}", "arg": "{arg}"}}"#
+        )
+    };
+    let reply = format!(
+        "[{}]",
+        [
+            bind("4", "85", "HL.Dispatcher(exec_cmd)"),
+            bind("3", "86", "HL.Dispatcher(exec_cmd)"),
+            bind("W", "grim", "exec"),
+        ]
+        .join(",")
+    );
+    std::thread::spawn(move || {
+        for stream in socket.incoming() {
+            let Ok(mut stream) = stream else { break };
+            let mut request = [0u8; 64];
+            let _ = stream.read(&mut request);
+            stream.write_all(reply.as_bytes()).ok();
+        }
+    });
+    let main = dir.path().join("hyprland.lua");
+    let binds = Arc::new(hyprland::HyprBinds {
+        ipc: hyprland::Ipc::new(dir.path()),
+        syntax: BindSyntax::HyprLua,
+        config: Some(main.clone()),
+        home: None,
+    });
+    let mut fx = fixture(Caps::BIND_CHECK, Some(binds), |config| {
+        let config_dir = config.parent().unwrap();
+        std::fs::write(
+            &main,
+            format!("pcall(require, \"{}/binds\")\n", config_dir.display()),
+        )
+        .unwrap();
+        std::fs::write(
+            config_dir.join("binds.lua"),
+            "-- header\n\
+             hl.bind(\"SUPER + SHIFT + 4\", hl.dsp.exec_cmd(\"easyshot capture region\"))\n\
+             hl.bind(\"SUPER + SHIFT + 3\", hl.dsp.exec_cmd(\"easyshot capture fullscreen\"))\n\
+             hl.bind(\"SUPER + SHIFT + W\", hl.dsp.exec_cmd(\"easyshot capture window\"))\n",
+        )
+        .unwrap();
+    });
+    assert!(
+        ConfigFile::load(&fx.config)
+            .unwrap()
+            .config()
+            .global_shortcuts
+            .is_empty()
+    );
+    fx.update(|v, cx| v.show(Page::Shortcuts, cx));
+    let key = |fx: &mut Fixture, id: &str| {
+        fx.read(|v, cx| {
+            v.shortcut_rows()
+                .iter()
+                .find(|r| r.entry.id == id)
+                .and_then(|r| r.field.read(cx).trigger().map(|t| t.label()))
+        })
+    };
+    assert_eq!(
+        key(&mut fx, "capture-region").as_deref(),
+        Some("Super+Shift+4")
+    );
+    assert_eq!(
+        key(&mut fx, "capture-window").as_deref(),
+        Some("Super+Shift+W")
+    );
+    fx.update(|v, cx| v.check_binds(cx));
+    let view = fx.view.clone();
+    fx.app.until("the check", |cx| {
+        view.read(cx).bind_status("capture-region").is_some()
+    });
+    let status = |fx: &mut Fixture, id: &str| fx.read(|v, _| v.bind_status(id).cloned());
+    assert_eq!(status(&mut fx, "capture-region"), Some(BindStatus::Bound));
+    assert_eq!(
+        status(&mut fx, "capture-fullscreen"),
+        Some(BindStatus::Bound)
+    );
+    assert!(
+        matches!(status(&mut fx, "capture-window"), Some(BindStatus::Conflict(c)) if c.contains("grim"))
+    );
+}

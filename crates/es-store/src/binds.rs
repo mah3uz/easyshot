@@ -9,3 +9,8 @@ pub fn write(paths: &Paths, name: &str, text: &str) -> Result<PathBuf> {
     write_atomic(&file, text.as_bytes())?;
     Ok(file)
 }
+
+/// The text of easyshot's binds file, or `None` when there is none yet.
+pub fn read(paths: &Paths, name: &str) -> Option<String> {
+    std::fs::read_to_string(paths.binds_file(name)).ok()
+}

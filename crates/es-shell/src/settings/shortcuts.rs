@@ -1,4 +1,4 @@
-use super::binds::{BindStatus, compositor_trigger, status, trigger_string};
+use super::binds::{BindStatus, compositor_trigger, from_compositor, runs, status, trigger_string};
 use super::setup::{self, route_of};
 use super::widgets::{group, row, row_with, status_mark};
 use super::{ClipboardSink, SettingsWindow};
@@ -137,14 +137,29 @@ impl Shortcuts {
             );
             rows.push(ShortcutRow { entry, field });
         }
+        let from_file = binds
+            .as_ref()
+            .and_then(|b| {
+                let text = es_store::binds::read(&paths, b.file_name())?;
+                Some(b.file_binds(&text))
+            })
+            .unwrap_or_default();
         let global: BTreeMap<&'static str, Trigger> = CATALOGUE
             .iter()
             .filter(|e| e.scope == Scope::Global)
             .filter_map(|e| {
-                Some((
-                    e.id,
-                    Trigger::parse(config.global_shortcuts.get(e.id)?).ok()?,
-                ))
+                let stored = config
+                    .global_shortcuts
+                    .get(e.id)
+                    .and_then(|v| Trigger::parse(v).ok());
+                let trigger = stored.or_else(|| {
+                    let route = route_of(e)?;
+                    from_file
+                        .iter()
+                        .find(|(_, command)| runs(command, route))
+                        .and_then(|(t, _)| from_compositor(&t.0))
+                })?;
+                Some((e.id, trigger))
             })
             .collect();
         for row in &rows {

@@ -554,7 +554,7 @@ trim viewer as soon as a recording ends, and the card still appears.
 Shortcuts lists every action. Global actions start with no key and show the command your compositor runs, such
 as `easyshot capture region`. Click a key field and press a key to record it. For global
 actions, the keys are saved under `[global_shortcuts]` in `config.toml` and written to the
-binds file; Copy Line puts the one include line for your compositor on the clipboard. easyshot
+binds file. A key found in the binds file but not in `config.toml` shows on its row too; Copy Line puts the one include line for your compositor on the clipboard. easyshot
 never edits your compositor config. Check reads your compositor's current binds and marks
 actions that are already bound, and keys that run something else, and shows whether the
 include line is found. Keys for editor actions are saved under `[shortcuts]`.
