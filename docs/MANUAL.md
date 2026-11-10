@@ -526,7 +526,8 @@ described under Agent use. Sharing is not part of
 version 1.
 
 General, Appearance, Theme is System, Light or Dark. System follows your desktop's light or dark
-choice, as the settings portal reports it, and changes when you change it. There is no Reduce
+choice, as the settings portal reports it, and changes when you change it. A desktop that reports
+no preference (what GNOME and DankMaterialShell report in light mode) gets light. There is no Reduce
 Motion switch in easyshot: it follows your desktop's "enable animations" setting (the
 `org.gnome.desktop.interface` key the portal reports) and changes with it. If the portal
 starts after easyshot, easyshot follows it from the moment it starts.

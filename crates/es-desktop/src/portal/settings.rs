@@ -18,10 +18,11 @@ pub struct PortalAppearance {
     _conn: zbus::Connection,
 }
 
+// Desktops write "default" for their light mode (GNOME, DMS), and GTK and libadwaita draw it light.
 fn scheme(s: PortalScheme) -> ColorScheme {
     match s {
-        PortalScheme::PreferLight => ColorScheme::Light,
-        PortalScheme::PreferDark | PortalScheme::NoPreference => ColorScheme::Dark,
+        PortalScheme::PreferLight | PortalScheme::NoPreference => ColorScheme::Light,
+        PortalScheme::PreferDark => ColorScheme::Dark,
     }
 }
 
@@ -101,5 +102,17 @@ impl Appearance for PortalAppearance {
 
     fn changes(&self) -> async_channel::Receiver<AppearanceEvent> {
         self.changes.clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_desktop_switched_to_light_mode_that_reports_no_preference_gets_light() {
+        assert_eq!(scheme(PortalScheme::NoPreference), ColorScheme::Light);
+        assert_eq!(scheme(PortalScheme::PreferLight), ColorScheme::Light);
+        assert_eq!(scheme(PortalScheme::PreferDark), ColorScheme::Dark);
     }
 }
