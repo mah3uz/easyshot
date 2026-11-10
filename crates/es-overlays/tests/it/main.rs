@@ -4,6 +4,7 @@ mod countdown;
 mod deck;
 mod deck_actions;
 mod deck_motion;
+mod deck_stack;
 mod deck_timer;
 mod pin;
 mod player;

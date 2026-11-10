@@ -303,3 +303,10 @@ What was rejected beyond that, and why: not recorded.
     region, as for screenshots. Shift-click on the capture bar's Scroll button and
     `capture scroll --region` start on a region. Rejected: a modifier held at the start,
     because a key bind's own modifiers are still down when it fires.
+38. **The deck is a stack** (maintainer's decision, 2026-11-10): the newest card sits in front
+    in the corner, up to two older ones peek out above it, and a badge counts the cards;
+    hovering fans them into the column, and leaving folds them back. The deck's surface keeps
+    the fanned size and only its input region changes, so the pointer's place on the surface
+    never moves while the deck fans or folds. Rejected: a column of every card, which piled up
+    the screen edge; resizing the surface on hover, which shifts the surface under the pointer
+    mid-move.

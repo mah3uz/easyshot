@@ -126,9 +126,9 @@ fn the_newest_card_sits_in_the_corner_the_deck_is_anchored_to() {
         "older cards stack above"
     );
     assert_eq!(
-        right.input_region().len(),
-        4,
-        "the header and three cards take the pointer"
+        right.input_region(true),
+        [right.header().unwrap().union(newest)],
+        "fanned, the header, the three cards and the gaps between them take the pointer"
     );
 
     let left = DeckGeometry::new(card, 20., Corner::BottomLeft, 1);
@@ -189,9 +189,9 @@ fn item(dir: &std::path::Path, n: u8) -> DeckItem {
 pub(crate) struct Rig {
     pub(crate) s: Surface<Stage>,
     pub(crate) deck: Entity<Deck>,
-    view: Entity<DeckView>,
+    pub(crate) view: Entity<DeckView>,
     events: Rc<RefCell<Vec<DeckEvent>>>,
-    geometry: DeckGeometry,
+    pub(crate) geometry: DeckGeometry,
     _dir: tempfile::TempDir,
     _sub: gpui::Subscription,
 }
@@ -275,6 +275,19 @@ impl Rig {
         DeckSettings::default().geometry(count).card(i)
     }
 
+    /// Points at the newest card and lets the deck spread out.
+    pub(crate) fn fan(&mut self) {
+        let deck = self.deck.clone();
+        let count = self.s.app.cx.update(|cx| deck.read(cx).len());
+        let front = self.card(count - 1).center();
+        self.point(front.x as f32, front.y as f32);
+        self.s
+            .app
+            .cx
+            .advance_clock(es_ui::motion::DECK_FAN.duration);
+        self.next_frame();
+    }
+
     pub(crate) fn names(&mut self) -> Vec<String> {
         let deck = self.deck.clone();
         self.s
@@ -306,7 +319,7 @@ impl Rig {
         self.s.up(x, y);
     }
 
-    fn last(&self) -> Option<DeckEvent> {
+    pub(crate) fn last(&self) -> Option<DeckEvent> {
         self.events.borrow().last().cloned()
     }
 
@@ -383,12 +396,14 @@ fn leaving_the_deck_surface_from_a_card_lets_its_timers_run_again() {
 #[test]
 fn the_hover_tools_ask_for_their_actions() {
     let mut r = rig(3, false);
+    r.fan();
     let c = r.card(0);
     let mid = c.center();
     r.click((mid.x - 22.) as f32, mid.y as f32);
     assert_eq!(r.requested(), [("shot1".into(), DeckAction::Copy)]);
     assert_eq!(r.names(), ["shot2", "shot3"], "Copy removes the card");
 
+    r.fan();
     let c = r.card(0);
     r.click((c.x0 + 19.) as f32, (c.y0 + 19.) as f32);
     assert_eq!(
@@ -461,6 +476,7 @@ fn dismiss_and_a_click_on_the_picture_close_or_open_the_capture() {
 #[test]
 fn the_header_saves_or_clears_every_card() {
     let mut r = rig(3, false);
+    r.fan();
     let header = r.geometry.header().unwrap();
     r.click((header.x1 - 20.) as f32, header.center().y as f32);
     assert!(r.names().is_empty(), "Clear All empties the deck");
@@ -481,6 +497,7 @@ fn the_header_saves_or_clears_every_card() {
     assert_eq!(cleared, 3);
 
     let mut r = rig(2, false);
+    r.fan();
     let header = r.geometry.header().unwrap();
     r.click((header.x1 - 75.) as f32, header.center().y as f32);
     assert_eq!(

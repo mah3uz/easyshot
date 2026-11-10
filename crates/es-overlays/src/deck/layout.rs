@@ -9,6 +9,12 @@ pub const HEADER: f64 = 26.;
 pub const SHADOW_ROOM: f64 = 24.;
 pub const DEFAULT_MARGIN: f64 = 20.;
 pub const MAX_MARGIN: f64 = 48.;
+/// How far each card folded behind the newest shows above it.
+pub const PEEK: f64 = 7.;
+/// How much smaller each card folded behind is than the one in front of it.
+pub const PEEK_SHRINK: f64 = 0.05;
+pub const PEEKING: usize = 2;
+pub const BADGE: f64 = 20.;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum CardSize {
@@ -355,11 +361,56 @@ impl DeckGeometry {
         }
     }
 
-    /// `index` 0 is the oldest card, at the top; the newest sits nearest the corner.
+    /// Where card `index` sits with the deck fanned out: 0 is the oldest, at the top; the newest sits nearest the corner.
     pub fn card(&self, index: usize) -> Rect {
         let header = if self.has_header() { HEADER } else { 0. };
         let y = SHADOW_ROOM + header + index as f64 * (self.card.height + SPACING);
         Rect::from_origin_size(Point::new(self.card_x(), y), self.card)
+    }
+
+    /// How many cards lie in front of card `index` when the deck is folded.
+    pub fn depth(&self, index: usize) -> usize {
+        self.count.saturating_sub(index + 1)
+    }
+
+    fn front(&self) -> Rect {
+        self.card(self.count.saturating_sub(1))
+    }
+
+    /// Folded, the newest card stays where it is fanned and the older ones tuck behind it; past
+    /// [`PEEKING`] they lie under the last one that shows.
+    pub fn folded(&self, index: usize) -> Rect {
+        let front = self.front();
+        let depth = self.depth(index).min(PEEKING) as f64;
+        let scale = 1. - PEEK_SHRINK * depth;
+        let size = Size::new(self.card.width * scale, self.card.height * scale);
+        let x = front.x0 + (self.card.width - size.width) / 2.;
+        Rect::from_origin_size(Point::new(x, front.y0 - PEEK * depth), size)
+    }
+
+    /// Card `index` part of the way from folded (0) to fanned (1).
+    pub fn at(&self, index: usize, fan: f64) -> Rect {
+        let (a, b) = (self.folded(index), self.card(index));
+        let mix = |from: f64, to: f64| from + (to - from) * fan;
+        Rect::new(
+            mix(a.x0, b.x0),
+            mix(a.y0, b.y0),
+            mix(a.x1, b.x1),
+            mix(a.y1, b.y1),
+        )
+    }
+
+    /// The count over the folded stack, on the front card's top corner away from the screen edge.
+    pub fn badge(&self) -> Option<Rect> {
+        self.has_header().then(|| {
+            let front = self.front();
+            let x = match self.corner {
+                Corner::BottomRight => front.x0 + 2.,
+                Corner::BottomLeft => front.x1 - 2.,
+            };
+            let y = front.y0 - PEEK * self.depth(0).min(PEEKING) as f64 + 2.;
+            Rect::from_center_size(Point::new(x, y), Size::new(BADGE, BADGE))
+        })
     }
 
     pub fn header(&self) -> Option<Rect> {
@@ -371,12 +422,18 @@ impl DeckGeometry {
         })
     }
 
-    /// Only these take the pointer; the rest of the panel lets clicks through.
-    pub fn input_region(&self) -> Vec<Rect> {
-        self.header()
-            .into_iter()
-            .chain((0..self.count).map(|i| self.card(i)))
-            .collect()
+    /// Only these take the pointer; the rest of the panel lets clicks through. Fanned, the gaps
+    /// between cards take it too, so crossing one does not fold the deck.
+    pub fn input_region(&self, fanned: bool) -> Vec<Rect> {
+        if self.count == 0 {
+            return Vec::new();
+        }
+        if fanned {
+            let top = self.header().unwrap_or_else(|| self.card(0));
+            return vec![top.union(self.front())];
+        }
+        let stack = (0..self.count).fold(self.front(), |r, i| r.union(self.folded(i)));
+        std::iter::once(stack).chain(self.badge()).collect()
     }
 
     /// The panel's top-left, in global logical pixels, flush with the output's corner.

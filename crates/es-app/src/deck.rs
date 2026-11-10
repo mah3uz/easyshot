@@ -353,6 +353,11 @@ impl Deck {
         self.hovered
     }
 
+    /// The cards fold into a stack and spread out while the pointer or the keyboard is on them.
+    pub fn fanned(&self) -> bool {
+        self.hovered || self.focused.is_some()
+    }
+
     /// The cards stay but are not shown, and their timers wait; a new capture shows the deck again.
     pub fn is_hidden(&self) -> bool {
         self.hidden

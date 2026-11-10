@@ -129,7 +129,9 @@ Depending on your settings, easyshot plays a shutter sound (Settings, General, "
 shutter sound"; only builds with the `sound` feature make it), saves the file, copies it, and
 opens the editor. Each capture also appears as a card in a floating preview deck:
 
-- up to 5 cards;
+- up to 5 cards, stacked in the corner: the newest in front, up to two older ones peeking out
+  above it, and a badge with the number of cards. Hover the stack and it fans out into a
+  column, so you can reach every card; move the pointer away and it folds back;
 - hover actions in slots you can configure; on a card that auto-save has already saved, Save
   becomes Show in Folder, which opens your file manager on the saved file;
 - Settings › Overlay › Card Actions chooses which actions a card shows: Copy, Save / Show in
@@ -146,8 +148,9 @@ opens the editor. Each capture also appears as a card in a floating preview deck
   A capture that was never saved is discarded the same way and Undo returns the card. Neither
   action appears on a recording's card;
 - drag a card out into another app or a file manager, which gets a copy of the file;
-- cards disappear on their own, and pause while you hover over them;
-- Save All and Clear All.
+- cards disappear on their own, each on its own clock, and all of them wait while the pointer
+  is on the deck; when the front card goes, the next one comes forward;
+- Save All and Clear All, above the cards while the deck is fanned out.
 
 Cards on the deck survive a restart if they are younger than 24 hours. A card shows the
 capture inside your default look, and the editor opens it with that look still editable.
@@ -518,8 +521,9 @@ Interface changes ease into place; with Reduce Motion they happen at once:
   across; a Settings page rises into place as the last fades out; the Settings home tiles fill in
   softly under the pointer; the introduction's steps slide past each other.
 - The countdown dial springs in and each second rolls down into place.
-- Deck cards fade their picture and "Saving…" label in and out, and fade their tools in and out
-  with the pointer; a pin's close button does the same.
+- The deck's stack fans out into a column and folds back; deck cards fade their picture and
+  "Saving…" label in and out, and fade their tools in and out with the pointer; a pin's close
+  button does the same.
 - In the editor, Saved and Copied fade in and out; a crop grows into the new view; crop Reset
   and a new aspect ease the frame into place and Cancel widens it to the whole image as it
   fades; a preset, a first background, a canvas shape or an alignment draws its way in; the

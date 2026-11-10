@@ -1,5 +1,5 @@
-use super::card::{Card, black, white};
-use super::layout::{CardSize, Corner, DEFAULT_MARGIN, DeckGeometry, ToolLayout};
+use super::card::{Card, RADIUS, black, card_shadow, white};
+use super::layout::{CardSize, Corner, DEFAULT_MARGIN, DeckGeometry, PEEKING, ToolLayout};
 use crate::capture::strings::fl;
 use es_app::deck::{Deck, DeckAction};
 use es_app::errors::{Error, Result};
@@ -9,6 +9,7 @@ use es_app::platform_ui::{
 use es_geom::{Point, Rect};
 use es_model::config::{CardActions, Overlay};
 use es_ui::a11y::{Accessible as _, Role};
+use es_ui::motion::{DECK_FAN, tween};
 use es_ui::theme::UI_FONT;
 use gpui::{
     App, AppContext as _, Context, DispatchPhase, Entity, FocusHandle, FontWeight,
@@ -82,6 +83,8 @@ pub struct DeckView {
     images: HashMap<Uuid, Option<Arc<RenderImage>>>,
     focus: HashMap<Uuid, FocusHandle>,
     hovered: Option<Uuid>,
+    inside: bool,
+    fan: f32,
     cards: Vec<(Uuid, Rect)>,
     focused: Option<Uuid>,
     _observe: Subscription,
@@ -96,6 +99,8 @@ impl DeckView {
             images: HashMap::new(),
             focus: HashMap::new(),
             hovered: None,
+            inside: false,
+            fan: 0.,
             cards: Vec::new(),
             focused: None,
             _observe: observe,
@@ -106,6 +111,15 @@ impl DeckView {
 
     pub fn hovered(&self) -> Option<Uuid> {
         self.hovered
+    }
+
+    pub fn fanned(&self) -> bool {
+        self.inside || self.focused.is_some()
+    }
+
+    /// How far the deck was drawn spread out: 0 folded, 1 fanned.
+    pub fn spread(&self) -> f32 {
+        self.fan
     }
 
     pub fn has_image(&self, id: Uuid) -> bool {
@@ -127,7 +141,7 @@ impl DeckView {
             .hovered
             .is_some_and(|h| !items.iter().any(|(i, _)| *i == h))
         {
-            self.hover(None, cx);
+            self.hover(false, None, cx);
         }
         for (id, thumb) in items {
             if self.images.contains_key(&id) {
@@ -150,21 +164,32 @@ impl DeckView {
     }
 
     /// Element hover keeps the last position after the pointer leaves, so it would stay on the card.
+    /// The pointer is tested against the region taking it now, so moving from the stack onto the
+    /// fanned cards, or across the gaps between them, keeps the deck fanned.
     fn pointer_at(&mut self, at: Option<Point>, cx: &mut Context<Self>) {
-        let now = at.and_then(|p| {
+        let region = self
+            .settings
+            .geometry(self.cards.len())
+            .input_region(self.fanned());
+        let inside = at.is_some_and(|p| region.iter().any(|r| r.contains(p)));
+        let card = at.filter(|_| inside).and_then(|p| {
             self.cards
                 .iter()
                 .find(|(_, r)| r.contains(p))
                 .map(|(id, _)| *id)
         });
-        self.hover(now, cx);
+        self.hover(inside, card, cx);
     }
 
-    fn hover(&mut self, now: Option<Uuid>, cx: &mut Context<Self>) {
-        if now != self.hovered {
-            self.hovered = now;
+    fn hover(&mut self, inside: bool, card: Option<Uuid>, cx: &mut Context<Self>) {
+        if inside != self.inside {
+            self.inside = inside;
             let deck = self.deck.clone();
-            cx.defer(move |cx| deck.update(cx, |d, cx| d.set_hovered(now.is_some(), cx)));
+            cx.defer(move |cx| deck.update(cx, |d, cx| d.set_hovered(inside, cx)));
+            cx.notify();
+        }
+        if card != self.hovered {
+            self.hovered = card;
             cx.notify();
         }
     }
@@ -221,7 +246,16 @@ impl Render for DeckView {
             let deck = self.deck.clone();
             cx.defer(move |cx| deck.update(cx, |d, cx| d.set_focused(focused, cx)));
         }
-        let header = geometry.header().map(|r| {
+        let fanned = self.fanned();
+        let fan = tween(
+            "deck-fan",
+            if fanned { 1. } else { 0. },
+            DECK_FAN,
+            window,
+            cx,
+        );
+        self.fan = fan;
+        let header = geometry.header().filter(|_| fan > 0.).map(|r| {
             let row = div()
                 .absolute()
                 .left(px(r.x0 as f32))
@@ -231,6 +265,7 @@ impl Render for DeckView {
                 .flex()
                 .items_center()
                 .gap(px(6.))
+                .opacity(fan)
                 .when(self.settings.corner == Corner::BottomRight, |row| {
                     row.justify_end()
                 });
@@ -269,17 +304,42 @@ impl Render for DeckView {
         )
         .absolute()
         .size_full();
+        let count = items.len();
+        let badge = geometry.badge().filter(|_| fan < 1.).map(|r| {
+            div()
+                .id("deck-count")
+                .accessible(Role::Status, fl!("deck-stack-a11y", count = count))
+                .absolute()
+                .left(px(r.x0 as f32))
+                .top(px(r.y0 as f32))
+                .size(px(r.width() as f32))
+                .flex()
+                .items_center()
+                .justify_center()
+                .rounded_full()
+                .bg(white(0.95))
+                .shadow(card_shadow())
+                .font_family(UI_FONT)
+                .text_size(px(11.))
+                .font_weight(FontWeight::BOLD)
+                .text_color(black(0.85))
+                .opacity(1. - fan)
+                .child(fl!("deck-stack-count", count = count))
+        });
         let cards = items.into_iter().enumerate().map(|(i, item)| {
-            let r: Rect = geometry.card(i);
+            let r: Rect = geometry.at(i, f64::from(fan));
+            let depth = geometry.depth(i);
+            let dim = [0., 0.22, 0.4][depth.min(PEEKING)] * (1. - fan);
             let id = item.id;
             let focus = self
                 .focus
                 .get(&id)
                 .cloned()
                 .unwrap_or_else(|| cx.focus_handle());
-            let show = self.settings.always_show_actions
+            let show = (self.settings.always_show_actions
                 || self.hovered == Some(id)
-                || self.focused == Some(id);
+                || self.focused == Some(id))
+                && (depth == 0 || fanned);
             let deck = self.deck.clone();
             let on_action = Rc::new(move |action: DeckAction, _: &mut Window, cx: &mut App| {
                 deck.update(cx, |d, cx| d.act(id, action, cx));
@@ -289,10 +349,13 @@ impl Render for DeckView {
                 .absolute()
                 .left(px(r.x0 as f32))
                 .top(px(r.y0 as f32))
+                .w(px(r.width() as f32))
+                .h(px(r.height() as f32))
+                .when(depth > PEEKING, |card| card.opacity(fan))
                 .child(
                     Card::new(
                         item,
-                        geometry.card,
+                        r.size(),
                         image,
                         self.settings.layout,
                         self.settings.size.control_scale(),
@@ -303,6 +366,9 @@ impl Render for DeckView {
                     .share(self.settings.share)
                     .actions(self.settings.actions),
                 )
+                .when(dim > 0., |card| {
+                    card.child(div().absolute().inset_0().rounded(RADIUS).bg(black(dim)))
+                })
         });
         div()
             .id("deck")
@@ -312,15 +378,18 @@ impl Render for DeckView {
             .child(pointer)
             .children(header)
             .children(cards)
+            .children(badge)
     }
 }
 
 struct Shown {
     handle: LayerSurfaceHandle,
     count: usize,
+    fanned: bool,
 }
 
-/// Keeps a deck surface mapped while the deck has cards, sized to them, with only the cards taking input.
+/// Keeps a deck surface mapped while the deck has cards, sized to them fanned out, with only the
+/// stack or the fanned cards taking input; fanning never resizes it, so the pointer stays put.
 pub struct DeckSurface {
     surfaces: Rc<LayerShellSurfaces>,
     deck: Entity<Deck>,
@@ -383,6 +452,7 @@ impl DeckSurface {
     fn sync(&self, cx: &mut App) -> Result<()> {
         let deck = self.deck.read(cx);
         let count = if deck.is_hidden() { 0 } else { deck.len() };
+        let fanned = deck.fanned();
         if count == 0 {
             if let Some(shown) = self.shown.borrow_mut().take() {
                 shown.handle.close(cx);
@@ -393,10 +463,13 @@ impl DeckSurface {
         let geometry = settings.geometry(count);
         let mut slot = self.shown.borrow_mut();
         match slot.as_mut() {
-            Some(shown) if shown.count == count => return Ok(()),
+            Some(shown) if shown.count == count && shown.fanned == fanned => return Ok(()),
             Some(shown) => {
-                shown.count = count;
-                shown.handle.resize(geometry.panel(), cx);
+                shown.fanned = fanned;
+                if shown.count != count {
+                    shown.count = count;
+                    shown.handle.resize(geometry.panel(), cx);
+                }
             }
             None => {
                 let output = self
@@ -412,13 +485,19 @@ impl DeckSurface {
                 let deck = self.deck.clone();
                 let view = cx.new(|cx| DeckView::new(deck, settings, cx));
                 handle.set_content(view.into(), cx);
-                *slot = Some(Shown { handle, count });
+                *slot = Some(Shown {
+                    handle,
+                    count,
+                    fanned,
+                });
             }
         }
         if let Some(shown) = slot.as_ref() {
             let output = shown.handle.output_info().logical;
             shown.handle.set_position(geometry.origin(output), cx);
-            shown.handle.set_input_region(&geometry.input_region(), cx);
+            shown
+                .handle
+                .set_input_region(&geometry.input_region(fanned), cx);
         }
         Ok(())
     }

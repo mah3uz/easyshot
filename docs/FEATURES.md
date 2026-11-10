@@ -66,6 +66,7 @@ More in the manual: [Capturing](MANUAL.md#capturing).
 - Plays a shutter sound if you turn it on (in builds that include sound).
 - Saves the file, copies it and opens the editor, as your settings say.
 - Shows each capture as a card in a floating preview deck of up to 5 cards.
+- Stacks the cards in the corner, newest in front with a count, and fans them out while you hover.
 - Offers hover actions on a card, in slots you can set up.
 - Lets you choose which actions a card shows in Settings › Overlay › Card Actions.
 - Opens a card's Preview in a plain window with the image fitted; click or Z toggles 100%, Space or Esc closes it.
@@ -73,7 +74,7 @@ More in the manual: [Capturing](MANUAL.md#capturing).
 - Moves a card's capture to the Trash with Delete, and a toast's Undo puts it back and returns the card.
 - Turns Save into Show in Folder on a card that was already saved automatically.
 - Lets you drag a card into another app or a file manager as a copy.
-- Removes cards on their own, pausing while you hover over one.
+- Removes cards on their own, each on its own clock, pausing while you hover over the deck.
 - Saves or clears every card at once with Save All and Clear All.
 - Keeps cards through a restart for 24 hours.
 - Shows a card in your default look and reopens the capture in the editor with that look still editable.

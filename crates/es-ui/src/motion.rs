@@ -74,6 +74,7 @@ const fn fades(ms: u64, easing: Easing) -> Transition {
 
 pub const POPOVER_OPEN: Transition = moves(130, Easing::EaseOut);
 pub const DECK_HOVER: Transition = fades(120, Easing::EaseOut);
+pub const DECK_FAN: Transition = moves(220, Easing::Snappy);
 pub const TOAST_IN: Transition = moves(280, Easing::EaseOut);
 pub const TOAST_SLIDE: Pixels = px(10.);
 pub const TOAST_OUT: Transition = fades(200, Easing::EaseIn);
