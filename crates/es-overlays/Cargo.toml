@@ -39,6 +39,7 @@ gstreamer-app = { workspace = true, optional = true }
 gstreamer-video = { workspace = true, optional = true }
 
 [dev-dependencies]
+tracing-subscriber.workspace = true
 gpui = { workspace = true, features = ["test-support", "bench-support"] }
 gpui_platform = { workspace = true, features = ["test-support", "bench-support"] }
 es-testkit.workspace = true
