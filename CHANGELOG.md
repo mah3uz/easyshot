@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### New
+- `curl -fsSL https://easyshot.site/install.sh | sh` installs the latest release on any distribution after checking its checksum and signature, system-wide or just for you (`--user`), starts it, and removes it again with `--uninstall`.
 - The release tarball has an `install.sh` that installs easyshot for all users or just you (`--user`) on any distribution, starts it, and removes it again with `--uninstall`.
 - Screenshots of a region, a window, a whole screen or the previous target, always on a frozen screen; text and QR codes (OCR); a colour picker; pins that stay on top; an editor with 13 tools; and a history of your captures.
 - Toasts stay 2.5 seconds, an error 5 and one with Undo 8, and wait while the pointer is on them.

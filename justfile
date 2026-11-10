@@ -119,9 +119,10 @@ gpui-guard:
 release-check:
     scripts/release-check.sh
 
-# Run install.sh from a staged release into temporary directories
+# Run install.sh from a staged release, and the one-line installer against a local fake release, into temporary directories
 install-test:
     scripts/install-test.sh
+    scripts/install-bootstrap-test.sh
 
 # The gate: everything that must pass before a merge
 check: lint layers grep-guard file-size i18n-check wiring-check gpui-guard install-test test

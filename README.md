@@ -67,7 +67,16 @@ just install
 ```
 
 The package enables and starts the user service `easyshot.service`. On other distributions,
-the release tarball has an `install.sh`; see "Other distributions" in `docs/MANUAL.md`.
+one line installs the latest release under `/usr/local` (through sudo or doas), after checking
+its checksum and, if minisign is installed, its signature, and starts it:
+
+```
+curl -fsSL https://easyshot.site/install.sh | sh
+```
+
+Add `-s -- --user` after `sh` to install into `~/.local` without sudo, or `-s -- --uninstall`
+to remove it. To install the release tarball by hand, see "Other distributions" in
+`docs/MANUAL.md`.
 
 To build from source, use the Rust 1.98.1 that `rust-toolchain.toml` pins:
 

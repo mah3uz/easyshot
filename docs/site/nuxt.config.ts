@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
 
 // Static site, generated with `nuxt generate` and served by Cloudflare Workers static assets.
@@ -54,6 +55,8 @@ export default defineNuxtConfig({
   },
 
   nitro: {
+    // The one-line installer is served at /install.sh straight from its only copy.
+    publicAssets: [{ dir: fileURLToPath(new URL('../../packaging/web', import.meta.url)) }],
     prerender: {
       crawlLinks: true,
       routes: ['/', '/how-to', '/sitemap.xml', '/robots.txt'],

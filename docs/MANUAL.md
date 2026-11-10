@@ -36,7 +36,32 @@ install one.
 
 ### Other distributions
 
-Every release carries a prebuilt tarball and an install script. Download
+One line installs the latest release for every user, under `/usr/local`:
+
+```
+curl -fsSL https://easyshot.site/install.sh | sh
+```
+
+It downloads the release for Linux on x86_64, checks it against `SHA256SUMS`, and installs it
+through sudo or doas, which ask for your password. If [minisign](https://jedisct1.github.io/minisign/)
+is installed, it first checks the signature on `SHA256SUMS`; if not, it says so and checks the
+checksum only. If any check fails, nothing is installed. Then it starts `easyshot.service`
+for you; every other user runs `systemctl --user enable --now easyshot.service` once.
+It needs curl or wget, tar, gzip, sha256sum and bash.
+
+Add options after `sh -s --`:
+
+```
+curl -fsSL https://easyshot.site/install.sh | sh -s -- --user
+curl -fsSL https://easyshot.site/install.sh | sh -s -- --uninstall
+```
+
+`--user` (or `--local`) installs for you only, under `~/.local`, without sudo; put
+`~/.local/bin` on your `PATH`. `--uninstall` removes what the same kind of install put there;
+add `--user` to remove a `--user` install. `EASYSHOT_VERSION=0.1.0` before `sh` installs that
+release instead of the latest.
+
+To install by hand instead: every release carries a prebuilt tarball and an install script. Download
 `easyshot-VERSION-x86_64-unknown-linux-gnu.tar.gz`, `SHA256SUMS` and `SHA256SUMS.minisig`
 from the [releases page](https://github.com/mah3uz/easyshot/releases/latest), then check
 them with [minisign](https://jedisct1.github.io/minisign/) and extract:

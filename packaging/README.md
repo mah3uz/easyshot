@@ -8,6 +8,15 @@
   removes what it put there. It lays files out as the AUR packages do, points the unit, the
   D-Bus service and the desktop entries at the installed binary, and honours `DESTDIR`.
   `EASYSHOT_NO_SYSTEMCTL=1` skips systemctl; `just install-test` runs it that way.
+- `web/install.sh` is the one-line installer, served by the website at
+  `https://easyshot.site/install.sh` (the site's Nuxt config serves `web/` at its root, so
+  this is its only copy). It finds the latest release from the redirect of
+  `releases/latest`, checks `SHA256SUMS.minisig` with the key it embeds when minisign is
+  installed, then the tarball against `SHA256SUMS`, and runs the tarball's `install.sh`:
+  system-wide through sudo or doas by default, `--user` (or `--local`) into `~/.local`.
+  `EASYSHOT_RELEASES_URL` replaces the GitHub releases URL, for tests only.
+  `scripts/install-bootstrap-test.sh` (in `just install-test`) runs it against a fake
+  release on a local server and fails if the embedded key differs from `release.pub`.
 - `data/` holds the templates `stage.sh` fills in.
 - `aur/easyshot-bin/` installs the release's prebuilt tarball.
 - `aur/easyshot/` builds the release's vendored source tarball offline. It needs `rustup`
