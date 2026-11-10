@@ -355,7 +355,7 @@ pub fn show_toast(t: Toast, cx: &mut App) {
     let expiry = request.clone();
     cx.spawn(async move |cx| {
         cx.background_executor().timer(expiry.duration).await;
-        let _ = cx.update(|cx| expiry.close(CloseReason::Expired, cx));
+        cx.update(|cx| expiry.close(CloseReason::Expired, cx));
     })
     .detach();
     match notifier.notify(note) {

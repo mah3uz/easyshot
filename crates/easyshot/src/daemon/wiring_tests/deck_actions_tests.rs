@@ -6,7 +6,6 @@ use es_model::CaptureKind;
 use es_overlays::pin::Pins;
 use es_shell::preview::Preview;
 use std::sync::Mutex;
-use std::time::Duration;
 
 pub(super) struct NoFiles;
 
