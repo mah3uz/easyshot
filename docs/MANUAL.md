@@ -54,7 +54,8 @@ easyshot sets no global key by default, so none clashes with your own binds: you
 key in Settings > Shortcuts, or accept the suggestions in the first-run step "Set your
 shortcuts" (Print, Shift+Print, Alt+Print and Ctrl+Print where your compositor leaves them
 free, otherwise a Super+Shift key). easyshot keeps the chosen keys in its own binds file in
-`~/.config/easyshot/` and rewrites it whenever they change; it never edits your compositor
+`~/.config/easyshot/` and rewrites it whenever they change, and brings the file up to date when it
+starts, keeping your keys; it never edits your compositor
 config. You add one line to that config yourself, once:
 
 | Compositor | Binds file | Line to add |

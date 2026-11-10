@@ -369,7 +369,7 @@ fn start(
             pickers::folder_picker()
         },
         bus::live_caps(backend),
-        es_shell::settings::from_backend(backend.clone()),
+        es_shell::settings::setup::refreshed_binds(backend.clone(), paths),
         {
             let backend = backend.clone();
             Rc::new(move || backend.capture.outputs())
