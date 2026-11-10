@@ -67,6 +67,16 @@ pub struct Item {
     pub project: Option<PathBuf>,
 }
 
+impl Item {
+    /// The name is the file stem, so the extension is drawn apart from it.
+    pub fn extension_suffix(&self) -> String {
+        self.file
+            .extension()
+            .map(|e| format!(".{}", e.to_string_lossy()))
+            .unwrap_or_default()
+    }
+}
+
 impl From<MediaFile> for Item {
     fn from(m: MediaFile) -> Self {
         Self {

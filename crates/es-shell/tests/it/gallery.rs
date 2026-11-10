@@ -356,3 +356,25 @@ fn scrolling_the_grid_of_200_items_keeps_frame_cpu_low() {
     let p95 = percentile(&warm, 0.95);
     assert!(p95 <= 8.0, "p95 {p95:.2} ms");
 }
+
+#[test]
+fn the_extension_is_kept_apart_from_the_name_in_both_views() {
+    let mut rig = rig();
+    let shown = rig.read(|g| g.shown().to_vec());
+    let shot = shown
+        .iter()
+        .find(|i| i.kind == MediaKind::Screenshot)
+        .unwrap();
+    let video = shown.iter().find(|i| i.kind == MediaKind::Video).unwrap();
+    assert_eq!(shot.extension_suffix(), ".png");
+    assert_eq!(
+        video.extension_suffix(),
+        format!(".{}", video.file.extension().unwrap().to_string_lossy())
+    );
+    assert!(!shot.name.ends_with(".png"), "the name stays the stem");
+    rig.draw();
+    rig.picture("gallery-extension-grid");
+    rig.update(|g, cx| g.set_view(ViewMode::List, cx));
+    rig.draw();
+    rig.picture("gallery-extension-list");
+}

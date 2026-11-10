@@ -203,6 +203,7 @@ More in the manual: [The editor](MANUAL.md#the-editor) and [Editor keys](MANUAL.
 - Offers Easyshot in your file manager's Open with for PNG, JPEG, GIF, MP4, WebM, MKV and MOV files, and `easyshot open FILE` does the same.
 - Keeps a history of captures with search, sorting, icon and list views, and a trash.
 - Sizes the gallery's previews with a toolbar slider, Ctrl+scroll, Ctrl+plus and Ctrl+minus (Ctrl+0 resets), and remembers the size.
+- Shows each item's file extension after its name in the gallery, in a quieter colour.
 - Keeps 100 history entries by default.
 - Lists recordings in the gallery under Videos and All Media: unsaved ones, saved ones and trim exports, each with a first-frame thumbnail, a play badge and its length when known.
 - Opens a video from the gallery or the tray in the trim viewer.

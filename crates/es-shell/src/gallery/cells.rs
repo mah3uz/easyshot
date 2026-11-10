@@ -272,14 +272,26 @@ fn cell(gallery: &Gallery, item: &Item, size: f32, cx: &mut Context<Gallery>) ->
                         .max_w_full()
                         .px(px(4.))
                         .rounded(px(4.))
+                        .flex()
+                        .items_end()
                         .text_size(px(13.))
                         .line_height(px(17.))
                         .text_center()
-                        .line_clamp(2)
-                        .text_ellipsis()
                         .text_color(if on { t.on_accent } else { t.text })
                         .when(on, |d| d.bg(t.accent))
-                        .child(item.name.clone()),
+                        .child(
+                            div()
+                                .min_w_0()
+                                .line_clamp(2)
+                                .text_ellipsis()
+                                .child(item.name.clone()),
+                        )
+                        .child(
+                            div()
+                                .flex_none()
+                                .text_color(if on { t.on_accent } else { t.text_secondary })
+                                .child(item.extension_suffix()),
+                        ),
                 ),
         )
         .on_click(move |event, window, cx| click(&view, id, event, window, cx))
@@ -438,9 +450,15 @@ pub fn list_row(
                 .flex_1()
                 .min_w(px(160.))
                 .px(px(6.))
-                .truncate()
+                .flex()
                 .text_color(text)
-                .child(item.name.clone()),
+                .child(div().min_w_0().truncate().child(item.name.clone()))
+                .child(
+                    div()
+                        .flex_none()
+                        .text_color(secondary)
+                        .child(item.extension_suffix()),
+                ),
         )
         .child(
             div()

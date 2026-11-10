@@ -392,6 +392,9 @@ changes it too, as do Ctrl+plus and Ctrl+minus, and Ctrl+0 goes back to the defa
 size is remembered in `config.toml` as `item_size` under `[gallery]`. The list view keeps its
 small icons.
 
+Each item shows its file extension after the name, in a quieter colour, in both views; a long
+name is shortened, never the extension.
+
 Videos are in the gallery too, under Videos and All Media: recordings you have not saved yet
 (the project folders in `$XDG_DATA_HOME/easyshot/recordings/`), saved recordings and trim
 exports (`~/Videos/easyshot/`). A video shows its first frame, a play badge and, for a
