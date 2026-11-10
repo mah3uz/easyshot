@@ -467,7 +467,7 @@ impl SettingsWindow {
             _ => None,
         };
         if let Some(mark) = included {
-            rows.push(div().mx(px(16.)).mb(px(12.)).child(mark).into_any_element());
+            rows.push(div().px(px(16.)).py(px(12.)).child(mark).into_any_element());
         }
         let footer = match (&s.file_error, &s.included, &s.reloaded, &s.check) {
             (Some(error), ..) => Some(fl!("shortcuts-file-failed", error = error.clone())),
