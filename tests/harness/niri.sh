@@ -40,7 +40,8 @@ down() {
     local sig=0
     if [ -s "$STATE/env" ]; then
         # shellcheck disable=SC2046
-        env $(grep -E '^(NIRI_SOCKET|WAYLAND_DISPLAY)=' "$STATE/env") niri msg action quit --skip-confirmation > /dev/null 2>&1 || sig=1
+        # niri can exit before it answers the quit, so only its socket going away counts.
+        env $(grep -E '^(NIRI_SOCKET|WAYLAND_DISPLAY)=' "$STATE/env") niri msg action quit --skip-confirmation > /dev/null 2>&1 || true
         wait_for 5 test ! -S "$(sed -n 's/^NIRI_SOCKET=//p' "$STATE/env")" || sig=1
     fi
     rm -f "$STATE/env" "$STATE/env.tmp"
