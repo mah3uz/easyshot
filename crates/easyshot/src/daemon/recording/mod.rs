@@ -422,6 +422,10 @@ impl Recordings {
                 show_toast(Toast::new("toast-recording-mic-lost", IconName::Info), cx);
                 return;
             }
+            RecorderEvent::WindowClosed => {
+                let _ = self.stop(cx);
+                return;
+            }
             RecorderEvent::Failed(message) => {
                 tracing::error!(%message, "the recorder failed");
                 show_toast(Toast::error("toast-error-generic"), cx);

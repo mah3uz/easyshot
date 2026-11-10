@@ -13,6 +13,7 @@ pub mod project;
 pub mod recovery;
 pub mod units;
 pub mod wf;
+pub mod window;
 
 pub use audio::{AudioDevice, AudioKind, list_audio_devices, parse_pactl_sources};
 pub use gsr::GsrRecorder;
@@ -23,6 +24,7 @@ pub use project::{CommandRunner, ProjectFolder, SystemRunner, make_poster};
 pub use recovery::{RecoveryReport, recover};
 pub use units::{RegionUnits, decide_units, parse_monitor_list};
 pub use wf::WfRecorder;
+pub use window::{Encoder, FrameSource, PacerStats, SourceEvent, WindowRecorder, WindowRecording};
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
@@ -47,6 +49,14 @@ pub enum Error {
     AudioDeviceMissing,
     #[error("the capture area is not on any monitor")]
     AreaOffMonitor,
+    #[error("the window closed")]
+    WindowClosed,
+    #[error("window capture failed: {0}")]
+    Capture(String),
+    #[error("video pipeline: {0}")]
+    Pipeline(String),
+    #[error("no video encoder works: {0}")]
+    NoEncoder(String),
     #[error("parse error at line {line}, column {col}: {message}")]
     Parse {
         line: usize,
@@ -139,6 +149,8 @@ pub enum RecorderEvent {
     Resumed,
     /// The microphone being recorded is gone from the sound server; the recording goes on.
     MicLost,
+    /// The recorded window closed; the file is finished and `stop` returns it.
+    WindowClosed,
     Failed(String),
 }
 

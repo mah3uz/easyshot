@@ -2226,6 +2226,8 @@ dependencies = [
  "es-protocol",
  "evdev",
  "futures",
+ "gstreamer",
+ "gstreamer-app",
  "rustix",
  "serde",
  "serde_json",
