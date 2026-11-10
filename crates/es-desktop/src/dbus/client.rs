@@ -47,6 +47,21 @@ impl Client {
         Ok(client)
     }
 
+    /// Connects only to a daemon that is already running: it never activates or starts one.
+    pub async fn connect_running(endpoint: &Endpoint) -> Result<Client, ClientError> {
+        let conn = endpoint.builder().await?.build().await?;
+        let client = Client {
+            conn,
+            name: endpoint.name,
+        };
+        let dbus = fdo::DBusProxy::new(&client.conn).await?;
+        let name = zbus::names::BusName::try_from(client.name).map_err(zbus::Error::from)?;
+        if !dbus.name_has_owner(name).await? {
+            return Err(ClientError::DaemonUnavailable);
+        }
+        Ok(client)
+    }
+
     async fn ensure_daemon(&self, launch: Launch) -> Result<(), ClientError> {
         let dbus = fdo::DBusProxy::new(&self.conn).await?;
         let name = zbus::names::BusName::try_from(self.name).map_err(zbus::Error::from)?;

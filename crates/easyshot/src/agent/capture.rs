@@ -1,4 +1,5 @@
 use clap::{ArgGroup, Args};
+use clap_complete::engine::ArgValueCompleter;
 use es_protocol::agent::{
     AgentTarget, CaptureSpec, Geometry, MAX_DELAY_SECONDS, OutputName, WindowSelector, check_out,
 };
@@ -19,7 +20,13 @@ pub struct CaptureArgs {
     #[arg(long, value_name = "AREA", value_parser = Geometry::parse, allow_hyphen_values = true)]
     geometry: Option<Geometry>,
     /// Capture a window, named by its id, its app id or its title
-    #[arg(long, value_name = "WINDOW", value_parser = WindowSelector::any, allow_hyphen_values = true)]
+    #[arg(
+        long,
+        value_name = "WINDOW",
+        value_parser = WindowSelector::any,
+        allow_hyphen_values = true,
+        add = ArgValueCompleter::new(crate::complete::window_ids)
+    )]
     window: Option<WindowSelector>,
     /// Capture the focused output
     #[arg(long)]

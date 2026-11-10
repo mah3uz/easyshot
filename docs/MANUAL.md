@@ -590,8 +590,11 @@ it offers follows what you have typed: the subcommands; the flags of each comman
 include some that a particular mode then refuses; the modes of `capture`, the actions of
 `record` and `deck`, the eight pages of `settings`, the shells for `completions`; and for
 `open` the `easyshot://` links and the PNG and JPEG files and folders under the path you
-have typed. In bash a link completes across its colon. Completion reads no daemon state
-and starts no window. To try it without installing, run `source <(easyshot completions bash)`
+have typed. In bash a link completes across its colon. After `--window` of `agent capture`,
+`agent ocr` and `agent record start`, Tab lists the open windows' ids with their titles, as
+long as the daemon is running, agent access is on, and you have already allowed agents (a
+grant is in force, or the consent setting is `always-allow`); otherwise it offers nothing, and
+it never starts the daemon or asks you for consent. Completion starts no window. To try it without installing, run `source <(easyshot completions bash)`
 in bash, `source <(easyshot completions zsh)` in zsh after `compinit`,
 `easyshot completions zsh > ~/.zfunc/_easyshot` in zsh (with `~/.zfunc` in `fpath`), or
 `easyshot completions fish | source` in fish.

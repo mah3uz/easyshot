@@ -1,5 +1,6 @@
 use super::capture::parse_output;
 use clap::{ArgGroup, Args};
+use clap_complete::engine::ArgValueCompleter;
 use es_protocol::agent::{
     AgentTarget, Geometry, OcrInput, OcrSpec, OutputName, WindowSelector, check_file,
     parse_languages,
@@ -21,7 +22,13 @@ pub struct OcrArgs {
     #[arg(long, value_name = "AREA", value_parser = Geometry::parse, allow_hyphen_values = true)]
     geometry: Option<Geometry>,
     /// Read the text in a window, named by its id, its app id or its title
-    #[arg(long, value_name = "WINDOW", value_parser = WindowSelector::any, allow_hyphen_values = true)]
+    #[arg(
+        long,
+        value_name = "WINDOW",
+        value_parser = WindowSelector::any,
+        allow_hyphen_values = true,
+        add = ArgValueCompleter::new(crate::complete::window_ids)
+    )]
     window: Option<WindowSelector>,
     /// Read the text on the focused output
     #[arg(long)]

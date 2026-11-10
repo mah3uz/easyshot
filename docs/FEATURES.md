@@ -276,7 +276,7 @@ More in the manual: [Settings](MANUAL.md#settings).
 - Opens a link or a PNG or JPEG file with `easyshot open`.
 - Exits 0 when done, 1 on error, 2 when cancelled and 3 when the daemon is not running.
 - Prints the version, with the commit for a git build, from `easyshot --version`.
-- Prints a completion script for bash, zsh and fish, which completes subcommands, flags, modes, settings pages, links and image files.
+- Prints a completion script for bash, zsh and fish, which completes subcommands, flags, modes, settings pages, links and image files, and, for the agent commands' `--window`, the ids and titles of the open windows.
 - Captures with `capture region`, `fullscreen`, `window`, `previous`, `timed` or `scroll`.
 - Adds `--copy`, `--save`, `--annotate` or `--pin` to `capture region`.
 - Adds `--timed [N]` to region, window and fullscreen captures.

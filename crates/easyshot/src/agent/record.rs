@@ -1,6 +1,7 @@
 use super::capture::parse_output;
 use clap::builder::PossibleValuesParser;
 use clap::{ArgGroup, Args, Subcommand};
+use clap_complete::engine::ArgValueCompleter;
 use es_protocol::agent::{
     AUDIO, AgentTarget, Audio, DEFAULT_MAX_SECONDS, FPS, Geometry, MAX_SECONDS, OutputName,
     RecordRoute, RecordSpec, WindowSelector, check_id,
@@ -33,7 +34,13 @@ pub struct StartArgs {
     #[arg(long, value_name = "AREA", value_parser = Geometry::parse, allow_hyphen_values = true)]
     geometry: Option<Geometry>,
     /// Record a window, named by its id, its app id or its title
-    #[arg(long, value_name = "WINDOW", value_parser = WindowSelector::any, allow_hyphen_values = true)]
+    #[arg(
+        long,
+        value_name = "WINDOW",
+        value_parser = WindowSelector::any,
+        allow_hyphen_values = true,
+        add = ArgValueCompleter::new(crate::complete::window_ids)
+    )]
     window: Option<WindowSelector>,
     /// Record the focused output
     #[arg(long)]
