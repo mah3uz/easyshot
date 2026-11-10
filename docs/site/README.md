@@ -9,15 +9,26 @@ v4, generated as a static site and served by Cloudflare Workers static assets.
 - `/how-to`: the step-by-step guide (`app/pages/how-to.vue`)
 - `/sitemap.xml` and `/robots.txt` are made at build time from `server/routes/`
 
-The mock-ups (hero, editor, recording bar) are HTML in `app/components/`, so they theme
-themselves. They stand in for real footage of the app; see "Media to replace" below.
+The hero, editor and recording pictures are real screenshots of easyshot; see "Screenshots"
+below. The feature tiles are HTML drawings in `app/components/FeatureBento.vue`.
 
 The logo comes from `branding/`, the editor's background swatches from the app's own
 wallpapers (`assets/wallpapers/`), and icons from its Lucide set (`assets/icons/lucide/`).
 
+## Screenshots
+
+`public/img/shots/` holds crops of real easyshot captures (2560×1440 at 2× scale, on
+Hyprland): the area selection over a web page (`hero`) with the hovered deck card as an inset
+(`deck`), the editor (`editor`), and an area recording (`record`) with its control bar as an
+inset (`recbar`). Each is WebP at 400, 640, 1080, 1600 and 2200 px wide, up to the crop's own
+width (`<name>-<width>.webp`; the two insets only at their own width), listed with their sizes
+and alt text in `app/utils/shots.ts` and drawn by `app/components/RealShot.vue` with
+`srcset` and fixed width and height. To swap one, crop the new capture, write the same
+sizes, and update its size in `shots.ts`.
+
 ## Photos
 
-The pictures inside the mock-ups are six Unsplash photos, used under the
+The pictures inside the feature tiles are four Unsplash photos, used under the
 [Unsplash licence](https://unsplash.com/license). They are listed with their Unsplash IDs in
 `app/utils/photos.ts` and served from `public/img/photos/` as WebP at 400, 640, 1080, 1600
 and 2200 px wide (`<name>-<width>.webp`), picked with `srcset`. Each sits on a drawn
@@ -73,28 +84,25 @@ NUXT_PUBLIC_SITE_URL=https://example.com npm run deploy
 ## Responsive
 
 The layout is checked from 320 px to 1920 px wide: no horizontal scrolling, and no text
-pushed off the screen. The navigation folds into a menu below 1024 px. The mock-ups scale
-with their container (container query units in `ShotWindow.vue`).
+pushed off the screen. The navigation folds into a menu below 1024 px. The screenshots scale
+with their container.
 
 ## Media to replace
 
-Every picture of the app on the site is an HTML mock-up. Each should become real footage
-recorded with easyshot itself, on a real Hyprland session, at 2× scale. Record with
+The hero, editor and recording are real screenshots. The rest are HTML drawings, and each
+could become real footage recorded with easyshot itself, on a real Hyprland session, at 2×
+scale. Record with
 easyshot's own recorder, export from its trim viewer, and keep each file small: AV1 or
 H.264 MP4 with a WebM fallback, no audio, muted autoplay loop, `playsinline`, and a poster
 frame (AVIF or WebP) for `prefers-reduced-motion` and slow connections.
 
 | Slot | Component | What to record | Format |
 |---|---|---|---|
-| Hero | `HeroShot.vue` | A full desktop with a browser and a terminal. Press the capture key, drag an area over the browser, adjust a handle, release; the card slides into the deck, hover it to show Copy and Save. | 16:9 loop, 8–12 s, 2560×1440, under 2.5 MB, plus a poster |
 | Feature grid | `FeatureBento.vue` | One 3–5 s loop or still per tile: area, window highlight, OCR copying text, colour picker, scrolling capture growing, a pin over windows, the countdown, recording, the deck. | 16:9 or 2:1, 1200 px wide, under 400 KB each |
-| Editor | `EditorMock.vue` | Open a capture in the editor; draw an arrow and a box, add a step number, run Smart Redaction, then change background, padding, corners and camera 3D in the inspector. Keep the interactive mock-up as a fallback, or show the video above it. | 16:10 loop, 12–15 s, 2560×1600 |
 | Smart Redaction | `pages/index.vue` | A screenshot with an e-mail, a token, a card number and an IP address; press the redaction button and watch the pixelate shapes appear. Use made-up values only. | 4:3 loop, 4–6 s |
-| Recording | `RecordMock.vue` | Start an area recording: countdown, the highlighted area, the control bar with the clock running, pause and resume, stop, then the trim viewer opening. | 16:10 loop, 8–10 s |
 | Keyboard | `BindSnippet.vue` | Settings › Shortcuts: Copy Snippet for Hyprland, then Check marking a key that is already bound. | still, 2× PNG or WebP |
 | Open Graph | `scripts/og.mjs` | Replace the drawn window with a real editor screenshot once one exists. | 1200×630 PNG, under 300 KB |
 
 Rules for the footage: a clean demo user and made-up data (no real e-mail addresses, tokens
 or hostnames), a wallpaper from `assets/wallpapers/`, the default light and dark themes,
-English locale, and the pointer visible. A dark-mode version of the hero is worth recording
-too, chosen with `<picture>` or a `prefers-color-scheme` media query.
+English locale, and the pointer visible. 
