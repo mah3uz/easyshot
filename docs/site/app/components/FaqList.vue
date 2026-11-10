@@ -10,7 +10,7 @@ const open = ref<number | null>(0)
         <button
           :id="`faq-q-${i}`"
           type="button"
-          class="flex w-full cursor-pointer items-center justify-between gap-6 px-6 py-5 text-left transition-colors hover:text-accent"
+          class="flex w-full cursor-pointer items-center justify-between gap-6 px-6 py-5 text-left hover-motion hover:text-accent"
           :aria-expanded="open === i"
           :aria-controls="`faq-a-${i}`"
           @click="open = open === i ? null : i"

@@ -129,10 +129,10 @@ useHead({
         <div class="hero-mark rise">
           <img src="/logo.svg" alt="easyshot logo" width="112" height="112" class="size-full animate-float drop-shadow-[0_22px_30px_rgba(19,136,166,.35)]" />
         </div>
-        <a :href="repo" rel="noopener" class="rise group inline-flex items-center gap-2.5 rounded-full border border-line bg-surface py-1.5 pr-4 pl-2 text-sm text-fg-2 backdrop-blur-xl transition hover:border-accent max-sm:gap-2 max-sm:pr-3 max-sm:text-[12.5px]" style="--d: 0.08s">
+        <a :href="repo" rel="noopener" class="rise group inline-flex items-center gap-2.5 rounded-full border border-line bg-surface py-1.5 pr-4 pl-2 text-sm text-fg-2 backdrop-blur-xl hover-motion hover:border-accent max-sm:gap-2 max-sm:pr-3 max-sm:text-[12.5px]" style="--d: 0.08s">
           <b class="hero-ping inline-flex shrink-0 items-center gap-[7px] rounded-full bg-accent-soft px-2.5 py-[3px] text-[12.5px] font-semibold tracking-[0.02em] whitespace-nowrap text-accent">Open source</b>
           Free, built with Rust
-          <Icon name="arrow-up-right" :size="14" class="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+          <Icon name="arrow-up-right" :size="14" class="hover-motion group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
         </a>
         <h1 class="rise max-w-[820px] text-[clamp(42px,8vw,88px)] leading-[1.02] font-extrabold" style="--d: 0.16s">
           Screenshots, done right on
@@ -249,7 +249,7 @@ useHead({
             <li class="flex items-center gap-3"><Icon name="zap" :size="17" class="text-accent" /> Uses gpu-screen-recorder, or wf-recorder</li>
             <li class="flex items-center gap-3"><Icon name="app-window" :size="17" class="text-accent" /> A window keeps recording when it is covered or on another workspace</li>
             <li class="flex items-center gap-3"><Icon name="timer" :size="17" class="text-accent" /> Countdown before it starts</li>
-            <li class="flex items-center gap-3"><Icon name="film" :size="17" class="text-accent" /> <a href="#trim" class="underline decoration-line-strong underline-offset-4 transition-colors hover:text-accent">Trim viewer with MP4, WebM and GIF export</a></li>
+            <li class="flex items-center gap-3"><Icon name="film" :size="17" class="text-accent" /> <a href="#trim" class="underline decoration-line-strong underline-offset-4 hover-motion hover:text-accent">Trim viewer with MP4, WebM and GIF export</a></li>
           </ul>
         </div>
         <div v-reveal="0.1"><RecordMock /></div>
@@ -360,7 +360,7 @@ useHead({
             for you. Then choose your keys and press one.
           </p>
           <NuxtLink to="/how-to" class="group mt-2 inline-flex w-fit items-center gap-1.5 font-semibold text-accent">
-            Full setup guide <Icon name="arrow-up-right" :size="16" class="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            Full setup guide <Icon name="arrow-up-right" :size="16" class="hover-motion group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
           </NuxtLink>
         </div>
         <div v-reveal="0.1"><InstallTabs /></div>

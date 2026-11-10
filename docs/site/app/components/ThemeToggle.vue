@@ -11,7 +11,7 @@ const label = computed(
 <template>
   <button
     type="button"
-    class="relative grid size-[38px] cursor-pointer place-items-center overflow-hidden rounded-full border border-line bg-surface text-fg-2 shadow-soft transition hover:border-accent hover:text-fg"
+    class="relative grid size-[38px] cursor-pointer place-items-center overflow-hidden rounded-full border border-line bg-surface text-fg-2 shadow-soft hover-motion hover:border-accent hover:text-fg"
     :aria-label="`${label}. Click to change.`"
     :title="label"
     @click="cycle"

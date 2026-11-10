@@ -56,7 +56,7 @@ const inspector = ref(true)
         v-for="[icon, label] in tools"
         :key="label"
         type="button"
-        class="grid size-8 shrink-0 place-items-center rounded-card-sm transition hover:bg-accent-soft hover:text-accent"
+        class="grid size-8 shrink-0 place-items-center rounded-card-sm hover-motion hover:bg-accent-soft hover:text-accent"
         :class="activeTool === label && 'bg-accent-soft text-accent'"
         :aria-label="label"
         :aria-pressed="activeTool === label"
@@ -67,7 +67,7 @@ const inspector = ref(true)
       <span class="grid size-8 shrink-0 place-items-center" aria-hidden="true"><Icon name="eye-off" :size="16" /></span>
       <i class="mx-1 h-5 w-px shrink-0 bg-line-strong" aria-hidden="true" />
       <span class="flex-1" />
-      <button type="button" class="grid size-8 shrink-0 place-items-center rounded-card-sm transition hover:bg-accent-soft hover:text-accent" :class="inspector && 'text-accent'" aria-label="Show or hide the inspector" :aria-pressed="inspector" @click="inspector = !inspector">
+      <button type="button" class="grid size-8 shrink-0 place-items-center rounded-card-sm hover-motion hover:bg-accent-soft hover:text-accent" :class="inspector && 'text-accent'" aria-label="Show or hide the inspector" :aria-pressed="inspector" @click="inspector = !inspector">
         <Icon name="panel-right" :size="16" />
       </button>
     </div>
@@ -126,7 +126,7 @@ const inspector = ref(true)
                 v-for="b in backgrounds"
                 :key="b.id"
                 type="button"
-                class="aspect-[4/3] rounded-card-sm border-2 transition-all duration-300 hover:scale-105"
+                class="aspect-[4/3] rounded-card-sm border-2 hover-motion hover:scale-105"
                 :class="bg.id === b.id ? 'border-accent ring-2 ring-accent-soft' : 'border-transparent'"
                 :style="{ background: b.css }"
                 :aria-label="b.label"

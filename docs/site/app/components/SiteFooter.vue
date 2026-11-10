@@ -47,8 +47,8 @@ const cols = [
       <nav v-for="c in cols" :key="c.title" :aria-label="c.title" class="grid content-start gap-3">
         <h2 class="font-sans text-[13px] font-semibold tracking-wide text-fg-3 uppercase">{{ c.title }}</h2>
         <template v-for="l in c.links" :key="l.label">
-          <NuxtLink v-if="l.to" :to="l.to" class="w-fit text-[14.5px] text-fg-2 transition-colors hover:text-accent">{{ l.label }}</NuxtLink>
-          <a v-else :href="l.href" rel="noopener" class="w-fit text-[14.5px] text-fg-2 transition-colors hover:text-accent">{{ l.label }}</a>
+          <NuxtLink v-if="l.to" :to="l.to" class="w-fit text-[14.5px] text-fg-2 hover-motion hover:text-accent">{{ l.label }}</NuxtLink>
+          <a v-else :href="l.href" rel="noopener" class="w-fit text-[14.5px] text-fg-2 hover-motion hover:text-accent">{{ l.label }}</a>
         </template>
       </nav>
     </div>

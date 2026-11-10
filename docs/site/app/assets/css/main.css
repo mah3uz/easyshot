@@ -172,6 +172,8 @@
   --font-display: 'Inter Tight', 'Inter Tight Fallback', 'Inter', 'Inter Fallback', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Hover eases in and out gently; a steep start reads as a jump on a 2 px lift. */
+  --ease-hover: cubic-bezier(0.37, 0, 0.63, 1);
 }
 
 /* Card corners: one radius, stepping down for smaller and nested pieces. */
@@ -202,6 +204,13 @@
       background-position: 200% center;
     }
   }
+}
+
+/* The one hover motion. Tailwind's translate-*, scale-* and rotate-* set their own properties, not transform. */
+@utility hover-motion {
+  transition-property: transform, translate, scale, rotate, box-shadow, background-color, border-color, color, text-decoration-color, opacity;
+  transition-duration: 260ms;
+  transition-timing-function: var(--ease-hover);
 }
 
 @layer base {
@@ -251,14 +260,11 @@
     color: transparent;
   }
   .btn {
-    @apply inline-flex h-12 cursor-pointer items-center justify-center gap-2.5 rounded-full border border-transparent px-[22px] text-[15px] font-semibold whitespace-nowrap;
-    transition:
-      transform 0.35s var(--ease-out-soft),
-      box-shadow 0.35s var(--ease-out-soft),
-      border-color 0.25s;
+    @apply hover-motion inline-flex h-12 cursor-pointer items-center justify-center gap-2.5 rounded-full border border-transparent px-[22px] text-[15px] font-semibold whitespace-nowrap;
+    backface-visibility: hidden;
   }
   .btn:hover {
-    transform: translateY(-2px);
+    translate: 0 -2px;
   }
   .btn:active {
     transform: scale(0.98);
@@ -282,14 +288,14 @@
     @apply h-[38px] px-4 text-sm;
   }
   .card {
-    @apply rounded-card border border-line bg-surface shadow-soft backdrop-blur-xl;
-    transition:
-      transform 0.5s var(--ease-out-soft),
-      box-shadow 0.5s var(--ease-out-soft),
-      border-color 0.3s;
+    @apply hover-motion rounded-card border border-line bg-surface shadow-soft backdrop-blur-xl;
+  }
+  .card-hover {
+    backface-visibility: hidden;
   }
   .card-hover:hover {
-    @apply -translate-y-1 border-line-strong shadow-card;
+    @apply border-line-strong shadow-card;
+    translate: 0 -2px;
   }
   .icon-tile {
     @apply grid size-11 place-items-center rounded-card-sm bg-accent-soft text-accent;
@@ -419,13 +425,11 @@ html [data-reveal].is-in {
   }
 }
 .hero-chip {
-  transition:
-    transform 0.4s var(--ease-out-soft),
-    border-color 0.25s,
-    color 0.25s;
+  @apply hover-motion;
+  backface-visibility: hidden;
 }
 .hero-chip:hover {
-  transform: translateY(-2px);
+  translate: 0 -2px;
 }
 .hero-word {
   position: relative;
@@ -539,6 +543,11 @@ html [data-reveal].is-in {
   .js [data-reveal] {
     opacity: 1;
     transform: none;
+  }
+  .btn:hover,
+  .card-hover:hover,
+  .hero-chip:hover {
+    translate: none;
   }
   .hero-sel {
     clip-path: none;

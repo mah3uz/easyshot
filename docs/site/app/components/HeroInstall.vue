@@ -11,7 +11,7 @@ const { copied, copy } = useCopy()
       <code class="min-w-0 overflow-x-auto whitespace-nowrap text-fg [scrollbar-width:none] max-sm:[mask-image:linear-gradient(90deg,#000_calc(100%-20px),transparent)] max-sm:pr-5">{{ command }}</code>
       <button
         type="button"
-        class="ml-3 grid h-full shrink-0 cursor-pointer grid-flow-col items-center gap-1.5 rounded-r-full border-l border-line pr-4 pl-3 font-sans text-[13px] font-semibold text-fg-2 transition-colors duration-300 hover:bg-accent-soft hover:text-accent"
+        class="ml-3 grid h-full shrink-0 cursor-pointer grid-flow-col items-center gap-1.5 rounded-r-full border-l border-line pr-4 pl-3 font-sans text-[13px] font-semibold text-fg-2 hover-motion hover:bg-accent-soft hover:text-accent"
         :class="copied && 'text-accent'"
         :aria-label="copied ? 'Copied' : 'Copy the install command'"
         @click="copy(command)"
@@ -25,7 +25,7 @@ const { copied, copy } = useCopy()
     </div>
     <p class="text-[13px] text-balance text-fg-3">
       System-wide install for Linux on Wayland · <code class="font-mono text-[12.5px] whitespace-nowrap text-fg-2">sh -s -- --user</code> for your home folder · or the
-      <NuxtLink to="/#install" class="underline decoration-line-strong underline-offset-2 transition-colors hover:text-accent">AUR</NuxtLink>
+      <NuxtLink to="/#install" class="underline decoration-line-strong underline-offset-2 hover-motion hover:text-accent">AUR</NuxtLink>
     </p>
   </div>
 </template>

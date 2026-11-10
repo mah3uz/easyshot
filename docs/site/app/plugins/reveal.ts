@@ -9,7 +9,15 @@ export default defineNuxtPlugin((nuxtApp) => {
       (entries) => {
         for (const e of entries) {
           if (e.isIntersecting) {
-            e.target.classList.add('is-in')
+            const el = e.target
+            // Once shown, drop the reveal's slow transition so the element's own hover motion applies.
+            const done = (ev: Event) => {
+              if (ev.target !== el || (ev as TransitionEvent).propertyName !== 'opacity') return
+              el.removeEventListener('transitionend', done)
+              el.removeAttribute('data-reveal')
+            }
+            el.addEventListener('transitionend', done)
+            el.classList.add('is-in')
             observer?.unobserve(e.target)
           }
         }

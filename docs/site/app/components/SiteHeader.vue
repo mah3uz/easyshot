@@ -30,7 +30,7 @@ watch(() => route.fullPath, () => (open.value = false))
   >
     <nav class="container-x flex h-[68px] items-center justify-between gap-4" aria-label="Main">
       <NuxtLink to="/" class="group flex items-center gap-2.5" aria-label="easyshot home">
-        <img src="/logo.svg" alt="" width="32" height="32" class="size-8 transition-transform duration-500 ease-out-soft group-hover:-rotate-6 group-hover:scale-110" />
+        <img src="/logo.svg" alt="" width="32" height="32" class="size-8 hover-motion group-hover:-rotate-6 group-hover:scale-110" />
         <span class="font-display text-[19px] font-bold tracking-tight">easyshot</span>
       </NuxtLink>
 
@@ -38,7 +38,7 @@ watch(() => route.fullPath, () => (open.value = false))
         <li v-for="l in links" :key="l.to">
           <NuxtLink
             :to="l.to"
-            class="rounded-full px-3.5 py-2 text-[14.5px] font-medium text-fg-2 transition-colors hover:bg-surface-2 hover:text-fg"
+            class="rounded-full px-3.5 py-2 text-[14.5px] font-medium text-fg-2 hover-motion hover:bg-surface-2 hover:text-fg"
           >
             {{ l.label }}
           </NuxtLink>
@@ -72,9 +72,9 @@ watch(() => route.fullPath, () => (open.value = false))
       <div class="overflow-hidden">
         <ul id="mobile-nav" class="container-x grid gap-1 pb-5 transition duration-500 ease-out-soft" :class="!open && '-translate-y-2 opacity-0'">
           <li v-for="l in links" :key="l.to">
-            <NuxtLink :to="l.to" class="block rounded-card-sm px-3 py-3 text-base font-medium hover:bg-surface-2">{{ l.label }}</NuxtLink>
+            <NuxtLink :to="l.to" class="block rounded-card-sm px-3 py-3 text-base font-medium hover-motion hover:bg-surface-2">{{ l.label }}</NuxtLink>
           </li>
-          <li><a :href="repo" class="block rounded-card-sm px-3 py-3 text-base font-medium hover:bg-surface-2" rel="noopener">GitHub</a></li>
+          <li><a :href="repo" class="block rounded-card-sm px-3 py-3 text-base font-medium hover-motion hover:bg-surface-2" rel="noopener">GitHub</a></li>
         </ul>
       </div>
     </div>

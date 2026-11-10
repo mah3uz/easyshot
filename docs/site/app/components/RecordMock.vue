@@ -34,14 +34,14 @@ const clock = computed(() => `${String(Math.floor(seconds.value / 60)).padStart(
       <!-- Control bar, laid out as the app's: grip, Stop with the clock, a mute per sound, pause, restart, discard -->
       <div class="absolute bottom-[4%] left-1/2 flex h-[38px] -translate-x-1/2 origin-bottom overflow-hidden rounded-card border border-line bg-surface text-fg shadow-2xl backdrop-blur-xl max-sm:scale-[.78]" role="toolbar" aria-label="Recording controls">
         <span class="grid w-[18px] shrink-0 place-items-center pl-1 text-fg-3" aria-hidden="true"><Icon name="grip-vertical" :size="13" /></span>
-        <button type="button" class="flex w-[132px] shrink-0 items-center gap-2 px-2.5 text-[13px] font-medium text-[#ff4f6d] transition-colors duration-300 hover:bg-accent-soft" aria-label="Stop recording">
+        <button type="button" class="flex w-[132px] shrink-0 items-center gap-2 px-2.5 text-[13px] font-medium text-[#ff4f6d] hover-motion hover:bg-accent-soft" aria-label="Stop recording">
           <span class="grid size-4 shrink-0 place-items-center rounded-full border-2 border-current"><span class="size-1.5 rounded-[1.5px] bg-current" /></span>
           <span class="flex-1 text-left">{{ paused ? 'Paused' : 'Stop' }}</span>
           <span class="font-mono tabular-nums">{{ clock }}</span>
         </button>
         <template v-for="b in buttons" :key="b.id">
           <i class="w-px shrink-0 bg-line" aria-hidden="true" />
-          <button type="button" class="relative grid w-[42px] shrink-0 place-items-center transition-colors duration-300 hover:bg-accent-soft" :class="b.muted && 'text-[#ff4f6d]'" :aria-label="b.label" :aria-pressed="b.pressed" @click="b.act">
+          <button type="button" class="relative grid w-[42px] shrink-0 place-items-center hover-motion hover:bg-accent-soft" :class="b.muted && 'text-[#ff4f6d]'" :aria-label="b.label" :aria-pressed="b.pressed" @click="b.act">
             <Transition enter-active-class="transition duration-300 ease-out-soft" enter-from-class="opacity-0 scale-75" leave-active-class="absolute transition duration-200 ease-out-soft" leave-to-class="opacity-0 scale-75">
               <Icon :key="b.icon" :name="b.icon" :size="17" />
             </Transition>

@@ -40,7 +40,7 @@ watch(active, () => nextTick(measure))
       type="button"
       role="tab"
       :aria-selected="active === n"
-      class="relative rounded-full px-4 py-1.5 text-sm font-medium transition-colors duration-300 ease-out-soft"
+      class="relative rounded-full px-4 py-1.5 text-sm font-medium hover-motion"
       :class="[active === n ? 'text-[#032830]' : 'text-fg-2 hover:text-fg', active === n && !measured ? 'bg-accent' : '']"
       @click="active = n"
     >

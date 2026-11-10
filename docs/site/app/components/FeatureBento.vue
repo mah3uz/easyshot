@@ -31,18 +31,18 @@ const tiles = [
         </div>
         <!-- window -->
         <div v-else-if="t.art === 'window'" class="absolute inset-0 grid place-items-center">
-          <div class="h-16 w-28 rounded-card-sm border border-line bg-surface-2 shadow-card ring-0 ring-accent transition-all duration-500 group-hover:ring-4">
+          <div class="h-16 w-28 rounded-card-sm border border-line bg-surface-2 shadow-card ring-0 ring-accent hover-motion group-hover:ring-4">
             <div class="flex gap-1 p-1.5"><i class="size-1.5 rounded-full bg-[#ff5f57]" /><i class="size-1.5 rounded-full bg-[#febc2e]" /><i class="size-1.5 rounded-full bg-[#28c840]" /></div>
           </div>
         </div>
         <!-- ocr -->
         <div v-else-if="t.art === 'ocr'" class="absolute inset-0 grid content-center gap-1.5 font-mono text-[11px]">
-          <span class="w-fit rounded bg-accent-soft px-1.5 text-accent transition-all duration-500 group-hover:bg-accent group-hover:text-[#032830]">Card 4242 1234</span>
+          <span class="w-fit rounded bg-accent-soft px-1.5 text-accent hover-motion group-hover:bg-accent group-hover:text-[#032830]">Card 4242 1234</span>
           <span class="w-fit rounded px-1.5 text-fg-3">Copied to clipboard ✓</span>
         </div>
         <!-- colour -->
         <div v-else-if="t.art === 'color'" class="absolute inset-0 flex items-center gap-3">
-          <span class="size-14 rounded-card-sm bg-[#21bdb0] shadow-card transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6" />
+          <span class="size-14 rounded-card-sm bg-[#21bdb0] shadow-card hover-motion group-hover:scale-110 group-hover:rotate-6" />
           <span class="font-mono text-sm font-medium">#21BDB0</span>
         </div>
         <!-- scroll -->
@@ -57,7 +57,7 @@ const tiles = [
         </div>
         <!-- timer -->
         <div v-else-if="t.art === 'timer'" class="absolute inset-0 flex items-center gap-2">
-          <span v-for="n in [3, 5, 10]" :key="n" class="grid size-12 place-items-center rounded-full border border-line font-display text-lg font-bold transition-colors duration-300 group-hover:border-accent group-hover:text-accent">{{ n }}</span>
+          <span v-for="n in [3, 5, 10]" :key="n" class="grid size-12 place-items-center rounded-full border border-line font-display text-lg font-bold hover-motion group-hover:border-accent group-hover:text-accent">{{ n }}</span>
         </div>
         <!-- rec -->
         <div v-else-if="t.art === 'rec'" class="absolute inset-0 overflow-hidden rounded-card-sm bg-[url(/img/wall-2.webp)] bg-cover">

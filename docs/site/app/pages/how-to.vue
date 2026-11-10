@@ -148,7 +148,7 @@ useHead({
     <section class="relative overflow-hidden pt-[130px] pb-16 sm:pt-[150px]">
       <div class="container-x grid justify-items-center gap-6 text-center">
         <nav aria-label="Breadcrumb" class="rise text-[13px] text-fg-3">
-          <NuxtLink to="/" class="hover:text-accent">Home</NuxtLink> <span class="mx-1.5">/</span> <span class="text-fg-2">How-to</span>
+          <NuxtLink to="/" class="hover-motion hover:text-accent">Home</NuxtLink> <span class="mx-1.5">/</span> <span class="text-fg-2">How-to</span>
         </nav>
         <h1 class="rise max-w-[820px] text-[clamp(38px,6.4vw,68px)] leading-[1.04]" style="--d: 0.08s">
           From install to your <span class="grad-text">first screenshot</span>.
@@ -171,13 +171,13 @@ useHead({
             v-for="(s, i) in steps"
             :key="s.id"
             :href="`#${s.id}`"
-            class="group flex items-center gap-3 rounded-lg px-2 py-1.5 text-[14px] transition-colors"
+            class="group flex items-center gap-3 rounded-lg px-2 py-1.5 text-[14px] hover-motion"
             :class="current === s.id ? 'bg-accent-soft font-medium text-accent' : 'text-fg-2 hover:text-fg'"
           >
             <span class="grid size-5 shrink-0 place-items-center rounded-full border text-[11px] transition-colors" :class="current === s.id ? 'border-accent bg-accent text-[#032830]' : 'border-line-strong'">{{ i + 1 }}</span>
             {{ s.title }}
           </a>
-          <a href="#troubleshooting" class="mt-2 rounded-lg px-2 py-1.5 text-[14px] transition-colors" :class="current === 'troubleshooting' ? 'bg-accent-soft font-medium text-accent' : 'text-fg-2 hover:text-fg'">Troubleshooting</a>
+          <a href="#troubleshooting" class="mt-2 rounded-lg px-2 py-1.5 text-[14px] hover-motion" :class="current === 'troubleshooting' ? 'bg-accent-soft font-medium text-accent' : 'text-fg-2 hover:text-fg'">Troubleshooting</a>
         </nav>
       </aside>
 
@@ -224,7 +224,7 @@ useHead({
                 <tr><th scope="col" class="px-4 py-3 font-semibold">Action</th><th scope="col" class="hidden px-4 py-3 font-semibold sm:table-cell">Command</th></tr>
               </thead>
               <tbody class="divide-y divide-line bg-surface">
-                <tr v-for="k in keys" :key="k[1]" class="transition-colors hover:bg-surface-2">
+                <tr v-for="k in keys" :key="k[1]" class="hover-motion hover:bg-surface-2">
                   <td class="px-4 py-3 text-fg-2">{{ k[0] }}</td>
                   <td class="hidden px-4 py-3 font-mono text-[13px] text-fg-3 sm:table-cell">easyshot {{ k[1] }}</td>
                 </tr>
