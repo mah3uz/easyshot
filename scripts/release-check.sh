@@ -4,13 +4,15 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 fail=0
 
-if cargo tree -p easyshot -e normal,build,features --prefix none --locked | grep -q 'feature "test-hooks"'; then
+# Captured first, so a cargo error or an early-exiting grep cannot pass the check.
+tree=$(cargo tree -p easyshot -e normal,build,features --prefix none --locked)
+if grep -qF 'feature "test-hooks"' <<<"$tree"; then
     echo "release-check: test-hooks is enabled in the easyshot release feature tree" >&2
     fail=1
 fi
 
-target_dir=$(cargo metadata --format-version 1 --no-deps --locked | jq -r .target_directory)
-bin=$target_dir/release/easyshot
+bin=${1:-}
+[ -n "$bin" ] || bin=$(cargo metadata --format-version 1 --no-deps --locked | jq -r .target_directory)/release/easyshot
 if [ ! -f "$bin" ]; then
     echo "release-check: $bin does not exist; run cargo build -p easyshot --release first" >&2
     exit 1
