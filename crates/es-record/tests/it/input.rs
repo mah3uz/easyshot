@@ -148,9 +148,15 @@ fn input_json_has_the_documented_shape() {
     b.event(key(KEY_C, true, FIRST + 500_000), None, &mut keys);
     let i = b.finish(&out(&[(FIRST, FIRST + 1_000_000)]));
     let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("input.json");
-    es_record::write_input(&path, &i).unwrap();
-    let v: serde_json::Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    es_record::ProjectFolder::open(dir.path())
+        .write_input(&i)
+        .unwrap();
+    let v: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(dir.path().join("input.json")).unwrap()).unwrap();
+    assert_eq!(
+        (v["format"].as_str(), v["version"].as_u64()),
+        (Some("easyshot.input"), Some(1))
+    );
     assert_eq!(v["travel"], serde_json::json!([]));
     assert_eq!(v["presses"][0]["phase"], "down");
     assert_eq!(v["presses"][0]["x"], 0.5);

@@ -2225,6 +2225,7 @@ dependencies = [
  "es-geom",
  "es-model",
  "es-protocol",
+ "es-store",
  "evdev",
  "futures",
  "gstreamer",

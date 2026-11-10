@@ -256,10 +256,6 @@ pub fn movie_time(t_us: u64, out: &RecordingOutput) -> Option<f64> {
     None
 }
 
-pub fn write_input(path: &Path, input: &RecordingInput) -> Result<()> {
-    crate::project::write_json(path, input)
-}
-
 /// What the collector reads besides the devices.
 #[derive(Clone)]
 pub struct Sources {

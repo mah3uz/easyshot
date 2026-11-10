@@ -59,6 +59,20 @@ fn finishing_writes_every_file_and_capture_json_last() {
     for f in [CAPTURE, INPUT, PROJECT, POSTER, "screen.mkv"] {
         assert!(folder.dir().join(f).is_file(), "{f}");
     }
+    let capture = es_store::recording::read::<RecordingCapture>(folder.dir())
+        .unwrap()
+        .unwrap();
+    assert_eq!(capture.value.duration_secs, 0.6);
+    assert!(
+        es_store::recording::read::<RecordingInput>(folder.dir())
+            .unwrap()
+            .is_some()
+    );
+    assert!(
+        es_store::recording::read::<RecordingProject>(folder.dir())
+            .unwrap()
+            .is_some()
+    );
     let calls = spy.0.lock().unwrap();
     assert_eq!(calls[0].0, "ffmpeg");
     let ss = calls[0].1.iter().position(|a| a == "-ss").unwrap();
@@ -107,7 +121,8 @@ fn an_existing_manifest_is_replaced_whole_never_truncated() {
             })
             .unwrap();
     }
-    let back: RecordingCapture =
-        serde_json::from_slice(&std::fs::read(folder.dir().join(CAPTURE)).unwrap()).unwrap();
-    assert_eq!(back.duration_secs, 2.0);
+    let back = es_store::recording::read::<RecordingCapture>(folder.dir())
+        .unwrap()
+        .unwrap();
+    assert_eq!(back.value.duration_secs, 2.0);
 }

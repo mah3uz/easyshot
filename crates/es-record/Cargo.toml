@@ -13,6 +13,7 @@ workspace = true
 es-model.workspace = true
 es-protocol.workspace = true
 es-geom.workspace = true
+es-store.workspace = true
 serde.workspace = true
 futures.workspace = true
 async-channel.workspace = true

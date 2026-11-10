@@ -1,8 +1,9 @@
 #![allow(clippy::unwrap_used)]
 
-use es_model::recording::{RecordingCapture, RecordingProject};
+use es_model::recording::{PressSample, RecordingCapture, RecordingInput, RecordingProject};
 use es_record::recovery::{parse_probe, probe_video};
 use es_record::{ProjectFolder, SystemRunner, recover};
+use es_store::recording::RecordingFile;
 use std::path::Path;
 use std::process::Command;
 use time::OffsetDateTime;
@@ -18,6 +19,12 @@ fn make_clip(path: &Path, secs: &str) -> bool {
         .env_remove("DBUS_SESSION_BUS_ADDRESS")
         .status()
         .is_ok_and(|s| s.success())
+}
+
+fn read<T: RecordingFile>(dir: &Path) -> T {
+    let file = es_store::recording::read::<T>(dir).unwrap().unwrap();
+    assert_eq!(file.newer_version(), None);
+    file.value
 }
 
 #[test]
@@ -57,18 +64,14 @@ fn a_session_without_capture_json_but_with_playable_footage_is_recovered() {
     );
     assert!(!broken.has_capture() && finished.has_capture());
 
-    let cap: RecordingCapture =
-        serde_json::from_slice(&std::fs::read(crashed.dir().join("capture.json")).unwrap())
-            .unwrap();
+    let cap = read::<RecordingCapture>(crashed.dir());
     assert_eq!((cap.pixel_width, cap.pixel_height), (320, 240));
     assert!(
         (cap.duration_secs - 1.0).abs() < 0.2,
         "{}",
         cap.duration_secs
     );
-    let proj: RecordingProject =
-        serde_json::from_slice(&std::fs::read(crashed.dir().join("project.json")).unwrap())
-            .unwrap();
+    let proj = read::<RecordingProject>(crashed.dir());
     assert!(proj.display_name.starts_with("EasyShot_"));
     assert!(crashed.dir().join("poster.jpg").is_file());
 
@@ -77,6 +80,43 @@ fn a_session_without_capture_json_but_with_playable_footage_is_recovered() {
         again.recovered.is_empty(),
         "a recovered session is not recovered twice"
     );
+}
+
+#[test]
+fn a_crash_while_finishing_keeps_the_files_already_written_and_adds_capture_json() {
+    let root = tempfile::tempdir().unwrap();
+    let crashed = ProjectFolder::create(root.path(), OffsetDateTime::UNIX_EPOCH).unwrap();
+    if !make_clip(&crashed.video_path(), "1") {
+        eprintln!("skipped: ffmpeg cannot generate the test clip");
+        return;
+    }
+    let input = RecordingInput {
+        presses: vec![PressSample {
+            time: 0.5,
+            button: 272,
+            ..PressSample::default()
+        }],
+        ..RecordingInput::default()
+    };
+    crashed.write_input(&input).unwrap();
+    crashed
+        .write_project(&RecordingProject {
+            display_name: "named before the crash".into(),
+            ..RecordingProject::default()
+        })
+        .unwrap();
+    assert!(!crashed.has_capture());
+
+    let report = recover(root.path(), &SystemRunner).unwrap();
+
+    assert_eq!(report.recovered.len(), 1);
+    let cap = read::<RecordingCapture>(crashed.dir());
+    assert_eq!((cap.pixel_width, cap.pixel_height), (320, 240));
+    assert_eq!(
+        read::<RecordingProject>(crashed.dir()).display_name,
+        "named before the crash"
+    );
+    assert_eq!(read::<RecordingInput>(crashed.dir()), input);
 }
 
 #[test]

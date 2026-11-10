@@ -1,17 +1,14 @@
 use crate::{Error, Result};
 use es_model::recording::{RecordingCapture, RecordingInput, RecordingProject};
-use serde::Serialize;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 use time::OffsetDateTime;
 use time::macros::format_description;
 
+pub use es_store::recording::{CAPTURE, INPUT, PROJECT};
+
 pub const FOLDER_SUFFIX: &str = "easyshotrec";
 pub const VIDEO: &str = "screen.mkv";
-pub const CAPTURE: &str = "capture.json";
-pub const INPUT: &str = "input.json";
-pub const PROJECT: &str = "project.json";
 pub const POSTER: &str = "poster.jpg";
 
 pub trait CommandRunner: Send + Sync {
@@ -37,24 +34,6 @@ pub(crate) fn io_err(path: &Path, source: std::io::Error) -> Error {
         path: path.to_path_buf(),
         source,
     }
-}
-
-pub(crate) fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<()> {
-    let mut bytes = serde_json::to_vec_pretty(value).map_err(|e| Error::Parse {
-        line: e.line(),
-        col: e.column(),
-        message: e.to_string(),
-    })?;
-    bytes.push(b'\n');
-    let dir = path.parent().unwrap_or_else(|| Path::new("."));
-    let mut tmp = tempfile::Builder::new()
-        .prefix(".easyshot-tmp-")
-        .tempfile_in(dir)
-        .map_err(|e| io_err(dir, e))?;
-    tmp.write_all(&bytes).map_err(|e| io_err(path, e))?;
-    tmp.as_file().sync_all().map_err(|e| io_err(path, e))?;
-    tmp.persist(path).map_err(|e| io_err(path, e.error))?;
-    Ok(())
 }
 
 pub fn folder_name(now: OffsetDateTime) -> String {
@@ -95,15 +74,15 @@ impl ProjectFolder {
     }
 
     pub fn write_input(&self, input: &RecordingInput) -> Result<()> {
-        write_json(&self.dir.join(INPUT), input)
+        Ok(es_store::recording::write(&self.dir, input)?)
     }
 
     pub fn write_project(&self, project: &RecordingProject) -> Result<()> {
-        write_json(&self.dir.join(PROJECT), project)
+        Ok(es_store::recording::write(&self.dir, project)?)
     }
 
     pub fn write_capture(&self, capture: &RecordingCapture) -> Result<()> {
-        write_json(&self.dir.join(CAPTURE), capture)
+        Ok(es_store::recording::write(&self.dir, capture)?)
     }
 
     /// `capture.json` goes last: it is the marker that the recording finished.

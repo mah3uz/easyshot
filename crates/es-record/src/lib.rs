@@ -17,7 +17,7 @@ pub mod window;
 
 pub use audio::{AudioDevice, AudioKind, list_audio_devices, parse_pactl_sources};
 pub use gsr::GsrRecorder;
-pub use input::{InputBuilder, InputCollector, RawEvent, movie_time, write_input};
+pub use input::{InputBuilder, InputCollector, RawEvent, movie_time};
 pub use mute::AudioSource;
 pub use process::{Clock, SystemClock, Timing};
 pub use project::{CommandRunner, ProjectFolder, SystemRunner, make_poster};
@@ -65,6 +65,8 @@ pub enum Error {
         col: usize,
         message: String,
     },
+    #[error(transparent)]
+    Store(#[from] es_store::Error),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
