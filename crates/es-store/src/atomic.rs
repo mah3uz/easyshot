@@ -12,13 +12,21 @@ pub fn ensure_private_dir(dir: &Path) -> Result<()> {
         .map_err(io(dir))
 }
 
-/// The temp file lives in the target's directory so the rename never crosses a filesystem.
-pub fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
-    let dir = path
-        .parent()
+fn parent(path: &Path) -> &Path {
+    path.parent()
         .filter(|p| !p.as_os_str().is_empty())
-        .unwrap_or_else(|| Path::new("."));
-    ensure_private_dir(dir)?;
+        .unwrap_or_else(|| Path::new("."))
+}
+
+pub fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
+    ensure_private_dir(parent(path))?;
+    replace_atomic(path, bytes)
+}
+
+/// The temp file lives in the target's directory so the rename never crosses a filesystem.
+/// Fails when that directory is gone instead of making it again.
+pub(crate) fn replace_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
+    let dir = parent(path);
     let mut tmp = tempfile::Builder::new()
         .prefix(".easyshot-tmp-")
         .tempfile_in(dir)
@@ -29,12 +37,16 @@ pub fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
     File::open(dir).and_then(|d| d.sync_all()).map_err(io(dir))
 }
 
-pub fn write_json_atomic<T: serde::Serialize>(path: &Path, value: &T) -> Result<()> {
+pub(crate) fn json_bytes<T: serde::Serialize>(value: &T) -> Result<Vec<u8>> {
     let mut bytes = serde_json::to_vec_pretty(value).map_err(|e| Error::Parse {
         line: e.line(),
         col: e.column(),
         message: e.to_string(),
     })?;
     bytes.push(b'\n');
-    write_atomic(path, &bytes)
+    Ok(bytes)
+}
+
+pub fn write_json_atomic<T: serde::Serialize>(path: &Path, value: &T) -> Result<()> {
+    write_atomic(path, &json_bytes(value)?)
 }

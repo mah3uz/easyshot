@@ -1,4 +1,5 @@
 use crate::paths::Paths;
+use crate::recording::{self, RecordingFile};
 use es_model::HistoryEntry;
 use es_model::recording::{RecordingCapture, RecordingProject};
 use std::path::{Path, PathBuf};
@@ -43,8 +44,8 @@ fn modified(file: &Path) -> Option<OffsetDateTime> {
     Some(OffsetDateTime::from(time))
 }
 
-fn read_json<T: serde::de::DeserializeOwned>(file: &Path) -> Option<T> {
-    serde_json::from_slice(&std::fs::read(file).ok()?).ok()
+fn read<T: RecordingFile>(dir: &Path) -> Option<T> {
+    Some(recording::read::<T>(dir).ok()??.value)
 }
 
 fn saved_video(file: PathBuf) -> Option<MediaFile> {
@@ -63,12 +64,12 @@ fn saved_video(file: PathBuf) -> Option<MediaFile> {
 
 /// A finished project has a `capture.json`; one without it is still being recorded or waits for recovery.
 fn project_video(dir: PathBuf) -> Option<MediaFile> {
-    let capture: RecordingCapture = read_json(&dir.join("capture.json"))?;
+    let capture: RecordingCapture = read(&dir)?;
     let file = std::iter::once(capture.video_file.as_str())
         .chain(PROJECT_VIDEOS)
         .map(|name| dir.join(name))
         .find(|f| f.is_file())?;
-    let name = read_json::<RecordingProject>(&dir.join("project.json"))
+    let name = read::<RecordingProject>(&dir)
         .map(|p| p.display_name)
         .filter(|n| !n.is_empty())
         .or_else(|| dir.file_stem().map(|s| s.to_string_lossy().into_owned()))?;

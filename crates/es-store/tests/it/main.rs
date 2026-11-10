@@ -7,4 +7,5 @@ mod history;
 mod json_files;
 mod media;
 mod naming;
+mod recording;
 mod temp;

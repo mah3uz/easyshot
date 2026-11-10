@@ -1,6 +1,7 @@
 #![allow(clippy::unwrap_used)]
 use es_model::CaptureKind;
 use es_model::HistoryEntry;
+use es_model::recording::RecordingCapture;
 use es_store::Paths;
 use es_store::media::{self, MediaKind};
 use es_store::thumbs;
@@ -30,7 +31,11 @@ fn project(paths: &Paths, name: &str, age_secs: u64, finished: bool) -> PathBuf 
     let dir = paths.recordings_dir().join(format!("{name}.easyshotrec"));
     let file = video(&dir, "screen.mkv", age_secs);
     if finished {
-        std::fs::write(dir.join("capture.json"), r#"{"duration_secs":12.5}"#).unwrap();
+        let capture = RecordingCapture {
+            duration_secs: 12.5,
+            ..RecordingCapture::default()
+        };
+        es_store::recording::write(&dir, &capture).unwrap();
     }
     file
 }
