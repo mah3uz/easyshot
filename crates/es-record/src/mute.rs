@@ -1,9 +1,12 @@
+use crate::process::Clock;
 use crate::project::{CommandRunner, io_err};
-use crate::{Error, Result};
+use crate::{Error, RecorderEvent, Result};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AudioSource {
@@ -99,6 +102,39 @@ pub fn streams_of(runner: &dyn CommandRunner, pid: u32) -> Result<Vec<u32>> {
     )
 }
 
+/// The names of the sound server's sources in `pactl list short sources`.
+pub fn parse_source_names(short: &str) -> Vec<String> {
+    short
+        .lines()
+        .filter_map(|l| l.split('\t').nth(1))
+        .map(str::to_owned)
+        .collect()
+}
+
+/// The sound server's source names right now.
+pub fn source_names(runner: &dyn CommandRunner) -> Result<Vec<String>> {
+    Ok(parse_source_names(&pactl(
+        runner,
+        &["list", "short", "sources"],
+    )?))
+}
+
+/// The sound server's name for the microphone a recording asked for, when it is there now.
+pub fn mic_source(runner: &dyn CommandRunner, mic: &str) -> Option<String> {
+    let wanted = match mic {
+        "" | "default" | "default_input" => pactl(runner, &["get-default-source"])
+            .ok()?
+            .trim()
+            .to_owned(),
+        "default_output" => return None,
+        m => m.strip_prefix("device:").unwrap_or(m).to_owned(),
+    };
+    source_names(runner)
+        .ok()?
+        .contains(&wanted)
+        .then_some(wanted)
+}
+
 /// The streams that carry `source`.
 pub fn targets(streams: &[u32], sources: &[AudioSource], source: AudioSource) -> Result<Vec<u32>> {
     match Shape::of(streams.len(), sources.len()) {
@@ -187,4 +223,36 @@ pub fn merge_tracks(runner: &dyn CommandRunner, file: &Path) -> Result<()> {
         )));
     }
     std::fs::rename(&out, file).map_err(|e| io_err(file, e))
+}
+
+pub(crate) const MIC_POLLS: u32 = 20;
+
+pub(crate) fn mic_arg(mic: &str) -> String {
+    match mic {
+        "" | "default" | "default_input" => "default_input".into(),
+        m if m.starts_with("device:") || m == "default_output" => m.into(),
+        m => format!("device:{m}"),
+    }
+}
+
+pub(crate) fn watch_mic(
+    runner: Arc<dyn CommandRunner>,
+    name: String,
+    clock: Arc<dyn Clock>,
+    every: Duration,
+    stopping: Arc<AtomicBool>,
+    tx: async_channel::Sender<RecorderEvent>,
+) {
+    std::thread::spawn(move || {
+        loop {
+            clock.sleep(every);
+            if stopping.load(Ordering::SeqCst) || tx.is_closed() {
+                return;
+            }
+            if source_names(&*runner).is_ok_and(|names| !names.contains(&name)) {
+                let _ = tx.try_send(RecorderEvent::MicLost);
+                return;
+            }
+        }
+    });
 }

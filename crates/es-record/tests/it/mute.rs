@@ -284,3 +284,77 @@ fn two_tracks_are_mixed_into_one_with_the_video_copied() {
     let mp4 = tmp.path().join("screen.mp4");
     assert!(merge_args(&mp4, &merged).contains(&"aac".to_owned()));
 }
+
+struct Sources(Mutex<Vec<&'static str>>);
+
+impl CommandRunner for Sources {
+    fn run(&self, _: &str, args: &[String]) -> std::io::Result<Output> {
+        match args[0].as_str() {
+            "list" => ok(self
+                .0
+                .lock()
+                .unwrap()
+                .iter()
+                .enumerate()
+                .map(|(i, n)| format!("{i}\t{n}\tPipeWire\ts16le 2ch 48000Hz\tRUNNING\n"))
+                .collect()),
+            _ => ok(String::new()),
+        }
+    }
+}
+
+fn mic_spec(tmp: &Path, mic: &str) -> es_record::RecordSpec {
+    let mut s = spec(tmp, output("DP-2"));
+    s.mic = Some(mic.into());
+    s
+}
+
+fn mic_rig(tmp: &Path, sources: Arc<Sources>) -> GsrRecorder {
+    GsrRecorder::native()
+        .trust_kms()
+        .with_program(fake("fake-gsr"))
+        .with_ipc_dir(tmp)
+        .with_clock(Arc::new(FakeClock::new()))
+        .with_timing(timing())
+        .with_env("FAKE_LOG", &tmp.join("log").to_string_lossy())
+        .with_audio_runner(sources)
+}
+
+#[test]
+fn unplugging_the_microphone_is_reported_once_and_the_recording_goes_on() {
+    let tmp = tempfile::tempdir().unwrap();
+    let sources = Arc::new(Sources(Mutex::new(vec!["alsa_input.usb-mic", "other"])));
+    let recorder = mic_rig(tmp.path(), sources.clone());
+    let h = recorder
+        .start(mic_spec(tmp.path(), "device:alsa_input.usb-mic"))
+        .unwrap();
+    let events = h.events();
+    assert_eq!(
+        block_on(events.recv()).unwrap(),
+        es_record::RecorderEvent::Started
+    );
+    std::thread::sleep(std::time::Duration::from_millis(300));
+    assert!(events.is_empty(), "mic still there");
+    *sources.0.lock().unwrap() = vec!["other"];
+    assert_eq!(
+        block_on(events.recv()).unwrap(),
+        es_record::RecorderEvent::MicLost
+    );
+    assert!(block_on(h.stop()).is_ok(), "the recording still ends well");
+}
+
+#[test]
+fn a_microphone_the_sound_server_does_not_list_is_not_watched() {
+    let tmp = tempfile::tempdir().unwrap();
+    let sources = Arc::new(Sources(Mutex::new(vec!["other"])));
+    let recorder = mic_rig(tmp.path(), sources);
+    let h = recorder.start(mic_spec(tmp.path(), "device:gone")).unwrap();
+    let events = h.events();
+    assert_eq!(
+        block_on(events.recv()).unwrap(),
+        es_record::RecorderEvent::Started
+    );
+    std::thread::sleep(std::time::Duration::from_millis(400));
+    assert!(events.is_empty());
+    let _ = block_on(h.stop());
+}

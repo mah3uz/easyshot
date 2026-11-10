@@ -114,7 +114,13 @@ impl RecordingUi for LayerUi {
         let size = bar.read(cx).size();
         let placement = control_bar(recorded, &outputs, size, whole_screen_bar);
         let spots = super::spot::load(&self.paths);
-        match remembered(placement, &outputs, size, |id| spots.get(&id.0).copied()) {
+        let video = match recorded {
+            Recorded::Area(area) => Some(*area),
+            Recorded::Display(_) => None,
+        };
+        match remembered(placement, &outputs, size, video, |id| {
+            spots.get(&id.0).copied()
+        }) {
             Placement::On { output, origin } => {
                 let rect = Rect::from_origin_size(origin, (size.width, size.height));
                 match open(

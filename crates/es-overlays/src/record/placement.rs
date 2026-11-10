@@ -133,11 +133,13 @@ pub fn clamp(origin: Point, bar: Size, output: Rect) -> Point {
     )
 }
 
-/// Where the user last left the bar on `output`, as an offset from its top-left corner.
+/// Where the user last left the bar on `output`, as an offset from its top-left corner. A spot
+/// that covers the recorded `video` is passed over when the placement itself keeps clear of it.
 pub fn remembered(
     placement: Placement,
     outputs: &[OutputInfo],
     bar: Size,
+    video: Option<Rect>,
     offset: impl Fn(&OutputId) -> Option<Point>,
 ) -> Placement {
     let Placement::On { output, origin } = placement else {
@@ -152,6 +154,8 @@ pub fn remembered(
             )
         })
     });
+    let covers = |p: Point| video.is_some_and(|v| overlaps(bar_at(p, bar), v));
+    let spot = spot.filter(|s| covers(origin) || !covers(*s));
     Placement::On {
         origin: spot.unwrap_or(origin),
         output,

@@ -13,6 +13,7 @@ toast-video-exported-message = Saved to { $path }
 toast-recording-busy = A recording is already running
 toast-capture-busy = A capture is in progress
 toast-recording-no-system-audio = Recording without system sound
+toast-recording-mic-lost = Microphone disconnected
 toast-recording-no-input = Recording without clicks and keys
 toast-recording-no-input-message = { -app-name } can’t read your keyboard and mouse. Add yourself to the input group with sudo usermod -aG input $USER, then log out and in.
 toast-recording-input-pending = Recording without clicks and keys

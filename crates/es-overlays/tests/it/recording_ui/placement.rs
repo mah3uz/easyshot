@@ -178,7 +178,7 @@ fn the_spot_the_user_left_is_used_on_that_output_and_kept_on_it() {
     };
     let spots = |id: &OutputId| (id.0 == "B").then_some(Point::new(100., 50.));
     assert_eq!(
-        remembered(home.clone(), &two, BARSIZE, spots),
+        remembered(home.clone(), &two, BARSIZE, None, spots),
         Placement::On {
             output: OutputId("B".into()),
             origin: Point::new(1380., 50.),
@@ -190,13 +190,13 @@ fn the_spot_the_user_left_is_used_on_that_output_and_kept_on_it() {
         origin: Point::new(499., 604.),
     };
     assert_eq!(
-        remembered(elsewhere.clone(), &two, BARSIZE, spots),
+        remembered(elsewhere.clone(), &two, BARSIZE, None, spots),
         elsewhere,
         "no spot on this output"
     );
     let off = |_: &OutputId| Some(Point::new(5000., 5000.));
     assert_eq!(
-        remembered(home, &two, BARSIZE, off),
+        remembered(home, &two, BARSIZE, None, off),
         Placement::On {
             output: OutputId("B".into()),
             origin: Point::new(1280. + 1920. - BARSIZE.width, 1080. - BARSIZE.height),
@@ -204,7 +204,45 @@ fn the_spot_the_user_left_is_used_on_that_output_and_kept_on_it() {
         "a spot from a larger screen is pulled back on"
     );
     assert_eq!(
-        remembered(Placement::Tray, &two, BARSIZE, spots),
+        remembered(Placement::Tray, &two, BARSIZE, None, spots),
         Placement::Tray
     );
+}
+
+#[test]
+fn a_remembered_spot_over_the_recorded_area_is_not_used() {
+    let one = vec![output("A", 0., 1280., 720.)];
+    let area = Rect::new(200., 80., 1000., 640.);
+    let placed = control_bar(&Recorded::Area(area), &one, BARSIZE, true);
+    let over = |_: &OutputId| Some(Point::new(500., 300.));
+    let shown = remembered(placed.clone(), &one, BARSIZE, Some(area), over);
+    assert_eq!(
+        shown, placed,
+        "the spot covers the video, the clear placement wins"
+    );
+    let beside = |_: &OutputId| Some(Point::new(0., 0.));
+    let Placement::On { origin, .. } = remembered(placed, &one, BARSIZE, Some(area), beside) else {
+        panic!("no placement");
+    };
+    assert_eq!(
+        origin,
+        Point::new(0., 0.),
+        "a spot clear of the video is kept"
+    );
+}
+
+#[test]
+fn a_whole_screen_recording_keeps_the_remembered_spot_inside_the_video() {
+    let one = vec![output("A", 0., 1280., 720.)];
+    let placed = control_bar(
+        &Recorded::Display(OutputId("A".into())),
+        &one,
+        BARSIZE,
+        true,
+    );
+    let over = |_: &OutputId| Some(Point::new(500., 300.));
+    let Placement::On { origin, .. } = remembered(placed, &one, BARSIZE, None, over) else {
+        panic!("no placement");
+    };
+    assert_eq!(origin, Point::new(500., 300.));
 }

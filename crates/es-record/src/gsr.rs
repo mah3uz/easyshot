@@ -1,4 +1,4 @@
-use crate::mute::{AudioSource, Mutes, Shape, sources};
+use crate::mute::{AudioSource, MIC_POLLS, Mutes, Shape, mic_arg, mic_source, sources, watch_mic};
 use crate::process::{Clock, Helper, SystemClock, Timing, run_blocking, which};
 use crate::project::CommandRunner;
 use crate::units::{RegionUnits, decide_units, needs_unit_probe, parse_monitor_list};
@@ -212,14 +212,6 @@ fn quality_name(q: Quality) -> &'static str {
     }
 }
 
-fn mic_arg(mic: &str) -> String {
-    match mic {
-        "" | "default" | "default_input" => "default_input".into(),
-        m if m.starts_with("device:") || m == "default_output" => m.into(),
-        m => format!("device:{m}"),
-    }
-}
-
 pub fn early_exit(code: Option<i32>, status: &str, stderr: &str) -> Error {
     match code {
         Some(50) => Error::AudioDeviceMissing,
@@ -376,6 +368,19 @@ impl Recorder for GsrRecorder {
             run = self.launch(&spec, split, &sock, &out, &tx)?;
         }
         let (helper, stopping) = run;
+        if let (Some(runner), Some(mic)) = (self.audio.clone(), spec.mic.as_deref())
+            && let Some(name) = mic_source(&*runner, mic)
+        {
+            let every = self.timing.poll * MIC_POLLS;
+            watch_mic(
+                runner,
+                name,
+                self.clock.clone(),
+                every,
+                stopping.clone(),
+                tx.clone(),
+            );
+        }
         let first = read_first_frame_ts(&out).unwrap_or(begun);
         let _ = tx.try_send(RecorderEvent::Started);
         Ok(Box::new(GsrHandle {
@@ -524,6 +529,12 @@ impl GsrHandle {
         let graceful = ipc_call(&self.sock, "stop", None, false).is_ok();
         self.helper.stop(&*self.clock, &self.timing, graceful);
         let _ = std::fs::remove_file(&self.sock);
+    }
+}
+
+impl Drop for GsrHandle {
+    fn drop(&mut self) {
+        self.stopping.store(true, Ordering::SeqCst);
     }
 }
 

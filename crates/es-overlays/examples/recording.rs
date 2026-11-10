@@ -300,7 +300,7 @@ fn record(
                         RecorderEvent::Started => bar.started(cx),
                         RecorderEvent::Paused => bar.set_paused(true, cx),
                         RecorderEvent::Resumed => bar.set_paused(false, cx),
-                        RecorderEvent::Failed(_) => {}
+                        RecorderEvent::MicLost | RecorderEvent::Failed(_) => {}
                     })
                 });
             }

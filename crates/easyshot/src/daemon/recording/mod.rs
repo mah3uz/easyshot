@@ -418,6 +418,10 @@ impl Recordings {
             RecorderEvent::Started => bar.update(cx, |b, cx| b.started(cx)),
             RecorderEvent::Paused => bar.update(cx, |b, cx| b.set_paused(true, cx)),
             RecorderEvent::Resumed => bar.update(cx, |b, cx| b.set_paused(false, cx)),
+            RecorderEvent::MicLost => {
+                show_toast(Toast::new("toast-recording-mic-lost", IconName::Info), cx);
+                return;
+            }
             RecorderEvent::Failed(message) => {
                 tracing::error!(%message, "the recorder failed");
                 show_toast(Toast::error("toast-error-generic"), cx);

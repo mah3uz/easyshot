@@ -139,6 +139,8 @@ pub enum RecorderEvent {
     Started,
     Paused,
     Resumed,
+    /// The microphone being recorded is gone from the sound server; the recording goes on.
+    MicLost,
     Failed(String),
 }
 
