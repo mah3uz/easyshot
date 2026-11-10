@@ -262,7 +262,13 @@ fn the_one_source_is_muted_on_the_current_segments_stream_and_again_after_a_resu
         .collect();
     assert_eq!(
         mutes,
-        ["set-source-output-mute 71 1", "set-source-output-mute 72 1"],
+        [
+            "set-source-output-mute 71 0",
+            "set-source-output-mute 71 1",
+            "set-source-output-mute 72 0",
+            "set-source-output-mute 72 1",
+            "set-source-output-mute 72 0",
+        ],
         "each wf-recorder process is a new stream"
     );
 }

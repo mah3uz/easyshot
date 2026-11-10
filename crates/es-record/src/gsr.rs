@@ -343,6 +343,9 @@ impl Recorder for GsrRecorder {
             .audio
             .clone()
             .map(|runner| Mutes::new(runner, sources(spec.system_audio, spec.mic.is_some())));
+        if let Some(m) = &mutes {
+            m.unmute_when_open(helper.pid(), &*self.clock, self.timing.poll);
+        }
         if let (Some(runner), Some(mic)) = (self.audio.clone(), spec.mic.as_deref())
             && let Some(name) = mic_source(&*runner, mic)
         {
@@ -477,6 +480,9 @@ impl GsrHandle {
     }
 
     fn shut_down(&mut self) {
+        if let Some(m) = &self.mutes {
+            m.unmute_all(self.helper.pid());
+        }
         self.stopping.store(true, Ordering::SeqCst);
         let graceful = ipc_call(&self.sock, "stop", None, false).is_ok();
         self.helper.stop(&*self.clock, &self.timing, graceful);

@@ -152,7 +152,53 @@ impl Mutes {
         }
         Ok(())
     }
+
+    /// WirePlumber restores a stream's remembered mute, so a recorder's streams start unmuted
+    /// whatever an earlier recording left behind.
+    pub fn unmute_when_open(&self, pid: u32, clock: &dyn Clock, poll: Duration) {
+        if self.sources.is_empty() {
+            return;
+        }
+        let t0 = clock.now();
+        let mut ids = Vec::new();
+        loop {
+            ids = self.streams(pid).unwrap_or(ids);
+            if ids.len() >= self.sources.len() || clock.now().saturating_sub(t0) >= UNMUTE_WAIT {
+                break;
+            }
+            clock.sleep(poll);
+        }
+        if ids.len() < self.sources.len() {
+            tracing::warn!(
+                "recorder opened {} of {} sound streams; unmuting those",
+                ids.len(),
+                self.sources.len()
+            );
+        }
+        self.unmute_ids(&ids);
+    }
+
+    /// Leaves every stream unmuted so the state the sound server remembers is "unmuted".
+    pub fn unmute_all(&self, pid: u32) {
+        match self.streams(pid) {
+            Ok(ids) => self.unmute_ids(&ids),
+            Err(e) => tracing::debug!("could not list sound streams to unmute: {e}"),
+        }
+    }
+
+    fn unmute_ids(&self, ids: &[u32]) {
+        for id in ids {
+            if let Err(e) = pactl(
+                &*self.runner,
+                &["set-source-output-mute", &id.to_string(), "0"],
+            ) {
+                tracing::debug!("could not unmute stream {id}: {e}");
+            }
+        }
+    }
 }
+
+const UNMUTE_WAIT: Duration = Duration::from_secs(2);
 
 pub(crate) const MIC_POLLS: u32 = 20;
 

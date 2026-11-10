@@ -224,6 +224,7 @@ impl Recorder for WfRecorder {
         };
         h.first = h.clock.monotonic_us();
         h.spawn_segment()?;
+        h.unmute_new();
         let _ = h.tx.try_send(RecorderEvent::Started);
         Ok(Box::new(h))
     }
@@ -306,6 +307,18 @@ impl WfHandle {
         Ok(())
     }
 
+    fn unmute_new(&self) {
+        if let (Some(mutes), Some(helper)) = (&self.mutes, &self.current) {
+            mutes.unmute_when_open(helper.pid(), &*self.clock, self.timing.poll);
+        }
+    }
+
+    fn release_mutes(&self) {
+        if let (Some(mutes), Some(helper)) = (&self.mutes, &self.current) {
+            mutes.unmute_all(helper.pid());
+        }
+    }
+
     fn end_segment(&mut self) {
         if let Some(mut h) = self.current.take() {
             self.expected_exit.store(true, Ordering::SeqCst);
@@ -374,6 +387,7 @@ impl RecordingHandle for WfHandle {
             return Ok(());
         }
         self.spawn_segment()?;
+        self.unmute_new();
         let _ = self.tx.try_send(RecorderEvent::Resumed);
         self.remute()
     }
@@ -392,6 +406,7 @@ impl RecordingHandle for WfHandle {
 
     fn stop(mut self: Box<Self>) -> BoxFuture<'static, Result<RecordingOutput>> {
         run_blocking(move || {
+            self.release_mutes();
             self.end_segment();
             let file = self.join()?;
             Ok(RecordingOutput {
@@ -404,6 +419,7 @@ impl RecordingHandle for WfHandle {
 
     fn discard(mut self: Box<Self>) -> BoxFuture<'static, Result<()>> {
         run_blocking(move || {
+            self.release_mutes();
             self.end_segment();
             std::fs::remove_dir_all(&self.spec.dir).map_err(|source| Error::Io {
                 path: self.spec.dir.clone(),
