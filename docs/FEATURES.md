@@ -47,6 +47,7 @@ More in the manual: [Installing it](MANUAL.md#installing-it) and [Running it](MA
 - Reads QR codes from a region.
 - Picks a colour from the screen and copies it as `#RRGGBB`.
 - Captures a scrolling page as one tall image, up to 30000 pixels.
+- Keeps a page's fixed top and bottom bars once, at the top and the end of the tall image.
 - Scroll capture starts by picking a window; press Space to draw a region instead.
 - Shift-click the capture bar's Scroll button to start scroll capture on a region.
 - Reads a scrolled window from its own pixels where the compositor gives them, so windows on top of it stay out.

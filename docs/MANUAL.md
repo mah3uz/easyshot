@@ -100,6 +100,10 @@ first time easyshot starts. The binds file always comes first where it can be wr
   you and stops at the end of the page. A preview beside the area shows the image as it
   grows. Press the scrolling-capture shortcut again to stop. Escape does not cancel it; use
   the ✕ on the bar. If the area fills the whole screen, the bar sits over it and is captured.
+  A bar that stays put while the page scrolls appears once: a menu bar at the top of the
+  image, a bar along the bottom at its end. Each part of the page is taken from the first
+  frame that showed it. A see-through top bar that appears only after you start scrolling is
+  left out.
 - **Variants.** Region capture also comes as "& Copy", "& Save", "& Annotate" and "& Pin".
 
 One capture runs at a time, and a request never waits for another to finish. Key binds,

@@ -40,7 +40,7 @@ const captures = [
   { icon: 'app-window', title: 'Window', cmd: 'easyshot capture window', text: 'Hover to highlight a window, click to take it.' },
   { icon: 'monitor', title: 'Full screen', cmd: 'easyshot capture fullscreen', text: 'The output under the pointer.' },
   { icon: 'timer', title: 'Timed', cmd: 'easyshot capture window --timed 5', text: 'Pick first, then a countdown runs and a fresh frame is taken. Add --timed to region, window or fullscreen.' },
-  { icon: 'unfold-vertical', title: 'Scrolling', cmd: 'easyshot capture scroll', text: 'Pick a window, or press Space to draw an area, then scroll. easyshot joins it into one tall image. Press the shortcut again, or Stop, to finish.' },
+  { icon: 'unfold-vertical', title: 'Scrolling', cmd: 'easyshot capture scroll', text: 'Pick a window, or press Space to draw an area, then scroll. easyshot joins it into one tall image, with fixed top and bottom bars shown once. Press the shortcut again, or Stop, to finish.' },
   { icon: 'scan-text', title: 'Text', cmd: 'easyshot ocr', text: 'Reads the text, or a QR code, in an area and copies it.' },
 ]
 

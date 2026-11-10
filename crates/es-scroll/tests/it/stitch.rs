@@ -93,7 +93,18 @@ fn header_exclusion_is_what_makes_headed_frames_match() {
         f
     };
     let (a, b) = (stamped(0), stamped(100));
-    assert_eq!(shift(&a, &b, Exclusions { top: 120, right: 0 }), Some(100));
+    assert_eq!(
+        shift(
+            &a,
+            &b,
+            Exclusions {
+                top: 120,
+                bottom: 0,
+                right: 0
+            }
+        ),
+        Some(100)
+    );
     assert_ne!(shift(&a, &b, Exclusions::default()), Some(100));
 }
 
@@ -136,7 +147,18 @@ fn noisy_right_columns_match_only_when_excluded() {
         f
     };
     let (a, b) = (noisy(0), noisy(110));
-    assert_eq!(shift(&a, &b, Exclusions { top: 0, right: 20 }), Some(110));
+    assert_eq!(
+        shift(
+            &a,
+            &b,
+            Exclusions {
+                top: 0,
+                bottom: 0,
+                right: 20
+            }
+        ),
+        Some(110)
+    );
     assert_eq!(shift(&a, &b, Exclusions::default()), None);
 }
 

@@ -2,8 +2,8 @@ use crate::shift::{Exclusions, shift_masked, shift_robust};
 use crate::{Frame, frame_hash};
 
 pub const MAX_HEIGHT: usize = 30_000;
-const MIN_HEADER: usize = 10;
-const MAX_HEADER_FRACTION: f64 = 0.6;
+const MIN_BAND: usize = 10;
+const MAX_BAND_DIVISOR: usize = 3;
 const MIN_LOCK_SHIFT: usize = 5;
 const CHANGE_SAD: f64 = 8.0;
 const SCROLLBAR_SCAN: usize = 50;
@@ -25,7 +25,9 @@ pub struct Stitcher {
     prev: Option<Frame>,
     prev_hash: u64,
     top: usize,
-    header: Option<usize>,
+    header: usize,
+    footer: usize,
+    stamped: usize,
     right: Option<usize>,
     moving: Vec<bool>,
 }
@@ -48,7 +50,9 @@ impl Stitcher {
             prev: None,
             prev_hash: 0,
             top: 0,
-            header: None,
+            header: 0,
+            footer: 0,
+            stamped: 0,
             right: None,
             moving: Vec::new(),
         }
@@ -93,23 +97,26 @@ impl Stitcher {
         if hash == self.prev_hash {
             return Push::Duplicate;
         }
-        let header = self.header.unwrap_or_else(|| header_height(prev, frame));
+        let right = self.right.unwrap_or(0);
+        let cols = columns(frame.width, right);
+        let guess = Exclusions {
+            top: self
+                .header
+                .max(still_edge(prev, frame, 0..frame.height, &cols)),
+            bottom: self
+                .footer
+                .max(still_edge(prev, frame, (0..frame.height).rev(), &cols)),
+            right,
+        };
         let guesses: &[usize] = match self.right {
             Some(_) => &[],
             None => PROBE_MARGINS,
         };
-        let known = [self.right.unwrap_or(0)];
-        let found = known.iter().chain(guesses).find_map(|&right| {
-            shift_masked(prev, frame, Exclusions { top: header, right }, &self.moving)
+        let found = [right].iter().chain(guesses).find_map(|&right| {
+            shift_masked(prev, frame, Exclusions { right, ..guess }, &self.moving)
         });
         // An unscrolled frame goes on to `moved_in_place`, which learns the rows that animate.
-        let robust = || {
-            let ex = Exclusions {
-                top: header,
-                right: known[0],
-            };
-            shift_robust(prev, frame, ex).filter(|&dy| dy > 0)
-        };
+        let robust = || shift_robust(prev, frame, guess).filter(|&dy| dy > 0);
         let Some(dy) = found.or_else(robust) else {
             return self.moved_in_place(frame, hash);
         };
@@ -121,15 +128,26 @@ impl Stitcher {
         if !last && dy < frame.height / 10 {
             return Push::Duplicate;
         }
-        if dy > MIN_LOCK_SHIFT {
-            if self.header.is_none() {
-                self.header = Some(header);
-            }
-            if self.right.is_none() {
-                self.right = Some(scrollbar_margin(prev, frame, header, dy));
+        if dy > MIN_LOCK_SHIFT && self.right.is_none() {
+            self.right = Some(scrollbar_margin(prev, frame, guess, dy));
+        }
+        let cols = columns(frame.width, self.right.unwrap_or(0));
+        let below = |y: usize| Some(y + dy).filter(|&z| z < frame.height);
+        let (header, header_still) = fixed_edge(frame, prev, 0..frame.height, below, &cols);
+        let above = |y: usize| y.checked_sub(dy);
+        let (footer, footer_still) = fixed_edge(prev, frame, (0..frame.height).rev(), above, &cols);
+        // A band that changes on screen may be an animation rather than a bar, and leaving it out of every later match could leave too little to match.
+        if footer_still && footer >= MIN_BAND {
+            self.footer = self.footer.max(footer);
+        }
+        if header_still && header >= MIN_BAND {
+            self.header = self.header.max(header);
+            // The page's top shows the bar once, even one that appeared only after the first frame.
+            if header > self.stamped {
+                self.stamp(frame, header);
             }
         }
-        self.merge(frame, dy);
+        self.merge(frame, dy, footer);
         self.prev = Some(frame.clone());
         self.prev_hash = hash;
         if self.height() >= self.max_height {
@@ -174,17 +192,27 @@ impl Stitcher {
         }
     }
 
-    fn merge(&mut self, frame: &Frame, dy: usize) {
+    fn stamp(&mut self, frame: &Frame, rows: usize) {
+        if let Some(canvas) = self.canvas.as_mut() {
+            let n = rows.min(canvas.height) * canvas.stride();
+            canvas.data[..n].copy_from_slice(&frame.data[..n]);
+        }
+        self.stamped = rows;
+    }
+
+    /// Rows already placed are kept; the canvas ends with the previous frame's `footer` rows, which the new frame's own bottom replaces.
+    fn merge(&mut self, frame: &Frame, dy: usize, footer: usize) {
         let Some(canvas) = self.canvas.as_mut() else {
             return;
         };
-        let header = self.header.unwrap_or(0);
+        let placed = canvas.height.saturating_sub(footer);
         self.top += dy;
         let total = (self.top + frame.height).min(self.max_height);
         let stride = canvas.stride();
         canvas.data.resize(total * stride, 0);
         canvas.height = total;
-        for y in header..frame.height {
+        let from = placed.saturating_sub(self.top).max(self.header);
+        for y in from..frame.height {
             let cy = self.top + y;
             if cy >= total {
                 break;
@@ -202,29 +230,63 @@ fn pixel_sad(a: &[u8], b: &[u8]) -> f64 {
         .sum()
 }
 
-fn header_height(prev: &Frame, next: &Frame) -> usize {
-    let cols: Vec<usize> = (0..prev.width).step_by(4).collect();
-    for y in 0..prev.height {
-        let (a, b) = (prev.row(y), next.row(y));
-        let mean = cols
-            .iter()
-            .map(|&x| pixel_sad(&a[x * 4..], &b[x * 4..]))
-            .sum::<f64>()
-            / cols.len() as f64;
-        if mean > CHANGE_SAD {
-            let limit = (prev.height as f64 * MAX_HEADER_FRACTION) as usize;
-            return if (MIN_HEADER..limit).contains(&y) {
-                y
-            } else {
-                0
-            };
-        }
-    }
-    0
+fn columns(width: usize, right: usize) -> Vec<usize> {
+    (0..width.saturating_sub(right)).step_by(4).collect()
 }
 
-fn scrollbar_margin(prev: &Frame, next: &Frame, header: usize, dy: usize) -> usize {
-    let rows = next.height.saturating_sub(header + dy);
+fn same(a: &[u8], b: &[u8], cols: &[usize]) -> bool {
+    let sum: f64 = cols
+        .iter()
+        .map(|&x| pixel_sad(&a[x * 4..], &b[x * 4..]))
+        .sum();
+    sum <= CHANGE_SAD * cols.len() as f64
+}
+
+/// Before the shift is known, the rows from one edge that stand still on screen are the best guess at a fixed bar.
+fn still_edge(
+    prev: &Frame,
+    next: &Frame,
+    rows: impl Iterator<Item = usize>,
+    cols: &[usize],
+) -> usize {
+    let cap = prev.height / MAX_BAND_DIVISOR;
+    let run = rows
+        .take(cap)
+        .take_while(|&y| same(prev.row(y), next.row(y), cols))
+        .count();
+    if (MIN_BAND..cap).contains(&run) {
+        run
+    } else {
+        0
+    }
+}
+
+/// The rows from one edge of `a` that did not move with the page, and whether they all stood still on screen; `scrolled` maps a row of `a` to the row of `b` that shows the same page row.
+fn fixed_edge(
+    a: &Frame,
+    b: &Frame,
+    rows: impl Iterator<Item = usize>,
+    scrolled: impl Fn(usize) -> Option<usize>,
+    cols: &[usize],
+) -> (usize, bool) {
+    let (mut len, mut still) = (0, true);
+    for (i, y) in rows.take(a.height / MAX_BAND_DIVISOR).enumerate() {
+        let Some(z) = scrolled(y) else {
+            break;
+        };
+        let here = same(a.row(y), b.row(y), cols);
+        if !same(a.row(y), b.row(z), cols) {
+            len = i + 1;
+            still &= here;
+        } else if !here {
+            break;
+        }
+    }
+    (len, still)
+}
+
+fn scrollbar_margin(prev: &Frame, next: &Frame, ex: Exclusions, dy: usize) -> usize {
+    let rows = next.height.saturating_sub(ex.top + ex.bottom + dy);
     let (from, to) = (rows / 5, rows * 4 / 5);
     let step = (to.saturating_sub(from) / 40).max(1);
     let sampled: Vec<usize> = (from..to).step_by(step).collect();
@@ -235,8 +297,8 @@ fn scrollbar_margin(prev: &Frame, next: &Frame, header: usize, dy: usize) -> usi
         let sum: f64 = sampled
             .iter()
             .map(|&r| {
-                let a = &prev.row(header + dy + r)[x * 4..];
-                let b = &next.row(header + r)[x * 4..];
+                let a = &prev.row(ex.top + dy + r)[x * 4..];
+                let b = &next.row(ex.top + r)[x * 4..];
                 pixel_sad(a, b)
             })
             .sum();

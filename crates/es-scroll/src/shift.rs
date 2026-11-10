@@ -11,6 +11,7 @@ const MIN_SHARE: f64 = 0.5;
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Exclusions {
     pub top: usize,
+    pub bottom: usize,
     pub right: usize,
 }
 
@@ -20,8 +21,9 @@ fn profile(frame: &Frame, ex: Exclusions) -> (Vec<f64>, usize) {
     let step = (usable / SAMPLE_COLUMNS).max(1);
     let samples = usable.div_ceil(step).max(1);
     let bands = BANDS.min(samples);
-    let mut out = Vec::with_capacity(frame.height.saturating_sub(ex.top) * bands);
-    for y in ex.top.min(frame.height)..frame.height {
+    let end = frame.height.saturating_sub(ex.bottom);
+    let mut out = Vec::with_capacity(end.saturating_sub(ex.top) * bands);
+    for y in ex.top.min(end)..end {
         let row = frame.row(y);
         let mut sums = [(0.0, 0.0); BANDS];
         for (i, x) in (0..usable).step_by(step).enumerate() {
