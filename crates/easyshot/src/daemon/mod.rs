@@ -5,6 +5,7 @@ mod bar_fallback;
 mod bar_tests;
 mod bus;
 mod capture;
+mod coming_soon;
 mod config_watch;
 mod crash;
 mod deck_delete;
@@ -52,9 +53,7 @@ use gpui::{App, AppContext as _, Global, QuitMode, Task};
 use recovery::reopen_recovered;
 use std::rc::Rc;
 use std::sync::Arc;
-use tracing_subscriber::EnvFilter;
-use tracing_subscriber::layer::SubscriberExt as _;
-use tracing_subscriber::util::SubscriberInitExt as _;
+use tracing_subscriber::{EnvFilter, layer::SubscriberExt as _, util::SubscriberInitExt as _};
 use windows::Wiring;
 
 const MIN_RAYON_THREADS: usize = 6;

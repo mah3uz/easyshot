@@ -307,3 +307,21 @@ fn z_and_a_click_toggle_actual_size(cx: &mut TestAppContext) {
     cx.simulate_keystrokes(window, "z");
     assert!(!cx.update(|cx| view.read(cx).actual_size()));
 }
+
+#[gpui::test]
+fn cloud_share_says_coming_soon_and_leaves_the_card_alone(cx: &mut TestAppContext) {
+    let f = fixture(cx);
+    let (item, image, sidecar) = library_card(&f, cx);
+
+    act(&f, &item, DeckAction::Share, cx);
+
+    let toast = f.sink.shown().pop().expect("a toast");
+    assert_eq!(toast.title, "Coming soon");
+    assert_eq!(
+        toast.message.as_deref(),
+        Some("Cloud sharing is coming soon.")
+    );
+    assert_eq!(on_deck(&f, cx), 1, "the card stays");
+    assert!(image.exists() && sidecar.exists());
+    assert!(f.trash.trashed().is_empty());
+}

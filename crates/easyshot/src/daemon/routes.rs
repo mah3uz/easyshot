@@ -1,3 +1,4 @@
+use super::coming_soon::{Feature, coming_soon};
 use super::deck_delete::{Deletion, delete_card};
 use super::recording::Recordings;
 use super::windows::Wiring;
@@ -227,7 +228,8 @@ pub fn deck_events(
                 }
             }
             DeckAction::Delete => delete_card(&deletion, item.clone(), cx),
-            DeckAction::Dismiss | DeckAction::Share => {}
+            DeckAction::Share => coming_soon(Feature::CloudShare, cx),
+            DeckAction::Dismiss => {}
         },
     })
 }

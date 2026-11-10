@@ -152,7 +152,8 @@ opens the editor. Each capture also appears as a card in a floating preview deck
 - hover actions in slots you can configure; on a card that auto-save has already saved, Save
   becomes Show in Folder, which opens your file manager on the saved file;
 - Settings › Overlay › Card Actions chooses which actions a card shows: Copy, Save / Show in
-  Folder, Edit, Pin, Cloud Share, Preview and Delete. Dismiss is always there, and at least one
+  Folder, Edit, Pin, Cloud Share, Preview and Delete. Cloud Share only says "Coming soon", as cloud
+  sharing is not built yet. Dismiss is always there, and at least one
   other action stays on. Preview and Delete are off at first; with them on, Preview sits at
   the top middle of the card and Delete at the bottom middle. In `config.toml` they are the
   `[overlay.actions]` table (`copy`, `save`, `edit`, `pin`, `share`, `preview`, `delete`);
@@ -557,8 +558,7 @@ from a recording.
 ## Settings
 
 Pages: Home, General, Capture, Overlay, Recording, Shortcuts, Agents, About. Agents is
-described under Agent use. Sharing is not part of
-version 1.
+described under Agent use. There is no Sharing page, as cloud sharing is coming soon.
 
 General, Appearance, Theme is System, Light or Dark. System follows your desktop's light or dark
 choice, as the settings portal reports it, and changes when you change it. A desktop that reports
@@ -1091,7 +1091,7 @@ as the desktop entry, and easyshot's other windows use `dev.easyshot.app.editor`
 ## Limits in version 1
 
 KDE and GNOME, the video Studio (timeline, zooms, cursor effects, captions, camera
-layouts), camera recording, the teleprompter, cloud sharing, a built-in updater and
+layouts), camera recording, the teleprompter, cloud sharing (the Cloud Share action says coming soon), a built-in updater and
 Flatpak are not part of version 1.
 
 ## Troubleshooting

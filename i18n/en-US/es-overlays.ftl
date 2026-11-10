@@ -33,13 +33,6 @@ deck-card-saving = Saving…
 deck-window-title = Capture overlay
 deck-stack-count = { $count }
 deck-stack-a11y = { $count } captures
-deck-share-off-title = Uploads are off
-deck-share-off-message = Turn on Upload when I share in Settings → Sharing, then try again.
-deck-share-unconfigured-title = Set up cloud sharing
-deck-share-unconfigured-message = Add your cloud account in Settings → Sharing, then try again.
-deck-share-prepare-title = Couldn’t prepare capture
-deck-share-prepare-message = The screenshot is still in the deck. Check available disk space and retry.
-deck-share-upload-failed-title = Upload failed
 
 ## Pinned screenshot context menu
 pin-copy-image = Copy Image

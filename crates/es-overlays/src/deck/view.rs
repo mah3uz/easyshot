@@ -33,7 +33,7 @@ pub struct DeckSettings {
     pub margin: f64,
     pub layout: ToolLayout,
     pub always_show_actions: bool,
-    /// Cloud Share is drawn only when sharing is set up.
+    /// Whether Cloud Share is drawn.
     pub share: bool,
     pub actions: CardActions,
 }
@@ -60,7 +60,7 @@ impl DeckSettings {
             margin: f64::from(overlay.edge_margin),
             layout: ToolLayout::parse(&overlay.layout),
             always_show_actions: overlay.always_show_actions,
-            share: false,
+            share: true,
             actions: overlay.actions.or_default(),
         }
     }

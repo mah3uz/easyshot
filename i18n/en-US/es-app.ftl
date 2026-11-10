@@ -63,6 +63,10 @@ toast-delete-failed = Couldn’t delete the capture
 toast-undo-failed = Couldn’t restore the capture
 toast-undo-failed-message = It is still in the Trash.
 toast-preview-failed = Can’t preview that capture
+toast-coming-soon-cloud-share = Coming soon
+toast-coming-soon-cloud-share-message = Cloud sharing is coming soon.
+toast-coming-soon-video-studio = Coming soon
+toast-coming-soon-video-studio-message = Video Studio is coming soon.
 
 ## Notifications
 notice-open = Open
