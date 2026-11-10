@@ -1,7 +1,7 @@
-use std::{rc::Rc, time::Duration};
+use std::{cell::Cell, rc::Rc, time::Duration};
 
 use gpui::{
-    App, BoxShadow, ElementId, InteractiveElement, IntoElement, ParentElement, Pixels, RenderOnce,
+    App, BoxShadow, Context, ElementId, Task, InteractiveElement, IntoElement, ParentElement, Pixels, RenderOnce,
     SharedString, StatefulInteractiveElement, Styled, Window, div, hsla, prelude::FluentBuilder,
     px, relative,
 };
@@ -31,6 +31,7 @@ const ICON_BOX: Pixels = px(32.);
 const GLYPH: Pixels = px(18.);
 const MAX_WIDTH: Pixels = px(380.);
 const SHADOW_INK: f32 = 0.18;
+const TICK: Duration = Duration::from_millis(50);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ToastStyle {
@@ -41,7 +42,67 @@ pub enum ToastStyle {
 
 type ActionHandler = Rc<dyn Fn(&mut Window, &mut App)>;
 
-/// The card only: whoever shows it places it, keeps it for [`TOAST_DURATION`], then marks it leaving for [`TOAST_OUT`].
+/// Time left on a toast; it does not run down while the pointer is over the card.
+#[derive(Clone, Copy, Debug)]
+pub struct Countdown {
+    remaining: Duration,
+}
+
+impl Countdown {
+    pub fn new(total: Duration) -> Self {
+        Self { remaining: total }
+    }
+
+    pub fn remaining(&self) -> Duration {
+        self.remaining
+    }
+
+    /// Returns true once the time is used up.
+    pub fn advance(&mut self, elapsed: Duration, hovered: bool) -> bool {
+        if !hovered {
+            self.remaining = self.remaining.saturating_sub(elapsed);
+        }
+        self.remaining.is_zero()
+    }
+}
+
+/// A shown toast's time, the only one: it runs down while the pointer is off the card given it with [`Toast::clock`].
+pub struct ToastClock {
+    hovered: Rc<Cell<bool>>,
+    _run: Task<()>,
+}
+
+impl ToastClock {
+    /// Calls `done` on the entity that keeps the clock once the time is used up; dropping the clock stops it.
+    pub fn start<T: 'static>(
+        duration: Duration,
+        cx: &mut Context<T>,
+        done: impl FnOnce(&mut T, &mut Context<T>) + 'static,
+    ) -> Self {
+        let hovered = Rc::new(Cell::new(false));
+        let over = hovered.clone();
+        let run = cx.spawn(async move |this, cx| {
+            let mut countdown = Countdown::new(duration);
+            let mut last = cx.background_executor().now();
+            loop {
+                cx.background_executor().timer(TICK).await;
+                let now = cx.background_executor().now();
+                if countdown.advance(now - last, over.get()) {
+                    break;
+                }
+                last = now;
+            }
+            let _ = this.update(cx, done);
+        });
+        Self { hovered, _run: run }
+    }
+
+    pub fn hovered(&self) -> bool {
+        self.hovered.get()
+    }
+}
+
+/// The card only: whoever shows it places it, runs its [`ToastClock`], then marks it leaving for [`TOAST_OUT`].
 #[derive(IntoElement)]
 pub struct Toast {
     id: ElementId,
@@ -52,6 +113,7 @@ pub struct Toast {
     leaving: bool,
     settled: bool,
     action: Option<(SharedString, ActionHandler)>,
+    hovered: Option<Rc<Cell<bool>>>,
 }
 
 impl Toast {
@@ -65,7 +127,14 @@ impl Toast {
             leaving: false,
             settled: false,
             action: None,
+            hovered: None,
         }
+    }
+
+    /// The pointer on this card holds the clock.
+    pub fn clock(mut self, clock: &ToastClock) -> Self {
+        self.hovered = Some(clock.hovered.clone());
+        self
     }
 
     /// A button on the card, such as Undo.
@@ -184,6 +253,9 @@ impl RenderOnce for Toast {
             ]);
         div()
             .id(self.id)
+            .when_some(self.hovered, |d, hovered| {
+                d.on_hover(move |over, _, _| hovered.set(*over))
+            })
             .relative()
             .top(rise)
             .when(alpha < 1., |d| d.opacity(alpha))

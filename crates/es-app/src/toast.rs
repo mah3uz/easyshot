@@ -19,30 +19,6 @@ pub const TOAST_DURATION: Duration = Duration::from_millis(2500);
 
 pub const ERROR_DURATION: Duration = Duration::from_secs(5);
 
-/// Time left on a toast; it does not run down while the pointer is over the card.
-#[derive(Clone, Copy, Debug)]
-pub struct Countdown {
-    remaining: Duration,
-}
-
-impl Countdown {
-    pub fn new(total: Duration) -> Self {
-        Self { remaining: total }
-    }
-
-    pub fn remaining(&self) -> Duration {
-        self.remaining
-    }
-
-    /// Returns true once the time is used up.
-    pub fn advance(&mut self, elapsed: Duration, hovered: bool) -> bool {
-        if !hovered {
-            self.remaining = self.remaining.saturating_sub(elapsed);
-        }
-        self.remaining.is_zero()
-    }
-}
-
 /// Long enough to notice the toast and press Undo.
 pub const UNDO_DURATION: Duration = Duration::from_secs(8);
 

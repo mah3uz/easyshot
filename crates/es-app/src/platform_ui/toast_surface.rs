@@ -1,24 +1,21 @@
 use super::surfaces::{LayerShellSurfaces, LayerSurfaceHandle};
 use super::{SurfaceHandle as _, SurfaceRole};
 use crate::errors::{Error, Result};
-use crate::toast::{Countdown, ToastRequest, ToastSink, ToastStyle};
+use crate::toast::{ToastRequest, ToastSink, ToastStyle};
 use es_geom::Size;
 use es_model::platform::OutputId;
-use es_ui::components::{Toast, ToastStyle as CardStyle};
+use es_ui::components::{Toast, ToastClock, ToastStyle as CardStyle};
 use es_ui::icons::IconName;
 use es_ui::motion::TOAST_OUT;
 use gpui::{
-    App, AppContext as _, Bounds, Context, Entity, InteractiveElement as _, IntoElement,
-    ParentElement as _, Pixels, Render, StatefulInteractiveElement as _, Styled as _, Window, div,
-    px,
+    App, AppContext as _, Bounds, Context, Entity, IntoElement, ParentElement as _, Pixels, Render,
+    Styled as _, Window, div, px,
 };
 use gpui_component::IconNamed as _;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
-use std::time::Duration;
 
 const SURFACE: Size = Size::new(420., 132.);
-const TICK: Duration = Duration::from_millis(50);
 const TOP_GAP: Pixels = px(12.);
 
 /// The card on its surface, and its countdown.
@@ -26,7 +23,7 @@ pub struct ToastHost {
     toast: ToastRequest,
     leaving: bool,
     region: Rc<Cell<Option<Bounds<Pixels>>>>,
-    hovered: Rc<Cell<bool>>,
+    clock: ToastClock,
     close: Rc<dyn Fn(&mut App)>,
 }
 
@@ -37,38 +34,21 @@ impl ToastHost {
         close: impl Fn(&mut App) + 'static,
         cx: &mut App,
     ) -> Entity<Self> {
-        let duration = toast.duration;
         cx.new(|cx| {
-            cx.spawn(async move |this, cx| {
-                let mut countdown = Countdown::new(duration);
-                let mut last = cx.background_executor().now();
-                loop {
-                    cx.background_executor().timer(TICK).await;
-                    let now = cx.background_executor().now();
-                    let Ok(hovered) = this.read_with(cx, |host: &ToastHost, _| host.hovered.get())
-                    else {
-                        return;
-                    };
-                    if countdown.advance(now - last, hovered) {
-                        break;
-                    }
-                    last = now;
-                }
-                let left = this.update(cx, |host, cx| {
-                    host.leaving = true;
-                    cx.notify();
-                });
-                if left.is_ok() {
+            let clock = ToastClock::start(toast.duration, cx, |host: &mut ToastHost, cx| {
+                host.leaving = true;
+                cx.notify();
+                cx.spawn(async move |this, cx| {
                     cx.background_executor().timer(TOAST_OUT.duration).await;
                     let _ = this.update(cx, |host, cx| (host.close.clone())(cx));
-                }
-            })
-            .detach();
+                })
+                .detach();
+            });
             ToastHost {
                 toast,
                 leaving: false,
                 region: Rc::default(),
-                hovered: Rc::default(),
+                clock,
                 close: Rc::new(close),
             }
         })
@@ -88,6 +68,7 @@ impl Render for ToastHost {
             ToastStyle::Error => CardStyle::Error,
         };
         let mut card = Toast::new(("toast", id), t.title.clone())
+            .clock(&self.clock)
             .style(style)
             .leaving(self.leaving);
         if let Some(message) = &t.message {
@@ -105,7 +86,6 @@ impl Render for ToastHost {
             });
         }
         let region = self.region.clone();
-        let hovered = self.hovered.clone();
         div().size_full().flex().justify_center().pt(TOP_GAP).child(
             div()
                 .on_children_prepainted(move |bounds, window, _| {
@@ -115,8 +95,6 @@ impl Render for ToastHost {
                         window.set_input_region(card.as_ref().map(std::slice::from_ref));
                     }
                 })
-                .id(("toast-card", id))
-                .on_hover(move |over, _, _| hovered.set(*over))
                 .child(card),
         )
     }

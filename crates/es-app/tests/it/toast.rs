@@ -1,10 +1,14 @@
 use es_app::platform_ui::ToastHost;
 use es_app::toast::{
-    Countdown, ERROR_DURATION, IconName, TOAST_DURATION, Toast, ToastRequest, ToastStyle,
+    ERROR_DURATION, IconName, TOAST_DURATION, Toast, ToastRequest, ToastStyle, ToastUndo,
     UNDO_DURATION,
 };
+use es_ui::components::Countdown;
 use es_ui::motion::TOAST_OUT;
-use gpui::{Modifiers, MouseExitEvent, MouseMoveEvent, PlatformInput, point, px};
+use gpui::{
+    Modifiers, MouseButton, MouseDownEvent, MouseExitEvent, MouseMoveEvent, MouseUpEvent,
+    PlatformInput, Pixels, Point, point, px,
+};
 use std::cell::Cell;
 use std::rc::Rc;
 use std::time::Duration;
@@ -46,7 +50,7 @@ struct Shown {
 
 impl Shown {
     fn error() -> Self {
-        let request = ToastRequest {
+        Self::open(ToastRequest {
             title: "Could not save".into(),
             message: None,
             icon: IconName::TriangleAlert,
@@ -54,7 +58,25 @@ impl Shown {
             duration: ERROR_DURATION,
             output: None,
             undo: None,
-        };
+        })
+    }
+
+    fn undo(undone: Rc<Cell<bool>>) -> Self {
+        Self::open(ToastRequest {
+            title: "Capture deleted".into(),
+            message: None,
+            icon: IconName::Delete,
+            style: ToastStyle::Normal,
+            duration: UNDO_DURATION,
+            output: None,
+            undo: Some((
+                "Undo".into(),
+                ToastUndo::new(move |_| undone.set(true)),
+            )),
+        })
+    }
+
+    fn open(request: ToastRequest) -> Self {
         let closed = Rc::new(Cell::new(false));
         let done = closed.clone();
         let mut host = None;
@@ -93,6 +115,44 @@ impl Shown {
         self.app.settle();
     }
 
+    fn pointer(&mut self, position: Point<Pixels>) {
+        self.send(PlatformInput::MouseMove(MouseMoveEvent {
+            position,
+            pressed_button: None,
+            modifiers: Modifiers::default(),
+        }));
+        self.redraw();
+    }
+
+    // As on Wayland, where the input region is the card: a leave with no move off it, then a redraw.
+    fn leave(&mut self, last: Point<Pixels>) {
+        self.send(PlatformInput::MouseExited(MouseExitEvent {
+            position: last,
+            pressed_button: None,
+            modifiers: Modifiers::default(),
+        }));
+        self.redraw();
+    }
+
+    fn press(&mut self, position: Point<Pixels>, pressed: bool) {
+        self.send(if pressed {
+            PlatformInput::MouseDown(MouseDownEvent {
+                button: MouseButton::Left,
+                position,
+                modifiers: Modifiers::default(),
+                click_count: 1,
+                first_mouse: false,
+            })
+        } else {
+            PlatformInput::MouseUp(MouseUpEvent {
+                button: MouseButton::Left,
+                position,
+                modifiers: Modifiers::default(),
+                click_count: 1,
+            })
+        });
+    }
+
     fn leaving(&mut self) -> bool {
         let host = self.host.clone();
         self.app.cx.update(|cx| host.read(cx).leaving())
@@ -103,22 +163,8 @@ impl Shown {
 fn an_error_toast_waits_while_hovered_and_closes_once_the_pointer_has_left_its_surface() {
     let mut t = Shown::error();
     let on_card = point(px(210.), px(40.));
-    let enter = |t: &mut Shown| {
-        t.send(PlatformInput::MouseMove(MouseMoveEvent {
-            position: on_card,
-            pressed_button: None,
-            modifiers: Modifiers::default(),
-        }))
-    };
-    // As on Wayland, where the input region is the card: a leave with no move off it, then a redraw.
-    let leave = |t: &mut Shown| {
-        t.send(PlatformInput::MouseExited(MouseExitEvent {
-            position: on_card,
-            pressed_button: None,
-            modifiers: Modifiers::default(),
-        }));
-        t.redraw();
-    };
+    let enter = |t: &mut Shown| t.pointer(on_card);
+    let leave = |t: &mut Shown| t.leave(on_card);
     t.wait(2 * SECOND);
     enter(&mut t);
     t.wait(ERROR_DURATION * 4);
@@ -135,4 +181,69 @@ fn an_error_toast_waits_while_hovered_and_closes_once_the_pointer_has_left_its_s
     assert!(t.leaving(), "goes once the time left has run out");
     t.wait(TOAST_OUT.duration + SECOND);
     assert!(t.closed.get(), "closes after its exit");
+}
+
+const ON_UNDO: Point<Pixels> = point(px(270.), px(38.));
+const ON_CARD: Point<Pixels> = point(px(150.), px(38.));
+const OFF_CARD: Point<Pixels> = point(px(400.), px(110.));
+
+fn held_on_undo_then_gone(t: &mut Shown, leave: impl FnOnce(&mut Shown)) {
+    t.wait(SECOND);
+    t.pointer(ON_CARD);
+    t.pointer(ON_UNDO);
+    t.wait(UNDO_DURATION * 3);
+    assert!(!t.leaving(), "held while the pointer is on Undo");
+    leave(t);
+    t.wait(UNDO_DURATION - 2 * SECOND);
+    assert!(!t.leaving(), "the time left when hovered still runs");
+    t.wait(2 * SECOND);
+    assert!(t.leaving(), "goes once the time left has run out");
+    t.wait(TOAST_OUT.duration + SECOND);
+    assert!(t.closed.get(), "closes after its exit");
+}
+
+#[test]
+fn an_undo_toast_held_on_its_button_closes_once_the_pointer_has_left_its_surface() {
+    let undone = Rc::new(Cell::new(false));
+    let mut t = Shown::undo(undone.clone());
+    held_on_undo_then_gone(&mut t, |t| t.leave(ON_UNDO));
+    assert!(!undone.get(), "hovering never presses Undo");
+}
+
+#[test]
+fn an_undo_toast_held_on_its_button_closes_once_the_pointer_has_moved_off_the_card() {
+    let mut t = Shown::undo(Rc::new(Cell::new(false)));
+    held_on_undo_then_gone(&mut t, |t| {
+        t.pointer(OFF_CARD);
+        t.leave(OFF_CARD);
+    });
+}
+
+#[test]
+fn an_undo_toast_closes_after_undo_is_pressed_and_released_off_it() {
+    let undone = Rc::new(Cell::new(false));
+    let mut t = Shown::undo(undone.clone());
+    held_on_undo_then_gone(&mut t, |t| {
+        t.press(ON_UNDO, true);
+        t.send(PlatformInput::MouseMove(MouseMoveEvent {
+            position: OFF_CARD,
+            pressed_button: Some(MouseButton::Left),
+            modifiers: Modifiers::default(),
+        }));
+        t.press(OFF_CARD, false);
+        t.leave(OFF_CARD);
+    });
+    assert!(!undone.get(), "a press released off Undo is not a click");
+}
+
+#[test]
+fn pressing_undo_undoes_and_closes_the_toast() {
+    let undone = Rc::new(Cell::new(false));
+    let mut t = Shown::undo(undone.clone());
+    t.wait(SECOND);
+    t.pointer(ON_UNDO);
+    t.press(ON_UNDO, true);
+    t.press(ON_UNDO, false);
+    assert!(undone.get(), "the press lands on Undo");
+    assert!(t.closed.get(), "the toast closes at once");
 }
