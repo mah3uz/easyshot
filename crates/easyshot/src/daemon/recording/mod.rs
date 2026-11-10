@@ -54,6 +54,7 @@ pub trait RecordingUi {
     fn show(
         &self,
         recorded: &Recorded,
+        dim: bool,
         whole_screen_bar: bool,
         bar: &Entity<ControlBar>,
         cx: &mut App,
@@ -295,9 +296,9 @@ impl Recordings {
         let (recorded, source) = resolve(&start, &outputs)?;
         let mut cfg = deps.settings.read(cx).config().recording.clone();
         start.options.apply(&mut cfg);
-        let recorder = match (&source, &deps.window_recorder) {
-            (RecordSource::Window(_), Some(window)) => window.clone(),
-            _ => (deps.recorder)(&cfg.recorder)?,
+        let (recorder, dim) = match (&source, &deps.window_recorder) {
+            (RecordSource::Window(_), Some(window)) => (window.clone(), false),
+            _ => ((deps.recorder)(&cfg.recorder)?, true),
         };
         if start.request.system_audio
             && !recorder.can_record_system_audio(start.request.mic.is_some())
@@ -345,7 +346,7 @@ impl Recordings {
         let audio =
             es_record::mute::sources(start.request.system_audio, start.request.mic.is_some());
         let bar = cx.new(|cx| ControlBar::new(deps.clock.clone(), audio, cx));
-        let shown = deps.ui.show(&recorded, cfg.whole_screen_bar, &bar, cx);
+        let shown = deps.ui.show(&recorded, dim, cfg.whole_screen_bar, &bar, cx);
         let me = self.clone();
         let bar_events = cx.subscribe(&bar, move |bar, event: &ControlEvent, cx| match event {
             ControlEvent::Route(route) => {

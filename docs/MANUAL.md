@@ -432,7 +432,7 @@ If the recorder cannot be muted, you get a notice and the button stays as it was
 If the microphone you chose is not found, or the area is not on any monitor, you get a notice
 that says so. If you unplug the microphone while recording, you get a notice, "Microphone
 disconnected", and the recording goes on without it (gpu-screen-recorder only). There is a countdown, and then a control bar with stop,
-pause and resume, restart and discard. The recorded area is highlighted. Drag the bar by the
+pause and resume, restart and discard. The recorded area is highlighted; a window recording made from the window's own frames does not dim the screen. Drag the bar by the
 dotted grip on its left to put it anywhere on the screen it is on; it stays on that screen, and
 easyshot remembers where you left it for each screen, for the next recording. A tooltip names
 each button. Without

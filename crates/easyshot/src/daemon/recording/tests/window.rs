@@ -73,6 +73,22 @@ async fn a_screen_recording_never_uses_the_window_recorder(cx: &mut TestAppConte
 }
 
 #[gpui::test]
+async fn only_the_rectangle_recorder_dims_around_what_it_records(cx: &mut TestAppContext) {
+    let with_window = rig_full(
+        cx,
+        FakeRecorder::default(),
+        Some(window_recorder(false)),
+        false,
+    );
+    record(on_screen(), &with_window, cx);
+    assert_eq!(with_window.log.borrow().dimmed, [false]);
+
+    let rectangle = rig(cx);
+    record(on_screen(), &rectangle, cx);
+    assert_eq!(rectangle.log.borrow().dimmed, [true]);
+}
+
+#[gpui::test]
 async fn a_closed_window_ends_the_recording_keeps_it_and_says_so(cx: &mut TestAppContext) {
     let rig = rig_full(
         cx,

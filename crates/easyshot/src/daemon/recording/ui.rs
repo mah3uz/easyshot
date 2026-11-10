@@ -82,6 +82,7 @@ impl RecordingUi for LayerUi {
     fn show(
         &self,
         recorded: &Recorded,
+        dim: bool,
         whole_screen_bar: bool,
         bar: &Entity<ControlBar>,
         cx: &mut App,
@@ -92,7 +93,7 @@ impl RecordingUi for LayerUi {
             bar: None,
             paths: self.paths.clone(),
         };
-        if let Recorded::Area(area) = recorded {
+        if let (true, Recorded::Area(area)) = (dim, recorded) {
             let main = outputs.iter().max_by(|a, b| {
                 let (x, y) = (a.logical.intersect(*area), b.logical.intersect(*area));
                 (x.width().max(0.) * x.height().max(0.))

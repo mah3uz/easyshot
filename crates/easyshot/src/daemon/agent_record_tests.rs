@@ -53,7 +53,14 @@ impl Shown for FakeShown {
 }
 
 impl RecordingUi for FakeUi {
-    fn show(&self, _: &Recorded, _: bool, _: &Entity<ControlBar>, _: &mut App) -> Box<dyn Shown> {
+    fn show(
+        &self,
+        _: &Recorded,
+        _: bool,
+        _: bool,
+        _: &Entity<ControlBar>,
+        _: &mut App,
+    ) -> Box<dyn Shown> {
         Box::new(FakeShown)
     }
     fn tray(&self, _: Option<RecordingTrayState>, _: &mut App) {}

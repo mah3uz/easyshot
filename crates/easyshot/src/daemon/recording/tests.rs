@@ -41,6 +41,7 @@ struct Log {
     tray: Vec<Option<RecordingTrayState>>,
     trimmed: Vec<std::path::PathBuf>,
     shown: usize,
+    dimmed: Vec<bool>,
     closed: usize,
 }
 
@@ -56,8 +57,16 @@ impl Shown for FakeShown {
 }
 
 impl RecordingUi for FakeUi {
-    fn show(&self, _: &Recorded, _: bool, _: &Entity<ControlBar>, _: &mut App) -> Box<dyn Shown> {
+    fn show(
+        &self,
+        _: &Recorded,
+        dim: bool,
+        _: bool,
+        _: &Entity<ControlBar>,
+        _: &mut App,
+    ) -> Box<dyn Shown> {
         self.0.borrow_mut().shown += 1;
+        self.0.borrow_mut().dimmed.push(dim);
         Box::new(FakeShown(self.0.clone()))
     }
     fn tray(&self, state: Option<RecordingTrayState>, _: &mut App) {

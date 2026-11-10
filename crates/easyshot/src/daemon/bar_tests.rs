@@ -34,7 +34,14 @@ impl Notifier for Silent {
 struct NoUi;
 
 impl RecordingUi for NoUi {
-    fn show(&self, _: &Recorded, _: bool, _: &Entity<ControlBar>, _: &mut App) -> Box<dyn Shown> {
+    fn show(
+        &self,
+        _: &Recorded,
+        _: bool,
+        _: bool,
+        _: &Entity<ControlBar>,
+        _: &mut App,
+    ) -> Box<dyn Shown> {
         unreachable!("no start gets this far")
     }
     fn tray(&self, _: Option<RecordingTrayState>, _: &mut App) {}
