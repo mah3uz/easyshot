@@ -30,15 +30,18 @@ The two AUR packages conflict with each other and provide `easyshot`.
 
 ## Cutting a release
 
-1. Set the version in `crates/easyshot/Cargo.toml` and in both PKGBUILDs' `pkgver`, move the
-   changelog's `Unreleased` entries under the new version, and commit.
-2. Tag the commit `v<version>`.
-3. Run `just release`. It builds the tag from a `git archive` export into `dist/`: the
-   binary tarball, the vendored source tarball and `SHA256SUMS`. If `~/.minisign/easyshot.key`
-   (or `$MINISIGN_KEY`) exists, it signs `SHA256SUMS`; otherwise it prints how to create the
-   key. It fills `sha256sums` and regenerates `.SRCINFO` in both AUR packages, and prints the
-   release notes (`just release-notes <version>` prints them alone).
-4. Commit the PKGBUILD and `.SRCINFO` changes, push the branch and the tag, create the
+1. Set the version in `crates/easyshot/Cargo.toml` and in both PKGBUILDs' `pkgver`, write the
+   release's entries under the changelog's `## Unreleased`, and commit.
+2. Run `just release`. Unless the tag `v<version>` already exists, it first moves the
+   `Unreleased` entries under `## <version> - <date and time>` (local time with its UTC offset,
+   since one day can hold several releases), sets the same time as the release date in the
+   metainfo, commits that as "Release <version>" and tags it `v<version>`. It then builds the
+   tag from a `git archive` export into `dist/`: the binary tarball, the vendored source
+   tarball and `SHA256SUMS`. If `~/.minisign/easyshot.key` (or `$MINISIGN_KEY`) exists, it
+   signs `SHA256SUMS`; otherwise it prints how to create the key. It fills `sha256sums` and
+   regenerates `.SRCINFO` in both AUR packages, and prints the release notes
+   (`just release-notes <version>` prints them alone).
+3. Commit the PKGBUILD and `.SRCINFO` changes, push the branch and the tag, create the
    GitHub release with the notes and everything in `dist/`, then push each package to its
    AUR repository.
 

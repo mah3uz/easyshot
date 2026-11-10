@@ -32,7 +32,7 @@ package profile="release":
 release-notes v:
     scripts/release-notes.sh {{ v }}
 
-# Build the tag v<version> into dist/: tarballs, checksums, signature and the AUR packages' checksums
+# Stamp the changelog and tag v<version> (unless tagged), then build it into dist/: tarballs, checksums, signature and the AUR packages' checksums
 release:
     scripts/release.sh
 

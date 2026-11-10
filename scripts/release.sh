@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# release.sh: once the tag v<version> exists, build it into dist/: the binary tarball, the
-# vendored source tarball, SHA256SUMS (signed when a key exists), and the checksums and
-# .SRCINFO of both AUR packages. It uploads and pushes nothing.
+# release.sh: release the version in crates/easyshot/Cargo.toml. Without the tag v<version>, it
+# first stamps the changelog's Unreleased entries and the metainfo with the version and the local
+# time, commits that as "Release <version>" and tags it. Then it builds the tag into dist/: the
+# binary tarball, the vendored source tarball, SHA256SUMS (signed when a key exists), and the
+# checksums and .SRCINFO of both AUR packages. It uploads and pushes nothing.
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -10,12 +12,34 @@ fail() { echo "release: $*" >&2; exit 1; }
 
 ver=$(sed -n 's/^version = "\(.*\)"/\1/p' crates/easyshot/Cargo.toml | head -1)
 tag=v$ver
-git rev-parse -q --verify "refs/tags/$tag^{commit}" >/dev/null || fail "tag $tag does not exist; tag the release commit first"
 [[ -z $(git status --porcelain) ]] || fail "the working tree is not clean"
 for pkg in easyshot easyshot-bin; do
   [[ $(sed -n 's/^pkgver=//p' "packaging/aur/$pkg/PKGBUILD") == "$ver" ]] || fail "packaging/aur/$pkg/PKGBUILD has a different pkgver than $ver"
 done
 cmp -s packaging/aur/easyshot/easyshot.install packaging/aur/easyshot-bin/easyshot.install || fail "the two easyshot.install files differ"
+
+if ! git rev-parse -q --verify "refs/tags/$tag^{commit}" >/dev/null; then
+  grep -q "^## $ver\( \|$\)" CHANGELOG.md && fail "CHANGELOG.md already has a $ver section but there is no tag $tag"
+  # Seconds and the UTC offset, since one day can hold several releases.
+  now=$(date +%Y-%m-%dT%H:%M:%S%:z)
+  awk -v v="$ver" -v now="$now" '
+    /^## Unreleased[[:space:]]*$/ { print; print ""; print "## " v " - " now; seen = 1; next }
+    seen == 1 && /^## / { if (!entries) bad = 1; seen = 2 }
+    seen == 1 && /^- / { entries = 1 }
+    { print }
+    END { if (!seen || bad || (seen == 1 && !entries)) exit 1 }
+  ' CHANGELOG.md > CHANGELOG.md.new || { rm -f CHANGELOG.md.new; fail "CHANGELOG.md has no entries under ## Unreleased"; }
+  mv CHANGELOG.md.new CHANGELOG.md
+  meta=packaging/data/metainfo.xml.in
+  if grep -q "<release version=\"$ver\"" "$meta"; then
+    sed -i "s|<release version=\"$ver\"[^/]*/>|<release version=\"$ver\" date=\"$now\"/>|" "$meta"
+  else
+    sed -i "s|<releases>|<releases>\n    <release version=\"$ver\" date=\"$now\"/>|" "$meta"
+  fi
+  git commit -q -m "Release $ver" -- CHANGELOG.md "$meta"
+  git tag -a "$tag" -m "easyshot $ver"
+  echo "==> $tag: stamped $now, committed and tagged"
+fi
 
 name=easyshot-$ver-x86_64-unknown-linux-gnu
 vendored=easyshot-$ver-vendored.tar.zst
