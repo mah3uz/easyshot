@@ -185,9 +185,7 @@ fn platform_hypr_scroll_capture_follows_a_page_that_scrolls_under_an_animation()
     assert!(ready.is_some(), "daemon never answered:\n{}", log());
 
     assert!(command("capture/scroll").is_some(), "refused:\n{}", log());
-    sleep(Duration::from_millis(2500));
-    inject(r#"[{"type":"key","keystroke":"space"}]"#);
-    sleep(Duration::from_millis(500));
+    sleep(Duration::from_millis(3000));
     inject(
         r#"[{"type":"mouse_move","x":100,"y":100},{"type":"mouse_down","x":100,"y":100},
             {"type":"mouse_move","x":300,"y":250},{"type":"mouse_move","x":700,"y":500},
