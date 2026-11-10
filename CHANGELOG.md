@@ -3,7 +3,8 @@
 ## Unreleased
 
 ### New
-
+- Screenshots of a region, a window, a whole screen or the previous target, always on a frozen screen; text and QR codes (OCR); a colour picker; pins that stay on top; an editor with 13 tools; and a history of your captures.
+- Toasts stay 2.5 seconds, an error 5 and one with Undo 8, and wait while the pointer is on them.
 - The desktop portal is followed while easyshot runs: a file chooser, light or dark and Reduce Motion that start after easyshot are used from then on, an export with no file chooser shows a notice saying where the file went, and `easyshot doctor` reports notification buttons and portal features as they are now.
 - Settings › Overlay › Card Actions chooses which actions a preview card shows (Copy, Save / Show in Folder, Edit, Pin, Cloud Share, Preview, Delete); Preview opens the capture full size in a plain window (Z or a click toggles 100%, Space or Esc closes it) and Delete moves it to the Trash with an Undo button on the toast; Dismiss is always there and at least one other action stays on.
 - Open any image or video from your computer: the Home window's Open… button, dropping a file onto the window, Open with Easyshot in your file manager, or `easyshot open FILE`; a PNG or JPEG opens in the editor, an MP4, WebM, MKV, MOV or GIF in the trim viewer, and any other file shows a toast.
@@ -18,7 +19,7 @@
 - Very large screenshots open in the editor with a low-resolution preview that keeps it fast, while saving, exporting and copying use the full image; Settings › General › Always use a low-resolution preview turns it on for every screenshot.
 - With Keystrokes on, each recording saves your clicks and shortcuts (never plain typing) to `input.json` beside the video, and reads nothing while your screen is locked where easyshot can see the lock; it needs your user in the `input` group; the Settings row shows whether it is working, and Settings, the start of a recording and `easyshot doctor` say how to allow it.
 - Edits you make by hand to `config.toml` apply while easyshot runs, and a later change in Settings keeps them; a file with a syntax error is left alone and the last good settings stay in use, and a toast names any key easyshot does not know.
-- The `easyshot` command line: capture, record, OCR, settings and more, `easyshot doctor` with a plain summary, `--raw`, `--json` and `--bundle`, and shell completions for bash, zsh and fish that follow what you have typed: modes, flags, settings pages, `easyshot://` links, image files and the open windows for `--window`.
+- The `easyshot` command line: capture, record, OCR, settings and more, `easyshot doctor` with a plain summary, `--raw`, `--json` and `--bundle`, and shell completions for bash, zsh and fish that follow what you have typed: modes, flags, settings pages, `easyshot://` links, image and video files and the open windows for `--window`.
 - Desktop entry (Easyshot in your application menu, like a bare `easyshot`, opens the Home window), systemd user service and D-Bus activation. The Arch package enables the service for every user, though never for a display manager's login screen, and starts it for logged-in users on install; an update restarts it where it is running.
 - Starting at login leaves easyshot in the tray: it waits for your panel's tray, adds its icon when the panel appears and again if the panel restarts, and opens the capture bar only if no tray has appeared 10 seconds after it started. The tray names itself easyshot.
 - The tray menu shows your global shortcuts beside its items, lists your recent screenshots and recordings, saved or not, and offers Unpin All Windows while a screenshot is pinned. A capture started from the menu waits for your panel to close the menu, so the menu is never in the shot.

@@ -23,7 +23,7 @@ const faq = [
   },
   {
     q: 'How do I set the keyboard shortcuts?',
-    a: 'Wayland apps cannot grab global keys, so you add the binds to your compositor config. Settings › Shortcuts copies ready-made lines for Hyprland, sway or niri. easyshot never edits your config itself.',
+    a: 'Wayland apps cannot grab global keys. Choose your keys in Settings › Shortcuts; easyshot writes them to its own file, and you add one include line to your Hyprland, sway or niri config, once. easyshot never edits your config itself.',
   },
   {
     q: 'Does it upload my screenshots?',
@@ -228,8 +228,8 @@ useHead({
           <span class="eyebrow"><Icon name="keyboard" :size="15" />Keyboard first</span>
           <h2 class="text-[clamp(32px,4.4vw,50px)] leading-[1.05]">Your keys. Your compositor.</h2>
           <p class="text-lg text-fg-2">
-            Every action is a command, so any key bind, launcher or script can drive easyshot. Settings › Shortcuts copies
-            the lines for your compositor, and checks which keys are already taken.
+            Every action is a command, so any key bind, launcher or script can drive easyshot. Settings › Shortcuts writes your
+            keys to its own file, gives you the one line to include, and checks which keys are already taken.
           </p>
           <div class="flex flex-wrap items-center gap-x-6 gap-y-3 pt-2 text-sm text-fg-2">
             <span class="flex items-center gap-1.5 whitespace-nowrap"><kbd>Super</kbd><kbd>Shift</kbd><kbd>4</kbd><span class="ml-1">capture an area</span></span>

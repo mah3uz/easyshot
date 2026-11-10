@@ -72,7 +72,7 @@ recording on its own. Rejected: accepting the full route vocabulary, or argument
 
 ### Compositor targets and providers
 v1: Hyprland (primary), sway 1.12 and niri 26.04, plus any compositor that passes the
-generic providers. river, labwc and COSMIC come after v1; KDE and GNOME later still.
+generic providers. river, labwc and COSMIC are not targets of v1, nor are KDE and GNOME.
 Rejected for v1: KDE and GNOME backends.
 
 ### Distro packaging replaces a self-updater
@@ -95,8 +95,8 @@ binary a GPL work.
 ## Desktop integration
 
 ### One app ID, `dev.easyshot.app`
-The D-Bus name, the desktop entry, the unit and the window IDs
-(`dev.easyshot.app.{editor,settings,gallery,onboarding,player}`) all derive from the one
+The D-Bus name, the desktop entry, the unit, the Home window and the other window IDs
+(`dev.easyshot.app.{editor,onboarding,preview,player}`) all derive from the one
 constant in `es-protocol`; `scripts/app-id.sh` reads it for packaging. Why: an ID that
 disagrees between the bus name, the desktop entry and the window class breaks single
 instance, icon lookup and compositor window rules. Rejected: separate IDs per file.
@@ -203,7 +203,7 @@ What was rejected beyond that, and why: not recorded.
     Space-hold pan, pointer-anchored zoom, Duplicate, copy and paste of shapes, z-order
     keys, Tab cycling, shell robustness). They add behaviour and never new chrome, so the
     interface stays identical to the reference design. Rejected: snapping guides, an eraser tool
-    (a 13th button), Alt-drag duplicate (Alt already means centre-resize), region selection
+    (a 14th button), Alt-drag duplicate (Alt already means centre-resize), region selection
     across outputs, numeric geometry fields. See `DESIGN.md`.
 20. **Resizing through zero** (maintainer's decision, 2026-11-02): dragging a resize handle
     past the opposite edge flips the shape so it keeps following the pointer, and a curved

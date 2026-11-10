@@ -1,6 +1,6 @@
 # easyshot features
 
-This file lists everything easyshot does, one line each, with the details in [MANUAL.md](MANUAL.md). A change a user would notice updates this file, MANUAL.md and the CHANGELOG in the same commit.
+This file lists everything easyshot does, one line each, with the details in [MANUAL.md](MANUAL.md). A change a user would notice updates this file, MANUAL.md, the CHANGELOG and the website (`docs/site/`) in the same commit.
 
 ## What it needs
 
@@ -61,7 +61,6 @@ More in the manual: [Installing it](MANUAL.md#installing-it) and [Running it](MA
 - Shows a preview of the tall image beside the area as it grows.
 - Stops a scrolling capture when you press its shortcut again or click the ✕; Esc does not cancel it.
 - Offers region captures that also copy, save, annotate or pin.
-- Makes a capture wait its turn if another is running.
 - Always freezes the screen during a capture.
 
 More in the manual: [Capturing](MANUAL.md#capturing).
@@ -197,7 +196,7 @@ More in the manual: [The editor](MANUAL.md#the-editor) and [Editor keys](MANUAL.
 ## Home window and gallery
 
 - Holds the gallery and Settings in one window, one tab each.
-- Slides between the two tabs, and cross-fades from one Settings page to the next.
+- Slides between the two tabs, and a Settings page rises into place as the last fades out.
 - Opens from the application menu, from a bare `easyshot` or from an `easyshot://home` link.
 - Opens on the gallery from `easyshot gallery` or the tray's Media Gallery.
 - Opens on Settings from `easyshot settings`, the tray's Settings or an `easyshot://settings` link, and on a named page if you give one.
@@ -287,10 +286,10 @@ More in the manual: [Settings](MANUAL.md#settings).
 - Opens the Home window with a bare `easyshot`, and lists commands with `easyshot --help`.
 - Cancels a command with Ctrl+C.
 - Starts the daemon when it is not running, or tells you how.
-- Opens a link or a PNG or JPEG file with `easyshot open`.
+- Opens a link, an image or a video with `easyshot open`: a PNG or JPEG in the editor, an MP4, WebM, MKV, MOV or GIF in the trim viewer.
 - Exits 0 when done, 1 on error, 2 when cancelled and 3 when the daemon is not running.
 - Prints the version, with the commit for a git build, from `easyshot --version`.
-- Prints a completion script for bash, zsh and fish, which completes subcommands, flags, modes, settings pages, links and image files, and, for the agent commands' `--window`, the ids and titles of the open windows.
+- Prints a completion script for bash, zsh and fish, which completes subcommands, flags, modes, settings pages, links, image and video files, and, for the agent commands' `--window`, the ids and titles of the open windows.
 - Captures with `capture region`, `fullscreen`, `window`, `previous`, `timed` or `scroll`.
 - Adds `--copy`, `--save`, `--annotate` or `--pin` to `capture region`.
 - Adds `--timed [N]` to region, window and fullscreen captures.
@@ -373,7 +372,7 @@ More in the manual: [Files](MANUAL.md#files).
 - Opens the capture bar at start only if no tray has appeared within 10 seconds.
 - Greys out Record with an install hint when there is no recorder.
 - Reads only QR codes when Tesseract is missing.
-- Gives its windows app IDs for compositor rules: `dev.easyshot.app`, plus `.editor`, `.onboarding` and `.player`.
+- Gives its windows app IDs for compositor rules: `dev.easyshot.app`, plus `.editor`, `.onboarding`, `.preview` and `.player`.
 
 More in the manual: [When your compositor lacks something](MANUAL.md#when-your-compositor-lacks-something).
 

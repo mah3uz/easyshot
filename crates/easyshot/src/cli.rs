@@ -29,7 +29,7 @@ pub enum Command {
     ColorPicker,
     /// Record the screen
     Record { action: Option<RecordAction> },
-    /// Show the capture bar
+    /// Show or hide the capture bar
     CaptureBar,
     /// Open the gallery
     Gallery,

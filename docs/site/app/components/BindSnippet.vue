@@ -12,21 +12,21 @@ const binds = [
 
 const tabs = {
   'Hyprland (Lua)': {
-    file: '~/.config/hypr/hyprland.lua',
+    file: '~/.config/easyshot/binds.lua',
     code: binds
       .map(([m, k, c]) => `hl.bind("${m.split(' ').join(' + ')} + ${k}", hl.dsp.exec_cmd("easyshot ${c}"))`)
       .join('\n'),
   },
   Hyprland: {
-    file: '~/.config/hypr/hyprland.conf',
+    file: '~/.config/easyshot/binds.conf',
     code: binds.map(([m, k, c]) => `bind = ${m}, ${k}, exec, easyshot ${c}`).join('\n'),
   },
   sway: {
-    file: '~/.config/sway/config',
+    file: '~/.config/easyshot/binds.conf',
     code: binds.map(([, k, c]) => `bindsym Mod4+Shift+${k.toLowerCase()} exec easyshot ${c}`).join('\n'),
   },
   niri: {
-    file: '~/.config/niri/config.kdl — inside binds { }',
+    file: '~/.config/easyshot/binds.kdl',
     code: binds
       .map(([, k, c]) => `Mod+Shift+${k} { spawn ${['easyshot', ...c.split(' ')].map((w) => `"${w}"`).join(' ')}; }`)
       .join('\n'),

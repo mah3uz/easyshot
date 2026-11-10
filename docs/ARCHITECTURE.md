@@ -30,12 +30,17 @@ design that has not been run on that compositor. Rows name the compositor and da
 | The daemon in test mode with a fake recorder at scale 1.5: `record/area`, a dragged area, the control bar placed outside it, `record/stop`, then a video card and a project folder (`easyshot` daemon recording) | headless sway 1.12 | 2026-11-02 |
 | The daemon in test mode at scale 1.5: a window shot of a floating terminal, then `capture/previous` after the terminal moved saves the same 900×600 window again; after the terminal closed, `capture/previous` shows the toast and saves nothing (`easyshot` daemon capture) | headless sway 1.12 | 2026-11-03 |
 | Headless GPUI windows (hello, component gallery) | no compositor (GPUI headless renderer) | 2026-11-02 |
-| First run in a real session: the daemon started by its systemd user unit, the tray icon registered, a region capture, the editor and Settings. Found and since fixed: editor keys unbound, theme setting ignored, tray icon invisible on Qt bars, stuck Space pan, pointer hiding and cursor flicker. The fixed build is not re-verified | Hyprland (first run, partial) | 2026-11-03 |
-| Second run in a real session, one monitor at 2883,182 and scale 1. Found and since fixed: scrolling capture stuck on its first frame, area recording failing on the offset monitor, the bar in the frozen frame, a capture started during another hanging the overlay. The fixed build is not re-verified | Hyprland (second run, partial) | 2026-11-04 |
+| First run in a real session: the daemon started by its systemd user unit, the tray icon registered, a region capture, the editor and Settings. Found and since fixed: editor keys unbound, theme setting ignored, tray icon invisible on Qt bars, stuck Space pan, pointer hiding and cursor flicker. Later rounds ran builds with these fixes | Hyprland (first run, partial) | 2026-11-03 |
+| Second run in a real session, one monitor at 2883,182 and scale 1. Found and since fixed: scrolling capture stuck on its first frame, area recording failing on the offset monitor, the bar in the frozen frame, a capture started during another hanging the overlay. Later rounds ran builds with these fixes | Hyprland (second run, partial) | 2026-11-04 |
 | The daemon in test mode at scale 1.5: scrolling capture of a page that scrolls under an animation stitches past 1200 px; after the capture bar closes, the settle wait reads the layer fade from the compositor (270 ms) and the frozen frame holds none of the bar (`easyshot` platform_scroll, platform_settle) | Hyprland headless output | 2026-11-04 |
 | A window on a hidden workspace recorded for 2 s through `WindowRecorder` and `ToplevelStream` gives a playable `screen.mkv` of 61 changing frames; backend detection sets `Caps::RECORD_WINDOW` (`es-backend`) | headless sway 1.12 | 2026-11-10 |
 | `ToplevelStream` of a window on the test output (`tests/harness/hypr-stream-probe.sh`) keeps about 60 changing frames a second while the window is visible, on a hidden workspace, covered by a fullscreen window, tiled beside another window, moved to a busy hidden workspace and back; each resize fails a few hundred frames with new constraints, none of which end the stream | Hyprland 0.57.2, headless output | 2026-11-11 |
-| The platform harness starts niri nested on the Hyprland test output and stops it cleanly; no test exercises the niri module there | niri, nested | 2026-11-04 |
+| The platform harness starts niri nested on the Hyprland test output and stops it cleanly; the platform tests start and every one skips, so the niri module has not run | niri, nested | 2026-11-04 |
+| Third run in a real session, build 7bdf99a: login with the tray only and its return after a panel restart; the short `doctor` summary; Settings Shortcuts without conflicts; videos in the gallery, Home Open and drag-and-drop of images and videos; switching a region pick to a window pick on the same frozen screen; a second capture refused with "A capture is in progress"; Card Actions and the Preview quick look; editor cursors, fonts, backgrounds and your own gradients; area recording, mic and system sound mixed into one track, the draggable control bar; `agent record start --fullscreen`; redaction through `agent capture` | Hyprland (third run) | 2026-11-10 |
+| Fourth run in a real session, build 101184a: the file dialogs for Export and Open, the tray menu gone from a frozen capture, Shortcuts read from the binds file, stacked cards that fan out and hide by themselves, a scrolling capture of a page with a sticky header and of VS Code without a repeated minimap, a font size typed in, Bengali text, the control bar placed outside the recorded area | Hyprland (fourth run) | 2026-11-10 |
+| Fifth run in a real session, build 6f1d87e: microphone and system sound mixed, muted and exported; error toasts that wait under the pointer; tooltips after 1.5 s; the recording bar's Mute, Stop and Discard fades; a card's Preview window rule written to the binds file | Hyprland (fifth run) | 2026-11-11 |
+| Window recording through easyshot's window recorder on the maintainer's desktop: a covered window, a window on another workspace, a resize letterboxed into the first size, system sound and microphone in step with the picture, the window closing (file kept, notice), the pointer | Hyprland (live) | 2026-11-11 |
+| Scrolling capture of a long web page in Chromium on the maintainer's desktop: manual wheel scrolling and Auto Scroll, region and window modes, the right-edge scrollbar cut off the saved image, the pointer parked on the capture bar between Auto Scroll steps (build 2893cf1) | Hyprland (live) | 2026-11-11 |
 
 Not run: the niri module on niri (it is tested only against recorded replies and fake
 sockets), any other compositor, the packages installed from the AUR; rotated outputs; 10-bit
@@ -83,7 +88,7 @@ D-Bus, shortcuts and notifications. The URL scheme accepts exactly nine routes w
 arguments (`capture/region`, `capture/fullscreen`, `capture/window`, `capture/scroll`,
 `record`, `ocr`, `color-picker`, `home`, `settings`). `home`, `gallery` and `settings`
 open the one Home window (`es-shell::home`) on its tab. D-Bus `Command` rejects anything outside the
-closed `Route`; `open <path>` canonicalises the path and requires a regular image file.
+closed `Route`; `open <path>` canonicalises the path and requires a regular image or video file of an accepted type.
 
 Every recorder helper runs in its own process group beside a `/bin/sh` watcher in that
 group. The watcher reads a pipe only the daemon writes: a newline after the helper is reaped
@@ -106,7 +111,7 @@ Layer 0  pure data — no IO, no GPUI, no tokio/zbus/wayland
 Layer 1  pure compute
   es-text      bundled and installed fonts by family name, cosmic-text layout, outlines  → es-geom
   es-anno      editor engine: state machine, undo, hit-test, crop, DrawList build        → es-geom, es-model, es-text
-  es-render    tiny-skia DrawList painter, effects, beautify composer, image ops, export → es-geom, es-model, es-anno
+  es-render    tiny-skia DrawList painter, effects, beautify composer, image ops, export → es-geom, es-model, es-anno, es-text
   es-scroll    scroll stitching on plain BGRA frames                                     → es-geom
   es-ocr       tesseract runner, QR (rxing), smart-redaction rules                       → es-geom
 Layer 2  IO and system mechanisms — no GPUI
@@ -116,7 +121,7 @@ Layer 2  IO and system mechanisms — no GPUI
                protocols, foreign-toplevel, data-control clipboard, virtual pointer       → es-geom, es-model
   es-desktop   freedesktop over D-Bus: Command service/client, tray, notifications,
                portals, trash, autostart, sound (feature)                                → es-protocol
-  es-record    recorder providers, audio devices, input streams, project folder, clip export        → es-model, es-protocol, es-geom
+  es-record    recorder providers, the window recorder (GStreamer), audio devices, input streams, project folder, clip export        → es-model, es-protocol, es-geom
   es-backend   capability traits, Caps, the provider registry, compositor modules,
                test-mode decorators, doctor report                                       → es-wayland, es-desktop, es-record, es-protocol, es-geom, es-model
 Layer 3  GPUI
@@ -417,7 +422,7 @@ niri.
 | Editor, settings, gallery, player UI; canvas performance | headless windows |
 | Scrolling capture, the settle wait after a surface closes; fractional scale | Hyprland headless output |
 | Generic providers, sway module, input-region pass-through, Auto Scroll | headless sway |
-| wlr-screencopy-only capture, niri module | nested niri (harness only; no niri tests) |
+| wlr-screencopy-only capture, niri module | nested niri (harness only; every platform test skips) |
 | IME, drag-out, real clipboard paste, GSR recordings with KMS, binds, Orca | manual with the maintainer |
 
 Lints are in `[workspace.lints]`. `dead_code` warnings are fatal in the gate. `just file-size` fails on

@@ -22,13 +22,15 @@ Website and how-to guide: https://easyshot.site
 - Screenshots can be pinned above other windows.
 
 **Annotate**
-- An editor with 12 tools, editable text, crop, rotate and flip, and undo.
+- An editor with 13 tools, editable text, crop, rotate and flip, and undo.
 - Background, camera angle, progressive blur, border, watermark and presets.
 - Smart Redaction covers sensitive text it finds. Unsaved edits come back after a crash.
 
 **Record**
-- Area, display or window recording with system audio and microphone, through
-  gpu-screen-recorder (preferred) or wf-recorder. A trim viewer opens when you stop.
+- Area, display or window recording with system audio and microphone. Areas and displays
+  record through gpu-screen-recorder (preferred) or wf-recorder; a window records from its own
+  frames where the compositor allows it, even when covered or on another workspace. A trim
+  viewer opens when you stop.
 
 **Desktop integration**
 - A preview deck for every capture, a media gallery, settings, a first-run guide and a tray
@@ -43,11 +45,9 @@ Website and how-to guide: https://easyshot.site
 easyshot runs end to end: the `easyshot daemon` service connects the capture overlays, the
 deck, the editor, settings, gallery, tray, recording and the command line.
 
-- **Hyprland:** installed and used for the first time on 2026-11-02 and 2026-11-03 (capture,
-  editor, settings, tray). Bugs found there are fixed, and the fixed build has not been run
-  on Hyprland again.
+- **Hyprland:** used on the maintainer's desktop in five rounds, 2026-11-02 to 2026-11-11.
 - **sway 1.12:** tested in a headless session and in headless GPUI windows only.
-- **niri:** not run at all.
+- **niri:** not run; the test harness starts niri nested, but no test runs there.
 - Version 1 targets Hyprland 0.57+, sway 1.12 and niri 26.04. Other compositors with
   layer-shell and a capture protocol should work for basic capture. KDE and GNOME are not
   supported.
@@ -91,7 +91,8 @@ easyshot doctor
 ```
 
 `easyshot doctor` reports what your compositor and tools support. Settings > Shortcuts
-shows ready-made bind lines for your compositor. By hand, for example:
+writes your keys to easyshot's own binds file and shows the one line to add to your compositor
+config. By hand, for example:
 
 ```
 # Hyprland, Lua config (hyprland.lua)

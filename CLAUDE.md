@@ -4,11 +4,12 @@ Screenshot, annotation and screen-recording app for Linux/Wayland: built with
 Rust. Rust · GPUI · Hyprland, sway and niri first.
 
 Status: the app runs end to end. The daemon (`easyshot daemon`) connects the capture
-overlays, deck, editor, settings, gallery, tray, recording and CLI. It has had two live
-rounds on Hyprland (2026-11-02/03 and 2026-11-04); the bugs found are fixed, the fixed build
-is not yet re-verified there, and the Hyprland platform tests pass on a headless output. The
-rest is tested in headless GPUI windows and headless sway 1.12; the niri module has not run
-on niri.
+overlays, deck, editor, settings, gallery, tray, recording and CLI. It has had five live
+rounds on the maintainer's Hyprland desktop, from 2026-11-02 to 2026-11-11;
+`docs/ARCHITECTURE.md` "What has been run where" lists what each verified. The rest is tested
+in headless GPUI windows, on a headless Hyprland output and in headless sway 1.12. The niri
+platform tests start niri nested on the Hyprland test output, but every test skips there, so
+the niri module has not run on niri.
 
 ## Read first
 

@@ -1,8 +1,8 @@
 # easyshot manual
 
-**easyshot is early software.** It runs end to end, but so far it has had one real session,
-on Hyprland, and that only partly. sway has been run only headless, and niri not at all.
-Expect rough edges, and report what you find.
+**easyshot is early software.** It runs end to end and has been
+used on Hyprland. sway has been run only headless, and niri has not been run. Expect rough
+edges, and report what you find.
 
 easyshot takes screenshots and screen recordings on Linux/Wayland, lets you annotate them,
 and keeps a history.
@@ -12,6 +12,11 @@ and keeps a history.
 - A Wayland compositor. Version 1 targets Hyprland 0.57+, sway 1.12 and niri 26.04. Any
   compositor with layer-shell and a capture protocol should work for basic capture.
   river, labwc and COSMIC have not been tried; KDE and GNOME are not supported in version 1.
+- ffmpeg for exporting and trimming recordings and for video thumbnails.
+- For a window recording made from the window's own frames: GStreamer's good plugins and an
+  H.264 encoder (x264 from the ugly plugins, or NVENC or VA-API from the bad plugins). Without
+  one, window recordings record the window's area on screen; `easyshot doctor` says which
+  applies.
 - Tesseract for reading text (OCR). Without it, OCR still reads QR codes; when the region
   has none, it shows "Text recognition needs Tesseract" and how to install it.
 - gpu-screen-recorder or wf-recorder for recording; easyshot uses gpu-screen-recorder when
@@ -97,8 +102,8 @@ first time easyshot starts. The binds file always comes first where it can be wr
 - **Colour picker.** Copies the colour as `#RRGGBB`.
 - **Scrolling capture.** Draw the region to scroll; press Space to pick a window instead, or
   Shift-click the capture bar's Scroll button to start on the window picker (Space there
-  draws a region). easyshot scrolls that
-  window, or the pointer over the region, and joins what scrolls into view into one tall image, up to 30000 pixels. A bar under the area shows the
+  draws a region). You scroll, or Auto Scroll scrolls for you, and easyshot joins
+  what scrolls into view into one tall image, up to 30000 pixels. A bar under the area shows the
   size so far, with Stop and, where your compositor allows it, Auto Scroll, which scrolls for
   you and stops at the end of the page. Scrolling by hand works with the wheel, a touchpad
   or the keyboard, wherever the pointer is. Between steps Auto Scroll moves the pointer onto
@@ -432,12 +437,12 @@ track. `capture.json` in the recording's folder lists the tracks in file order. 
 viewer plays both tracks together, and an MP4 or WebM export mixes them into one track.
 Each sound the recording takes has a mute button on the control bar, system sound and
 microphone separately. A muted source is recorded as silence until you unmute it, and its
-button turns red. Muting needs `pactl`. wf-recorder records only one sound at a time, on one
+button turns red. Muting needs `pactl`, except in a window recording made from the window's own frames, which mutes by itself. wf-recorder records only one sound at a time, on one
 track, and its mute button mutes that one.
 If the recorder cannot be muted, you get a notice and the button stays as it was.
 If the microphone you chose is not found, or the area is not on any monitor, you get a notice
 that says so. If you unplug the microphone while recording, you get a notice, "Microphone
-disconnected", and the recording goes on without it (gpu-screen-recorder only). There is a countdown, and then a control bar with stop,
+disconnected", and the recording goes on without it (with gpu-screen-recorder, and in a window recording made from the window's own frames, where the microphone track goes on as silence). There is a countdown, and then a control bar with stop,
 pause and resume, restart and discard. The recorded area is highlighted; a window recording made from the window's own frames does not dim the screen. Drag the bar by the
 dotted grip on its left to put it anywhere on the screen it is on; it stays on that screen, and
 easyshot remembers where you left it for each screen, for the next recording. A tooltip names
@@ -454,7 +459,7 @@ scrolls with the wheel. Up and Down move through the windows, Page Up, Page Down
 jump, and Enter picks the highlighted one. Choosing a window on another workspace switches to it, waits up to a
 second for it to appear on a monitor, and then starts as usual; if easyshot cannot switch to
 it, you get a notice and nothing records. Switching works on Hyprland, sway and niri
-(Hyprland and niri unverified); on a desktop that cannot focus a window by command, only
+(niri unverified); on a desktop that cannot focus a window by command, only
 windows already on screen record.
 
 Where the compositor lets easyshot capture a window by itself (sway, Hyprland and other
@@ -657,8 +662,8 @@ Arch package installs all three. After that, pressing Tab asks `easyshot` itself
 it offers follows what you have typed: the subcommands; the flags of each command, which
 include some that a particular mode then refuses; the modes of `capture`, the actions of
 `record` and `deck`, the eight pages of `settings`, the shells for `completions`; and for
-`open` the `easyshot://` links and the PNG and JPEG files and folders under the path you
-have typed. In bash a link completes across its colon. After `--window` of `agent capture`,
+`open` the `easyshot://` links and the image and video files it opens (PNG, JPEG, MP4, WebM,
+MKV, MOV and GIF) and folders under the path you have typed. In bash a link completes across its colon. After `--window` of `agent capture`,
 `agent ocr` and `agent record start`, Tab lists the open windows' ids with their titles, as
 long as the daemon is running, agent access is on, and you have already allowed agents (a
 grant is in force, or the consent setting is `always-allow`); otherwise it offers nothing, and
@@ -1081,7 +1086,7 @@ the editor. Whether the buttons show depends on your notification server.
 
 For compositor window rules, the Home window uses the app ID `dev.easyshot.app`, the same
 as the desktop entry, and easyshot's other windows use `dev.easyshot.app.editor`,
-`.onboarding` and `.player` (the trim viewer).
+`.onboarding`, `.preview` (a card's Preview) and `.player` (the trim viewer).
 
 ## Limits in version 1
 

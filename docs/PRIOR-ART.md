@@ -11,4 +11,4 @@ easyshot is MIT. Bundled material keeps its own terms: Inter, Inter Tight and Nu
 
 ## Sources
 
-Links to each upstream's repository are not recorded yet.
+Links to each project's repository are not recorded.

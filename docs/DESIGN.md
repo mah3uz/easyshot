@@ -7,18 +7,18 @@ each choice and what was rejected is in `DECISIONS.md`.
 
 The toolbar, the inspector and every surface follow a fixed reference design and motion
 table. Where behaviour is a deliberate choice it is listed in `DECISIONS.md`, and anything
-else that looks different from the reference is a bug. The v1 feature list is in `MANUAL.md`.
+else that looks different from the reference is a bug. The feature list is `FEATURES.md`; the details are in `MANUAL.md`.
 
 ## 2. Add behaviour, never chrome
 
 Additions to the reference design add behaviour only. No new buttons, panels or fields. Each
-addition has its own catalogue strings, and each keyboard addition is listed in Settings >
-Shortcuts. "Off" switches are config keys only, not interface.
+addition has its own catalogue strings. Its keys are fixed and listed in the manual's Editor
+keys table, not in Settings > Shortcuts. "Off" switches are config keys only, not interface.
 
 | Addition | Behaviour |
 |---|---|
 | Arrow-key nudge | 1 page pixel; Shift = 10 (`[editor] nudge_step`, `nudge_step_shift`). Key repeat allowed for arrows only. One undo entry per key-hold. |
-| Esc deselects | In Select with nothing being edited or cropped and no dialog open, Esc clears the selection. A second Esc does nothing; it never closes the window. |
+| Esc steps back | One level per press: finish the text being typed, leave crop, clear the selection, then switch to the Select tool. It never closes the window. |
 | Middle-button drag and Space-hold pan | Open and closed hand cursors. Space is inert while editing text and ignores key repeat. With Space held, dragging an annotation moves it, with any tool. |
 | Pointer-anchored zoom | Ctrl/Alt+wheel and pinch zoom about the pointer. Keyboard and menu zoom stay centre-anchored. `[editor] zoom_anchor="centre"` restores centre-anchored zoom. |
 | Duplicate | Ctrl+D duplicates the selection at a +16 page pixel offset. Bindings between duplicated shapes are remapped. One undo entry. |
@@ -27,8 +27,7 @@ Shortcuts. "Off" switches are config keys only, not interface.
 | Tab and Shift+Tab | Cycle the selection through shapes in z-order when the canvas has focus, which helps keyboard and screen-reader users. |
 | Shell robustness | One capture at a time (a new pick replaces the open one, a committed one refuses), hand-edit-safe config, doctor and provider fallbacks. |
 
-Not added, because they would break the 1:1 look or need tuning: snapping guides (maybe
-later, behind a setting), an eraser tool (a 13th button), Alt-drag duplicate (Alt already
+Not added, because they would break the 1:1 look or need tuning: snapping guides, an eraser tool (a 14th button), Alt-drag duplicate (Alt already
 means centre-resize), region selection across outputs, and numeric geometry fields.
 
 ## 3. Tool options
@@ -72,7 +71,8 @@ Custom bitmaps:
 - badge: 22x22, hotspot (11, 11), a black disc of radius 7.5 with a white 1 cut out, for the
   counter.
 - area: 22x22, hotspot (4, 4) at a solid corner, the rest of a 14 px square dotted, for
-  Highlight, Pixelate and Blur.
+  Highlight.
+- eraser: an eraser whose rubber edge holds the hotspot, for Pixelate and Blur.
 - Text shows the system I-beam; shapes, lines and arrows show annotationPlus.
 - windowCamera: the Lucide `camera` at 18 px, black with a 1.5 px white halo, hotspot at
   the centre.
@@ -160,4 +160,4 @@ fills still fade. The countdown keeps a 120 ms fade in and out (`COUNTDOWN_IN_RE
 ## 6. Where the rest is recorded
 
 The full per-surface, per-tool cursor table, the editor's visual specifications and the
-design tokens are not written down yet.
+design tokens are not written down; the tokens are the `es-ui` source.

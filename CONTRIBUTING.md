@@ -22,8 +22,8 @@ else:
   run while a session lock is active, and removes the output at the end.
 - **Headless sway** (`tests/harness/sway.sh`): invisible, with `WLR_BACKENDS=headless`.
   Virtual input is allowed here because it is not your session.
-- **niri** (`tests/harness/niri.sh`): headless if niri 26.04 can run that way, otherwise
-  nested as a window on the Hyprland test output.
+- **niri** (`tests/harness/niri.sh`): nested as a window on the Hyprland test output.
+  It starts and stops niri cleanly; every platform test skips there.
 
 Test mode is the `test-hooks` cargo feature plus `EASYSHOT_TEST=1`; both are required and
 release builds exclude the feature. In test mode the daemon sees one output only, uses its
