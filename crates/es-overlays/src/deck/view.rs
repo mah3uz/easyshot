@@ -127,7 +127,7 @@ impl DeckView {
             .hovered
             .is_some_and(|h| !items.iter().any(|(i, _)| *i == h))
         {
-            self.hovered = None;
+            self.hover(None, cx);
         }
         for (id, thumb) in items {
             if self.images.contains_key(&id) {
@@ -157,6 +157,10 @@ impl DeckView {
                 .find(|(_, r)| r.contains(p))
                 .map(|(id, _)| *id)
         });
+        self.hover(now, cx);
+    }
+
+    fn hover(&mut self, now: Option<Uuid>, cx: &mut Context<Self>) {
         if now != self.hovered {
             self.hovered = now;
             let deck = self.deck.clone();
@@ -200,12 +204,16 @@ impl Render for DeckView {
                 .entry(item.id)
                 .or_insert_with(|| cx.focus_handle());
         }
+        // A click focuses the card too, and the deck keeps keyboard focus after the pointer leaves.
+        let keyboard = window.last_input_was_keyboard();
         let focused = items
             .iter()
             .find(|i| {
-                self.focus
-                    .get(&i.id)
-                    .is_some_and(|f| f.contains_focused(window, cx))
+                keyboard
+                    && self
+                        .focus
+                        .get(&i.id)
+                        .is_some_and(|f| f.contains_focused(window, cx))
             })
             .map(|i| i.id);
         if focused != self.focused {

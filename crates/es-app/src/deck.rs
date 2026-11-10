@@ -358,8 +358,13 @@ impl Deck {
         self.hidden
     }
 
+    /// Hiding closes the deck's surface, which never reports that the pointer or focus left it.
     pub fn toggle_hidden(&mut self, cx: &mut Context<Self>) {
         self.hidden = !self.hidden;
+        if self.hidden {
+            self.hovered = false;
+            self.focused = None;
+        }
         cx.notify();
     }
 

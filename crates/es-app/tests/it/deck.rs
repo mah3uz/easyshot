@@ -408,6 +408,22 @@ fn a_hidden_deck_keeps_its_cards_and_their_timers_until_a_capture_shows_it_again
 }
 
 #[gpui::test]
+fn a_deck_hidden_under_the_pointer_runs_its_timers_once_shown_again(cx: &mut TestAppContext) {
+    let (deck, _) = deck(cx, five_seconds());
+    show(&deck, 1, cx);
+    deck.update(cx, |d, cx| d.set_hovered(true, cx));
+    deck.update(cx, |d, cx| d.set_focused(Some(item(1).id), cx));
+    deck.update(cx, |d, cx| d.toggle_hidden(cx));
+    show(&deck, 2, cx);
+    cx.executor().advance_clock(Duration::from_millis(5200));
+    assert!(
+        deck.read_with(cx, |d, _| d.is_empty()),
+        "the reopened surface has no pointer or focus on it: {:?}",
+        order(&deck, cx)
+    );
+}
+
+#[gpui::test]
 fn delete_hands_an_auto_saved_card_to_the_app_and_keeps_its_staging_for_undo(
     cx: &mut TestAppContext,
 ) {
