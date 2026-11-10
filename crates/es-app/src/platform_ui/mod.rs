@@ -55,9 +55,10 @@ pub enum SelectMode {
     Window,
     Text,
     Color,
-    /// Starts by picking the window to scroll; Space draws a region instead.
+    /// Starts by drawing the area to scroll; Space picks a window instead.
     Scroll,
-    ScrollRegion,
+    /// Starts by picking the window to scroll; Space draws a region instead.
+    ScrollWindow,
 }
 
 #[derive(Debug, Clone)]

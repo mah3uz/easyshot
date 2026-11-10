@@ -118,7 +118,7 @@ fn every_route() -> Vec<(Route, Vec<&'static str>)> {
         (Route::CaptureRegionAnnotate, vec!["Region RegionAnnotate"]),
         (Route::CaptureRegionPin, vec!["Region RegionPin"]),
         (Route::CaptureScroll, vec!["Scroll Normal"]),
-        (Route::CaptureScrollRegion, vec!["ScrollRegion Normal"]),
+        (Route::CaptureScrollWindow, vec!["ScrollWindow Normal"]),
         (Route::Ocr, vec!["Text Normal"]),
         (Route::OcrSingleLine, vec!["TextLine Normal"]),
         (Route::ColorPicker, vec!["Color Normal"]),

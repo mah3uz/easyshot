@@ -361,8 +361,8 @@ fn view_for(mode: SelectMode) -> Option<View> {
         SelectMode::Text => Some(View::Text),
         SelectMode::Window => Some(View::Window),
         SelectMode::Color => Some(View::Color),
-        SelectMode::Scroll => Some(View::ScrollWindow),
-        SelectMode::ScrollRegion => Some(View::Scroll),
+        SelectMode::Scroll => Some(View::Scroll),
+        SelectMode::ScrollWindow => Some(View::ScrollWindow),
     }
 }
 

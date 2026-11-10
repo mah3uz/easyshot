@@ -298,11 +298,12 @@ What was rejected beyond that, and why: not recorded.
     learns the server's capabilities then and whenever the owner changes. If no server runs
     when a notification is shown, activating an installed one is fine. Rejected: a startup
     `GetCapabilities` call, and retrying it after a delay.
-37. **Scroll capture starts by picking a window** (maintainer's decision, 2026-11-04): the
-    scrolled area is that window and the wheel goes to it; Space switches to drawing a
-    region, as for screenshots. Shift-click on the capture bar's Scroll button and
-    `capture scroll --region` start on a region. Rejected: a modifier held at the start,
-    because a key bind's own modifiers are still down when it fires.
+37. **Scroll capture starts on a region** (maintainer's decision, 2026-11-11, reversing
+    2026-11-04's window-first start): Space switches to picking a window, as for
+    screenshots. Shift-click on the capture bar's Scroll button and
+    `capture scroll --window` start on the window picker, where the scrolled area is that
+    window and the wheel goes to it. Rejected: a modifier held at the start, because a key
+    bind's own modifiers are still down when it fires.
 38. **The deck is a stack** (maintainer's decision, 2026-11-10): the newest card sits in front
     in the corner, up to two older ones peek out above it, and a badge counts the cards;
     hovering fans them into the column, and leaving folds them back. The deck's surface keeps

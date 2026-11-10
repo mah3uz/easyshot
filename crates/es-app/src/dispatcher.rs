@@ -79,7 +79,7 @@ fn target(route: Route) -> Target {
         }
         Route::CaptureRegionPin => capture(CaptureKind::Region, CaptureVariant::RegionPin),
         Route::CaptureScroll => capture(CaptureKind::Scroll, Normal),
-        Route::CaptureScrollRegion => capture(CaptureKind::ScrollRegion, Normal),
+        Route::CaptureScrollWindow => capture(CaptureKind::ScrollWindow, Normal),
         Route::Ocr => capture(CaptureKind::Text, Normal),
         Route::OcrSingleLine => capture(CaptureKind::TextLine, Normal),
         Route::ColorPicker => capture(CaptureKind::Color, Normal),

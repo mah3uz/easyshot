@@ -289,10 +289,10 @@ const ITEMS: [(&str, IconName, Route); 6] = [
     ("bar-color", IconName::Pipette, Route::ColorPicker),
 ];
 
-/// Shift on Scroll starts by drawing a region instead of picking a window.
+/// Shift on Scroll starts by picking a window instead of drawing a region.
 pub fn with_modifier(route: &Route, shift: bool) -> Route {
     match route {
-        Route::CaptureScroll if shift => Route::CaptureScrollRegion,
+        Route::CaptureScroll if shift => Route::CaptureScrollWindow,
         _ => route.clone(),
     }
 }

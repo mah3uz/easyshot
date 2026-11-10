@@ -95,8 +95,9 @@ first time easyshot starts. The binds file always comes first where it can be wr
 - **Text (OCR).** Reads text from a region, with or without line breaks, and reads QR
   codes, which works without Tesseract.
 - **Colour picker.** Copies the colour as `#RRGGBB`.
-- **Scrolling capture.** Pick the window to scroll; press Space to draw a region instead, or
-  Shift-click the capture bar's Scroll button to start on a region. easyshot scrolls that
+- **Scrolling capture.** Draw the region to scroll; press Space to pick a window instead, or
+  Shift-click the capture bar's Scroll button to start on the window picker (Space there
+  draws a region). easyshot scrolls that
   window, or the pointer over the region, and joins what scrolls into view into one tall image, up to 30000 pixels. A bar under the area shows the
   size so far, with Stop and, where your compositor allows it, Auto Scroll, which scrolls for
   you and stops at the end of the page. A preview beside the area shows the image as it
@@ -657,8 +658,8 @@ in bash, `source <(easyshot completions zsh)` in zsh after `compinit`,
 Commands:
 
 - `capture region|fullscreen|window|previous|timed|scroll`; `capture region` also takes one
-  of `--copy`, `--save`, `--annotate`, `--pin`; `capture scroll --region` starts on a region
-  instead of a window; `capture region|window|fullscreen` take
+  of `--copy`, `--save`, `--annotate`, `--pin`; `capture scroll --window` starts on the window picker
+  instead of a region; `capture region|window|fullscreen` take
   `--timed [N]`, and `capture timed` is `capture region --timed`
 - `ocr [--single-line]`, `color-picker`
 - `record [area|stop|pause|restart|discard]`

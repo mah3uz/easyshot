@@ -51,8 +51,8 @@ More in the manual: [Installing it](MANUAL.md#installing-it) and [Running it](MA
 - Keeps a strip at the side that does not scroll, such as an editor's minimap, a side panel or a scrollbar, as the first view showed it, never repeated down the image; page content that reaches into it is kept whole.
 - Joins pages with a playing video or animation, whether it scrolls with the page or stays in place.
 - Auto Scroll goes back half a step and tries again when a step does not join.
-- Scroll capture starts by picking a window; press Space to draw a region instead.
-- Shift-click the capture bar's Scroll button to start scroll capture on a region.
+- Scroll capture starts by drawing a region; press Space to pick a window instead.
+- Shift-click the capture bar's Scroll button to start scroll capture on the window picker.
 - Reads a scrolled window from its own pixels where the compositor gives them, so windows on top of it stay out.
 - Shows the size so far on a bar under the scrolling area, with a Stop button.
 - Scrolls the page for you with Auto Scroll, where your compositor allows it, and stops at the end.
@@ -291,7 +291,7 @@ More in the manual: [Settings](MANUAL.md#settings).
 - Captures with `capture region`, `fullscreen`, `window`, `previous`, `timed` or `scroll`.
 - Adds `--copy`, `--save`, `--annotate` or `--pin` to `capture region`.
 - Adds `--timed [N]` to region, window and fullscreen captures.
-- Adds `--region` to `capture scroll` to start on a region instead of a window.
+- Adds `--window` to `capture scroll` to start on the window picker instead of a region.
 - Reads text with `ocr`, and `ocr --single-line` for one line.
 - Picks a colour with `color-picker`.
 - Controls recording with `record` and its `area`, `stop`, `pause`, `restart` and `discard` actions.

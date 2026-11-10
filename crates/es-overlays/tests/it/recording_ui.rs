@@ -519,7 +519,7 @@ fn shift_on_scroll_starts_a_region_and_nothing_else_changes() {
     assert_eq!(
         routes,
         [
-            Route::CaptureScrollRegion,
+            Route::CaptureScrollWindow,
             Route::CaptureScroll,
             Route::CaptureRegion
         ]

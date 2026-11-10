@@ -25,7 +25,7 @@ pub enum CaptureKind {
     Window,
     Previous,
     Scroll,
-    ScrollRegion,
+    ScrollWindow,
     Text,
     TextLine,
     Color,
@@ -37,7 +37,7 @@ pub enum CaptureKind {
 
 impl CaptureKind {
     fn scrolls(self) -> bool {
-        matches!(self, CaptureKind::Scroll | CaptureKind::ScrollRegion)
+        matches!(self, CaptureKind::Scroll | CaptureKind::ScrollWindow)
     }
 }
 
@@ -501,7 +501,7 @@ fn source(kind: CaptureKind) -> Source {
         }
         CaptureKind::Window => Source::Pick(SelectMode::Window),
         CaptureKind::Scroll => Source::Pick(SelectMode::Scroll),
-        CaptureKind::ScrollRegion => Source::Pick(SelectMode::ScrollRegion),
+        CaptureKind::ScrollWindow => Source::Pick(SelectMode::ScrollWindow),
         CaptureKind::Text | CaptureKind::TextLine => Source::Pick(SelectMode::Text),
         CaptureKind::Color => Source::Pick(SelectMode::Color),
     }

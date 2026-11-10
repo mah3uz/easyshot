@@ -68,7 +68,7 @@ pub enum Route {
     CaptureRegionAnnotate,
     CaptureRegionPin,
     CaptureScroll,
-    CaptureScrollRegion,
+    CaptureScrollWindow,
     Ocr,
     OcrSingleLine,
     ColorPicker,

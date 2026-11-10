@@ -1,9 +1,9 @@
 use super::*;
 
 #[test]
-fn a_scroll_capture_starts_on_a_window_and_the_region_start_is_separate() {
-    assert_eq!(view_for(SelectMode::Scroll), Some(View::ScrollWindow));
-    assert_eq!(view_for(SelectMode::ScrollRegion), Some(View::Scroll));
+fn a_scroll_capture_starts_on_a_region_and_the_window_start_is_the_alternate() {
+    assert_eq!(view_for(SelectMode::Scroll), Some(View::Scroll));
+    assert_eq!(view_for(SelectMode::ScrollWindow), Some(View::ScrollWindow));
     assert_eq!(view_for(SelectMode::Window), Some(View::Window));
 }
 
@@ -38,7 +38,7 @@ fn space_swaps_window_and_region_without_leaving_the_kind_of_capture() {
 }
 
 #[test]
-fn with_no_window_to_pick_a_scroll_capture_starts_on_a_region() {
+fn with_no_window_to_pick_a_window_scroll_starts_on_a_region() {
     let mut setup = Setup {
         options: FlowOptions::default(),
         last: None,

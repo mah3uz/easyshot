@@ -94,7 +94,7 @@ fn stored_kind(kind: CaptureKind) -> StoredKind {
     match kind {
         CaptureKind::Fullscreen => StoredKind::Fullscreen,
         CaptureKind::Window => StoredKind::Window,
-        CaptureKind::Scroll | CaptureKind::ScrollRegion => StoredKind::Scroll,
+        CaptureKind::Scroll | CaptureKind::ScrollWindow => StoredKind::Scroll,
         _ => StoredKind::Region,
     }
 }
@@ -548,7 +548,7 @@ pub struct Reporting<T: ?Sized>(pub Rc<T>);
 impl<T: SelectionFlow + ?Sized> SelectionFlow for Reporting<T> {
     fn run(&self, mode: SelectMode, cx: &mut App) -> Task<Result<Selection>> {
         let op = match mode {
-            SelectMode::Scroll | SelectMode::ScrollRegion => Op::Scroll,
+            SelectMode::Scroll | SelectMode::ScrollWindow => Op::Scroll,
             SelectMode::Text => Op::Ocr,
             _ => Op::Capture,
         };

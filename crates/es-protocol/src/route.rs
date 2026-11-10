@@ -20,7 +20,7 @@ static PLAIN: &[(&str, Route)] = &[
     ("capture/region-annotate", Route::CaptureRegionAnnotate),
     ("capture/region-pin", Route::CaptureRegionPin),
     ("capture/scroll", Route::CaptureScroll),
-    ("capture/scroll-region", Route::CaptureScrollRegion),
+    ("capture/scroll-window", Route::CaptureScrollWindow),
     ("ocr", Route::Ocr),
     ("ocr/single-line", Route::OcrSingleLine),
     ("color-picker", Route::ColorPicker),
@@ -187,7 +187,7 @@ impl Route {
             Route::CaptureRegionSave => vec!["capture", "region", "--save"],
             Route::CaptureRegionAnnotate => vec!["capture", "region", "--annotate"],
             Route::CaptureRegionPin => vec!["capture", "region", "--pin"],
-            Route::CaptureScrollRegion => vec!["capture", "scroll", "--region"],
+            Route::CaptureScrollWindow => vec!["capture", "scroll", "--window"],
             Route::OcrSingleLine => vec!["ocr", "--single-line"],
             Route::Settings(Some(page)) => vec!["settings", page.as_str()],
             Route::Settings(None) => vec!["settings"],
@@ -312,7 +312,7 @@ mod tests {
             Route::CaptureRegionAnnotate => 8,
             Route::CaptureRegionPin => 9,
             Route::CaptureScroll => 10,
-            Route::CaptureScrollRegion => 35,
+            Route::CaptureScrollWindow => 35,
             Route::Ocr => 11,
             Route::OcrSingleLine => 12,
             Route::ColorPicker => 13,
@@ -359,6 +359,24 @@ mod tests {
             assert_eq!(&Route::parse(name, &no_args()).unwrap(), route);
         }
         assert_eq!(PLAIN.len(), 32);
+    }
+
+    #[test]
+    fn plain_scroll_is_the_region_start_and_the_window_start_is_its_alternate() {
+        assert_eq!(
+            Route::parse("capture/scroll", &no_args()).unwrap(),
+            Route::CaptureScroll
+        );
+        assert_eq!(
+            Route::parse("capture/scroll-window", &no_args()).unwrap(),
+            Route::CaptureScrollWindow
+        );
+        assert!(Route::parse("capture/scroll-region", &no_args()).is_err());
+        assert_eq!(Route::CaptureScroll.command_args(), ["capture", "scroll"]);
+        assert_eq!(
+            Route::CaptureScrollWindow.command_args(),
+            ["capture", "scroll", "--window"]
+        );
     }
 
     #[test]

@@ -94,9 +94,9 @@ pub struct CaptureArgs {
     /// Pin the region on screen
     #[arg(long)]
     pub pin: bool,
-    /// Draw the area to scroll instead of picking a window
+    /// Pick the window to scroll instead of drawing an area
     #[arg(long, conflicts_with_all = ["copy", "save", "annotate", "pin", "timed"])]
-    pub region: bool,
+    pub window: bool,
     /// Count down N seconds after you pick, then capture; without N, the self-timer setting
     #[arg(
         long,
@@ -255,10 +255,10 @@ fn capture_route(a: &CaptureArgs) -> Result<Route> {
         };
         return Ok(Route::timed(mode, seconds));
     }
-    if a.region {
+    if a.window {
         return match a.mode {
-            CaptureMode::Scroll => Ok(Route::CaptureScrollRegion),
-            _ => bail!("--region applies to `capture scroll` only"),
+            CaptureMode::Scroll => Ok(Route::CaptureScrollWindow),
+            _ => bail!("--window applies to `capture scroll` only"),
         };
     }
     let variant = match (a.copy, a.save, a.annotate, a.pin) {
@@ -350,8 +350,8 @@ mod tests {
             ),
             (&["capture", "scroll"], Route::CaptureScroll),
             (
-                &["capture", "scroll", "--region"],
-                Route::CaptureScrollRegion,
+                &["capture", "scroll", "--window"],
+                Route::CaptureScrollWindow,
             ),
             (&["capture", "region", "--copy"], Route::CaptureRegionCopy),
             (&["capture", "region", "--save"], Route::CaptureRegionSave),
