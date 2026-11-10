@@ -9,5 +9,6 @@ mod segmented_motion;
 mod shortcut_field;
 mod support;
 mod toast;
+mod toast_motion;
 mod tokens;
 mod tooltips;

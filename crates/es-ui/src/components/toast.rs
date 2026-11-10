@@ -3,14 +3,17 @@ use std::{rc::Rc, time::Duration};
 use gpui::{
     App, BoxShadow, ElementId, InteractiveElement, IntoElement, ParentElement, Pixels, RenderOnce,
     SharedString, StatefulInteractiveElement, Styled, Window, div, hsla, prelude::FluentBuilder,
-    px,
+    px, relative,
 };
 use gpui_component::Icon;
 
 use crate::{
     a11y::{Accessible, Role},
     icons::IconName,
-    motion::{TOAST_IN, TOAST_OUT, TOAST_SLIDE, animate},
+    motion::{
+        Clocked, TOAST_IN, TOAST_IN_SCALE, TOAST_OUT, TOAST_OUT_SCALE, TOAST_REDUCED, TOAST_RISE,
+        Transition,
+    },
     theme::tokens,
     tokens::Typeset,
 };
@@ -103,19 +106,73 @@ impl Toast {
     }
 }
 
+/// Each clock carries whether it moves the card or, under Reduce Motion, only fades it.
+struct Motion {
+    entry: Option<(Clocked, bool)>,
+    exit: Option<(Clocked, bool)>,
+}
+
+fn clock(transition: Transition, cx: &App) -> Option<(Clocked, bool)> {
+    Clocked::start(transition, cx)
+        .map(|c| (c, true))
+        .or_else(|| Clocked::start(TOAST_REDUCED, cx).map(|c| (c, false)))
+}
+
+/// The card's scale, how far below its place it is drawn, and its opacity.
+fn pose(window: &mut Window, cx: &mut App, id: ElementId, leaving: bool) -> (f32, Pixels, f32) {
+    let motion = window.use_keyed_state(id, cx, |_, cx| Motion {
+        entry: clock(TOAST_IN, cx),
+        exit: None,
+    });
+    let (entry, exit) = motion.update(cx, |m, cx| {
+        if leaving && m.exit.is_none() {
+            m.exit = clock(TOAST_OUT, cx);
+        }
+        (m.entry, m.exit)
+    });
+    if leaving {
+        let Some((c, moves)) = exit else {
+            return (1., px(0.), 0.);
+        };
+        let o = c.progress(window, cx);
+        let scale = if moves {
+            1. - (1. - TOAST_OUT_SCALE) * o
+        } else {
+            1.
+        };
+        return (scale, px(0.), 1. - o);
+    }
+    let Some((c, moves)) = entry else {
+        return (1., px(0.), 1.);
+    };
+    let e = c.progress(window, cx);
+    if !moves {
+        return (1., px(0.), e);
+    }
+    (
+        TOAST_IN_SCALE + (1. - TOAST_IN_SCALE) * e,
+        TOAST_RISE * (1. - e),
+        (e * 1.5).clamp(0., 1.),
+    )
+}
+
 impl RenderOnce for Toast {
-    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let t = tokens(cx).clone();
         let error = self.style == ToastStyle::Error;
-        let card = div()
-            .id(self.id)
-            .relative()
-            .flex()
-            .items_center()
-            .gap(GAP)
-            .max_w(MAX_WIDTH)
-            .px(PADDING_X)
-            .py(PADDING_Y)
+        let (scale, rise, alpha) = if self.settled && !self.leaving {
+            (1., px(0.), 1.)
+        } else {
+            pose(window, cx, self.id.clone(), self.leaving)
+        };
+        let inset = relative((1. - scale) / 2.);
+        let shell = div()
+            .absolute()
+            .top(inset)
+            .bottom(inset)
+            .left(inset)
+            .right(inset)
+            .m(-t.metrics.hairline)
             .rounded(RADIUS)
             .bg(t.dropdown)
             .border(t.metrics.hairline)
@@ -124,7 +181,21 @@ impl RenderOnce for Toast {
                 BoxShadow::new(px(0.), px(6.), hsla(0., 0., 0., SHADOW_INK))
                     .blur_radius(px(9.))
                     .spread_radius(px(-2.)),
-            ])
+            ]);
+        div()
+            .id(self.id)
+            .relative()
+            .top(rise)
+            .when(alpha < 1., |d| d.opacity(alpha))
+            .flex()
+            .items_center()
+            .gap(GAP)
+            .max_w(MAX_WIDTH)
+            .px(PADDING_X)
+            .py(PADDING_Y)
+            .border(t.metrics.hairline)
+            .border_color(gpui::transparent_black())
+            .child(shell)
             .text_color(t.text)
             .accessible(
                 if error { Role::Alert } else { Role::Status },
@@ -175,18 +246,6 @@ impl RenderOnce for Toast {
                             .on_click(move |_, window, cx| on_click(window, cx)),
                     ),
                 )
-            });
-        if self.settled && !self.leaving {
-            card.into_any_element()
-        } else if self.leaving {
-            animate(card, "toast-out", TOAST_OUT, cx, |card, delta| {
-                card.opacity(1. - delta)
             })
-        } else {
-            let slide = f32::from(TOAST_SLIDE);
-            animate(card, "toast-in", TOAST_IN, cx, move |card, delta| {
-                card.top(px(-slide * (1. - delta))).opacity(delta)
-            })
-        }
     }
 }

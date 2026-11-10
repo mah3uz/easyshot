@@ -549,6 +549,8 @@ Interface changes ease into place; with Reduce Motion they happen at once:
   the focus pad's knob grows as you drag it and glides home on a double-click; the swatches of a
   newly picked fill library fade in.
 - The recording control bar fades in from the capture bar.
+- A toast springs in, growing and rising into place, and shrinks away as it fades; with Reduce
+  Motion it only fades in and out.
 - Tooltips open after a short rest, and at once when you move straight to the next control.
 
 Settings are stored in `config.toml`; see Files. You can edit it by hand. While easyshot

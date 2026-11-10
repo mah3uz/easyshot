@@ -140,9 +140,12 @@ pub const DECK_ENTER: Transition = BOUNCY_SPRING;
 pub const DECK_ENTER_REDUCED: Transition = fades(120, Easing::Linear);
 pub const DECK_ENTER_SCALE: f32 = 0.88;
 pub const DECK_ENTER_RISE: Pixels = px(14.);
-pub const TOAST_IN: Transition = moves(280, Easing::EaseOut);
-pub const TOAST_SLIDE: Pixels = px(10.);
-pub const TOAST_OUT: Transition = fades(200, Easing::EaseIn);
+pub const TOAST_IN: Transition = SNAPPY_SPRING;
+pub const TOAST_IN_SCALE: f32 = 0.92;
+pub const TOAST_RISE: Pixels = px(6.);
+pub const TOAST_OUT: Transition = moves(160, Easing::EaseIn);
+pub const TOAST_OUT_SCALE: f32 = 0.96;
+pub const TOAST_REDUCED: Transition = fades(120, Easing::Linear);
 pub const SECTION_EXPAND: Transition = moves(180, Easing::Snappy);
 pub const FLASH: Transition = fades(200, Easing::Snappy);
 pub const FLASH_HOLD: Duration = Duration::from_millis(1400);
@@ -511,7 +514,10 @@ mod tests {
     fn reduce_motion_keeps_only_short_fades() {
         assert!(SLIDER_MARKERS.plays(true));
         assert!(DECK_HOVER.plays(true));
-        assert!(!TOAST_OUT.plays(true), "a 200 ms fade is too long to keep");
+        assert!(
+            !TOAST_IN.plays(true) && !TOAST_OUT.plays(true) && TOAST_REDUCED.plays(true),
+            "a toast only fades in and out under Reduce Motion"
+        );
         assert!(
             !POPOVER_OPEN.plays(true),
             "the popover grows, which is movement"
@@ -543,8 +549,8 @@ mod tests {
         );
         assert_eq!(ms(DECK_HOVER), 120);
         assert_eq!(
-            (ms(TOAST_IN), TOAST_SLIDE, ms(TOAST_OUT)),
-            (280, px(10.), 200)
+            (ms(TOAST_IN), TOAST_RISE, ms(TOAST_OUT)),
+            (360, px(6.), 160)
         );
         assert_eq!(
             (ms(SECTION_EXPAND), SECTION_EXPAND.easing),

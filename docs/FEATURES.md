@@ -353,6 +353,7 @@ More in the manual: [Agent use](MANUAL.md#agent-use), [Annotating an image](MANU
 - Writes a crash report on your machine only, and offers to open it at the next start.
 - Tells you where a saved file went, and opens it when you click the notification.
 - Keeps a toast up for 2.5 seconds, an error toast for 5 and an Undo toast for 8, and holds it while the pointer is on it.
+- Springs a toast in, growing and rising into place, and shrinks it away as it fades.
 - Offers Show in folder on a notice, and Edit on a capture's notice.
 
 More in the manual: [Files](MANUAL.md#files).
