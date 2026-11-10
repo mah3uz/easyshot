@@ -33,6 +33,7 @@ mod style_persist;
 mod text_edit;
 mod text_edit_bench;
 mod text_edit_support;
+mod text_script;
 mod tool_cursors;
 mod tool_options;
 mod toolbar;
