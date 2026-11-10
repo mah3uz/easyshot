@@ -8,7 +8,7 @@ use es_protocol::Route;
 use es_record::{AudioSource, Clock};
 use es_ui::a11y::{Accessible as _, Role};
 use es_ui::icons::IconName;
-use es_ui::motion::{Clocked, HANDOFF, HANDOFF_SCALE, progress};
+use es_ui::motion::{Clocked, HANDOFF_IN, HANDOFF_SCALE, progress};
 use es_ui::theme::{UI_FONT, tokens};
 use gpui::{
     AnyElement, Context, EventEmitter, FontWeight, Hsla, InteractiveElement as _, IntoElement,
@@ -100,7 +100,7 @@ impl ControlBar {
             output: None,
             pointer: Rc::new(|| None),
             press: None,
-            entry: Clocked::start(HANDOFF, cx),
+            entry: Clocked::start(HANDOFF_IN, cx),
             _tick: tick,
         }
     }
@@ -117,9 +117,9 @@ impl ControlBar {
         self.confirm
     }
 
-    /// True while the bar still fades and grows in from the capture bar it replaces.
+    /// True while the bar still fades and springs in from the capture bar it replaces.
     pub fn entering(&self, cx: &gpui::App) -> bool {
-        self.entry.is_some_and(|e| e.value(cx) < 1.0)
+        self.entry.is_some_and(|e| !e.done(cx))
     }
 
     fn content(&self) -> Size {
@@ -520,7 +520,7 @@ impl Render for ControlBar {
                         div()
                             .w(px(c.width as f32 * scale))
                             .h(px(c.height as f32 * scale))
-                            .opacity(e)
+                            .opacity(e.min(1.0))
                             .child(body),
                     ),
             )

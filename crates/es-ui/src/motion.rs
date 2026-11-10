@@ -176,6 +176,7 @@ pub const COUNTDOWN_OUT: Transition = moves(300, Easing::Snappy);
 pub const COUNTDOWN_OUT_REDUCED: Transition = fades(120, Easing::Linear);
 pub const DIGIT_ROLL: Transition = moves(300, Easing::Snappy);
 pub const HANDOFF: Transition = moves(200, Easing::Snappy);
+pub const HANDOFF_IN: Transition = SNAPPY_SPRING;
 pub const HANDOFF_SCALE: f32 = 0.94;
 pub const TOOLTIP_DELAY: Duration = Duration::from_millis(160);
 pub const TOOLTIP_WARM: Duration = Duration::from_millis(500);

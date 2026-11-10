@@ -109,6 +109,7 @@ under 1 %, 380 ms); `SNAPPY_SPRING`, `BOUNCY_SPRING` and `GENTLE_SPRING`.
 | Deck: the stack fans out into a column under the pointer and folds back after it; the count and the dimming of the cards behind fade as it goes | `DECK_FAN` | 380 ms, gentle spring |
 | Deck: a new card grows from 88 % and rises 14 px into place as it fades in, swinging just past and back; with Reduce Motion it only fades in, in place (`DECK_ENTER_REDUCED`, 120 ms, linear) | `DECK_ENTER`, `DECK_ENTER_SCALE`, `DECK_ENTER_RISE` | 600 ms, bouncy spring |
 | Toast: grows from 92 % and rises 6 px into place as it fades in, swinging just past and back; it leaves by shrinking to 96 % as it fades, with no swing; with Reduce Motion it only fades in and out (`TOAST_REDUCED`, 120 ms, linear) | `TOAST_IN`, `TOAST_IN_SCALE`, `TOAST_RISE`, `TOAST_OUT`, `TOAST_OUT_SCALE` | 360 ms snappy spring in, 160 ms ease-in out |
+| Recording: the capture bar shrinks to 94 % and fades out as the control bar grows from 94 % and fades in, swinging just past full size; with Reduce Motion the control bar appears at once | `HANDOFF`, `HANDOFF_IN`, `HANDOFF_SCALE` | 200 ms snappy out, 360 ms snappy spring in |
 | Pin: the close button fades in under the pointer and back out after it | `CLOSE_FADE` (pin) | 150 ms fade, ease-out |
 | Settings: the old page fades out while the new one rises 8 px into place and fades in | `PAGE_CHANGE` | 180 ms, ease-out |
 | Editor: the inspector switching to or from a tool's options rises 8 px into place and fades in | `PAGE_CHANGE` | 180 ms, ease-out |

@@ -1,6 +1,6 @@
 use super::*;
 use es_record::AudioSource;
-use es_ui::motion::set_reduce_motion;
+use es_ui::motion::{HANDOFF_IN, set_reduce_motion};
 use std::cell::Cell;
 use std::rc::Rc;
 
@@ -195,7 +195,13 @@ fn entering(reduce: bool) -> (bool, bool) {
     );
     let view = s.view.clone();
     let at_start = s.app.cx.update(|cx| view.read(cx).entering(cx));
-    s.app.cx.advance_clock(Duration::from_millis(300));
+    s.app.cx.advance_clock(HANDOFF_IN.duration * 5 / 6);
+    let mid = s.app.cx.update(|cx| view.read(cx).entering(cx));
+    assert_eq!(
+        mid, !reduce,
+        "a spring runs its whole time, past its first arrival"
+    );
+    s.app.cx.advance_clock(HANDOFF_IN.duration / 6);
     let later = s.app.cx.update(|cx| view.read(cx).entering(cx));
     (at_start, later)
 }
@@ -246,4 +252,60 @@ fn a_muted_source_is_drawn_in_red_in_both_themes() {
         let both = s.app.screenshot(&format!("control-bar-both-muted-{tag}"));
         assert!(has_red(&both, FIRST_MUTE_X), "{tag}");
     }
+}
+
+fn arriving(name: &str, frames: usize, step: Duration) -> Vec<image::RgbaImage> {
+    let clock: Arc<dyn Clock> = Arc::new(TestClock::default());
+    let mut s = Surface::open(
+        CONTROL.width as f32,
+        (CONTROL.height + TIP_ROOM) as f32,
+        move |cx| ControlBar::new(clock, Vec::new(), cx),
+    );
+    let handle = s.app.window.into();
+    (0..frames)
+        .map(|i| {
+            s.app
+                .cx
+                .update_window(handle, |_, window, _| window.refresh())
+                .unwrap_or_default();
+            let shot = s.app.screenshot(&format!("{name}-{i}"));
+            s.app.cx.advance_clock(step);
+            shot
+        })
+        .collect()
+}
+
+/// The drawn width of the bar along its middle row, and its strongest contrast there with
+/// `back`, the surface before the bar is drawn.
+fn drawn(shot: &image::RgbaImage, back: &image::RgbaImage) -> (usize, u32) {
+    let scale = shot.width() as f32 / CONTROL.width as f32;
+    let y = (BAR_Y * scale) as u32;
+    let behind = back.get_pixel(0, y).0;
+    let diffs: Vec<u32> = (0..shot.width())
+        .map(|x| {
+            let p = shot.get_pixel(x, y).0;
+            (0..3).map(|c| u32::from(p[c].abs_diff(behind[c]))).sum()
+        })
+        .collect();
+    (
+        diffs.iter().filter(|d| **d > 12).count(),
+        diffs.iter().copied().max().unwrap_or(0),
+    )
+}
+
+#[test]
+fn the_control_bar_springs_in_growing_and_fading_from_the_capture_bar_it_replaces() {
+    let frames = arriving("control-bar-enter", 10, HANDOFF_IN.duration / 8);
+    let rest = drawn(&frames[9], &frames[0]);
+    let early = drawn(&frames[1], &frames[0]);
+    assert!(
+        early.0 + 6 < rest.0,
+        "it starts narrower than it rests: {early:?} then {rest:?}"
+    );
+    assert!(early.1 < rest.1, "and faint: {early:?} then {rest:?}");
+    assert_eq!(
+        drawn(&frames[8], &frames[0]),
+        rest,
+        "and is at rest once its spring is done"
+    );
 }
