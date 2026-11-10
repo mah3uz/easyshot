@@ -19,7 +19,7 @@ const faq = [
   },
   {
     q: 'How do I install it?',
-    a: 'There are two AUR packages, <code>easyshot</code> and <code>easyshot-bin</code>, which are not published yet, and no packages for other distributions. Build it with <code>cargo build --release -p easyshot</code>, or on Arch run <code>just install</code> from a checkout. See <a class="text-accent underline" href="/#install">Install</a>.',
+    a: 'On Arch, install <code>easyshot-bin</code> (prebuilt) or <code>easyshot</code> (built from source) from the AUR. There are no packages for other distributions yet; build it with <code>cargo build --release -p easyshot</code>, or on Arch run <code>just install</code> from a checkout. See <a class="text-accent underline" href="/#install">Install</a>.',
   },
   {
     q: 'How do I set the keyboard shortcuts?',
@@ -121,7 +121,7 @@ useHead({
             View on GitHub
           </a>
         </div>
-        <p class="rise text-[13px] text-fg-3" style="--d: 0.4s">For Linux on Wayland · Build it from source today</p>
+        <p class="rise text-[13px] text-fg-3" style="--d: 0.4s">For Linux on Wayland · Arch packages (AUR)</p>
       </div>
 
       <div class="container-x mt-16 sm:mt-20">
@@ -269,8 +269,8 @@ useHead({
           <span class="eyebrow"><Icon name="download" :size="15" />Install</span>
           <h2 class="text-[clamp(32px,4.4vw,50px)] leading-[1.05]">Get it your way.</h2>
           <p class="text-lg text-fg-2">
-            Build easyshot from source today. Two Arch (AUR) packages are on the way but not published yet; the package starts
-            the background service for you. Then choose your keys and press one.
+            easyshot comes as two Arch (AUR) packages, or you can build it from source. The package starts the background service
+            for you. Then choose your keys and press one.
           </p>
           <NuxtLink to="/how-to" class="group mt-2 inline-flex w-fit items-center gap-1.5 font-semibold text-accent">
             Full setup guide <Icon name="arrow-up-right" :size="16" class="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />

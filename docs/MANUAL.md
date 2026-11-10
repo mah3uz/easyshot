@@ -32,7 +32,7 @@ and keeps a history.
 
 On Arch Linux there are two AUR packages: `easyshot`, which builds the release from source,
 and `easyshot-bin`, which installs the prebuilt release. They conflict with each other, so
-install one. Neither is published yet, and there are no packages for other distributions.
+install one. There are no packages for other distributions.
 
 Installing the package enables `easyshot.service` for every user and starts it for each user
 who is logged in. Updating or reinstalling it restarts the daemon where it is running and
