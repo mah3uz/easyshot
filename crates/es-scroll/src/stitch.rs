@@ -1,4 +1,5 @@
-use crate::shift::{Exclusions, shift_masked, shift_robust};
+use crate::columns::{common_colour, fixed_columns};
+use crate::shift::{Exclusions, Mask, pixel_sad, shift_masked, shift_robust};
 use crate::{Frame, frame_hash};
 
 pub const MAX_HEIGHT: usize = 30_000;
@@ -30,6 +31,11 @@ pub struct Stitcher {
     stamped: usize,
     right: Option<usize>,
     moving: Vec<bool>,
+    /// `moving` placed on the canvas, for an animation that scrolls with the page.
+    volatile: Vec<bool>,
+    fixed: Vec<bool>,
+    fill: Vec<[u8; 4]>,
+    first_rows: usize,
 }
 
 impl Default for Stitcher {
@@ -55,6 +61,10 @@ impl Stitcher {
             stamped: 0,
             right: None,
             moving: Vec::new(),
+            volatile: Vec::new(),
+            fixed: Vec::new(),
+            fill: Vec::new(),
+            first_rows: 0,
         }
     }
 
@@ -76,14 +86,19 @@ impl Stitcher {
     }
 
     pub fn push(&mut self, frame: &Frame) -> Push {
-        self.push_inner(frame, false)
+        self.push_inner(frame, false, None)
+    }
+
+    /// `expected` is how far the scroll sent should have moved the page since the last frame placed.
+    pub fn push_near(&mut self, frame: &Frame, expected: usize) -> Push {
+        self.push_inner(frame, false, Some(expected))
     }
 
     pub fn push_final(&mut self, frame: &Frame) -> Push {
-        self.push_inner(frame, true)
+        self.push_inner(frame, true, None)
     }
 
-    fn push_inner(&mut self, frame: &Frame, last: bool) -> Push {
+    fn push_inner(&mut self, frame: &Frame, last: bool, prior: Option<usize>) -> Push {
         let (Some(prev), Some(canvas)) = (self.prev.as_ref(), self.canvas.as_ref()) else {
             return self.seed(frame);
         };
@@ -98,7 +113,7 @@ impl Stitcher {
             return Push::Duplicate;
         }
         let right = self.right.unwrap_or(0);
-        let cols = columns(frame.width, right);
+        let cols = columns(frame.width, right, &self.fixed);
         let guess = Exclusions {
             top: self
                 .header
@@ -108,18 +123,28 @@ impl Stitcher {
                 .max(still_edge(prev, frame, (0..frame.height).rev(), &cols)),
             right,
         };
-        let guesses: &[usize] = match self.right {
-            Some(_) => &[],
-            None => PROBE_MARGINS,
-        };
-        let found = [right].iter().chain(guesses).find_map(|&right| {
-            shift_masked(prev, frame, Exclusions { right, ..guess }, &self.moving)
-        });
         // An unscrolled frame goes on to `moved_in_place`, which learns the rows that animate.
-        let robust = || shift_robust(prev, frame, guess).filter(|&dy| dy > 0);
-        let Some(dy) = found.or_else(robust) else {
+        let Some(mut dy) = self.find_shift(prev, frame, guess, prior, &self.fixed) else {
             return self.moved_in_place(frame, hash);
         };
+        let mut found_cols = Vec::new();
+        if dy > 0 {
+            found_cols = fixed_columns(prev, frame, dy, &self.overlap(frame.height, dy, guess));
+            let mut wider = self.fixed.clone();
+            wider.resize(frame.width, false);
+            let new = found_cols.iter().filter(|&&x| !wider[x]).count();
+            found_cols.iter().for_each(|&x| wider[x] = true);
+            // Columns found at a wrong shift would be wrong too, so only those found again at the shift matched without them are kept.
+            if new > 0
+                && let Some(again) = self
+                    .find_shift(prev, frame, guess, prior, &wider)
+                    .filter(|&again| again > 0 && again != dy)
+            {
+                dy = again;
+                let rows = self.overlap(frame.height, dy, guess);
+                found_cols = fixed_columns(prev, frame, dy, &rows);
+            }
+        }
         if dy == 0 {
             self.prev = Some(frame.clone());
             self.prev_hash = hash;
@@ -131,7 +156,11 @@ impl Stitcher {
         if dy > MIN_LOCK_SHIFT && self.right.is_none() {
             self.right = Some(scrollbar_margin(prev, frame, guess, dy));
         }
-        let cols = columns(frame.width, self.right.unwrap_or(0));
+        self.keep_fixed(&found_cols);
+        let Some(prev) = self.prev.as_ref() else {
+            return Push::NoOverlap;
+        };
+        let cols = columns(frame.width, self.right.unwrap_or(0), &self.fixed);
         let below = |y: usize| Some(y + dy).filter(|&z| z < frame.height);
         let (header, header_still) = fixed_edge(frame, prev, 0..frame.height, below, &cols);
         let above = |y: usize| y.checked_sub(dy);
@@ -157,6 +186,84 @@ impl Stitcher {
         }
     }
 
+    fn find_shift(
+        &self,
+        prev: &Frame,
+        frame: &Frame,
+        guess: Exclusions,
+        prior: Option<usize>,
+        fixed: &[bool],
+    ) -> Option<usize> {
+        let guesses: &[usize] = match self.right {
+            Some(_) => &[],
+            None => PROBE_MARGINS,
+        };
+        let page = self.volatile.get(self.top..).unwrap_or(&[]);
+        // An animation seen in place may be fixed on screen or ride with the page; each reading is tried, since masking both can leave too little to match.
+        let mut masks = vec![Mask {
+            screen: &self.moving,
+            page: &[],
+            columns: fixed,
+        }];
+        if page.contains(&true) {
+            masks.push(Mask {
+                screen: &[],
+                page,
+                columns: fixed,
+            });
+        }
+        let found = [guess.right].iter().chain(guesses).find_map(|&right| {
+            let ex = Exclusions { right, ..guess };
+            masks
+                .iter()
+                .find_map(|&mask| shift_masked(prev, frame, ex, mask, prior))
+        });
+        found.or_else(|| shift_robust(prev, frame, guess).filter(|&dy| dy > 0))
+    }
+
+    /// The rows of the new frame, clear of bars and of known animation, whose page rows the previous frame shows `dy` rows lower.
+    fn overlap(&self, height: usize, dy: usize, ex: Exclusions) -> Vec<usize> {
+        let flagged = |m: &[bool], y: usize| m.get(y).copied().unwrap_or(false);
+        let top = self.header.max(ex.top);
+        let end = height.saturating_sub(dy + self.footer.max(ex.bottom));
+        (top..end)
+            .filter(|&y| {
+                !flagged(&self.moving, y)
+                    && !flagged(&self.moving, y + dy)
+                    && !flagged(&self.volatile, self.top + y + dy)
+            })
+            .collect()
+    }
+
+    fn mark_volatile(&mut self, rows: impl Iterator<Item = usize>) {
+        for y in rows {
+            if self.volatile.len() <= y {
+                self.volatile.resize(y + 1, false);
+            }
+            self.volatile[y] = true;
+        }
+    }
+
+    /// Columns that do not scroll keep what the first frame showed; below it they take their most common colour there, so a minimap or side panel never repeats down the page.
+    fn keep_fixed(&mut self, found: &[usize]) {
+        let Some(canvas) = self.canvas.as_mut() else {
+            return;
+        };
+        let width = canvas.width;
+        self.fixed.resize(width, false);
+        self.fill.resize(width, [0, 0, 0, 255]);
+        let added: Vec<usize> = found.iter().copied().filter(|&x| !self.fixed[x]).collect();
+        let end = canvas.height.saturating_sub(self.footer);
+        for &x in &added {
+            self.fixed[x] = true;
+            self.fill[x] = common_colour(canvas, self.header..self.first_rows, x);
+            for y in self.first_rows..end {
+                let i = (y * width + x) * 4;
+                canvas.data[i..i + 4].copy_from_slice(&self.fill[x]);
+            }
+        }
+    }
+
     /// A frame that differs from the last in under half its rows was not scrolled: those rows move by themselves.
     fn moved_in_place(&mut self, frame: &Frame, hash: u64) -> Push {
         let Some(prev) = self.prev.as_ref() else {
@@ -169,9 +276,11 @@ impl Stitcher {
             return Push::NoOverlap;
         }
         self.moving.resize(frame.height, false);
-        for y in changed {
+        for &y in &changed {
             self.moving[y] = true;
         }
+        let top = self.top;
+        self.mark_volatile(changed.into_iter().map(|y| top + y));
         self.prev = Some(frame.clone());
         self.prev_hash = hash;
         Push::Duplicate
@@ -183,6 +292,7 @@ impl Stitcher {
         canvas.data.truncate(rows * frame.stride());
         canvas.height = rows;
         self.canvas = Some(canvas);
+        self.first_rows = rows;
         self.prev = Some(frame.clone());
         self.prev_hash = frame_hash(frame);
         if rows >= self.max_height {
@@ -212,26 +322,28 @@ impl Stitcher {
         canvas.data.resize(total * stride, 0);
         canvas.height = total;
         let from = placed.saturating_sub(self.top).max(self.header);
+        let bar = frame.height.saturating_sub(footer);
         for y in from..frame.height {
             let cy = self.top + y;
             if cy >= total {
                 break;
             }
-            canvas.data[cy * stride..(cy + 1) * stride].copy_from_slice(frame.row(y));
+            let row = &mut canvas.data[cy * stride..(cy + 1) * stride];
+            row.copy_from_slice(frame.row(y));
+            if y < bar {
+                for x in (0..self.fixed.len()).filter(|&x| self.fixed[x]) {
+                    row[x * 4..x * 4 + 4].copy_from_slice(&self.fill[x]);
+                }
+            }
         }
     }
 }
 
-fn pixel_sad(a: &[u8], b: &[u8]) -> f64 {
-    a.iter()
-        .zip(b)
-        .take(3)
-        .map(|(&x, &y)| f64::from(x.abs_diff(y)))
-        .sum()
-}
-
-fn columns(width: usize, right: usize) -> Vec<usize> {
-    (0..width.saturating_sub(right)).step_by(4).collect()
+fn columns(width: usize, right: usize, fixed: &[bool]) -> Vec<usize> {
+    (0..width.saturating_sub(right))
+        .step_by(4)
+        .filter(|&x| !fixed.get(x).copied().unwrap_or(false))
+        .collect()
 }
 
 fn same(a: &[u8], b: &[u8], cols: &[usize]) -> bool {

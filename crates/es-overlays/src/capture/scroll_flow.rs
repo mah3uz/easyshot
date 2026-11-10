@@ -81,7 +81,7 @@ impl Source for Live {
         })
     }
 
-    fn scroll(&mut self, clicks: u32) -> bool {
+    fn scroll(&mut self, clicks: i32) -> bool {
         let dy = f64::from(clicks) * WHEEL_CLICK;
         self.backend
             .virtual_input

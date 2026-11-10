@@ -48,6 +48,8 @@ More in the manual: [Installing it](MANUAL.md#installing-it) and [Running it](MA
 - Picks a colour from the screen and copies it as `#RRGGBB`.
 - Captures a scrolling page as one tall image, up to 30000 pixels.
 - Keeps a page's fixed top and bottom bars once, at the top and the end of the tall image.
+- Keeps a strip at the side that does not scroll, such as an editor's minimap, a side panel or a scrollbar, as the first view showed it, never repeated down the image.
+- Auto Scroll goes back half a step and tries again when a step does not join.
 - Scroll capture starts by picking a window; press Space to draw a region instead.
 - Shift-click the capture bar's Scroll button to start scroll capture on a region.
 - Reads a scrolled window from its own pixels where the compositor gives them, so windows on top of it stay out.

@@ -13,8 +13,8 @@ pub const AUTO_SPEED: u32 = 3;
 pub trait Source {
     /// The area as it is now, or `None` when the capture failed.
     fn grab(&mut self) -> Option<Frame>;
-    /// Wheel clicks down; `false` when the scroll could not be sent.
-    fn scroll(&mut self, clicks: u32) -> bool;
+    /// Wheel clicks down, or up when negative; `false` when the scroll could not be sent.
+    fn scroll(&mut self, clicks: i32) -> bool;
     fn pointer_inside(&self) -> bool;
     fn sleep(&mut self, d: Duration);
     fn now(&self) -> Instant;
@@ -109,7 +109,11 @@ pub fn fit_live(frame: &Frame, latest: Option<&Frame>, max: (usize, usize)) -> F
 struct Pace {
     target: usize,
     per_click: Option<f64>,
-    unmatched: u32,
+    /// Clicks sent, less those sent back, since the stitcher last placed a frame.
+    unmatched: i32,
+    /// The fewest of those at which a frame found no overlap.
+    ceiling: Option<i32>,
+    failed: bool,
 }
 
 impl Pace {
@@ -118,27 +122,50 @@ impl Pace {
             target: auto_scroll_step(frame_height as u32, AUTO_SPEED) as usize,
             per_click: None,
             unmatched: 0,
+            ceiling: None,
+            failed: false,
         }
     }
 
-    /// Until a shift is measured, each step doubles the clicks so far, so no step can jump past the area.
-    fn clicks(&self) -> u32 {
-        match self.per_click {
-            Some(p) => ((self.target as f64 / p).floor() as u32).max(1),
-            None => self.unmatched.max(1),
-        }
+    /// Clicks to send now, back up when negative. Until a shift is measured each step doubles the clicks so far, so no step can jump past the area; a frame that found no overlap sends the page back to half as far, and it never goes as far again.
+    fn clicks(&self) -> i32 {
+        let grown = match self.per_click {
+            Some(p) => self.unmatched + ((self.target as f64 / p).floor() as i32).max(1),
+            None => (self.unmatched * 2).max(1),
+        };
+        let net = match self.ceiling {
+            Some(c) if self.failed => c / 2,
+            Some(c) => grown.min(c - 1),
+            None => grown,
+        };
+        net.max(1) - self.unmatched
     }
 
-    fn sent(&mut self, clicks: u32) {
+    fn sent(&mut self, clicks: i32) {
         self.unmatched += clicks;
     }
 
+    /// How far the clicks sent should have moved the page since the last frame placed.
+    fn expected(&self) -> Option<usize> {
+        let p = self.per_click?;
+        (self.unmatched > 0).then(|| (f64::from(self.unmatched) * p).round() as usize)
+    }
+
     fn observe(&mut self, push: Push) {
-        if let Push::Appended(dy) = push
-            && self.unmatched > 0
-        {
-            self.per_click = Some(dy as f64 / f64::from(self.unmatched));
-            self.unmatched = 0;
+        self.failed = push == Push::NoOverlap;
+        match push {
+            Push::Appended(dy) => {
+                if self.unmatched > 0 {
+                    self.per_click = Some(dy as f64 / f64::from(self.unmatched));
+                }
+                self.unmatched = 0;
+                self.ceiling = None;
+            }
+            Push::NoOverlap => {
+                let at = self.unmatched;
+                self.ceiling = Some(self.ceiling.map_or(at, |c| c.min(at)));
+            }
+            Push::Duplicate | Push::Full => {}
         }
     }
 }
@@ -156,6 +183,18 @@ impl Session<'_> {
         } else {
             self.stitcher.push(frame)
         };
+        self.show(frame, push)
+    }
+
+    fn push_near(&mut self, frame: &Frame, expected: Option<usize>) -> Push {
+        let push = match expected {
+            Some(dy) => self.stitcher.push_near(frame, dy),
+            None => self.stitcher.push(frame),
+        };
+        self.show(frame, push)
+    }
+
+    fn show(&mut self, frame: &Frame, push: Push) -> Push {
         if matches!(push, Push::Appended(_) | Push::Full) {
             (self.emit)(Update::Height(self.stitcher.height()));
         }
@@ -229,14 +268,14 @@ pub fn run(
         }
         let push = if auto {
             let clicks = pace.clicks();
-            if !src.scroll(clicks) {
+            if clicks != 0 && !src.scroll(clicks) {
                 auto = false;
                 (session.emit)(Update::Auto(false));
                 continue;
             }
             pace.sent(clicks);
             let push = settled(src, session.stitcher.moving())
-                .map_or(Push::NoOverlap, |f| session.push(&f, false));
+                .map_or(Push::NoOverlap, |f| session.push_near(&f, pace.expected()));
             pace.observe(push);
             if push != Push::Full && stop.record(matches!(push, Push::Appended(_))) {
                 return session.finish_with(src);

@@ -104,7 +104,11 @@ first time easyshot starts. The binds file always comes first where it can be wr
   A bar that stays put while the page scrolls appears once: a menu bar at the top of the
   image, a bar along the bottom at its end. Each part of the page is taken from the first
   frame that showed it. A see-through top bar that appears only after you start scrolling is
-  left out.
+  left out. A strip at either side that does not scroll with the page, such as a code
+  editor's minimap, a side panel or a scrollbar, keeps what the first frame showed; below that
+  it shows only its background colour. Content that animates as it scrolls by is left out when
+  frames are matched. When an Auto Scroll step does not join, it goes back half way and tries
+  again, never further.
 - **Variants.** Region capture also comes as "& Copy", "& Save", "& Annotate" and "& Pin".
 
 One capture runs at a time, and a request never waits for another to finish. Key binds,

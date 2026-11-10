@@ -41,8 +41,12 @@ struct Fake {
     blink: bool,
     /// How many rows one wheel click moves this app.
     per_click: usize,
+    /// An offset whose content shows nothing of the page the first time the app stops there.
+    unready: Option<usize>,
     grabs: usize,
     scrolls: usize,
+    /// Where each scroll left the app.
+    offsets: Vec<usize>,
     sleeps: Vec<Duration>,
 }
 
@@ -61,8 +65,10 @@ impl Fake {
             flicker: false,
             blink: false,
             per_click: 15,
+            unready: None,
             grabs: 0,
             scrolls: 0,
+            offsets: Vec::new(),
             sleeps: Vec::new(),
         }
     }
@@ -86,12 +92,23 @@ impl Source for Fake {
         if self.blink {
             data[0] = self.grabs as u8;
         }
+        if self.unready == Some(self.offset) {
+            data.reverse();
+        }
         Frame::new(W, VIEW, data)
     }
 
-    fn scroll(&mut self, clicks: u32) -> bool {
+    fn scroll(&mut self, clicks: i32) -> bool {
         self.scrolls += 1;
-        self.offset = (self.offset + clicks as usize * self.per_click).min(self.rows - VIEW);
+        if self.unready == Some(self.offset) {
+            self.unready = None;
+        }
+        let moved = clicks as isize * self.per_click as isize;
+        self.offset = self
+            .offset
+            .saturating_add_signed(moved)
+            .min(self.rows - VIEW);
+        self.offsets.push(self.offset);
         true
     }
 
@@ -199,6 +216,35 @@ fn auto_scroll_reaches_the_end_of_an_app_that_moves_one_row_per_click() {
         "tiny clicks are not taken for the end of the page"
     );
     assert!(image.data == fake.page);
+}
+
+// A page still loading or animating can fail one match; scrolling on from there would leave too little overlap for every later step.
+#[test]
+fn a_step_that_finds_no_overlap_is_retried_nearer_never_further() {
+    let (tx, rx) = mpsc::channel();
+    let mut fake = Fake::new(1000, tx.clone());
+    fake.unready = Some(105);
+    tx.send(Command::Auto(true)).expect("queued");
+    let (outcome, _) = run(&mut fake, &rx, es_scroll::MAX_HEIGHT);
+    let Outcome::Done(image) = outcome else {
+        panic!("auto scroll ends with an image, got {outcome:?}");
+    };
+    assert!(image.data == fake.page, "every row in its place");
+    let failed = fake
+        .offsets
+        .iter()
+        .position(|&o| o == 105)
+        .expect("reached");
+    let (anchor, retry) = (fake.offsets[failed - 1], fake.offsets[failed + 1]);
+    assert!(
+        (anchor + 1..105).contains(&retry),
+        "after the failed step the app goes back between the last placed frame ({anchor}) and 105, went to {retry}"
+    );
+    assert!(
+        fake.offsets.windows(2).all(|w| w[1] <= w[0] + 45),
+        "no step goes further than one step: {:?}",
+        fake.offsets
+    );
 }
 
 #[test]
