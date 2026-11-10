@@ -138,7 +138,16 @@ fn rig_with(cx: &mut TestAppContext, recorder: FakeRecorder) -> Rig {
     rig_with_tools(cx, recorder, false)
 }
 
-fn rig_with_tools(cx: &mut TestAppContext, mut recorder: FakeRecorder, missing: bool) -> Rig {
+fn rig_with_tools(cx: &mut TestAppContext, recorder: FakeRecorder, missing: bool) -> Rig {
+    rig_full(cx, recorder, None, missing)
+}
+
+fn rig_full(
+    cx: &mut TestAppContext,
+    mut recorder: FakeRecorder,
+    mut window_recorder: Option<FakeRecorder>,
+    missing: bool,
+) -> Rig {
     let dir = tempfile::tempdir().unwrap();
     let paths = Paths::rooted(dir.path());
     paths.ensure_all().unwrap();
@@ -151,6 +160,9 @@ fn rig_with_tools(cx: &mut TestAppContext, mut recorder: FakeRecorder, missing: 
     let focus = Rc::new(FakeFocus::default());
     let focusing = focus.clone();
     recorder.clock = Some(clock.clone());
+    if let Some(w) = window_recorder.as_mut() {
+        w.clock = Some(clock.clone());
+    }
     let (counted, picked) = (starts.clone(), picks.clone());
     let (recordings, deck) = cx.update(|cx| {
         let file = ConfigFile::load(&dir.path().join("config.toml")).unwrap();
@@ -164,6 +176,7 @@ fn rig_with_tools(cx: &mut TestAppContext, mut recorder: FakeRecorder, missing: 
                 counted.set(counted.get() + 1);
                 Ok(Arc::new(recorder.clone()))
             }),
+            window_recorder: window_recorder.map(|w| Arc::new(w) as Arc<dyn Recorder>),
             recorder_missing: missing,
             outputs: Rc::new(Vec::new),
             ui: Rc::new(FakeUi(log.clone())),
@@ -573,22 +586,5 @@ fn an_area_reaches_the_recorder_in_global_logical_points_on_an_offset_output() {
 }
 
 mod focus;
-
-#[gpui::test]
-async fn capture_json_lists_the_sound_tracks_system_first(cx: &mut TestAppContext) {
-    let rig = rig_with(cx, FakeRecorder::default());
-    let mut start = display();
-    start.request.system_audio = true;
-    start.request.mic = Some("default".into());
-    cx.update(|cx| rig.recordings.start(start, cx)).unwrap();
-    cx.run_until_parked();
-    cx.update(|cx| rig.recordings.stop(cx)).unwrap();
-    cx.run_until_parked();
-    let folder = rig.folders().remove(0);
-    let capture: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(folder.join("capture.json")).unwrap()).unwrap();
-    assert_eq!(
-        capture["audio_tracks"],
-        serde_json::json!(["system", "mic"])
-    );
-}
+mod tracks;
+mod window;

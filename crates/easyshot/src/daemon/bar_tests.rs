@@ -81,6 +81,7 @@ fn recordings(cx: &mut TestAppContext, recorder_missing: bool) -> (Recordings, t
             paths,
             deck: cx.new(|_| Deck::new(DeckPolicy::default())),
             recorder: Rc::new(|_| Err(Error::Unsupported)),
+            window_recorder: None,
             recorder_missing,
             outputs: Rc::new(Vec::new),
             ui: Rc::new(NoUi),

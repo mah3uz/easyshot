@@ -1,6 +1,8 @@
 mod capture;
+mod window_record;
 
 pub use capture::{WindowGeometry, fit_window_frame, normalise_frame};
+pub use window_record::window_recorder;
 
 use crate::error::{BackendError, Result};
 use crate::probe::{Probe, Provider};

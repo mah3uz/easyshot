@@ -47,3 +47,12 @@ pub fn for_backend(backend: Arc<Backend>) -> RecorderFor {
         Ok(Arc::new(Shared(backend.clone(), at)))
     })
 }
+
+/// The recorder that records a window from its own frames, when the backend has one; test mode has none.
+pub fn window_recorder(backend: &Backend) -> Option<Arc<dyn es_record::Recorder>> {
+    #[cfg(feature = "test-hooks")]
+    if super::test_mode_requested() {
+        return None;
+    }
+    backend.window_recorder.clone()
+}

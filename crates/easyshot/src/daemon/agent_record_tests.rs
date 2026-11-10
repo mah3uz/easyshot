@@ -143,6 +143,7 @@ fn rig_with(
             paths: paths.clone(),
             deck: cx.new(|_| Deck::new(DeckPolicy::default())),
             recorder: Rc::new(|_| Ok(Arc::new(FakeRecorder::default()))),
+            window_recorder: None,
             recorder_missing: false,
             outputs: Rc::new(outputs),
             ui: Rc::new(FakeUi),

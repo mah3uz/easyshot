@@ -23,6 +23,7 @@ pub(crate) const CAPS: &[&str] = &[
     "APPEARANCE",
     "CURSOR_STREAM",
     "FOCUS_WINDOW",
+    "RECORD_WINDOW",
 ];
 
 fn cap_text(flag: &str, missing: bool) -> String {
@@ -96,6 +97,10 @@ fn cap_text(flag: &str, missing: bool) -> String {
         "FOCUS_WINDOW" => (
             fl!("doctor-cap-focus-window"),
             fl!("doctor-cap-focus-window-missing"),
+        ),
+        "RECORD_WINDOW" => (
+            fl!("doctor-cap-record-window"),
+            fl!("doctor-cap-record-window-missing"),
         ),
         _ => (flag.to_owned(), String::new()),
     };

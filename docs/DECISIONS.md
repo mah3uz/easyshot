@@ -310,3 +310,16 @@ What was rejected beyond that, and why: not recorded.
     never moves while the deck fans or folds. Rejected: a column of every card, which piled up
     the screen edge; resizing the surface on hover, which shifts the surface under the pointer
     mid-move.
+39. **Window recordings use easyshot's own recorder** (maintainer's decision, 2026-11-10):
+    where the compositor offers ext-foreign-toplevel-image-capture-source, a window is
+    recorded from its own frames, captured by `es-wayland` and encoded by easyshot with
+    GStreamer at a constant frame rate. The window records while covered or on a hidden
+    workspace, which a rectangle recording cannot do. On a live Hyprland output a hidden
+    workspace gave 114 fps and a window under a fullscreen one 60 fps; throttling capture to
+    the target rate costs about a third of capturing every frame. Where the protocol is
+    missing, the rectangle recorder runs as before. Rejected: recording the window's
+    rectangle everywhere, which puts whatever covers the window in the video; and
+    gpu-screen-recorder through the screencast portal, which has the user pick the window in
+    the portal's own dialog instead of the window easyshot's picker chose; skipping that
+    dialog needs a custom picker set in xdg-desktop-portal-hyprland's config, which changes
+    screen sharing for every app and works only on Hyprland.

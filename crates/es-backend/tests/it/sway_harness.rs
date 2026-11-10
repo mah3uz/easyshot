@@ -137,3 +137,78 @@ fn platform_sway_client_without_focus_receives_the_keymap_when_the_seat_has_a_ke
         ),
     }
 }
+
+fn distinct_frames(video: &std::path::Path) -> (usize, usize) {
+    let out = Command::new("ffmpeg")
+        .args(["-v", "error", "-i"])
+        .arg(video)
+        .args(["-f", "framemd5", "-"])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let text = String::from_utf8_lossy(&out.stdout);
+    let sums: Vec<&str> = text
+        .lines()
+        .filter(|l| !l.starts_with('#'))
+        .filter_map(|l| l.rsplit(',').next())
+        .collect();
+    let distinct: std::collections::HashSet<_> = sums.iter().collect();
+    (sums.len(), distinct.len())
+}
+
+#[test]
+#[ignore = "needs headless sway: tests/harness/sway.sh run"]
+fn platform_sway_window_on_a_hidden_workspace_records_with_changing_frames() {
+    let _probe = harness();
+    let app_id = "es-harness-record";
+    swaymsg(&format!(
+        "exec alacritty --class {app_id} -e sh -c 'while :; do date +%N; sleep 0.05; done'"
+    ));
+    let conn = es_wayland::Connection::connect().unwrap();
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let window = loop {
+        if let Some(w) = conn.windows().into_iter().find(|t| t.app_id == app_id) {
+            break w;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "no foreign toplevel for {app_id}"
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    };
+    swaymsg("workspace 2");
+
+    let backend = es_backend::Backend::detect(&Probe::gather().unwrap());
+    let recorder = backend
+        .window_recorder
+        .as_ref()
+        .expect("a window recorder in headless sway");
+    let dir = tempfile::tempdir().unwrap();
+    let spec = es_record::RecordSpec {
+        source: es_record::RecordSource::Window(window),
+        fps: 30,
+        codec: es_record::Codec::H264,
+        container: es_record::Container::Mkv,
+        quality: es_record::Quality::Medium,
+        system_audio: false,
+        mic: None,
+        cursor: false,
+        dir: dir.path().to_path_buf(),
+    };
+    let handle = recorder.start(spec).unwrap();
+    std::thread::sleep(Duration::from_secs(2));
+    let out = futures::executor::block_on(handle.stop()).unwrap();
+    swaymsg(&format!("[app_id={app_id}] kill"));
+
+    let (frames, distinct) = distinct_frames(&out.file);
+    eprintln!("{frames} frames, {distinct} distinct");
+    assert!(frames >= 40, "{frames} frames in two seconds at 30 fps");
+    assert!(
+        distinct >= 5,
+        "only {distinct} distinct frames: the hidden window was not captured"
+    );
+}

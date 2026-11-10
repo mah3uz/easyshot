@@ -222,7 +222,18 @@ fn platform_detect_picks_ext_capture_in_headless_sway() {
         "{}",
         b.doctor_json()
     );
-    assert!(b.caps().contains(Caps::CAPTURE_OUTPUT | Caps::LAYER_SHELL));
+    assert!(
+        b.caps()
+            .contains(Caps::CAPTURE_OUTPUT | Caps::LAYER_SHELL | Caps::RECORD_WINDOW)
+    );
+    assert!(b.window_recorder.is_some());
+}
+
+#[test]
+fn window_recording_needs_the_compositors_toplevel_capture() {
+    let b = Backend::detect_with(&probe(), &fakes());
+    assert!(!b.caps().contains(Caps::RECORD_WINDOW));
+    assert!(b.window_recorder.is_none());
 }
 
 #[test]

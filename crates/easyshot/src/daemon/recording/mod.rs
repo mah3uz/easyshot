@@ -1,5 +1,6 @@
 pub mod agent;
 mod card;
+mod errors;
 #[cfg(any(test, feature = "test-hooks"))]
 pub mod fake;
 mod finish;
@@ -28,7 +29,7 @@ use es_overlays::record::{
 use es_protocol::Route;
 use es_record::input::InputCollector;
 use es_record::project::{CommandRunner, ProjectFolder};
-use es_record::{Clock, RecordSpec, Recorder, RecorderEvent, RecordingHandle};
+use es_record::{Clock, RecordSource, RecordSpec, Recorder, RecorderEvent, RecordingHandle};
 use es_store::Paths;
 use gpui::{App, AppContext as _, Entity, Subscription, Task};
 use std::cell::{Cell, RefCell};
@@ -70,6 +71,8 @@ pub struct Deps {
     pub paths: Paths,
     pub deck: Entity<Deck>,
     pub recorder: RecorderFor,
+    /// Records a window from its own frames; present only where the compositor offers them.
+    pub window_recorder: Option<Arc<dyn Recorder>>,
     pub recorder_missing: bool,
     pub outputs: Rc<dyn Fn() -> Vec<OutputInfo>>,
     pub ui: Rc<dyn RecordingUi>,
@@ -124,19 +127,6 @@ impl Drop for Claim {
 #[derive(Clone)]
 pub struct Recordings(Rc<Inner>);
 
-fn io_error(e: &es_record::Error) -> Error {
-    match e {
-        es_record::Error::Unsupported => Error::Unsupported,
-        es_record::Error::AudioDeviceMissing => Error::AudioDeviceMissing,
-        es_record::Error::AreaOffMonitor => Error::AreaOffMonitor,
-        other => Error::Protocol(other.to_string()),
-    }
-}
-
-fn busy() -> Error {
-    Error::Internal("the recording is busy".into())
-}
-
 /// Holds back only recording starts: screenshots run while a recording does.
 pub fn gate(recordings: &Recordings) -> Gate {
     let recordings = recordings.clone();
@@ -153,10 +143,7 @@ fn saved_toast(title_id: &'static str, file: &std::path::Path) -> Toast {
         .file(file.to_path_buf())
 }
 
-fn none_running() -> Error {
-    Error::NotFound("a running recording".into())
-}
-
+use errors::{busy, io_error, none_running};
 use target::{output_name, resolve};
 
 impl Recordings {
@@ -308,7 +295,10 @@ impl Recordings {
         let (recorded, source) = resolve(&start, &outputs)?;
         let mut cfg = deps.settings.read(cx).config().recording.clone();
         start.options.apply(&mut cfg);
-        let recorder = (deps.recorder)(&cfg.recorder)?;
+        let recorder = match (&source, &deps.window_recorder) {
+            (RecordSource::Window(_), Some(window)) => window.clone(),
+            _ => (deps.recorder)(&cfg.recorder)?,
+        };
         if start.request.system_audio
             && !recorder.can_record_system_audio(start.request.mic.is_some())
         {
@@ -423,6 +413,10 @@ impl Recordings {
                 return;
             }
             RecorderEvent::WindowClosed => {
+                show_toast(
+                    Toast::new("toast-recording-window-closed", IconName::Info),
+                    cx,
+                );
                 let _ = self.stop(cx);
                 return;
             }

@@ -14,6 +14,10 @@ use std::sync::Arc;
 pub struct FakeRecorder {
     pub video: bool,
     pub no_system_audio: bool,
+    /// Named `window`, as the recorder of a window's own frames is.
+    pub window: bool,
+    /// Reports its window closed as soon as it has started.
+    pub closes: bool,
     pub clock: Option<Arc<dyn Clock>>,
 }
 
@@ -36,7 +40,7 @@ impl FakeHandle {
 
 impl Recorder for FakeRecorder {
     fn name(&self) -> &'static str {
-        "fake"
+        if self.window { "window" } else { "fake" }
     }
 
     fn probe(&self) -> RecorderProbe {
@@ -53,6 +57,9 @@ impl Recorder for FakeRecorder {
     fn start(&self, spec: RecordSpec) -> Result<Box<dyn RecordingHandle>> {
         let (tx, rx) = async_channel::unbounded();
         let _ = tx.try_send(RecorderEvent::Started);
+        if self.closes {
+            let _ = tx.try_send(RecorderEvent::WindowClosed);
+        }
         let first = self.clock.as_ref().map_or(0, |c| c.monotonic_us());
         Ok(Box::new(FakeHandle {
             dir: spec.dir,

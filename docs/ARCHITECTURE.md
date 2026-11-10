@@ -33,6 +33,7 @@ design that has not been run on that compositor. Rows name the compositor and da
 | First run in a real session: the daemon started by its systemd user unit, the tray icon registered, a region capture, the editor and Settings. Found and since fixed: editor keys unbound, theme setting ignored, tray icon invisible on Qt bars, stuck Space pan, pointer hiding and cursor flicker. The fixed build is not re-verified | Hyprland (first run, partial) | 2026-11-03 |
 | Second run in a real session, one monitor at 2883,182 and scale 1. Found and since fixed: scrolling capture stuck on its first frame, area recording failing on the offset monitor, the bar in the frozen frame, a capture started during another hanging the overlay. The fixed build is not re-verified | Hyprland (second run, partial) | 2026-11-04 |
 | The daemon in test mode at scale 1.5: scrolling capture of a page that scrolls under an animation stitches past 1200 px; after the capture bar closes, the settle wait reads the layer fade from the compositor (270 ms) and the frozen frame holds none of the bar (`easyshot` platform_scroll, platform_settle) | Hyprland headless output | 2026-11-04 |
+| A window on a hidden workspace recorded for 2 s through `WindowRecorder` and `ToplevelStream` gives a playable `screen.mkv` of 61 changing frames; backend detection sets `Caps::RECORD_WINDOW` (`es-backend`) | headless sway 1.12 | 2026-11-10 |
 | The platform harness starts niri nested on the Hyprland test output and stops it cleanly; no test exercises the niri module there | niri, nested | 2026-11-04 |
 
 Not run: the niri module on niri (it is tested only against recorded replies and fake
@@ -179,7 +180,23 @@ window list provider, which can also list every window on every workspace; recor
 window on a workspace no output shows focuses it first and waits up to a second for an output
 to show it.
 
-The recorder providers are gpu-screen-recorder, then wf-recorder.
+The recorder providers are gpu-screen-recorder, then wf-recorder. Separately,
+`Backend::window_recorder` is es-record's `WindowRecorder` fed by `es-wayland`'s
+`ToplevelStream` through a small adapter in `es-backend/src/wayland/window_record.rs`. It exists,
+and `Caps::RECORD_WINDOW` is set, only when ext-image-copy-capture was chosen, the compositor
+has the ext toplevel capture source and GStreamer has an H.264 encoder. The daemon uses it for
+a `RecordSource::Window` and the chosen recorder provider for everything else, so a window
+recording on niri 26.04 or an older compositor records the window's rectangle as before.
+
+The window recorder has three threads per recording. The capture thread (`es-wayland`, its
+own Wayland connection) requests a frame of the toplevel at most as often as the target frame
+rate and posts it to a one-slot mailbox, where a newer frame replaces an untaken one. The
+pacer thread (`es-window-pacer`) wakes on the GStreamer pipeline clock, takes the newest frame
+or repeats the last one, letterboxes it into the first frame's size and pushes it into an
+`appsrc`. GStreamer encodes (nvh264enc, vah264enc, then x264enc, each pre-rolled on the first
+frame before the clock starts) and muxes into `screen.mkv` from its own streaming threads. The
+GPUI thread only holds the handle. es-record therefore depends on GStreamer; the other
+recorders still run as child processes.
 
 Startup never calls a method on a name that might only be activatable: the probe lists names
 and asks who owns them, introspects the portal through its owner's unique name, and

@@ -250,7 +250,7 @@ useHead({
           <p>Press the key you bound to <code>easyshot record</code>, pick an area, a display or a window, system sound is recorded unless you turn it off, and the microphone only if you choose one. After the countdown a small bar lets you stop, pause, restart or discard.</p>
           <CodeBlock prompt code="easyshot record          # start
 easyshot record stop     # stop and open the trim viewer" />
-          <p>The recording appears as a deck card and opens in the trim viewer, where you cut it and export it. Saved recordings and exports go to <code>~/Videos/easyshot/</code>. One recording runs at a time.</p>
+          <p>The recording appears as a deck card and opens in the trim viewer, where you cut it and export it. Saved recordings and exports go to <code>~/Videos/easyshot/</code>. One recording runs at a time. Where your compositor allows it, a window recording follows that window itself, so it still shows the window when something covers it or it is on another workspace.</p>
         </HowStep>
 
         <!-- 8 -->

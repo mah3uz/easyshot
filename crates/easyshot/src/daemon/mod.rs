@@ -321,7 +321,6 @@ fn start(
         surfaces.clone(),
         capture::copy_file(clipboard.clone()),
     ));
-
     let recorder = recorder::for_backend(backend.clone());
     let recorder_missing = recorder("auto").is_err();
     let tray_feed = tray::TrayFeed::new(
@@ -444,6 +443,7 @@ fn start(
         paths: paths.clone(),
         deck: deck.clone(),
         recorder,
+        window_recorder: recorder::window_recorder(backend),
         recorder_missing,
         outputs: {
             let backend = backend.clone();

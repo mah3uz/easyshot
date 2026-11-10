@@ -37,6 +37,7 @@ bitflags! {
         const APPEARANCE = 131072;
         const CURSOR_STREAM = 262144;
         const FOCUS_WINDOW = 524288;
+        const RECORD_WINDOW = 1048576;
     }
 }
 
@@ -91,6 +92,8 @@ pub struct Backend {
     pub notifier: Box<dyn Notifier>,
     /// Best provider first.
     pub recorders: Vec<Box<dyn Recorder>>,
+    /// Records one window from its own frames; present only where the compositor offers them.
+    pub window_recorder: Option<Arc<dyn Recorder>>,
     pub cursor: Option<Arc<dyn CursorSource>>,
     pub keymap: Option<Arc<dyn KeymapSource>>,
     pub screen_lock: Option<Arc<dyn ScreenLock>>,
@@ -159,6 +162,10 @@ impl Backend {
             shortcuts,
         };
         let recorders = select_all("recorders", reg.recorders, probe, &mut report);
+        let window_recorder = (report.chosen("capture") == Some(wayland::EXT_IMAGE_COPY.name)
+            && probe.globals.toplevel_capture())
+        .then(wayland::window_recorder)
+        .flatten();
         let backend = Backend {
             capture,
             windows: Box::new(windows),
@@ -173,6 +180,7 @@ impl Backend {
             tray,
             notifier,
             recorders,
+            window_recorder,
             overlay: OverlayKind::LayerShell,
             caps: Caps::empty(),
             compositor: CompositorInfo {
@@ -254,6 +262,7 @@ fn derive_caps(b: &Backend, probe: &Probe) -> Caps {
     caps.set(Caps::POINTER_GLOBAL, b.pointer.is_some());
     caps.set(Caps::VIRTUAL_INPUT, b.virtual_input.is_some());
     caps.set(Caps::RECORDER, !b.recorders.is_empty());
+    caps.set(Caps::RECORD_WINDOW, b.window_recorder.is_some());
     caps.set(Caps::OCR, probe.tools.tesseract);
     caps.set(Caps::BIND_CHECK, b.binds.is_some());
     caps.set(Caps::CURSOR_STREAM, b.cursor.is_some());

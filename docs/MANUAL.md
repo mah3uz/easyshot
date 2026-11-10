@@ -447,6 +447,20 @@ it, you get a notice and nothing records. Switching works on Hyprland, sway and 
 (Hyprland and niri unverified); on a desktop that cannot focus a window by command, only
 windows already on screen record.
 
+Where the compositor lets easyshot capture a window by itself (sway, Hyprland and other
+compositors with window capture), a window recording records that
+window's own pictures, so the video shows the window even when something covers it or it is on
+another workspace. The recording has no sound. It runs at the frame rate you set and is encoded by
+easyshot with GStreamer on your graphics card where it can (NVENC, then VA-API) and on the
+processor otherwise. If the window is resized the video keeps its first size and shows the
+window fitted inside it with bars. If the window closes, the recording stops, is kept, and
+you get the notice "The window closed". The pointer track in `input.json` is relative to
+where the window was when the recording started, so it is off if you move the window. On sway
+a window is recorded at its logical size, not at the scaled display's pixels. Where window
+capture is not available, such as niri's current release, a window recording records the
+area the window covers on screen with gpu-screen-recorder or wf-recorder, so anything over
+the window is in the video.
+
 wf-recorder records one audio track. With it, system sound is the default output's monitor, and
 a recording with a microphone, or with no default output found, is made without system sound;
 easyshot says so when it starts.
