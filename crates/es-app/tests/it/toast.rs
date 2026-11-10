@@ -58,6 +58,8 @@ impl Shown {
             duration: ERROR_DURATION,
             output: None,
             undo: None,
+            on_close: None,
+            closed: Default::default(),
         })
     }
 
@@ -70,6 +72,8 @@ impl Shown {
             duration: UNDO_DURATION,
             output: None,
             undo: Some(("Undo".into(), ToastUndo::new(move |_| undone.set(true)))),
+            on_close: None,
+            closed: Default::default(),
         })
     }
 

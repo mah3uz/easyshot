@@ -104,6 +104,8 @@ mod harness {
                         duration: TOAST_DURATION * 2,
                         output: None,
                         undo: None,
+                        on_close: None,
+                        closed: Default::default(),
                     },
                     cx,
                 );

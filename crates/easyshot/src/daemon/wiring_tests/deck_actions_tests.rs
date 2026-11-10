@@ -1,7 +1,7 @@
 use super::*;
 use crate::daemon::routes::deck_events;
 use es_app::deck::{DeckAction, DeckItem, ItemStatus};
-use es_app::toast::{MemorySink, UNDO_DURATION, install_toasts};
+use es_app::toast::{CloseReason, MemorySink, UNDO_DURATION, install_toasts};
 use es_model::CaptureKind;
 use es_overlays::pin::Pins;
 use es_shell::preview::Preview;
@@ -239,13 +239,29 @@ fn delete_of_an_unsaved_capture_discards_it_and_undo_returns_the_card(cx: &mut T
 }
 
 #[gpui::test]
-fn an_unsaved_capture_is_gone_for_good_once_the_undo_window_passes(cx: &mut TestAppContext) {
+fn undo_outlives_the_undo_duration_while_the_toast_is_held_open(cx: &mut TestAppContext) {
     let f = fixture(cx);
     let item = staged_card(&f, cx);
     act(&f, &item, DeckAction::Delete, cx);
 
-    cx.executor()
-        .advance_clock(UNDO_DURATION + Duration::from_secs(1));
+    cx.executor().advance_clock(UNDO_DURATION * 2);
+    cx.run_until_parked();
+
+    assert!(
+        item.file.exists(),
+        "the staging stays while the toast is up"
+    );
+    press_undo(&f, cx);
+    assert_eq!(on_deck(&f, cx), 1);
+}
+
+#[gpui::test]
+fn an_unsaved_capture_is_gone_for_good_once_its_toast_closes(cx: &mut TestAppContext) {
+    let f = fixture(cx);
+    let item = staged_card(&f, cx);
+    act(&f, &item, DeckAction::Delete, cx);
+
+    cx.update(|cx| f.sink.close(0, CloseReason::Expired, cx));
     cx.run_until_parked();
 
     assert!(!item.file.exists(), "the staging is removed");

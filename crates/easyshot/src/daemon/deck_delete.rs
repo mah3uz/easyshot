@@ -1,6 +1,6 @@
 use es_app::deck::{Deck, DeckItem};
 use es_app::history::History;
-use es_app::toast::{IconName, Toast, UNDO_DURATION, show_toast};
+use es_app::toast::{CloseReason, IconName, Toast, show_toast};
 use es_shell::gallery::GalleryFiles;
 use es_shell::gallery::files::capture_files;
 use es_store::Paths;
@@ -81,20 +81,24 @@ pub fn delete_card(d: &Deletion, item: DeckItem, cx: &mut App) {
     } else {
         "toast-deleted"
     };
-    show_toast(Toast::new(title, IconName::Delete).undoable(undo), cx);
-
     let (paths, id, staged) = (d.paths.clone(), item.id, item.staged);
-    cx.spawn(async move |cx| {
-        cx.background_executor().timer(UNDO_DURATION).await;
-        if open.replace(false) && staged {
-            cx.background_executor()
-                .spawn(async move {
-                    if let Err(e) = es_store::Deck::new(&paths).remove(id) {
-                        tracing::warn!(error = %e, "deck staging not removed");
-                    }
-                })
-                .detach();
+    let cleanup = move |reason: CloseReason, cx: &mut App| {
+        if reason == CloseReason::Undone || !open.replace(false) || !staged {
+            return;
         }
-    })
-    .detach();
+        let paths = paths.clone();
+        cx.background_executor()
+            .spawn(async move {
+                if let Err(e) = es_store::Deck::new(&paths).remove(id) {
+                    tracing::warn!(error = %e, "deck staging not removed");
+                }
+            })
+            .detach();
+    };
+    show_toast(
+        Toast::new(title, IconName::Delete)
+            .undoable(undo)
+            .on_close(cleanup),
+        cx,
+    );
 }

@@ -20,7 +20,6 @@ use crate::{
 
 use super::button::{ButtonKind, EditorButton};
 
-pub const TOAST_DURATION: Duration = Duration::from_millis(2500);
 const RADIUS: Pixels = px(14.);
 const PADDING_X: Pixels = px(16.);
 const PADDING_Y: Pixels = px(11.);
@@ -75,19 +74,30 @@ pub struct ToastClock {
 impl ToastClock {
     /// Calls `done` on the entity that keeps the clock once the time is used up; dropping the clock stops it.
     pub fn start<T: 'static>(
+        label: impl Into<SharedString>,
         duration: Duration,
         cx: &mut Context<T>,
         done: impl FnOnce(&mut T, &mut Context<T>) + 'static,
     ) -> Self {
         let hovered = Rc::new(Cell::new(false));
         let over = hovered.clone();
+        let label: SharedString = label.into();
         let run = cx.spawn(async move |this, cx| {
             let mut countdown = Countdown::new(duration);
             let mut last = cx.background_executor().now();
+            let mut was_over = false;
             loop {
                 cx.background_executor().timer(TICK).await;
                 let now = cx.background_executor().now();
-                if countdown.advance(now - last, over.get()) {
+                let is_over = over.get();
+                if is_over != was_over {
+                    was_over = is_over;
+                    let left = countdown.remaining();
+                    tracing::debug!(target: "easyshot::toast", toast = %label, ?left, hovered = is_over, "toast hover changed");
+                    let state = if is_over { "paused" } else { "resumed" };
+                    tracing::debug!(target: "easyshot::toast", toast = %label, ?left, "toast countdown {state}");
+                }
+                if countdown.advance(now - last, is_over) {
                     break;
                 }
                 last = now;

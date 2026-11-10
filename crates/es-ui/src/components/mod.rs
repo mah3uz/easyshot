@@ -48,5 +48,5 @@ pub use focus_pad::{CENTRE, FOCUS_PAD_HEIGHT, FocusPad};
 pub use menu::{MenuItem, MenuLead, MenuNote, MenuSection};
 pub use popover::{Popover, shadow as popover_shadow};
 pub use preset_bar::PresetBar;
-pub use toast::{Countdown, TOAST_DURATION, Toast, ToastClock, ToastStyle};
+pub use toast::{Countdown, Toast, ToastClock, ToastStyle};
 pub use tooltip::Tip;

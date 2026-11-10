@@ -41,11 +41,10 @@ if [ -n "$menu_hits" ]; then
     printf '%s\n' "$menu_hits" >&2
     exit 1
 fi
-# deck_delete's Undo window is still its own timer; it needs the toast to say when it has gone.
 toast_timer_hits=$(grep -rnIE \
     -e 'timer\((TOAST_DURATION|ERROR_DURATION|UNDO_DURATION|TOAST_HOLD)' \
     --include='*.rs' --exclude-dir=target --exclude-dir=tests crates |
-    grep -v -e '^crates/es-ui/src/components/toast.rs:' -e '^crates/easyshot/src/daemon/deck_delete.rs:' || true)
+    grep -v -e '^crates/es-ui/src/components/toast.rs:' || true)
 
 if [ -n "$toast_timer_hits" ]; then
     echo "grep-guard: a toast timed outside crates/es-ui/src/components/toast.rs (use ToastClock)" >&2

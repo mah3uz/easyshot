@@ -3,6 +3,7 @@ use es_desktop::{DEFAULT_ACTION, Notification, NotificationId, Notifier, Urgency
 use es_model::platform::OutputId;
 use gpui::{App, BorrowAppContext, Global};
 use i18n_embed::fluent::FluentLanguageLoader;
+use std::cell::Cell;
 use std::collections::{HashMap, VecDeque};
 use std::fmt;
 use std::path::PathBuf;
@@ -33,6 +34,15 @@ pub enum ToastStyle {
     Normal,
     Error,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CloseReason {
+    Expired,
+    Undone,
+    Replaced,
+}
+
+pub type OnClose = Rc<dyn Fn(CloseReason, &mut App)>;
 
 /// What pressing Undo on a toast, or on the notification standing in for it, does.
 #[derive(Clone)]
@@ -76,6 +86,8 @@ pub struct Toast {
     /// The notification also offers to open `file` in the editor.
     pub edit: bool,
     pub undo: Option<ToastUndo>,
+    /// Runs once when the toast's life ends, however it ends.
+    pub on_close: Option<OnClose>,
 }
 
 impl Toast {
@@ -90,6 +102,7 @@ impl Toast {
             file: None,
             edit: false,
             undo: None,
+            on_close: None,
         }
     }
 
@@ -121,6 +134,11 @@ impl Toast {
         self
     }
 
+    pub fn on_close(mut self, on_close: impl Fn(CloseReason, &mut App) + 'static) -> Self {
+        self.on_close = Some(Rc::new(on_close));
+        self
+    }
+
     /// Adds an Undo button, and keeps the toast up for [`UNDO_DURATION`].
     pub fn undoable(mut self, undo: impl Fn(&mut App) + 'static) -> Self {
         self.undo = Some(ToastUndo::new(undo));
@@ -140,9 +158,23 @@ pub struct ToastRequest {
     pub output: Option<OutputId>,
     /// The label of the Undo button and what it does.
     pub undo: Option<(String, ToastUndo)>,
+    pub on_close: Option<OnClose>,
+    /// Shared by clones, so a request closes once.
+    pub closed: Rc<Cell<bool>>,
 }
 
 impl ToastRequest {
+    /// Logs the close and runs `on_close`; only the first call for a toast does anything.
+    pub fn close(&self, reason: CloseReason, cx: &mut App) {
+        if self.closed.replace(true) {
+            return;
+        }
+        tracing::debug!(target: "easyshot::toast", title = %self.title, ?reason, "toast closed");
+        if let Some(on_close) = &self.on_close {
+            on_close(reason, cx);
+        }
+    }
+
     pub fn resolve(toast: &Toast) -> Self {
         Self::resolve_in(loader(), toast)
     }
@@ -167,6 +199,8 @@ impl ToastRequest {
             duration: toast.duration,
             output: toast.output.clone(),
             undo: toast.undo.clone().map(|undo| (l.get("toast-undo"), undo)),
+            on_close: toast.on_close.clone(),
+            closed: Rc::default(),
         }
     }
 }
@@ -195,6 +229,12 @@ impl MemorySink {
             hidden: true,
             ..Self::default()
         })
+    }
+
+    /// Closes the `index`th toast shown, as its surface would.
+    pub fn close(&self, index: usize, reason: CloseReason, cx: &mut App) {
+        let request = self.shown()[index].clone();
+        request.close(reason, cx);
     }
 
     pub fn shown(&self) -> Vec<ToastRequest> {
@@ -303,14 +343,21 @@ pub fn show_toast(t: Toast, cx: &mut App) {
         ToastStyle::Normal => Urgency::Low,
     };
     let note = Notification {
-        title: request.title,
-        body: request.message.unwrap_or_default(),
+        title: request.title.clone(),
+        body: request.message.clone().unwrap_or_default(),
         icon: None,
         image: None,
         actions: notice_actions(&t),
         urgency,
         timeout: Some(request.duration),
     };
+    // The notification server owns the timeout and hover is invisible here, so the toast's life is its duration.
+    let expiry = request.clone();
+    cx.spawn(async move |cx| {
+        cx.background_executor().timer(expiry.duration).await;
+        let _ = cx.update(|cx| expiry.close(CloseReason::Expired, cx));
+    })
+    .detach();
     match notifier.notify(note) {
         Ok(id) => {
             if t.file.is_some() || t.undo.is_some() {

@@ -1,7 +1,7 @@
 use super::surfaces::{LayerShellSurfaces, LayerSurfaceHandle};
 use super::{SurfaceHandle as _, SurfaceRole};
 use crate::errors::{Error, Result};
-use crate::toast::{ToastRequest, ToastSink, ToastStyle};
+use crate::toast::{CloseReason, ToastRequest, ToastSink, ToastStyle};
 use es_geom::Size;
 use es_model::platform::OutputId;
 use es_ui::components::{Toast, ToastClock, ToastStyle as CardStyle};
@@ -35,7 +35,9 @@ impl ToastHost {
         cx: &mut App,
     ) -> Entity<Self> {
         cx.new(|cx| {
-            let clock = ToastClock::start(toast.duration, cx, |host: &mut ToastHost, cx| {
+            let label = format!("{} {}", cx.entity_id().as_u64(), toast.title);
+            let clock = ToastClock::start(label, toast.duration, cx, |host: &mut ToastHost, cx| {
+                host.toast.close(CloseReason::Expired, cx);
                 host.leaving = true;
                 cx.notify();
                 cx.spawn(async move |this, cx| {
@@ -79,8 +81,10 @@ impl Render for ToastHost {
         }
         if let Some((label, undo)) = t.undo.clone() {
             let close = self.close.clone();
+            let request = t.clone();
             card = card.action(label, move |_, cx| {
                 undo.run(cx);
+                request.close(CloseReason::Undone, cx);
                 let close = close.clone();
                 cx.defer(move |cx| close(cx));
             });
@@ -109,6 +113,7 @@ pub fn card_icon(icon: gpui_component::IconName) -> Option<IconName> {
 
 struct Shown {
     id: u64,
+    request: ToastRequest,
     handle: LayerSurfaceHandle,
 }
 
@@ -147,12 +152,18 @@ impl ToastSurface {
         let shown = self.shown.clone();
         let host = ToastHost::start(toast.clone(), move |cx| close(&shown, id, cx), cx);
         handle.set_content(host.into(), cx);
-        *self.shown.borrow_mut() = Some(Shown { id, handle });
+        *self.shown.borrow_mut() = Some(Shown {
+            id,
+            request: toast.clone(),
+            handle,
+        });
         Ok(output)
     }
 
     pub fn dismiss(&self, cx: &mut App) {
-        if let Some(old) = self.shown.borrow_mut().take() {
+        let old = self.shown.borrow_mut().take();
+        if let Some(old) = old {
+            old.request.close(CloseReason::Replaced, cx);
             old.handle.close(cx);
         }
     }

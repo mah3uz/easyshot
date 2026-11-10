@@ -154,7 +154,7 @@ opens the editor. Each capture also appears as a card in a floating preview deck
   switch between fitted and 100%, and press Space or Esc to close it. The card stays on the
   deck, and there are no editing tools;
 - Delete moves the capture, with its annotations, to the desktop Trash and shows a toast with
-  an Undo button for 8 seconds; Undo puts the files back and the card returns to the deck.
+  an Undo button, which works for as long as the toast is shown; Undo puts the files back and the card returns to the deck.
   A capture that was never saved is discarded the same way and Undo returns the card. Neither
   action appears on a recording's card;
 - drag a card out into another app or a file manager, which gets a copy of the file;

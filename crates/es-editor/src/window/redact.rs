@@ -207,7 +207,7 @@ impl EditorWindow {
             text: toast_text(added.len(), &kinds),
             added,
         });
-        self.redact_tasks.toast = Some(ToastClock::start(TOAST_HOLD, cx, |w, cx| {
+        self.redact_tasks.toast = Some(ToastClock::start("redaction", TOAST_HOLD, cx, |w, cx| {
             w.redact_toast = None;
             cx.notify();
         }));
