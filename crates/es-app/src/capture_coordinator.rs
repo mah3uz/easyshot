@@ -15,6 +15,8 @@ use std::time::Duration;
 pub const UNMAP_SETTLE: Duration = Duration::from_millis(150);
 /// The close reaching the compositor and its next repaint, past the animation it reports.
 pub const REPAINT_MARGIN: Duration = Duration::from_millis(50);
+/// A tray host may keep its menu up this long after a click: hidden 80 ms later, faded for 150 ms.
+pub const TRAY_MENU_CLOSE: Duration = Duration::from_millis(230);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CaptureKind {
@@ -53,6 +55,8 @@ pub struct CaptureRequest {
     pub kind: CaptureKind,
     pub variant: CaptureVariant,
     pub timer: Timer,
+    /// Asked for from the tray menu, which may still be on screen.
+    pub from_tray_menu: bool,
 }
 
 impl CaptureRequest {
@@ -61,11 +65,19 @@ impl CaptureRequest {
             kind,
             variant,
             timer: Timer::Off,
+            from_tray_menu: false,
         }
     }
 
     pub fn timed(self, timer: Timer) -> Self {
         Self { timer, ..self }
+    }
+
+    pub fn from_tray_menu(self) -> Self {
+        Self {
+            from_tray_menu: true,
+            ..self
+        }
     }
 }
 
@@ -339,8 +351,12 @@ impl CaptureCoordinator {
         let async_cx = cx.to_async();
         let jobs = inner.jobs.clone();
         jobs.spawn(job, cx, move |_| async move {
+            let menu = request.from_tray_menu.then(|| tray_menu_settle(&async_cx));
             if closed {
                 settle(&async_cx).await;
+            }
+            if let Some(menu) = menu {
+                menu.await;
             }
             let picked = match async_cx.update(|cx| select(request.kind, &hooks, cx)) {
                 Ok(task) => task.await,
@@ -426,6 +442,11 @@ pub async fn settle(cx: &AsyncApp) {
         None => None,
     };
     cx.background_executor().timer(unmap_settle(linger)).await;
+}
+
+fn tray_menu_settle(cx: &AsyncApp) -> Task<()> {
+    cx.background_executor()
+        .timer(TRAY_MENU_CLOSE + REPAINT_MARGIN)
 }
 
 fn linger(backend: &Backend) -> Option<Duration> {

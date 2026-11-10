@@ -280,7 +280,10 @@ as a missing wallpaper. `es_store::wallpapers::read` reads only a regular file o
   about 250 ms on a 270 ms `fadeLayersOut`). The wait is what the `fade` provider
   (`LayerFade`, Hyprland only: `animations:enabled` and the longer of `layersOut` and
   `fadeLayersOut`, read when the wait starts) reports plus `REPAINT_MARGIN` (50 ms), or
-  `UNMAP_SETTLE` (150 ms) without one. Agent captures and agent recording
+  `UNMAP_SETTLE` (150 ms) without one. A capture routed from the tray (`Origin::Tray`, so a
+  click in the host's menu) waits `TRAY_MENU_CLOSE` (230 ms) plus `REPAINT_MARGIN` before
+  freezing, overlapping any settle: the click reaches us before the host hides its menu, and
+  DankMaterialShell hides it 80 ms after the click and fades it for 150 ms. Agent captures and agent recording
   starts take a `Claim`, which refuses while anything runs; agents get
   `invalid_arguments` "busy". A recording holds the coordinator through its start delay
   and releases it once the recorder runs, so screenshots run during a recording, and

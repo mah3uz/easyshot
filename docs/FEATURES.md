@@ -99,6 +99,7 @@ More in the manual: [Pinned screenshots](MANUAL.md#pinned-screenshots).
 - Offers Unpin All Windows while a screenshot is pinned.
 - Shows Stop Recording, Pause, Restart and Discard with the elapsed time while a recording runs, and a red dot on the icon.
 - Shows a Revoke row and a badge on the icon while an agent has access.
+- Starts a capture once your panel has closed the menu, so the menu is never in the shot.
 
 More in the manual: [The tray menu](MANUAL.md#the-tray-menu).
 

@@ -1,5 +1,7 @@
 #![allow(clippy::unwrap_used)]
-use es_app::capture_coordinator::{CaptureCoordinator, Direct, DirectCapture, Timer};
+use es_app::capture_coordinator::{
+    CaptureCoordinator, Direct, DirectCapture, REPAINT_MARGIN, TRAY_MENU_CLOSE, Timer,
+};
 use es_app::dispatcher::RouteDispatcher;
 use es_app::errors::Result;
 use es_app::events::Origin;
@@ -163,12 +165,54 @@ fn every_route_reaches_its_handler_and_its_job_finishes_ok(cx: &mut TestAppConte
         rig.log.borrow_mut().clear();
         let name = route.to_string();
         let job = cx.update(|cx| rig.dispatcher.dispatch(route, Origin::Tray, cx));
+        cx.executor()
+            .advance_clock(TRAY_MENU_CLOSE + REPAINT_MARGIN);
         cx.run_until_parked();
         assert_eq!(*rig.log.borrow(), expected, "{name}");
         let done = rig.done.try_recv().unwrap();
         assert_eq!((done.id, done.status), (job, JobStatus::Ok), "{name}");
         assert!(rig.done.try_recv().is_err(), "{name}");
     }
+}
+
+// The host closes its menu after the click reaches us; a frame grabbed before then shows it.
+#[gpui::test]
+fn a_capture_from_the_tray_menu_grabs_the_screen_only_once_the_menu_is_gone(
+    cx: &mut TestAppContext,
+) {
+    let rig = rig(true);
+    let job = cx.update(|cx| {
+        rig.dispatcher
+            .dispatch(Route::CaptureWindow, Origin::Tray, cx)
+    });
+    cx.run_until_parked();
+    assert!(rig.log.borrow().is_empty(), "the menu is still up");
+    cx.executor().advance_clock(TRAY_MENU_CLOSE);
+    cx.run_until_parked();
+    assert!(
+        rig.log.borrow().is_empty(),
+        "faded, but not yet repainted without it"
+    );
+    cx.executor().advance_clock(REPAINT_MARGIN);
+    cx.run_until_parked();
+    assert_eq!(*rig.log.borrow(), ["Window Normal"]);
+    assert_eq!(rig.done.try_recv().unwrap().id, job);
+}
+
+#[gpui::test]
+fn only_a_capture_from_the_tray_menu_waits(cx: &mut TestAppContext) {
+    let rig = rig(true);
+    cx.update(|cx| {
+        rig.dispatcher
+            .dispatch(Route::CaptureWindow, Origin::Shortcut, cx);
+        rig.dispatcher
+            .dispatch(Route::Settings(None), Origin::Tray, cx);
+    });
+    cx.run_until_parked();
+    assert_eq!(
+        *rig.log.borrow(),
+        ["Home Single", "ShowHome(Settings(None))", "Window Normal"]
+    );
 }
 
 #[gpui::test]

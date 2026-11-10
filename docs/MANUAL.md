@@ -178,6 +178,9 @@ The tray icon holds the same actions as the keys, so everything is one click awa
 - While an agent has access, a row such as "Agent access until 14:05 — Revoke" (see Consent).
 - Settings, Quit, and the version, greyed.
 
+A capture started from the menu begins about a third of a second after your click, once your
+panel has taken the menu off the screen, so the menu is never in the frozen screen or the shot.
+
 ## The editor
 
 The editor has 13 tools. You can select, move, resize and rotate shapes, bind arrows to

@@ -153,6 +153,10 @@ impl RouteDispatcher {
         tracing::debug!(%route, ?origin, job = job.0, "dispatch");
         let result = match target(route) {
             Target::Capture(request) => {
+                let request = match origin {
+                    Origin::Tray => request.from_tray_menu(),
+                    _ => request,
+                };
                 self.coordinator.submit(job, request, cx);
                 return;
             }
