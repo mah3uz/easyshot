@@ -1,5 +1,6 @@
 #![allow(clippy::unwrap_used)]
 use super::*;
+use es_model::recording::RecordingInput;
 
 const CTRL: u16 = 29;
 const KEY_A: u16 = 30;
@@ -42,9 +43,7 @@ impl Rig {
     }
 
     fn input_json(&self) -> serde_json::Value {
-        let folder = self.folders().remove(0);
-        serde_json::from_slice(&std::fs::read(folder.join(es_record::project::INPUT)).unwrap())
-            .unwrap()
+        serde_json::to_value(self.stored::<RecordingInput>()).unwrap()
     }
 }
 

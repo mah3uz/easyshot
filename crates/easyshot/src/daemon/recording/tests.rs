@@ -3,6 +3,7 @@ use super::fake::FakeRecorder;
 use super::*;
 use es_app::deck::{DeckItem, DeckPolicy};
 use es_model::platform::WindowInfo;
+use es_model::recording::RecordingCapture;
 use es_record::project::CommandRunner;
 use es_record::{Clock, recovery};
 use es_store::ConfigFile;
@@ -278,11 +279,9 @@ async fn pause_is_not_recorded_and_stop_leaves_a_video_card(cx: &mut TestAppCont
     let cards = cards(&rig, cx);
     assert_eq!(cards.len(), 1);
     assert!(cards[0].video && !cards[0].staged);
-    let folder = rig.folders().remove(0);
-    let capture: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(folder.join("capture.json")).unwrap()).unwrap();
+    let capture = rig.stored::<RecordingCapture>();
     assert_eq!(
-        capture["duration_secs"], 7.0,
+        capture.duration_secs, 7.0,
         "5 s + 2 s, the 10 s pause left out"
     );
     let log = rig.log.borrow();
@@ -504,10 +503,7 @@ async fn a_recorder_without_system_sound_still_records_and_the_file_says_so(
     assert!(rig.recordings.is_recording());
     cx.update(|cx| rig.recordings.stop(cx)).unwrap();
     cx.run_until_parked();
-    let folder = rig.folders().remove(0);
-    let capture: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(folder.join("capture.json")).unwrap()).unwrap();
-    assert_eq!(capture["includes_system_audio"], false);
+    assert!(!rig.stored::<RecordingCapture>().includes_system_audio);
 }
 
 #[gpui::test]

@@ -155,7 +155,11 @@ fn a_video_saved_or_recorded_after_the_menu_was_built_reaches_it_on_the_library_
     let project = rig.paths.recordings_dir().join("unsaved.easyshotrec");
     std::fs::create_dir_all(&project).unwrap();
     std::fs::write(project.join("screen.mkv"), b"v").unwrap();
-    std::fs::write(project.join("capture.json"), r#"{"duration_secs":3.0}"#).unwrap();
+    let capture = es_model::recording::RecordingCapture {
+        duration_secs: 3.0,
+        ..Default::default()
+    };
+    es_store::recording::write(&project, &capture).unwrap();
     cx.update(|cx| rig.history.update(cx, |h, cx| h.videos_changed(cx)));
 
     let mut shown = tray.recent("tray-recent-recordings");

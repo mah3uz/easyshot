@@ -26,11 +26,18 @@ fn window_recorder(closes: bool) -> FakeRecorder {
     }
 }
 
+impl Rig {
+    pub(super) fn stored<T: es_store::recording::RecordingFile>(&self) -> T {
+        let file = es_store::recording::read::<T>(&self.folders()[0])
+            .unwrap()
+            .unwrap();
+        assert_eq!(file.newer_version(), None);
+        file.value
+    }
+}
+
 fn recorder_in_capture_json(rig: &Rig) -> String {
-    let folder = rig.folders().remove(0);
-    let capture: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(folder.join("capture.json")).unwrap()).unwrap();
-    capture["recorder"].as_str().unwrap().to_owned()
+    rig.stored::<RecordingCapture>().recorder
 }
 
 fn record(start: Start, rig: &Rig, cx: &mut TestAppContext) {

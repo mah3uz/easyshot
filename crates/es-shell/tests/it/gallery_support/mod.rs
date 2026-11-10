@@ -128,7 +128,11 @@ pub fn videos(paths: &Paths, count: usize) {
                 .recordings_dir()
                 .join(format!("Recording {k:02}.easyshotrec"));
             std::fs::create_dir_all(&dir).unwrap();
-            std::fs::write(dir.join("capture.json"), r#"{"duration_secs":75.0}"#).unwrap();
+            let capture = es_model::recording::RecordingCapture {
+                duration_secs: 75.0,
+                ..Default::default()
+            };
+            es_store::recording::write(&dir, &capture).unwrap();
             dir.join("screen.mkv")
         } else {
             folder.join(format!("Recording {k:02}.mp4"))
