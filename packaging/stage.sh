@@ -6,6 +6,7 @@ bin=$1 src=$2 dest=$3
 
 mkdir -p "$dest/completions" "$dest/icons"
 cp "$bin/easyshot" "$src"/{LICENSE,CHANGELOG.md,docs/MANUAL.md} "$dest/"
+install -m755 "$src/packaging/install.sh" "$dest/install.sh"
 cp -r "$src/LICENSES" "$dest/"
 app_id=$("$src/scripts/app-id.sh")
 icons=$src/assets/icons/app

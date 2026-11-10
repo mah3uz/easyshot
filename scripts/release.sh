@@ -44,6 +44,7 @@ echo "==> $tag: building"
 echo "==> $name.tar.gz"
 "$work/src/packaging/stage.sh" "$build/release" "$work/src" "$work/$name"
 pack "$name" | gzip -n -9 > "$dist/$name.tar.gz"
+tar -tzf "$dist/$name.tar.gz" | grep -qx "$name/install.sh" || fail "$name.tar.gz has no install.sh"
 
 echo "==> $vendored"
 mkdir "$work/src/.cargo"

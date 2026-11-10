@@ -59,15 +59,15 @@ deck, the editor, settings, gallery, tray, recording and the command line.
 ## Install
 
 On Arch Linux, two packages are prepared in `packaging/aur/`: `easyshot` (builds the
-release from its vendored source) and `easyshot-bin` (prebuilt). Neither is on the AUR yet.
+release from its vendored source) and `easyshot-bin` (prebuilt).
 From a checkout, this builds the package and installs it with pacman (it asks for sudo):
 
 ```
 just install
 ```
 
-The package enables and starts the user service `easyshot.service`. There are no packages
-for other distributions.
+The package enables and starts the user service `easyshot.service`. On other distributions,
+the release tarball has an `install.sh`; see "Other distributions" in `docs/MANUAL.md`.
 
 To build from source, use the Rust 1.98.1 that `rust-toolchain.toml` pins:
 

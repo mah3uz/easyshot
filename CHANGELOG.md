@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### New
+- The release tarball has an `install.sh` that installs easyshot for all users or just you (`--user`) on any distribution, starts it, and removes it again with `--uninstall`.
 - Screenshots of a region, a window, a whole screen or the previous target, always on a frozen screen; text and QR codes (OCR); a colour picker; pins that stay on top; an editor with 13 tools; and a history of your captures.
 - Toasts stay 2.5 seconds, an error 5 and one with Undo 8, and wait while the pointer is on them.
 - The desktop portal is followed while easyshot runs: a file chooser, light or dark and Reduce Motion that start after easyshot are used from then on, an export with no file chooser shows a notice saying where the file went, and `easyshot doctor` reports notification buttons and portal features as they are now.

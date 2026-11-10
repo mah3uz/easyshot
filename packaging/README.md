@@ -3,6 +3,11 @@
 - `stage.sh BIN SOURCE DEST` puts the binary and the files that go with it (icons, desktop
   entry, systemd and D-Bus units, metainfo, completions, manual, licences) into one
   directory. Every package is made from its output.
+- `install.sh` is staged into the tarball root. `./install.sh` installs system-wide under
+  `PREFIX` (default `/usr/local`), `./install.sh --user` under `~/.local`, and `--uninstall`
+  removes what it put there. It lays files out as the AUR packages do, points the unit, the
+  D-Bus service and the desktop entries at the installed binary, and honours `DESTDIR`.
+  `EASYSHOT_NO_SYSTEMCTL=1` skips systemctl; `just install-test` runs it that way.
 - `data/` holds the templates `stage.sh` fills in.
 - `aur/easyshot-bin/` installs the release's prebuilt tarball.
 - `aur/easyshot/` builds the release's vendored source tarball offline. It needs `rustup`
@@ -12,8 +17,7 @@ Each AUR directory carries the same `easyshot.install` (`release.sh` fails if th
 it enables the user unit for all users, starts it for logged-in users on install, restarts it
 where it is running on upgrade, and stops it on removal.
 
-The two AUR packages conflict with each other and provide `easyshot`. Neither is published
-yet.
+The two AUR packages conflict with each other and provide `easyshot`.
 
 ## Cutting a release
 

@@ -32,7 +32,40 @@ and keeps a history.
 
 On Arch Linux there are two AUR packages: `easyshot`, which builds the release from source,
 and `easyshot-bin`, which installs the prebuilt release. They conflict with each other, so
-install one. There are no packages for other distributions.
+install one.
+
+### Other distributions
+
+Every release carries a prebuilt tarball and an install script. Download
+`easyshot-VERSION-x86_64-unknown-linux-gnu.tar.gz`, `SHA256SUMS` and `SHA256SUMS.minisig`
+from the [releases page](https://github.com/mah3uz/easyshot/releases/latest), then check
+them with [minisign](https://jedisct1.github.io/minisign/) and extract:
+
+```
+minisign -Vm SHA256SUMS -P RWRZb1Z2R8olADDs9ZWFvon7YercRduazJtfJoN3vltGVOU8I7zXuZE5
+sha256sum -c --ignore-missing SHA256SUMS
+tar xzf easyshot-VERSION-x86_64-unknown-linux-gnu.tar.gz
+cd easyshot-VERSION-x86_64-unknown-linux-gnu
+```
+
+Then install it for every user, under `/usr/local`, or for yourself only, under `~/.local`:
+
+```
+sudo ./install.sh
+./install.sh --user
+```
+
+`PREFIX=/usr ./install.sh` picks another prefix, and `DESTDIR` stages the files for a
+package. For your own install, the script enables and starts `easyshot.service`. For a
+system-wide install, each user runs `systemctl --user enable --now easyshot.service` once.
+Put `~/.local/bin` on your `PATH` if you installed with `--user`.
+
+The tarball holds easyshot only. Install the packages listed in [What it needs](#what-it-needs)
+yourself: GStreamer and its plugins, ffmpeg, and, if you want them, Tesseract and a screen
+recorder.
+
+To remove it, run `./install.sh --uninstall` (with `--user` or `sudo`, as you installed) from
+the same directory. It deletes only the files it installed; your captures and settings stay.
 
 Installing the package enables `easyshot.service` for every user and starts it for each user
 who is logged in. Updating or reinstalling it restarts the daemon where it is running and

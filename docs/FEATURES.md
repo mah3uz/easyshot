@@ -13,7 +13,7 @@ More in the manual: [What it needs](MANUAL.md#what-it-needs).
 
 ## Installing and running
 
-- Installs on Arch Linux from two AUR packages: one builds from source, one is prebuilt.
+- Installs on Arch Linux from two AUR packages: one builds from source, one is prebuilt. On other distributions, a signed prebuilt tarball has an install script, for all users or just you.
 - Starts by itself with each graphical session once the package is installed, and an update restarts it.
 - Runs as one background program that every `easyshot` command talks to, and starts it if it is not running.
 - Adds Easyshot to your application menu, where it opens the Home window.

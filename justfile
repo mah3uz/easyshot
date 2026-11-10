@@ -119,8 +119,12 @@ gpui-guard:
 release-check:
     scripts/release-check.sh
 
+# Run install.sh from a staged release into temporary directories
+install-test:
+    scripts/install-test.sh
+
 # The gate: everything that must pass before a merge
-check: lint layers grep-guard file-size i18n-check wiring-check gpui-guard test
+check: lint layers grep-guard file-size i18n-check wiring-check gpui-guard install-test test
     tests/harness/sway.sh platform
     tests/harness/niri.sh platform
     tests/harness/hypr.sh platform
