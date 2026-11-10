@@ -1,12 +1,21 @@
 use crate::text::skia_path;
 use es_model::WatermarkSettings;
-use es_text::{FontFamily, TextEngine, TextStyle};
+use es_text::{FontFamily, FontSet, TextEngine, TextStyle};
 use tiny_skia::{Color, FillRule, Paint, Pixmap, Transform};
 
 const MAX_OPACITY: f64 = 0.75;
 
 /// Rows tile the canvas, rotated about its centre; the grid covers the diagonal so no corner is bare.
 pub fn paint(canvas: &mut Pixmap, settings: &WatermarkSettings) {
+    paint_with(canvas, settings, FontSet::installed);
+}
+
+/// Reading every system font is slow, so `installed` is loaded only when the bundled faces lack a character.
+pub fn paint_with(
+    canvas: &mut Pixmap,
+    settings: &WatermarkSettings,
+    installed: impl FnOnce() -> FontSet,
+) {
     let text = settings.text.trim();
     let (w, h) = (f64::from(canvas.width()), f64::from(canvas.height()));
     if !settings.is_visible() || w <= 1.0 || h <= 1.0 {
@@ -19,7 +28,11 @@ pub fn paint(canvas: &mut Pixmap, settings: &WatermarkSettings) {
         ..TextStyle::default()
     };
     let mut engine = TextEngine::bundled();
-    let layout = engine.measure(text, &style, None);
+    let mut layout = engine.measure(text, &style, None);
+    if layout.has_missing_glyphs() {
+        engine = TextEngine::new(installed());
+        layout = engine.measure(text, &style, None);
+    }
     let (tw, th) = (layout.size.width, layout.size.height);
     if tw <= 0.0 || th <= 0.0 {
         return;

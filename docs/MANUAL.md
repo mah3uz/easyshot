@@ -205,7 +205,9 @@ installed on your system in alphabetical order, with a search field when the lis
 The export draws exactly the font the editor shows. If a document uses a font that is not
 installed on this computer, its text draws in Inter and the font list names the font with
 "(not installed)"; the document keeps the font, so it draws in that font again where it is
-installed.
+installed. A character the chosen font lacks, such as Bengali, Arabic, Devanagari or Chinese
+in Inter, draws in an installed font that has it, in the text tool and in the watermark; with
+no such font installed it draws as a box.
 With the Select tool, selecting shapes shows the options of the first one, with a button to
 delete the selection. A change applies to new shapes and to the selection, as one
 undo step.

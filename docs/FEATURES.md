@@ -120,6 +120,7 @@ More in the manual: [The tray menu](MANUAL.md#the-tray-menu).
 - Draws arrows and lines solid, dashed or dotted.
 - Sets text font, colour, size, bold, italic, underline and alignment.
 - Font list: the three bundled fonts first, then every installed font, searchable; a font that is not installed shows "(not installed)" and draws in Inter.
+- Text in any script: a character the chosen font lacks draws in an installed font that has it, in text and in the watermark.
 - Gives text an optional background and a border 2, 3 or 5 px wide.
 - Sets the strength of blur and pixelate.
 - Dims everything outside an area with the Highlight tool.

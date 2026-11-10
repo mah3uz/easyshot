@@ -78,6 +78,11 @@ impl TextLayout {
         best
     }
 
+    /// True when some glyph is .notdef, which draws as a box: no font in the set has that character.
+    pub fn has_missing_glyphs(&self) -> bool {
+        self.glyphs.iter().any(|g| g.key.glyph_id == 0)
+    }
+
     fn line_of(&self, index: usize) -> usize {
         self.lines
             .iter()

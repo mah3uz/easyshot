@@ -2,7 +2,8 @@
 
 use es_geom::Rgba;
 use es_model::WatermarkSettings;
-use es_render::beautify::watermark::paint;
+use es_render::beautify::watermark::{paint, paint_with};
+use es_text::{BUNDLED, FontSet};
 use tiny_skia::{Color, Pixmap};
 
 fn white(w: u32, h: u32) -> Pixmap {
@@ -100,4 +101,33 @@ fn rotation_turns_the_tiles_about_the_canvas_centre() {
         inked(&turned, 285, 160, 315, 240),
         "the tile at x 200, y 100 swings to x 300, y 200"
     );
+}
+
+const BENGALI: &[u8] = include_bytes!("../../../../tests/fixtures/fonts/FallbackBengali.ttf");
+
+fn with_bengali() -> FontSet {
+    FontSet::from_data(BUNDLED.iter().map(|b| b.to_vec()).chain([BENGALI.to_vec()]))
+}
+
+#[test]
+fn text_the_bundled_faces_lack_draws_from_an_installed_font_not_as_boxes() {
+    let s = WatermarkSettings {
+        font_size: 60.0,
+        ..settings("বাংলা")
+    };
+    let mut drawn = white(400, 400);
+    paint_with(&mut drawn, &s, with_bengali);
+    let mut boxes = white(400, 400);
+    paint_with(&mut boxes, &s, FontSet::bundled);
+    assert!(inked(&drawn, 100, 70, 300, 130));
+    assert_ne!(drawn.data(), boxes.data());
+}
+
+#[test]
+fn text_the_bundled_faces_cover_never_reads_the_installed_fonts() {
+    let mut p = white(200, 200);
+    paint_with(&mut p, &settings("MARK"), || {
+        panic!("the installed fonts were read for bundled text")
+    });
+    assert!(inked(&p, 0, 0, 200, 200));
 }
