@@ -51,4 +51,14 @@ if [ -n "$toast_timer_hits" ]; then
     printf '%s\n' "$toast_timer_hits" >&2
     exit 1
 fi
+writer_hits=$(grep -rnIE \
+    -e '\.persist(\(|_noclobber)' -e 'tempfile_in\(' -e 'easyshot-tmp-' -e 'serde_json::to_(vec_pretty|writer)' \
+    --include='*.rs' --exclude-dir=target --exclude-dir=tests crates |
+    grep -v '^crates/es-store/src/' || true)
+
+if [ -n "$writer_hits" ]; then
+    echo "grep-guard: a file written outside crates/es-store/src/ (es-store is the only writer; add the format there)" >&2
+    printf '%s\n' "$writer_hits" >&2
+    exit 1
+fi
 echo "grep-guard: ok"

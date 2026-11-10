@@ -26,6 +26,16 @@ shortcut catalogue, one route vocabulary. Why: duplicated stores drift apart. Re
 separate stores and renderers per surface. Reason for a single renderer beyond that: not
 recorded.
 
+### es-record writes a recording's files through es-store
+A recording folder's `capture.json`, `input.json` and `project.json` carry the version
+envelope and are written by `es_store::recording`, which es-record calls directly; both are
+layer 2, and `just layers` allows an edge within a layer. The write never makes the folder
+again, so a recording discarded while it finishes stays gone. Why: es-record had its own
+writer without the envelope, so a newer file could be overwritten and no migration could
+read an older one. Rejected: a writer trait that es-store implements and the daemon passes
+in, which adds a seam to every caller, recovery included, for no layering gain. Files from
+before the envelope are not migrated: no release had them.
+
 ### Provider registry per capability
 Each capability has an ordered list of providers chosen at runtime by probing; the app sees
 only `Caps`. Generic `wayland::*` providers are chosen by protocol globals, and compositor

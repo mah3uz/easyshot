@@ -116,12 +116,13 @@ Layer 1  pure compute
   es-ocr       tesseract runner, QR (rxing), smart-redaction rules                       → es-geom
 Layer 2  IO and system mechanisms — no GPUI
   es-store     the only writer of every file: atomic writes, config (toml_edit), state,
-               history index, deck staging, presets, sidecar, retention, naming          → es-model
+               history index, deck staging, presets, sidecar, retention, naming,
+               a recording folder's JSON files                                           → es-model
   es-wayland   our own wayland-client connection: registry probe, outputs, capture
                protocols, foreign-toplevel, data-control clipboard, virtual pointer       → es-geom, es-model
   es-desktop   freedesktop over D-Bus: Command service/client, tray, notifications,
                portals, trash, autostart, sound (feature)                                → es-protocol
-  es-record    recorder providers, the window recorder (GStreamer), audio devices, input streams, project folder, clip export        → es-model, es-protocol, es-geom
+  es-record    recorder providers, the window recorder (GStreamer), audio devices, input streams, project folder, clip export        → es-store, es-model, es-protocol, es-geom
   es-backend   capability traits, Caps, the provider registry, compositor modules,
                test-mode decorators, doctor report                                       → es-wayland, es-desktop, es-record, es-protocol, es-geom, es-model
 Layer 3  GPUI
@@ -147,7 +148,10 @@ Enforcement:
   `SWAYSOCK` or `NIRI_SOCKET` appear in `crates/` outside
   `crates/es-backend/src/{hyprland,wlroots,niri}/` (`tests/harness/` and `docs/` exempt).
   It also fails if the word `unsafe` or `unsafe_code` appears in a `.rs` file or
-  `Cargo.toml` under `crates/` outside `crates/es-wayland/`, so no crate can allow it.
+  `Cargo.toml` under `crates/` outside `crates/es-wayland/`, so no crate can allow it, and
+  if an atomic file write (`.persist(`, `tempfile_in(`, `.easyshot-tmp-`) or pretty JSON
+  output (`serde_json::to_vec_pretty`, `serde_json::to_writer`) appears outside
+  `crates/es-store/src/` (test folders exempt).
 - `just gpui-guard` fails if a second gpui or zbus copy appears (`cargo tree -d`).
 
 Cargo features cover only what changes system dependencies or must never ship: `hyprland`,
@@ -247,7 +251,9 @@ Degradation, each reported by doctor:
 
 ## 7. Storage
 
-`es-store` is the only writer.
+`es-store` is the only writer of every file easyshot keeps, a recording folder's
+`capture.json`, `input.json` and `project.json` included (`es_store::recording`, which
+es-record calls). Videos, posters and exports are written by GStreamer and ffmpeg.
 
 | What | Path |
 |---|---|
@@ -258,7 +264,7 @@ Degradation, each reported by doctor:
 | Library | `$XDG_DATA_HOME/easyshot/library/` (`<name>.png`, `.png.easyshot` sidecar, `.base.png`) |
 | History index | `library/index.json`, a cache rebuilt by scanning `library/` |
 | Deck staging | `$XDG_DATA_HOME/easyshot/deck/<uuid>/` |
-| Recordings | `$XDG_DATA_HOME/easyshot/recordings/<name>.easyshotrec/` |
+| Recordings | `$XDG_DATA_HOME/easyshot/recordings/<name>.easyshotrec/` (`screen.mkv`, `poster.jpg`, `input.json`, `project.json`, then `capture.json` last, when the recording is finished) |
 | Recovery journal | `$XDG_STATE_HOME/easyshot/recovery/<session>.json`, edited base `<session>.base-<uuid>.png` |
 | State | `$XDG_STATE_HOME/easyshot/state.json` |
 | Logs, crash reports | `$XDG_STATE_HOME/easyshot/{log,crash}/` |
