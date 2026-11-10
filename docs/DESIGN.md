@@ -105,7 +105,7 @@ under 1 %, 380 ms); `SNAPPY_SPRING`, `BOUNCY_SPRING` and `GENTLE_SPRING`.
 | Editor: when a camera or blur change settles, the export-exact picture fades in over the one it replaces | `COMPOSITE_FADE` | 180 ms, ease-out |
 | Settings home: tiles and recent rows fill in under the pointer and fade back after it | `HOVER_FILL` | 120 ms fade, ease-out |
 | Deck: a card's tools fade in under the pointer and fade back out after it | `DECK_HOVER` | 120 ms fade, ease-out |
-| Deck: the stack fans out into a column under the pointer and folds back after it; the count and the dimming of the cards behind fade as it goes | `DECK_FAN` | 220 ms, snappy |
+| Deck: the stack fans out into a column under the pointer and folds back after it; the count and the dimming of the cards behind fade as it goes | `DECK_FAN` | 380 ms, gentle spring |
 | Deck: a new card grows from 88 % and rises 14 px into place as it fades in, swinging just past and back; with Reduce Motion it only fades in, in place (`DECK_ENTER_REDUCED`, 120 ms, linear) | `DECK_ENTER`, `DECK_ENTER_SCALE`, `DECK_ENTER_RISE` | 600 ms, bouncy spring |
 | Pin: the close button fades in under the pointer and back out after it | `CLOSE_FADE` (pin) | 150 ms fade, ease-out |
 | Settings: the old page fades out while the new one rises 8 px into place and fades in | `PAGE_CHANGE` | 180 ms, ease-out |

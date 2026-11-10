@@ -135,7 +135,7 @@ pub const GENTLE_SPRING: Transition = springs(380, 350, 85);
 
 pub const POPOVER_OPEN: Transition = moves(130, Easing::EaseOut);
 pub const DECK_HOVER: Transition = fades(120, Easing::EaseOut);
-pub const DECK_FAN: Transition = moves(220, Easing::Snappy);
+pub const DECK_FAN: Transition = GENTLE_SPRING;
 pub const DECK_ENTER: Transition = BOUNCY_SPRING;
 pub const DECK_ENTER_REDUCED: Transition = fades(120, Easing::Linear);
 pub const DECK_ENTER_SCALE: f32 = 0.88;
