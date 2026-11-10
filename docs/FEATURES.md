@@ -4,7 +4,7 @@ This file lists everything easyshot does, one line each, with the details in [MA
 
 ## What it needs
 
-- Works on Hyprland, sway and niri, and on other Wayland compositors for basic capture.
+- Works on Hyprland and sway. Built for niri, but not tested on it. Basic capture on other Wayland compositors.
 - Reads text from the screen when Tesseract is installed, and reads QR codes without it.
 - Records the screen with gpu-screen-recorder or wf-recorder, and tells you how to install one if neither is there.
 - Reports what your desktop and tools support with `easyshot doctor`.

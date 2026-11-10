@@ -20,7 +20,7 @@ const steps = [
 ]
 
 const needs = [
-  { icon: 'monitor', title: 'A Wayland compositor', text: 'Hyprland 0.57+, sway 1.12 or niri 26.04. Others with layer-shell and a capture protocol work for basic capture. Not KDE or GNOME.' },
+  { icon: 'monitor', title: 'A Wayland compositor', text: 'Hyprland 0.57+, sway 1.12 or niri 26.04 (built for niri, not tested on it). Others with layer-shell and a capture protocol work for basic capture. Not KDE or GNOME.' },
   { icon: 'scan-text', title: 'Tesseract (optional)', text: 'For text capture (OCR) and Smart Redaction. Install the English data too, for example tesseract-data-eng.' },
   { icon: 'video', title: 'A recorder (optional)', text: 'gpu-screen-recorder (preferred) or wf-recorder for recording; ffmpeg for trimming and export.' },
 ]
