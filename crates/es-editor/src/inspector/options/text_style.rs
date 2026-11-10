@@ -10,14 +10,20 @@ use es_ui::{
     tokens::{Tokens, Typeset},
 };
 use gpui::{
-    App, Context, Div, FontWeight, InteractiveElement, IntoElement, ParentElement, Pixels,
-    SharedString, StatefulInteractiveElement, Styled, WeakEntity, Window, div, px,
+    App, AppContext, Context, Div, Entity, Focusable, FontWeight, InteractiveElement, IntoElement,
+    MouseButton, ParentElement, Pixels, SharedString, StatefulInteractiveElement, Styled,
+    WeakEntity, Window, div, px,
 };
-use gpui_component::select::Select;
+use gpui_component::{
+    input::{Escape, Input, InputEvent, InputState},
+    select::Select,
+    tooltip::Tooltip,
+};
 
 use super::{
     Control, ToolOptions, font_picker::family_title, section, swatches::swatches, text_box,
 };
+use crate::keyboard::TEXT_SIZE_RANGE;
 use crate::strings::fl;
 use crate::toolbar::track;
 
@@ -56,10 +62,103 @@ fn step(
         .child(gpui_component::Icon::new(glyph).size(px(11.)))
 }
 
-fn stepper(size: f64, apply: Apply, t: &Tokens) -> impl IntoElement {
+fn size_text(size: f64) -> SharedString {
+    format!("{}", size.round() as i64).into()
+}
+
+/// A typed size, clamped to the range; `None` for text that is not a number, so the field reverts.
+pub(crate) fn parse_size(text: &str) -> Option<f64> {
+    let size: f64 = text.trim().parse().ok()?;
+    let (lo, hi) = TEXT_SIZE_RANGE;
+    size.is_finite().then(|| size.round().clamp(lo, hi))
+}
+
+impl ToolOptions {
+    /// Built on first draw, since the field needs a window; shows the model's size unless it is being typed in.
+    fn size_field(
+        &mut self,
+        size: f64,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Entity<InputState> {
+        let field = match &self.font_size {
+            Some(field) => field.clone(),
+            None => {
+                let field = cx.new(|cx| InputState::new(window, cx));
+                let focus = field.focus_handle(cx);
+                let events = cx.subscribe_in(&field, window, Self::on_size_field);
+                let selecting = cx.on_focus(&focus, window, |this, window, cx| {
+                    if let Some(field) = &this.font_size {
+                        field.update(cx, |f, cx| f.select_all(window, cx));
+                    }
+                });
+                let leaving = cx.on_blur(&focus, window, |this, _, cx| {
+                    if let Some(field) = this.font_size.clone() {
+                        this.commit_size(&field, cx);
+                    }
+                });
+                self._subscriptions.extend([events, selecting, leaving]);
+                self.font_size = Some(field.clone());
+                field
+            }
+        };
+        let text = size_text(size);
+        if !field.focus_handle(cx).is_focused(window) && field.read(cx).value() != text {
+            field.update(cx, |f, cx| f.set_value(text, window, cx));
+        }
+        field
+    }
+
+    fn on_size_field(
+        &mut self,
+        field: &Entity<InputState>,
+        event: &InputEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if let InputEvent::PressEnter { .. } = event {
+            self.commit_size(field, cx);
+            window.blur(cx);
+        }
+    }
+
+    fn current_size(&self, cx: &App) -> f64 {
+        self.doc.read(cx).editor().current_style().font_size
+    }
+
+    fn commit_size(&mut self, field: &Entity<InputState>, cx: &mut Context<Self>) {
+        let typed = field.read(cx).value().to_string();
+        if typed != size_text(self.current_size(cx)).as_ref()
+            && let Some(size) = parse_size(&typed)
+        {
+            self.apply_style(StylePatch::FontSize(size), None, cx);
+        }
+    }
+
+    fn revert_size(
+        &mut self,
+        field: &Entity<InputState>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let text = size_text(self.current_size(cx));
+        field.update(cx, |f, cx| f.set_value(text, window, cx));
+    }
+}
+
+fn stepper(
+    size: f64,
+    field: &Entity<InputState>,
+    editing: bool,
+    apply: Apply,
+    t: &Tokens,
+    cx: &mut Context<ToolOptions>,
+) -> impl IntoElement {
     let m = t.metrics;
     let rule = || div().w(m.hairline).h(px(13.)).bg(t.separator);
     let (down, up) = (apply.clone(), apply);
+    let (lo, hi) = TEXT_SIZE_RANGE;
+    let help: SharedString = fl!("editor-font-size-help", min = lo, max = hi).into();
     div()
         .flex()
         .items_center()
@@ -67,28 +166,52 @@ fn stepper(size: f64, apply: Apply, t: &Tokens) -> impl IntoElement {
         .rounded(m.field_radius)
         .bg(t.track)
         .border(m.hairline)
-        .border_color(t.border)
+        .border_color(if editing {
+            t.accent.opacity(0.72)
+        } else {
+            t.border
+        })
         .overflow_hidden()
         .child(step(
             "size-down",
             fl!("editor-font-size-decrease"),
             IconName::Minus,
             t,
-            move |cx| down(StylePatch::FontSize(size - 1.), cx),
+            move |cx| down(StylePatch::FontSize((size - 1.).clamp(lo, hi)), cx),
         ))
         .child(rule())
         .child(
             div()
                 .id("size")
                 .w(SIZE_FIELD_WIDTH)
+                .h_full()
                 .flex()
-                .justify_center()
-                .typeset(t.type_scale.value)
-                .accessible(
-                    Role::Label,
-                    fl!("editor-font-size-a11y", size = (size.round() as i64)),
+                .items_center()
+                .tooltip(move |window, cx| Tooltip::new(help.clone()).build(window, cx))
+                .on_mouse_up(
+                    MouseButton::Left,
+                    cx.listener(|this, _, window, cx| {
+                        if let Some(field) = &this.font_size {
+                            field.update(cx, |f, cx| f.select_all(window, cx));
+                        }
+                    }),
                 )
-                .child(SharedString::from(format!("{}", size.round() as i64))),
+                .capture_action(cx.listener(|this, _: &Escape, window, cx| {
+                    cx.stop_propagation();
+                    if let Some(field) = this.font_size.clone() {
+                        this.revert_size(&field, window, cx);
+                    }
+                    window.blur(cx);
+                }))
+                .child(
+                    Input::new(field)
+                        .appearance(false)
+                        .aria_label(fl!("editor-font-size"))
+                        .px(px(2.))
+                        .py_0()
+                        .text_center()
+                        .typeset(t.type_scale.value),
+                ),
         )
         .child(rule())
         .child(step(
@@ -96,7 +219,7 @@ fn stepper(size: f64, apply: Apply, t: &Tokens) -> impl IntoElement {
             fl!("editor-font-size-increase"),
             IconName::Plus,
             t,
-            move |cx| up(StylePatch::FontSize(size + 1.), cx),
+            move |cx| up(StylePatch::FontSize((size + 1.).clamp(lo, hi)), cx),
         ))
 }
 
@@ -186,6 +309,8 @@ pub(super) fn content(
         .accessibility_label(fl!("editor-font-family-help"))
         .menu_max_h(FONT_MENU_HEIGHT)
         .w_full();
+    let size_field = page.size_field(style.font_size, window, cx);
+    let editing = size_field.focus_handle(cx).is_focused(window);
     let align_apply = apply.clone();
     let align = Segmented::new(
         "align",
@@ -228,7 +353,10 @@ pub(super) fn content(
                 .flex()
                 .items_center()
                 .justify_between()
-                .child(stepper(style.font_size, apply.clone(), &t))
+                .child(page.track(
+                    Control::FontSize,
+                    stepper(style.font_size, &size_field, editing, apply.clone(), &t, cx),
+                ))
                 .child(emphasis(
                     style.bold,
                     style.italic,

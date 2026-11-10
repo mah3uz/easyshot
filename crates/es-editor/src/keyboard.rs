@@ -11,7 +11,7 @@ use std::rc::Rc;
 pub const CONTEXT: &str = "EditorWindow";
 
 const TEXT_SIZE_STEP: f64 = 2.0;
-const TEXT_SIZE_RANGE: (f64, f64) = (4.0, 300.0);
+pub(crate) const TEXT_SIZE_RANGE: (f64, f64) = (4.0, 300.0);
 const STROKE_STEP: f64 = 1.0;
 const STROKE_RANGE: (f64, f64) = (1.0, 24.0);
 

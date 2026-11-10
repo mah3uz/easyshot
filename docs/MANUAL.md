@@ -239,7 +239,8 @@ which mode is on, and its options switch it too. Pick the colour and the thickne
 options. Strokes stay on the image, and the editor and export show the same result. The
 Highlight tool, which dims everything outside an area, is separate.
 
-New text starts at size 24. Change the size in the Text options. While you type, a dashed box in the
+New text starts at size 24. Change the size in the Text options with − and +, or click the number,
+type a size from 4 to 300 and press Enter; Escape keeps the old size. While you type, a dashed box in the
 accent colour shows where the text goes, and an empty text shows a small box so you can see
 where you clicked. The box is only a guide: it is not saved or exported.
 

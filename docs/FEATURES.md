@@ -134,7 +134,7 @@ More in the manual: [The tray menu](MANUAL.md#the-tray-menu).
 - Paints translucent colour over text without hiding it with the Highlighter (key M).
 - Draws Highlighter strokes freehand or as a straight line, and press M again to switch.
 - Snaps a straight Highlighter line to 15 degrees when you hold Shift.
-- Starts new text at size 24.
+- Starts new text at size 24; type any size from 4 to 300 in the Text options.
 - Shows a dashed box where your text goes while you type; it is not saved or exported.
 - Keeps annotations on the image: you cannot start, move, resize or rotate one past its edge.
 - Crops by dragging corner and edge handles, or by dragging inside the selection to move it.

@@ -141,3 +141,80 @@ fn the_font_menu_lists_the_bundled_families_then_the_installed_ones_in_order() {
         "Inter, Inter Tight, Nunito, then the first installed family"
     );
 }
+
+impl Editor {
+    fn keys(&mut self, keys: &[&'static str]) {
+        let handle = self.app.window.into();
+        for key in keys {
+            self.app
+                .cx
+                .update_window(handle, |_, window, cx| {
+                    window.dispatch_keystroke(Keystroke::parse(key).unwrap(), cx);
+                })
+                .unwrap();
+            self.app.settle();
+        }
+    }
+
+    fn type_size(&mut self, text: &str) {
+        self.click(Control::FontSize);
+        let mut keys: Vec<&'static str> = text
+            .chars()
+            .map(|c| &*Box::leak(c.to_string().into_boxed_str()))
+            .collect();
+        keys.push("enter");
+        self.keys(&keys);
+    }
+
+    fn size_text(&self) -> String {
+        self.options
+            .read_with(&self.app.cx, |o, cx| o.font_size_text(cx))
+            .unwrap()
+            .to_string()
+    }
+}
+
+#[test]
+fn a_typed_font_size_applies_on_enter_and_is_held_to_the_size_range() {
+    let mut e = launch(ThemeMode::Light);
+    e.new_text();
+    let tool = e.tool();
+    e.type_size("48");
+    assert_eq!(e.text().font_size, 48.0);
+    assert_eq!(e.size_text(), "48");
+    assert_eq!(
+        e.tool(),
+        tool,
+        "digits typed in the field are not tool keys"
+    );
+    e.type_size("1000");
+    assert_eq!(e.text().font_size, 300.0, "clamped to the largest size");
+    assert_eq!(e.size_text(), "300");
+    e.type_size("1");
+    assert_eq!(e.text().font_size, 4.0, "clamped to the smallest size");
+    e.edit(|e| e.undo());
+    assert_eq!(
+        e.text().font_size,
+        300.0,
+        "each typed size is one undo step"
+    );
+}
+
+#[test]
+fn text_that_is_not_a_size_puts_the_old_size_back() {
+    let mut e = launch(ThemeMode::Light);
+    e.new_text();
+    let size = e.text().font_size;
+    let shown = e.size_text();
+    e.type_size("big");
+    assert_eq!(e.text().font_size, size);
+    assert_eq!(e.size_text(), shown);
+    e.click(Control::FontSize);
+    e.keys(&["backspace", "enter"]);
+    assert_eq!(e.text().font_size, size);
+    assert_eq!(e.size_text(), shown, "an emptied field reverts");
+    e.click(Control::FontSize);
+    e.keys(&["6", "0", "escape"]);
+    assert_eq!(e.text().font_size, size, "escape drops what was typed");
+    assert_eq!(e.size_text(), shown);
+}

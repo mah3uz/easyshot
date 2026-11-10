@@ -49,6 +49,7 @@ pub enum Control {
     Swatches,
     Stroke,
     FontFamily,
+    FontSize,
     TextFill,
     TextFillNone,
     TextBorder,
@@ -74,6 +75,7 @@ pub struct ToolOptions {
     style: Entity<StyleStore>,
     open: bool,
     strength: Option<Entity<InspectorSlider>>,
+    font_size: Option<Entity<gpui_component::input::InputState>>,
     fonts: Option<font_picker::FontPicker>,
     gestures: u64,
     dragging: Option<GestureId>,
@@ -100,6 +102,7 @@ impl ToolOptions {
             style: session.style.clone(),
             open: false,
             strength: None,
+            font_size: None,
             fonts: None,
             gestures: 0,
             dragging: None,
@@ -159,6 +162,11 @@ impl ToolOptions {
     /// Where a control was last drawn, in window coordinates; `None` when it is not shown.
     pub fn control_bounds(&self, control: Control) -> Option<Bounds<Pixels>> {
         self.drawn.borrow().get(&control).copied()
+    }
+
+    /// The text in the font size field; `None` before the text page first draws.
+    pub fn font_size_text(&self, cx: &App) -> Option<gpui::SharedString> {
+        self.font_size.as_ref().map(|f| f.read(cx).value())
     }
 
     /// Sets the style for new shapes and restyles the selection as one undo step; calls sharing a gesture make one.
