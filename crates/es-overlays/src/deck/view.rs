@@ -9,7 +9,9 @@ use es_app::platform_ui::{
 use es_geom::{Point, Rect};
 use es_model::config::{CardActions, Overlay};
 use es_ui::a11y::{Accessible as _, Role};
-use es_ui::motion::{DECK_FAN, tween};
+use es_ui::motion::{
+    Clocked, DECK_ENTER, DECK_ENTER_REDUCED, DECK_ENTER_RISE, DECK_ENTER_SCALE, DECK_FAN, tween,
+};
 use es_ui::theme::UI_FONT;
 use gpui::{
     App, AppContext as _, Context, DispatchPhase, Entity, FocusHandle, FontWeight,
@@ -83,6 +85,8 @@ pub struct DeckView {
     images: HashMap<Uuid, Option<Arc<RenderImage>>>,
     focus: HashMap<Uuid, FocusHandle>,
     hovered: Option<Uuid>,
+    /// When each card arrived, and whether it grows in or only fades in under Reduce Motion.
+    arrivals: HashMap<Uuid, Option<(Clocked, bool)>>,
     inside: bool,
     fan: f32,
     cards: Vec<(Uuid, Rect)>,
@@ -99,6 +103,7 @@ impl DeckView {
             images: HashMap::new(),
             focus: HashMap::new(),
             hovered: None,
+            arrivals: HashMap::new(),
             inside: false,
             fan: 0.,
             cards: Vec::new(),
@@ -137,6 +142,8 @@ impl DeckView {
             .retain(|id, _| items.iter().any(|(i, _)| i == id));
         self.focus
             .retain(|id, _| items.iter().any(|(i, _)| i == id));
+        self.arrivals
+            .retain(|id, _| items.iter().any(|(i, _)| i == id));
         if self
             .hovered
             .is_some_and(|h| !items.iter().any(|(i, _)| *i == h))
@@ -148,6 +155,10 @@ impl DeckView {
                 continue;
             }
             self.images.insert(id, None);
+            let arrival = Clocked::start(DECK_ENTER, cx)
+                .map(|c| (c, true))
+                .or_else(|| Clocked::start(DECK_ENTER_REDUCED, cx).map(|c| (c, false)));
+            self.arrivals.insert(id, arrival);
             let load = cx.background_spawn(async move { load_thumbnail(&thumb) });
             cx.spawn(async move |view, cx| {
                 let image = load.await;
@@ -265,7 +276,7 @@ impl Render for DeckView {
                 .flex()
                 .items_center()
                 .gap(px(6.))
-                .opacity(fan)
+                .opacity(fan.clamp(0., 1.))
                 .when(self.settings.corner == Corner::BottomRight, |row| {
                     row.justify_end()
                 });
@@ -323,13 +334,20 @@ impl Render for DeckView {
                 .text_size(px(11.))
                 .font_weight(FontWeight::BOLD)
                 .text_color(black(0.85))
-                .opacity(1. - fan)
+                .opacity((1. - fan).clamp(0., 1.))
                 .child(fl!("deck-stack-count", count = count))
         });
         let cards = items.into_iter().enumerate().map(|(i, item)| {
-            let r: Rect = geometry.at(i, f64::from(fan));
+            let (grow, arrived) = match self.arrivals.get(&item.id).copied().flatten() {
+                Some((clock, moves)) => {
+                    let e = clock.progress(window, cx);
+                    (if moves { e } else { 1. }, (e * 1.5).clamp(0., 1.))
+                }
+                None => (1., 1.),
+            };
+            let r = entering(geometry.at(i, f64::from(fan)), grow);
             let depth = geometry.depth(i);
-            let dim = [0., 0.22, 0.4][depth.min(PEEKING)] * (1. - fan);
+            let dim = [0., 0.22, 0.4][depth.min(PEEKING)] * (1. - fan).clamp(0., 1.);
             let id = item.id;
             let focus = self
                 .focus
@@ -351,7 +369,8 @@ impl Render for DeckView {
                 .top(px(r.y0 as f32))
                 .w(px(r.width() as f32))
                 .h(px(r.height() as f32))
-                .when(depth > PEEKING, |card| card.opacity(fan))
+                .when(depth > PEEKING, |card| card.opacity(fan.clamp(0., 1.)))
+                .when(arrived < 1., |card| card.opacity(arrived))
                 .child(
                     Card::new(
                         item,
@@ -380,6 +399,19 @@ impl Render for DeckView {
             .children(cards)
             .children(badge)
     }
+}
+
+/// `r` grown from its entrance scale and risen into place, `grow` of the way along.
+fn entering(r: Rect, grow: f32) -> Rect {
+    if grow == 1. {
+        return r;
+    }
+    let left = f64::from(1. - grow);
+    let scale = 1. - left * f64::from(1. - DECK_ENTER_SCALE);
+    let size = es_geom::Size::new(r.width() * scale, r.height() * scale);
+    let centre = r.center();
+    let below = Point::new(centre.x, centre.y + left * f64::from(DECK_ENTER_RISE));
+    Rect::from_center_size(below, size)
 }
 
 struct Shown {

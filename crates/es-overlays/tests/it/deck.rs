@@ -171,7 +171,7 @@ fn thumbnail(dir: &std::path::Path, n: u8) -> PathBuf {
     path
 }
 
-fn item(dir: &std::path::Path, n: u8) -> DeckItem {
+pub(crate) fn item(dir: &std::path::Path, n: u8) -> DeckItem {
     DeckItem {
         id: Uuid::from_u128(u128::from(n)),
         name: format!("shot{n}"),
@@ -249,7 +249,7 @@ pub(crate) fn rig_with(cards: u8, dark: bool, settings: DeckSettings, saved: Opt
     s.app.until("thumbnails load", |cx| {
         (1..=cards).all(|n| watched.read(cx).has_image(Uuid::from_u128(u128::from(n))))
     });
-    s.app.cx.advance_clock(es_ui::motion::CROSSFADE.duration);
+    s.app.cx.advance_clock(es_ui::motion::DECK_ENTER.duration);
     let handle = s.app.window.into();
     s.app
         .cx

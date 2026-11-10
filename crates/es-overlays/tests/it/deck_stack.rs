@@ -5,7 +5,7 @@ use es_app::deck::DeckAction;
 use es_geom::{Rect, Size};
 use es_overlays::deck::layout::{CardSize, Corner, DeckGeometry, PEEK, PEEKING};
 use es_overlays::deck::view::DeckSettings;
-use es_ui::motion::{DECK_FAN, set_reduce_motion};
+use es_ui::motion::{DECK_ENTER, DECK_ENTER_REDUCED, DECK_FAN, set_reduce_motion};
 use std::time::Duration;
 use uuid::Uuid;
 
@@ -234,4 +234,72 @@ fn pictures_of_the_stack_folded_and_fanned() {
         r.next_frame();
         r.s.app.screenshot(&format!("deck-fanned-5-{theme}"));
     }
+}
+
+/// The rows of the blue band at the picture's left, which only the card draws, and how blue.
+fn picture_rows(image: &image::RgbaImage) -> Option<(u32, u32, u32)> {
+    let rows: Vec<(u32, u32)> = (0..image.height())
+        .filter_map(|y| {
+            let blue = (0..image.width())
+                .map(|x| {
+                    let p = image.get_pixel(x, y).0;
+                    u32::from(p[2]).saturating_sub(u32::from(p[0]))
+                })
+                .max()?;
+            (blue > 30).then_some((y, blue))
+        })
+        .collect();
+    let strongest = rows.iter().map(|r| r.1).max()?;
+    Some((rows.first()?.0, rows.last()?.0, strongest))
+}
+
+fn arriving(reduce: bool) -> (Rig, tempfile::TempDir) {
+    let mut r = rig_with(0, true, DeckSettings::default(), None);
+    r.s.app.cx.update(|cx| set_reduce_motion(reduce, cx));
+    let dir = tempfile::tempdir().unwrap();
+    let deck = r.deck.clone();
+    let shot = crate::deck::item(dir.path(), 9);
+    r.s.app
+        .cx
+        .update(|cx| deck.update(cx, |d, cx| d.show(shot, cx)));
+    let view = r.view.clone();
+    r.s.app.until("the thumbnail loads", |cx| {
+        view.read(cx).has_image(Uuid::from_u128(9))
+    });
+    (r, dir)
+}
+
+#[test]
+fn a_new_card_grows_and_rises_into_place_as_it_fades_in_and_only_fades_under_reduce_motion() {
+    let (mut r, _dir) = arriving(false);
+    r.s.app.cx.advance_clock(DECK_ENTER.duration / 8);
+    r.next_frame();
+    let early = picture_rows(&r.s.app.screenshot("deck-enter-early")).unwrap();
+    r.s.app.cx.advance_clock(DECK_ENTER.duration);
+    r.next_frame();
+    let settled = picture_rows(&r.s.app.screenshot("deck-enter-settled")).unwrap();
+    assert!(
+        early.1 - early.0 + 4 < settled.1 - settled.0,
+        "the card starts smaller than its place: {early:?} then {settled:?}"
+    );
+    assert!(
+        early.1 > settled.1,
+        "and lower, rising into it: {early:?} then {settled:?}"
+    );
+    assert!(early.2 < settled.2, "and faint, fading in");
+
+    let (mut still, _dir) = arriving(true);
+    still
+        .s
+        .app
+        .cx
+        .advance_clock(DECK_ENTER_REDUCED.duration / 2);
+    still.next_frame();
+    let fading = picture_rows(&still.s.app.screenshot("deck-enter-reduced")).unwrap();
+    assert_eq!(
+        (fading.0, fading.1),
+        (settled.0, settled.1),
+        "under Reduce Motion the card is drawn in its place at once"
+    );
+    assert!(fading.2 < settled.2, "and only fades in");
 }

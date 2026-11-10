@@ -68,7 +68,7 @@ More in the manual: [Capturing](MANUAL.md#capturing).
 - Plays a shutter sound if you turn it on (in builds that include sound).
 - Saves the file, copies it and opens the editor, as your settings say.
 - Shows each capture as a card in a floating preview deck of up to 5 cards.
-- Stacks the cards in the corner, newest in front with a count, and fans them out while you hover.
+- Stacks the cards in the corner, newest in front with a count, and fans them out while you hover; a new card springs in, growing and rising into place as it fades in.
 - Offers hover actions on a card, in slots you can set up.
 - Lets you choose which actions a card shows in Settings › Overlay › Card Actions.
 - Opens a card's Preview in a plain window with the image fitted; click or Z toggles 100%, Space or Esc closes it.
