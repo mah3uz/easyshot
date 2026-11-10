@@ -270,7 +270,8 @@ fn the_toast_waits_while_the_pointer_is_on_it_and_goes_once_it_has_left() {
             modifiers: Modifiers::default(),
         }),
     );
-    app.cx.advance_clock(TOAST_HOLD + std::time::Duration::from_secs(1));
+    app.cx
+        .advance_clock(TOAST_HOLD + std::time::Duration::from_secs(1));
     app.settle();
     assert!(!shown(&app), "gone once the time left has run out");
 }

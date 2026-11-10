@@ -6,8 +6,8 @@ use es_app::toast::{
 use es_ui::components::Countdown;
 use es_ui::motion::TOAST_OUT;
 use gpui::{
-    Modifiers, MouseButton, MouseDownEvent, MouseExitEvent, MouseMoveEvent, MouseUpEvent,
-    PlatformInput, Pixels, Point, point, px,
+    Modifiers, MouseButton, MouseDownEvent, MouseExitEvent, MouseMoveEvent, MouseUpEvent, Pixels,
+    PlatformInput, Point, point, px,
 };
 use std::cell::Cell;
 use std::rc::Rc;
@@ -69,10 +69,7 @@ impl Shown {
             style: ToastStyle::Normal,
             duration: UNDO_DURATION,
             output: None,
-            undo: Some((
-                "Undo".into(),
-                ToastUndo::new(move |_| undone.set(true)),
-            )),
+            undo: Some(("Undo".into(), ToastUndo::new(move |_| undone.set(true)))),
         })
     }
 

@@ -1,9 +1,9 @@
 use std::{cell::Cell, rc::Rc, time::Duration};
 
 use gpui::{
-    App, BoxShadow, Context, ElementId, Task, InteractiveElement, IntoElement, ParentElement, Pixels, RenderOnce,
-    SharedString, StatefulInteractiveElement, Styled, Window, div, hsla, prelude::FluentBuilder,
-    px, relative,
+    App, BoxShadow, Context, ElementId, InteractiveElement, IntoElement, ParentElement, Pixels,
+    RenderOnce, SharedString, StatefulInteractiveElement, Styled, Task, Window, div, hsla,
+    prelude::FluentBuilder, px, relative,
 };
 use gpui_component::Icon;
 
