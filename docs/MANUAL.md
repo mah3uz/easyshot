@@ -319,7 +319,8 @@ Pixelate or Blur in the popover. The button's tooltip reads "Hide emails, keys a
 private text". The footer shows "Scanning screenshot…" while it works (the button is greyed
 meanwhile). The regions found flash briefly, and a message appears: "Hid N items: emails,
 keys" naming the kinds, with an Undo button that removes everything just added in one step,
-or "No sensitive text found." The message goes after six seconds. All the shapes are added as
+or "No sensitive text found." The message is a toast: it goes after six seconds, waits while the
+pointer is on it and goes on with the time it had left when the pointer leaves. All the shapes are added as
 one undo step and stay selected, so you can move, resize or delete them. Without Tesseract the button is disabled and its tooltip says why.
 
 Smart Redaction only covers text Tesseract can read. Small, low-contrast, rotated or

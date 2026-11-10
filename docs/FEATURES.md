@@ -165,6 +165,7 @@ More in the manual: [The tray menu](MANUAL.md#the-tray-menu).
 - Lets you choose Pixelate or Blur for Smart Redaction.
 - Shows "Scanning screenshot…" while it works, flashes what it found and says what it hid.
 - Undoes everything Smart Redaction added in one step with the message's Undo button.
+- Holds the Smart Redaction message while the pointer is on it, like every toast.
 - Keeps blur and pixelate strong enough that covered text cannot be read.
 - Opens very large screenshots with a smaller preview to stay fast, while saving, exporting and copying use the full image.
 - Shows every screenshot at half size if you turn on Always use a low-resolution preview.
