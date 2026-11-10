@@ -6,6 +6,8 @@ use es_app::platform_ui::{
 };
 use es_geom::{Point, Rect, Size};
 use es_ui::a11y::{Accessible as _, Role};
+use es_ui::components::menu::{MENU_INSET, MENU_ROW, menu};
+use es_ui::components::{MenuItem, MenuLead};
 use es_ui::icons::IconName;
 use es_ui::motion::{Easing, Transition, tween};
 use es_ui::theme::{UI_FONT, tokens};
@@ -36,6 +38,8 @@ pub const SHADOW_PAD: f64 = 16.;
 const LINE: f32 = 20.;
 const RADIUS: Pixels = px(8.);
 const CLOSE: f32 = 18.;
+const MENU_W: f32 = 148.;
+const MENU_H: f32 = 2. * MENU_ROW + 2. * MENU_INSET + 2.;
 const CLOSE_PAD: f32 = 4.;
 const CLOSE_FADE: Transition = Transition {
     duration: Duration::from_millis(150),
@@ -221,47 +225,45 @@ impl PinView {
 
     fn menu(&self, at: gpui::Point<Pixels>, cx: &mut Context<Self>) -> impl IntoElement + use<> {
         let t = tokens(cx);
-        let item = |id: &'static str, label: String, event: PinEvent| {
-            div()
-                .id(id)
-                .accessible(Role::MenuItem, label.clone())
-                .px(px(10.))
-                .py(px(3.))
-                .rounded(px(4.))
-                .hover(|s| s.bg(t.colours.hover_fill))
-                .child(label)
-                .on_click(cx.listener(move |view, _, _, cx| {
+        let item = |id: &'static str, label: String, icon: IconName, event: PinEvent| {
+            MenuItem::new(id, label, MenuLead::Glyph(icon)).on_click(cx.listener(
+                move |view, _, _, cx| {
                     view.menu = None;
                     cx.emit(event);
                     cx.notify();
-                }))
+                },
+            ))
         };
         let size = self.size();
         let x = f32::from(at.x)
-            .min((SHADOW_PAD + size.width) as f32 - 104.)
+            .min((SHADOW_PAD + size.width) as f32 - MENU_W)
             .max(SHADOW_PAD as f32);
         let y = f32::from(at.y)
-            .min((SHADOW_PAD + size.height) as f32 - 58.)
+            .min((SHADOW_PAD + size.height) as f32 - MENU_H)
             .max(SHADOW_PAD as f32);
-        div()
-            .id("pin-menu")
-            .accessible(Role::Menu, fl!("pin-a11y"))
+        menu("pin-menu", fl!("pin-a11y"), cx)
             .occlude()
             .absolute()
             .left(px(x))
             .top(px(y))
-            .w(px(104.))
-            .p(px(4.))
+            .w(px(MENU_W))
             .rounded(t.metrics.popover_radius)
             .border(t.metrics.hairline)
-            .border_color(t.colours.border)
-            .bg(t.colours.dropdown)
             .shadow(vec![shadow(0.25, 10., 4.)])
             .font_family(UI_FONT)
-            .text_size(px(12.))
             .text_color(t.colours.text)
-            .child(item("pin-copy", fl!("pin-copy-image"), PinEvent::CopyImage))
-            .child(item("pin-close", fl!("pin-close"), PinEvent::Close))
+            .child(item(
+                "pin-copy",
+                fl!("pin-copy-image"),
+                IconName::Copy,
+                PinEvent::CopyImage,
+            ))
+            .child(item(
+                "pin-close",
+                fl!("pin-close"),
+                IconName::X,
+                PinEvent::Close,
+            ))
     }
 }
 

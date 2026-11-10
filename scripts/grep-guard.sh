@@ -31,6 +31,16 @@ if [ -n "$tooltip_hits" ]; then
     printf '%s\n' "$tooltip_hits" >&2
     exit 1
 fi
+menu_hits=$(grep -rnIF \
+    -e 'Role::MenuItem' -e 'Role::Menu,' \
+    --include='*.rs' --exclude-dir=target --exclude-dir=tests crates |
+    grep -v '^crates/es-ui/src/components/menu.rs:' || true)
+
+if [ -n "$menu_hits" ]; then
+    echo "grep-guard: a menu or menu row built outside crates/es-ui/src/components/menu.rs (use menu() and MenuItem)" >&2
+    printf '%s\n' "$menu_hits" >&2
+    exit 1
+fi
 # deck_delete's Undo window is still its own timer; it needs the toast to say when it has gone.
 toast_timer_hits=$(grep -rnIE \
     -e 'timer\((TOAST_DURATION|ERROR_DURATION|UNDO_DURATION|TOAST_HOLD)' \

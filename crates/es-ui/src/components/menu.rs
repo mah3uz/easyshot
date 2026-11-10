@@ -161,6 +161,7 @@ impl RenderOnce for MenuItem {
             .rounded(t.metrics.button_radius)
             .text_color(t.text)
             .when(self.active, |d| d.bg(t.hover_fill))
+            .when(self.on_hover.is_none(), |d| d.hover(|s| s.bg(t.hover_fill)))
             .child(lead)
             .child(
                 div()

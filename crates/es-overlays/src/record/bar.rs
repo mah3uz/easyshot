@@ -5,7 +5,8 @@ use es_model::platform::OutputInfo;
 use es_protocol::{Route, TimedMode};
 use es_record::AudioDevice;
 use es_ui::a11y::{Accessible as _, Role};
-use es_ui::components::Tip;
+use es_ui::components::menu::{MENU_INSET, MENU_ROW, MENU_SECTION, menu};
+use es_ui::components::{MenuItem, MenuLead, MenuSection, Tip};
 use es_ui::icons::IconName;
 use es_ui::motion::{Clocked, HANDOFF, HANDOFF_SCALE};
 use es_ui::theme::{UI_FONT, tokens};
@@ -19,7 +20,10 @@ use gpui_component::Icon;
 
 pub const BAR: Size = Size::new(676.0, 64.0);
 const POPUP_GAP: f64 = 8.0;
-const TIMER_MENU: Size = Size::new(220.0, 10.0 * 24.0 + 8.0);
+const TIMER_MENU: Size = Size::new(
+    220.0,
+    (8.0 * MENU_ROW + 2.0 * MENU_SECTION + 2.0 * MENU_INSET + 2.0) as f64,
+);
 const SCREENSHOT_TIMERS: [u32; 4] = [0, 3, 5, 10];
 const RECORDING_TIMERS: [u32; 4] = [0, 1, 3, 5];
 
@@ -200,77 +204,49 @@ impl CaptureBar {
     }
 
     fn render_timer_menu(&self, cx: &mut Context<Self>) -> AnyElement {
-        let t = tokens(cx).clone();
         let delay = self.options.read(cx).delay();
-        let header = |text: String| {
-            div()
-                .h(px(24.))
-                .flex()
-                .items_center()
-                .px(px(8.))
-                .text_size(px(11.))
-                .text_color(t.text_secondary)
-                .child(text)
-        };
-        let row = |id: (&'static str, usize), text: String, checked: bool| {
-            div()
-                .id(id)
-                .accessible(Role::MenuItem, text.clone())
-                .toggled(checked)
-                .flex()
-                .items_center()
-                .gap(px(6.))
-                .h(px(24.))
-                .px(px(8.))
-                .rounded(px(5.))
-                .text_size(px(12.))
-                .hover(|s| s.bg(t.hover_fill))
-                .child(div().w(px(14.)).when(checked, |d| {
-                    d.child(Icon::new(IconName::Check).size(px(12.)))
-                }))
-                .child(text)
-        };
-        let mut menu = div()
-            .id("bar-timer-menu")
-            .accessible(Role::Menu, fl!("bar-timer-a11y"))
-            .flex()
-            .flex_col()
-            .p(px(4.))
+        let mut menu = menu("bar-timer-menu", fl!("bar-timer-a11y"), cx)
             .size_full()
-            .rounded(px(10.))
-            .bg(t.dropdown)
-            .border_1()
-            .border_color(t.border)
-            .text_color(t.text)
-            .child(header(fl!("bar-timer-section-screenshot")));
+            .child(MenuSection::new(
+                "bar-timer-head-shot",
+                fl!("bar-timer-section-screenshot"),
+            ));
         for (i, secs) in SCREENSHOT_TIMERS.into_iter().enumerate() {
             let text = match secs {
                 0 => fl!("bar-timer-screenshot-off"),
                 s => fl!("bar-timer-screenshot-seconds", seconds = s),
             };
             menu = menu.child(
-                row(("bar-timer-shot", i), text, secs == self.screenshot_timer).on_click(
-                    cx.listener(move |bar, _, _, cx| {
-                        bar.screenshot_timer = secs;
-                        bar.set_popup(None, cx);
-                        cx.emit(BarEvent::ScreenshotTimer(secs));
-                    }),
-                ),
+                MenuItem::new(
+                    ("bar-timer-shot", i),
+                    text,
+                    MenuLead::Check(secs == self.screenshot_timer),
+                )
+                .on_click(cx.listener(move |bar, _, _, cx| {
+                    bar.screenshot_timer = secs;
+                    bar.set_popup(None, cx);
+                    cx.emit(BarEvent::ScreenshotTimer(secs));
+                })),
             );
         }
-        menu = menu.child(header(fl!("bar-timer-section-recording")));
+        menu = menu.child(MenuSection::new(
+            "bar-timer-head-rec",
+            fl!("bar-timer-section-recording"),
+        ));
         for (i, secs) in RECORDING_TIMERS.into_iter().enumerate() {
             let text = match secs {
                 0 => fl!("bar-timer-recording-none"),
                 s => fl!("bar-timer-recording-seconds", count = s),
             };
-            menu = menu.child(row(("bar-timer-rec", i), text, secs == delay).on_click(
-                cx.listener(move |bar, _, _, cx| {
-                    bar.options.update(cx, |o, cx| o.set_delay(secs, cx));
-                    bar.set_popup(None, cx);
-                    cx.emit(BarEvent::RecordingTimer(secs));
-                }),
-            ));
+            menu = menu.child(
+                MenuItem::new(("bar-timer-rec", i), text, MenuLead::Check(secs == delay)).on_click(
+                    cx.listener(move |bar, _, _, cx| {
+                        bar.options.update(cx, |o, cx| o.set_delay(secs, cx));
+                        bar.set_popup(None, cx);
+                        cx.emit(BarEvent::RecordingTimer(secs));
+                    }),
+                ),
+            );
         }
         menu.into_any_element()
     }

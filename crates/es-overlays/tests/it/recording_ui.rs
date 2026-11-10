@@ -455,7 +455,7 @@ fn start_over_and_discard_ask_first() {
 }
 
 fn screenshot_timer_row(h: f32, i: usize) -> f32 {
-    h - 64. - 8. - 248. + 4. + 24. + 12. + i as f32 * 24.
+    h - 64. - 8. - 322. + 1. + 4. + 28. + 16. + i as f32 * 32.
 }
 
 #[test]

@@ -311,7 +311,7 @@ fn the_menu_copies_the_image_to_the_clipboard_and_closes_the_pin() {
     let (x, y) = (PAD + 40., PAD + 30.);
     r.right_click(x, y);
     assert!(r.read(PinView::menu_open));
-    r.s.click(x + 30., y + 14.);
+    r.s.click(x + 30., y + 20.);
     assert_eq!(*copied.borrow(), [PathBuf::from("/captures/pinned.png")]);
     assert!(
         !r.read(PinView::menu_open),
@@ -320,7 +320,7 @@ fn the_menu_copies_the_image_to_the_clipboard_and_closes_the_pin() {
     assert!(!*closed.borrow());
 
     r.right_click(x, y);
-    r.s.click(x + 30., y + 36.);
+    r.s.click(x + 30., y + 52.);
     assert!(*closed.borrow());
     assert_eq!(copied.borrow().len(), 1);
 }
