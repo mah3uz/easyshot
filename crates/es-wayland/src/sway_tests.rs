@@ -322,23 +322,23 @@ fn harness_sway_virtual_pointer_scrolls_a_window_and_the_cursor_session_follows(
     };
     let screen = output(&conn, &name).logical;
     // Headless sway has no pointer until the first virtual one, and only then do clients bind theirs.
-    conn.scroll(screen.center() + (50.0, 50.0), 0.0)
+    conn.scroll(screen.center() + (50.0, 50.0), 0.0, None)
         .expect("create the pointer");
     std::thread::sleep(Duration::from_millis(300));
     let before = shot();
     assert!(shot() == before, "the window is still before scrolling");
     assert!(matches!(
-        conn.scroll(Point::new(screen.x1 + 10.0, screen.y0), -150.0),
+        conn.scroll(Point::new(screen.x1 + 10.0, screen.y0), -150.0, None),
         Err(Error::OffScreen)
     ));
-    conn.scroll(screen.center(), -150.0).expect("scroll");
+    conn.scroll(screen.center(), -150.0, None).expect("scroll");
     eventually("the terminal to scroll back", || {
         (shot() != before).then_some(())
     });
 
     let session = eventually("a cursor session", || conn.cursor_session().ok());
     let target = Point::new(screen.x0 + 100.0, screen.y0 + 200.0);
-    conn.scroll(target, -15.0).expect("move and scroll");
+    conn.scroll(target, -15.0, None).expect("move and scroll");
     let (at, _) = eventually("the cursor sample to follow the pointer", || {
         session
             .sample()

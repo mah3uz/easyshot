@@ -50,6 +50,8 @@ More in the manual: [Installing it](MANUAL.md#installing-it) and [Running it](MA
 - Keeps a page's fixed top and bottom bars once, at the top and the end of the tall image.
 - Keeps a strip at the side that does not scroll, such as an editor's minimap or a side panel, as the first view showed it, never repeated down the image; page content that reaches into it is kept whole. Cuts a scrollbar at the right edge off the image.
 - Joins pages with a playing video or animation, whether it scrolls with the page or stays in place.
+- Scrolls by hand with the wheel, a touchpad or the keyboard, wherever the pointer is.
+- Auto Scroll parks the pointer on the capture bar between steps, so it and hover effects stay out of the image.
 - Auto Scroll goes back half a step and tries again when a step does not join.
 - Scroll capture starts by drawing a region; press Space to pick a window instead.
 - Shift-click the capture bar's Scroll button to start scroll capture on the window picker.

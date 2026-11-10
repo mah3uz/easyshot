@@ -48,7 +48,7 @@ pub(crate) enum Command {
     CaptureToplevel(String, CaptureOpts, Sender<Result<Frame, Error>>),
     Toplevels(Sender<Vec<Toplevel>>),
     SetClipboard(Offers, Sender<Result<(), Error>>),
-    Scroll(Point, f64, Sender<Result<(), Error>>),
+    Scroll(Point, f64, Option<Point>, Sender<Result<(), Error>>),
     CursorSession(Sender<Result<CursorSession, Error>>),
     #[cfg(test)]
     DisableExtCapture,
@@ -101,8 +101,8 @@ impl State {
             Command::SetClipboard(offers, tx) => {
                 let _ = tx.send(self.set_clipboard(offers, qh));
             }
-            Command::Scroll(at, dy, tx) => {
-                let _ = tx.send(self.scroll(at, dy, qh));
+            Command::Scroll(at, dy, park, tx) => {
+                let _ = tx.send(self.scroll(at, dy, park, qh));
             }
             Command::CursorSession(tx) => {
                 let _ = tx.send(self.cursor_session(qh));
@@ -330,8 +330,8 @@ impl Connection {
         self.request(|tx| Command::SetClipboard(offers, tx), REQUEST_TIMEOUT)?
     }
 
-    pub fn scroll(&self, at: Point, dy: f64) -> Result<(), Error> {
-        self.request(|tx| Command::Scroll(at, dy, tx), REQUEST_TIMEOUT)?
+    pub fn scroll(&self, at: Point, dy: f64, park: Option<Point>) -> Result<(), Error> {
+        self.request(|tx| Command::Scroll(at, dy, park, tx), REQUEST_TIMEOUT)?
     }
 
     pub fn cursor_session(&self) -> Result<CursorSession, Error> {

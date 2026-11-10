@@ -100,7 +100,9 @@ first time easyshot starts. The binds file always comes first where it can be wr
   draws a region). easyshot scrolls that
   window, or the pointer over the region, and joins what scrolls into view into one tall image, up to 30000 pixels. A bar under the area shows the
   size so far, with Stop and, where your compositor allows it, Auto Scroll, which scrolls for
-  you and stops at the end of the page. A preview beside the area shows the image as it
+  you and stops at the end of the page. Scrolling by hand works with the wheel, a touchpad
+  or the keyboard, wherever the pointer is. Between steps Auto Scroll moves the pointer onto
+  the capture bar, so the pointer and the hover effects under it stay out of the image. A preview beside the area shows the image as it
   grows. Press the scrolling-capture shortcut again to stop. Escape does not cancel it; use
   the ✕ on the bar. If the area fills the whole screen, the bar sits over it and is captured.
   A bar that stays put while the page scrolls appears once: a menu bar at the top of the

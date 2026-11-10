@@ -90,10 +90,12 @@ impl State {
         &mut self,
         at: Point,
         dy: f64,
+        park: Option<Point>,
         qh: &QueueHandle<State>,
     ) -> Result<(), Error> {
-        let [x, y, x_extent, y_extent] =
-            absolute(at, &self.output_rects()).ok_or(Error::OffScreen)?;
+        let outputs = self.output_rects();
+        let [x, y, x_extent, y_extent] = absolute(at, &outputs).ok_or(Error::OffScreen)?;
+        let parked = park.and_then(|p| absolute(p, &outputs));
         let input = &mut self.input;
         let manager = input
             .virtual_manager
@@ -109,6 +111,10 @@ impl State {
         pointer.axis_source(AxisSource::Wheel);
         pointer.axis_discrete(time, Axis::VerticalScroll, dy, wheel_steps(dy));
         pointer.frame();
+        if let Some([x, y, x_extent, y_extent]) = parked {
+            pointer.motion_absolute(time, x, y, x_extent, y_extent);
+            pointer.frame();
+        }
         Ok(())
     }
 

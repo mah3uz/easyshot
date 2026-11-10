@@ -89,8 +89,8 @@ pub const DATA_CONTROL: Provider<dyn Clipboard> = Provider {
 struct VirtualPointer(Arc<Connection>);
 
 impl VirtualInput for VirtualPointer {
-    fn scroll(&self, at: Point, dy: f64) -> Result<()> {
-        Ok(self.0.scroll(at, dy)?)
+    fn scroll(&self, at: Point, dy: f64, park: Option<Point>) -> Result<()> {
+        Ok(self.0.scroll(at, dy, park)?)
     }
 }
 

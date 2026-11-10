@@ -200,7 +200,7 @@ fn wake_test_pointer(backend: &Backend) {
         return;
     };
     let at = es_geom::Point::new(output.logical.x0 + 10., output.logical.y0 + 10.);
-    if let Err(e) = input.scroll(at, 0.0) {
+    if let Err(e) = input.scroll(at, 0.0, None) {
         tracing::warn!(error = %e, "test virtual pointer");
     }
 }

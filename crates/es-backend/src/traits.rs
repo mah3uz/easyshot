@@ -83,7 +83,8 @@ pub trait Clipboard: Send + Sync {
 }
 
 pub trait VirtualInput: Send + Sync {
-    fn scroll(&self, at: Point, dy: f64) -> Result<()>;
+    /// Wheel at `at`; then the pointer is left on `park` when given, so it and its hover effects stay out of what is captured.
+    fn scroll(&self, at: Point, dy: f64, park: Option<Point>) -> Result<()>;
 }
 
 /// The compositor's own report of how it animates a layer surface away.

@@ -113,7 +113,7 @@ impl Clipboard for RealClipboard {
 struct RealInput;
 
 impl VirtualInput for RealInput {
-    fn scroll(&self, _at: Point, _dy: f64) -> Result<()> {
+    fn scroll(&self, _at: Point, _dy: f64, _park: Option<Point>) -> Result<()> {
         panic!("test mode must never inject input");
     }
 }

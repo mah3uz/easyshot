@@ -1,7 +1,7 @@
 use super::geometry;
 use super::scroll::{self, Command, Outcome, Params, Source, Update};
 use super::scroll_hud::{
-    HUD, HudEvent, PREVIEW_WIDTH, ScrollHud, ScrollPreview, Strip, hud_origin, outline,
+    HUD, HudEvent, PREVIEW_WIDTH, ScrollHud, ScrollPreview, Strip, hud_origin, hud_park, outline,
     preview_column,
 };
 use es_app::capture_coordinator::settle;
@@ -9,7 +9,7 @@ use es_app::errors::{Error, Result};
 use es_app::platform_ui::{
     LayerShellSurfaces, LayerSurfaceHandle, Selection, SurfaceHandle as _, SurfaceRole,
 };
-use es_backend::Backend;
+use es_backend::{Backend, VirtualInput};
 use es_geom::{Point, Rect, Size};
 use es_model::platform::{CaptureOpts, Frame, OutputId, Transform, WindowId};
 use gpui::{App, AppContext as _, AsyncApp, Entity, RenderImage};
@@ -30,6 +30,8 @@ struct Live {
     /// Relative to the output.
     local: Rect,
     area: Rect,
+    /// Where the pointer rests after each wheel step, off the captured area.
+    park: Point,
     window: Option<WindowId>,
     /// False once the compositor has refused the window's own buffer.
     own_buffer: bool,
@@ -66,6 +68,12 @@ fn grab_window<E: std::fmt::Display>(
     }
 }
 
+/// Parks the pointer afterwards: this compositor may draw the cursor into the frame, and hover effects freeze into it.
+fn wheel(input: &dyn VirtualInput, area: Rect, park: Point, clicks: i32) -> bool {
+    let dy = f64::from(clicks) * WHEEL_CLICK;
+    input.scroll(area.center(), dy, Some(park)).is_ok()
+}
+
 impl Source for Live {
     fn grab(&mut self) -> Option<es_scroll::Frame> {
         let Some(id) = self.window.as_ref().filter(|_| self.own_buffer) else {
@@ -82,20 +90,10 @@ impl Source for Live {
     }
 
     fn scroll(&mut self, clicks: i32) -> bool {
-        let dy = f64::from(clicks) * WHEEL_CLICK;
         self.backend
             .virtual_input
-            .as_ref()
-            .is_some_and(|input| input.scroll(self.area.center(), dy).is_ok())
-    }
-
-    fn pointer_inside(&self) -> bool {
-        let at = self
-            .backend
-            .pointer
-            .as_ref()
-            .and_then(|p| p.pointer_global());
-        at.is_none_or(|p| self.area.contains(p))
+            .as_deref()
+            .is_some_and(|input| wheel(input, self.area, self.park, clicks))
     }
 
     fn sleep(&mut self, d: Duration) {
@@ -174,7 +172,6 @@ pub(crate) async fn capture(
         control: control.clone(),
         cx: cx.clone(),
     };
-    // Frames start before the surfaces open, which can take a while; those all sit outside the area.
     let preview_px = column.map_or((1, 1), |c| {
         (
             (PREVIEW_WIDTH * scale) as usize,
@@ -191,6 +188,7 @@ pub(crate) async fn capture(
         output: output.clone(),
         local,
         area,
+        park: hud_park(hud_origin(area, visible), auto_available),
         window,
         own_buffer: true,
     };
@@ -316,6 +314,31 @@ mod tests {
 
     fn rectangle_frame() -> Option<es_scroll::Frame> {
         es_scroll::Frame::new(1, 1, vec![9; 4])
+    }
+
+    use std::sync::Mutex;
+
+    struct Record(Mutex<Vec<(Point, f64, Option<Point>)>>);
+
+    impl VirtualInput for Record {
+        fn scroll(&self, at: Point, dy: f64, park: Option<Point>) -> es_backend::Result<()> {
+            self.0.lock().expect("lock").push((at, dy, park));
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn auto_scroll_leaves_the_pointer_on_the_bar_outside_the_area() {
+        let visible = Rect::new(0.0, 0.0, 1280.0, 720.0);
+        let area = Rect::new(400.0, 100.0, 800.0, 500.0);
+        for auto in [true, false] {
+            let park = hud_park(hud_origin(area, visible), auto);
+            let input = Record(Mutex::default());
+            assert!(wheel(&input, area, park, 2));
+            let sent = input.0.lock().expect("lock").clone();
+            assert_eq!(sent, vec![(area.center(), 30.0, Some(park))]);
+            assert!(!area.contains(park), "the pointer would sit in the picture");
+        }
     }
 
     #[test]

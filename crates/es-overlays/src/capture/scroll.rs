@@ -15,7 +15,6 @@ pub trait Source {
     fn grab(&mut self) -> Option<Frame>;
     /// Wheel clicks down, or up when negative; `false` when the scroll could not be sent.
     fn scroll(&mut self, clicks: i32) -> bool;
-    fn pointer_inside(&self) -> bool;
     fn sleep(&mut self, d: Duration);
     fn now(&self) -> Instant;
 }
@@ -276,6 +275,13 @@ pub fn run(
             pace.sent(clicks);
             let push = settled(src, session.stitcher.moving())
                 .map_or(Push::NoOverlap, |f| session.push_near(&f, pace.expected()));
+            tracing::debug!(
+                clicks,
+                ?push,
+                expected = ?pace.expected(),
+                height = session.stitcher.height(),
+                "scroll capture auto step"
+            );
             pace.observe(push);
             if push != Push::Full && stop.record(matches!(push, Push::Appended(_))) {
                 return session.finish_with(src);
@@ -283,12 +289,8 @@ pub fn run(
             push
         } else {
             src.sleep(POLL);
-            if !src.pointer_inside() {
-                tracing::debug!(inside = false, "scroll capture poll");
-                continue;
-            }
             let Some(frame) = src.grab() else {
-                tracing::debug!(inside = true, grabbed = false, "scroll capture poll");
+                tracing::debug!(grabbed = false, "scroll capture poll");
                 continue;
             };
             let (hash, now) = (frame_hash(&frame), src.now());
@@ -302,11 +304,10 @@ pub fn run(
                 settled(src, session.stitcher.moving())
                     .map_or(Push::NoOverlap, |f| session.push(&f, false))
             } else {
-                tracing::debug!(inside = true, changed, "scroll capture poll");
+                tracing::debug!(changed, "scroll capture poll");
                 continue;
             };
             tracing::debug!(
-                inside = true,
                 changed,
                 ?push,
                 height = session.stitcher.height(),

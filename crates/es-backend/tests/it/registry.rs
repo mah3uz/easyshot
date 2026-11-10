@@ -5,7 +5,7 @@ use es_geom::Point;
 struct Fake;
 
 impl VirtualInput for Fake {
-    fn scroll(&self, _at: Point, _dy: f64) -> es_backend::Result<()> {
+    fn scroll(&self, _at: Point, _dy: f64, _park: Option<Point>) -> es_backend::Result<()> {
         Ok(())
     }
 }

@@ -129,7 +129,7 @@ fn platform_daemon_area_recording_places_the_bar_outside_and_stop_leaves_a_card(
     let input = backend.virtual_input.as_ref().expect("virtual pointer");
     let to = |x: f64, y: f64| {
         input
-            .scroll(Point::new(origin.x + x, origin.y + y), 0.0)
+            .scroll(Point::new(origin.x + x, origin.y + y), 0.0, None)
             .unwrap();
         sleep(Duration::from_millis(40));
     };

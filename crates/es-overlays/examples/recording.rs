@@ -102,7 +102,7 @@ fn grim(output: &str, path: &Path) {
 
 fn press(backend: &Backend, at: Point) {
     if let Some(input) = backend.virtual_input.as_ref()
-        && let Err(e) = input.scroll(at, 0.0)
+        && let Err(e) = input.scroll(at, 0.0, None)
     {
         eprintln!("virtual pointer: {e}");
     }
@@ -204,6 +204,7 @@ fn main() {
     if let Err(e) = input.scroll(
         Point::new(info.logical.x0 + 10., info.logical.y0 + 10.),
         0.0,
+        None,
     ) {
         fail(format!("virtual pointer: {e}"));
     }

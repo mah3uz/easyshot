@@ -36,7 +36,6 @@ struct Fake {
     elapsed: Duration,
     commands: mpsc::Sender<Command>,
     at: Vec<(u64, Command)>,
-    inside: bool,
     flicker: bool,
     blink: bool,
     /// How many rows one wheel click moves this app.
@@ -61,7 +60,6 @@ impl Fake {
             elapsed: Duration::ZERO,
             commands,
             at: Vec::new(),
-            inside: true,
             flicker: false,
             blink: false,
             per_click: 15,
@@ -110,10 +108,6 @@ impl Source for Fake {
             .min(self.rows - VIEW);
         self.offsets.push(self.offset);
         true
-    }
-
-    fn pointer_inside(&self) -> bool {
-        self.inside
     }
 
     fn sleep(&mut self, d: Duration) {
@@ -265,22 +259,6 @@ fn manual_capture_follows_the_page_and_stop_keeps_the_last_small_move() {
     assert_eq!(image.height, VIEW + 125);
     assert!(image.data == fake.rows(0, VIEW + 125));
     assert_eq!(fake.scrolls, 0, "manual mode never scrolls for the user");
-}
-
-#[test]
-fn polling_waits_while_the_pointer_is_elsewhere() {
-    let (tx, rx) = mpsc::channel();
-    let mut fake = Fake::new(600, tx);
-    fake.inside = false;
-    fake.script = vec![(0, 0), (300, 60)];
-    fake.at = vec![(1000, Command::Cancel)];
-    let (outcome, updates) = run(&mut fake, &rx, es_scroll::MAX_HEIGHT);
-    assert_eq!(outcome, Outcome::Cancelled);
-    assert_eq!(
-        heights(&updates),
-        vec![VIEW],
-        "only the first frame was taken"
-    );
 }
 
 #[test]

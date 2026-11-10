@@ -1,7 +1,7 @@
 use crate::window_mode_support;
 
 use es_geom::{Point, Rect};
-use es_overlays::capture::scroll_hud::{HUD, hud_origin, outline, preview_column};
+use es_overlays::capture::scroll_hud::{HUD, hud_origin, hud_park, outline, preview_column};
 use es_overlays::capture::{HudEvent, ScrollHud};
 use window_mode_support::{Surface, bluish, rgb};
 
@@ -123,4 +123,18 @@ fn the_outline_never_covers_the_area() {
     }
     let full = outline(OUTPUT, OUTPUT);
     assert!(full.is_empty(), "the whole output leaves no room outside");
+}
+
+#[test]
+fn the_pointer_parks_on_the_caption_between_the_buttons() {
+    let origin = Point::new(400., 506.);
+    for (auto, buttons_from) in [(true, AUTO.0 - 38.), (false, STOP.0 - 28.)] {
+        let p = hud_park(origin, auto);
+        let x = (p.x - origin.x) as f32;
+        assert!(
+            x > CANCEL.0 + 10. && x < buttons_from,
+            "{x} is on a button (auto {auto})"
+        );
+        assert_eq!(p.y, origin.y + f64::from(H) / 2.);
+    }
 }

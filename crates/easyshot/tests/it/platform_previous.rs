@@ -166,14 +166,14 @@ fn shoot_terminal(root: &Path, log: &dyn Fn() -> String) -> PathBuf {
     let input = backend.virtual_input.as_ref().expect("virtual pointer");
     let (x, y, w, h) = PLACED;
     let centre = Point::new(x + w / 2., y + h / 2.);
-    input.scroll(centre, 0.0).unwrap();
+    input.scroll(centre, 0.0, None).unwrap();
     assert!(command("capture/window").is_some(), "{}", log());
     sleep(Duration::from_millis(2500));
     input
-        .scroll(Point::new(centre.x + 4., centre.y), 0.0)
+        .scroll(Point::new(centre.x + 4., centre.y), 0.0, None)
         .unwrap();
     sleep(Duration::from_millis(300));
-    input.scroll(centre, 0.0).unwrap();
+    input.scroll(centre, 0.0, None).unwrap();
     sleep(Duration::from_millis(300));
     swaymsg(&["seat", "seat0", "cursor", "press", "button1"]);
     swaymsg(&["seat", "seat0", "cursor", "release", "button1"]);

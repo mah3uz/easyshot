@@ -44,6 +44,18 @@ pub fn hud_origin(area: Rect, visible: Rect) -> Point {
     )
 }
 
+/// The middle of the bar's caption, the part that is not a button.
+pub fn hud_park(origin: Point, auto_available: bool) -> Point {
+    let buttons = STOP_WIDTH
+        + if auto_available {
+            AUTO_WIDTH + 8.0
+        } else {
+            0.0
+        };
+    let (left, right) = (36.0, HUD.0 - 16.0 - f64::from(buttons));
+    Point::new(origin.x + (left + right) / 2.0, origin.y + HUD.1 / 2.0)
+}
+
 /// The whole column the preview may grow into, right of the area when there is room, else left.
 pub fn preview_column(area: Rect, visible: Rect) -> Option<Rect> {
     let room = PREVIEW_WIDTH + 2.0 * PREVIEW_MARGIN;

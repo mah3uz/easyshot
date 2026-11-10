@@ -102,10 +102,6 @@ impl Source for Manual {
         panic!("manual mode never scrolls for the user")
     }
 
-    fn pointer_inside(&self) -> bool {
-        true
-    }
-
     fn sleep(&mut self, d: Duration) {
         let before = self.elapsed.as_millis() as u64;
         self.elapsed += d;

@@ -111,7 +111,7 @@ fn drive(backend: &Backend, output: (&str, Rect), shots: &Path, mode: Mode, targ
     let pause = |ms| thread::sleep(Duration::from_millis(ms));
     let to = |x: i32, y: i32| {
         if let Some(input) = backend.virtual_input.as_ref()
-            && let Err(e) = input.scroll(Point::new(f64::from(x), f64::from(y)), 0.0)
+            && let Err(e) = input.scroll(Point::new(f64::from(x), f64::from(y)), 0.0, None)
         {
             eprintln!("virtual pointer: {e}");
         }
@@ -152,7 +152,7 @@ fn drive(backend: &Backend, output: (&str, Rect), shots: &Path, mode: Mode, targ
             let centre = Point::new(f64::from(x0 + x1) / 2., f64::from(y0 + y1) / 2.);
             for step in 0..45 {
                 if let Some(input) = backend.virtual_input.as_ref()
-                    && let Err(e) = input.scroll(centre, 15.0)
+                    && let Err(e) = input.scroll(centre, 15.0, None)
                 {
                     eprintln!("virtual wheel: {e}");
                 }
@@ -325,6 +325,7 @@ fn main() {
     if let Err(e) = input.scroll(
         Point::new(info.logical.x0 + 10., info.logical.y0 + 10.),
         0.0,
+        None,
     ) {
         fail(format!("virtual pointer: {e}"));
     }

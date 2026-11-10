@@ -79,7 +79,7 @@ fn drive(backend: &Backend, output: &str, shots: &Path, logical: Rect, scale: f6
     let pause = |ms| thread::sleep(Duration::from_millis(ms));
     let to = |p: Point, dy: f64| {
         if let Some(input) = backend.virtual_input.as_ref()
-            && let Err(e) = input.scroll(p, dy)
+            && let Err(e) = input.scroll(p, dy, None)
         {
             eprintln!("virtual pointer: {e}");
         }
@@ -122,7 +122,7 @@ fn drive(backend: &Backend, output: &str, shots: &Path, logical: Rect, scale: f6
         let f = f64::from(step) / 30.;
         let at = grab + (DRAG.0 * f, DRAG.1 * f);
         if let Some(input) = backend.virtual_input.as_ref()
-            && let Err(e) = input.scroll(at, 0.)
+            && let Err(e) = input.scroll(at, 0., None)
         {
             eprintln!("virtual pointer: {e}");
         }
@@ -161,7 +161,11 @@ fn main() {
     let Some(input) = backend.virtual_input.as_ref() else {
         fail("no virtual pointer: run under tests/harness/sway.sh");
     };
-    if let Err(e) = input.scroll(Point::new(info.logical.x0 + 10., info.logical.y0 + 10.), 0.) {
+    if let Err(e) = input.scroll(
+        Point::new(info.logical.x0 + 10., info.logical.y0 + 10.),
+        0.,
+        None,
+    ) {
         fail(format!("virtual pointer: {e}"));
     }
     let done = Arc::new(AtomicBool::new(false));

@@ -148,7 +148,7 @@ fn platform_daemon_region_capture_reaches_the_deck_and_the_save_folder() {
     let input = backend.virtual_input.as_ref().expect("virtual pointer");
     let to = |x: f64, y: f64| {
         input
-            .scroll(Point::new(origin.x + x, origin.y + y), 0.0)
+            .scroll(Point::new(origin.x + x, origin.y + y), 0.0, None)
             .unwrap();
         sleep(Duration::from_millis(40));
     };
