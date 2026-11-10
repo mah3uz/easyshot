@@ -5,6 +5,7 @@ mod hello;
 mod inspector_motion;
 mod panels;
 mod picks;
+mod pointer_leave;
 mod segmented_motion;
 mod shortcut_field;
 mod support;

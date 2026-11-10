@@ -2982,6 +2982,21 @@ impl Interactivity {
             }
         }
 
+        // Layout reads this state before hitboxes exist, so a leave has to clear it too.
+        if let Some(hover_state) = element_state
+            .as_ref()
+            .and_then(|state| state.hover_state.clone())
+        {
+            let current_view = window.current_view();
+            window.on_mouse_event(move |_: &MouseExitEvent, phase, _, cx| {
+                let mut state = hover_state.borrow_mut();
+                if phase == DispatchPhase::Capture && (state.element || state.group) {
+                    *state = ElementHoverState::default();
+                    cx.notify(current_view);
+                }
+            });
+        }
+
         let drag_cursor_style = self.base_style.as_ref().mouse_cursor;
 
         let mut drag_listener = mem::take(&mut self.drag_listener);

@@ -1267,6 +1267,7 @@ pub struct Window {
     focus_lost_path: SmallVec<[FocusId; 8]>,
     default_prevented: bool,
     mouse_position: Point<Pixels>,
+    mouse_outside: bool,
     mouse_hit_test: HitTest,
     modifiers: Modifiers,
     capslock: Capslock,
@@ -2171,6 +2172,7 @@ impl Window {
             focus_lost_path: SmallVec::new(),
             default_prevented: true,
             mouse_position,
+            mouse_outside: false,
             mouse_hit_test: HitTest::default(),
             modifiers,
             capslock,
@@ -3762,7 +3764,7 @@ impl Window {
             tooltip_element = self.prepaint_tooltip(cx);
         }
 
-        self.mouse_hit_test = self.next_frame.hit_test(self.mouse_position);
+        self.mouse_hit_test = self.hit_test_at_mouse(&self.next_frame);
 
         // Now actually paint the elements.
         #[cfg(feature = "profiler")]
@@ -5655,6 +5657,14 @@ impl Window {
         if self.last_input_modality != old_modality {
             self.refresh();
         }
+        let leaving = matches!(
+            event,
+            PlatformInput::MouseExited(_)
+                | PlatformInput::FileDrop(FileDropEvent::Exited | FileDropEvent::Ended)
+        );
+        if !leaving && event.keyboard_event().is_none() {
+            self.mouse_outside = false;
+        }
 
         // Handlers may set this to false by calling `stop_propagation`.
         cx.propagate_event = true;
@@ -5778,6 +5788,11 @@ impl Window {
 
         if let Some(any_mouse_event) = event.mouse_event() {
             self.dispatch_mouse_event(any_mouse_event, cx);
+            // Exit listeners still see what was hovered; only later frames treat the pointer as gone.
+            if matches!(event, PlatformInput::MouseExited(_)) {
+                self.mouse_outside = true;
+                self.mouse_hit_test = HitTest::default();
+            }
         } else if let Some(any_key_event) = event.keyboard_event() {
             self.dispatch_key_event(any_key_event, cx);
         } else if let Some(touch_event) = event.touch_event() {
@@ -5979,8 +5994,17 @@ impl Window {
         });
     }
 
+    // A leave keeps the last position, so without this the next redraw would hover it again.
+    fn hit_test_at_mouse(&self, frame: &Frame) -> HitTest {
+        if self.mouse_outside {
+            HitTest::default()
+        } else {
+            frame.hit_test(self.mouse_position)
+        }
+    }
+
     fn dispatch_mouse_event(&mut self, event: &dyn Any, cx: &mut App) {
-        let hit_test = self.rendered_frame.hit_test(self.mouse_position());
+        let hit_test = self.hit_test_at_mouse(&self.rendered_frame);
         if hit_test != self.mouse_hit_test {
             self.mouse_hit_test = hit_test;
             self.reset_cursor_style(cx);

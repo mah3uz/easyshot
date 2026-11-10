@@ -8,8 +8,9 @@ use es_ui::components::{Toast, ToastStyle as CardStyle};
 use es_ui::icons::IconName;
 use es_ui::motion::TOAST_OUT;
 use gpui::{
-    App, AppContext as _, Bounds, Context, DispatchPhase, Entity, IntoElement, MouseExitEvent,
-    MouseMoveEvent, ParentElement as _, Pixels, Render, Styled as _, Window, canvas, div, px,
+    App, AppContext as _, Bounds, Context, Entity, InteractiveElement as _, IntoElement,
+    ParentElement as _, Pixels, Render, StatefulInteractiveElement as _, Styled as _, Window, div,
+    px,
 };
 use gpui_component::IconNamed as _;
 use std::cell::{Cell, RefCell};
@@ -104,44 +105,20 @@ impl Render for ToastHost {
             });
         }
         let region = self.region.clone();
-        let (region_at, hovered) = (self.region.clone(), self.hovered.clone());
-        // Element hover keeps the last position after the pointer leaves the surface, so it would stay on the card.
-        let pointer = canvas(
-            |_, _, _| {},
-            move |_, _, window, _| {
-                let moved = hovered.clone();
-                window.on_mouse_event(move |e: &MouseMoveEvent, phase, _, _| {
-                    if phase == DispatchPhase::Bubble {
-                        moved.set(region_at.get().is_some_and(|r| r.contains(&e.position)));
+        let hovered = self.hovered.clone();
+        div().size_full().flex().justify_center().pt(TOP_GAP).child(
+            div()
+                .on_children_prepainted(move |bounds, window, _| {
+                    let card = bounds.first().copied();
+                    if card.is_some() && card != region.get() {
+                        region.set(card);
+                        window.set_input_region(card.as_ref().map(std::slice::from_ref));
                     }
-                });
-                let left = hovered.clone();
-                window.on_mouse_event(move |_: &MouseExitEvent, phase, _, _| {
-                    if phase == DispatchPhase::Bubble {
-                        left.set(false);
-                    }
-                });
-            },
+                })
+                .id(("toast-card", id))
+                .on_hover(move |over, _, _| hovered.set(*over))
+                .child(card),
         )
-        .absolute()
-        .size_full();
-        div()
-            .size_full()
-            .flex()
-            .justify_center()
-            .pt(TOP_GAP)
-            .child(pointer)
-            .child(
-                div()
-                    .on_children_prepainted(move |bounds, window, _| {
-                        let card = bounds.first().copied();
-                        if card.is_some() && card != region.get() {
-                            region.set(card);
-                            window.set_input_region(card.as_ref().map(std::slice::from_ref));
-                        }
-                    })
-                    .child(card),
-            )
     }
 }
 
