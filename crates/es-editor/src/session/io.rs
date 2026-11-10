@@ -294,7 +294,8 @@ impl EditorIo {
         };
         let d = self.doc.read(cx);
         let frame = Frame::of(d);
-        let mut document = d.editor().doc().model().clone();
+        let baseline = d.editor().doc().model().clone();
+        let mut document = baseline.clone();
         document.background = d.background().clone();
         let look = d.background().clone();
         let saved_base = Arc::downgrade(d.base());
@@ -307,7 +308,6 @@ impl EditorIo {
         let session = self.session.clone();
         self.saving = true;
         let work = cx.background_executor().spawn({
-            let document = document.clone();
             async move {
                 let png = frame.encode(ExportFormat::Png, Purpose::Keep, settings.quality)?;
                 let base_file = match base_pixels {
@@ -361,7 +361,7 @@ impl EditorIo {
                 io.saving = false;
                 let ok = outcome.is_ok();
                 if let Ok((committed, target)) = &outcome {
-                    io.baseline = document;
+                    io.baseline = baseline;
                     io.baseline_look = look;
                     io.disk_base = saved_base;
                     io.committed = Some(committed.clone());

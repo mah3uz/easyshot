@@ -329,3 +329,49 @@ fn an_export_draws_its_wallpaper_like_the_canvas_does() {
     let (without, _) = export_with_wallpaper(&mut f, &gone, "without.png");
     assert_ne!(without, with, "a missing wallpaper is not drawn");
 }
+
+fn set_gradient(f: &mut shell::Fixture) {
+    let look = es_model::BackgroundSettings {
+        style: es_model::BackgroundStyle::Gradient(es_model::BackgroundGradient {
+            id: "g".into(),
+            title: "G".into(),
+            colors: es_model::BackgroundColor::plain_presets()
+                .into_iter()
+                .take(3)
+                .collect(),
+            start: es_model::UnitPoint { x: 0.0, y: 0.0 },
+            end: es_model::UnitPoint { x: 1.0, y: 0.5 },
+        }),
+        ..es_model::BackgroundSettings::default()
+    };
+    let model = f
+        .editor
+        .read_with(&f.app.cx, |w, _| w.session().unwrap().look.clone());
+    f.app
+        .cx
+        .update(|cx| model.update(cx, |l, cx| l.set(look, cx)));
+    f.app.settle();
+}
+
+#[test]
+fn a_saved_background_change_closes_without_asking() {
+    let mut f = launch();
+    set_gradient(&mut f);
+    assert!(f.dirty(), "a new background is an unsaved change");
+    f.request(Job::Save);
+    assert!(!f.dirty(), "the saved background is no longer unsaved");
+    assert!(
+        f.should_close(),
+        "closing after Save must not ask to save again"
+    );
+}
+
+#[test]
+fn a_saved_background_and_annotation_close_without_asking() {
+    let mut f = launch();
+    f.edit();
+    set_gradient(&mut f);
+    f.request(Job::Save);
+    assert!(!f.dirty());
+    assert!(f.should_close());
+}
