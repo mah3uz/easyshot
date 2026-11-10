@@ -1,10 +1,12 @@
 mod clipboard;
+mod coming_soon_surface;
 pub mod layer;
 mod pinned;
 mod surfaces;
 mod toast_surface;
 
 pub use clipboard::{BackendClipboardSink, with_file_items};
+pub use coming_soon_surface::{ComingSoonHost, ComingSoonSurface};
 pub use pinned::{PinnedOutput, PinnedOutputSource};
 pub use surfaces::{Gate, LayerShellSurfaces, LayerSurfaceHandle, OutputSource};
 pub use toast_surface::{ToastHost, ToastSurface, card_icon};
@@ -27,6 +29,8 @@ pub enum SurfaceRole {
     Highlight,
     Scroll,
     Consent,
+    /// A panel centred over a scrim that covers its output; a press on the scrim or Esc closes it.
+    Panel,
 }
 
 pub trait Surfaces {

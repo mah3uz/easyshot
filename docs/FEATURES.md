@@ -72,7 +72,7 @@ More in the manual: [Capturing](MANUAL.md#capturing).
 - Shows each capture as a card in a floating preview deck of up to 5 cards.
 - Stacks the cards in the corner, newest in front with a count, and fans them out while you hover; a new card springs in, growing and rising into place as it fades in.
 - Offers hover actions on a card, in slots you can set up.
-- Lets you choose which actions a card shows in Settings › Overlay › Card Actions; Cloud Share is there, and says coming soon.
+- Lets you choose which actions a card shows in Settings › Overlay › Card Actions; Cloud Share is there, and opens a panel saying cloud sharing is coming soon.
 - Opens a card's Preview in a plain window with the image fitted; click or Z toggles 100%, Space or Esc closes it.
 - On Hyprland, opens a card's Preview as a floating window in the middle of the screen, through a rule in the binds file.
 - Moves a card's capture to the Trash with Delete, and a toast's Undo puts it back and returns the card.
@@ -236,6 +236,7 @@ More in the manual: [The Home window](MANUAL.md#the-home-window) and [History an
 - Shows Stop Recording in the tray while a recording runs.
 - Keeps each recording as its own project folder.
 - Shows a finished recording as a deck card and opens it in a trim viewer with export.
+- Has Open in Studio in the trim viewer and in a video's gallery menu; it opens a panel saying Video Studio is coming soon.
 - Saves recordings and exports to a dated file in `easyshot` inside your Videos folder, never replacing an earlier one.
 - Records your clicks and shortcut keys, never plain typing, when Keystrokes is on, for click effects and key badges.
 - Stops reading your keyboard and mouse while the screen is locked or switched away.

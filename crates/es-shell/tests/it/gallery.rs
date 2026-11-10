@@ -231,6 +231,26 @@ fn enter_opens_and_edit_hands_the_file_to_the_app() {
 }
 
 #[test]
+fn open_in_studio_asks_for_video_studio_for_a_recording_only() {
+    let mut rig = rig();
+    let seen: Rc<RefCell<Vec<GalleryEvent>>> = Rc::default();
+    let (sink, gallery) = (seen.clone(), rig.gallery.clone());
+    rig.app.cx.update(|cx| {
+        cx.subscribe(&gallery, move |_, e: &GalleryEvent, _| {
+            sink.borrow_mut().push(e.clone())
+        })
+        .detach();
+    });
+    let (shot, video) = rig.read(|g| {
+        let of = |kind| g.shown().iter().find(|i| i.kind == kind).cloned().unwrap();
+        (of(MediaKind::Screenshot), of(MediaKind::Video))
+    });
+    rig.update(|g, cx| g.open_studio(shot.id, cx));
+    rig.update(|g, cx| g.open_studio(video.id, cx));
+    assert_eq!(*seen.borrow(), vec![GalleryEvent::OpenStudio]);
+}
+
+#[test]
 fn trash_moves_the_capture_its_sidecar_and_base_and_drops_the_entry() {
     let mut rig = rig();
     let item = rig.read(|g| g.shown()[0].clone());

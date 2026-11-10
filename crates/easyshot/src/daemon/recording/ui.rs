@@ -204,7 +204,6 @@ pub fn open_player(
     template: String,
     cx: &mut App,
 ) -> Result<()> {
-    use es_app::toast::show_toast;
     use es_overlays::player::{
         AudioOut, ExportOptions, PlayerConfig, PlayerEvent, PlayerWindow, SystemFfmpeg,
     };
@@ -235,23 +234,39 @@ pub fn open_player(
     };
     cx.open_window(options, |_, cx| {
         let player = cx.new(|cx| PlayerWindow::new(config, cx));
-        cx.subscribe(&player, move |_, event: &PlayerEvent, cx| match event {
-            PlayerEvent::Exported(file) => {
-                es_app::services::videos_changed(cx);
-                show_toast(super::saved_toast("toast-video-exported", file), cx);
-            }
-            PlayerEvent::Chosen(options) => {
-                if let Some(settings) = &settings {
-                    let options = *options;
-                    settings.update(cx, |s, cx| {
-                        s.update(|c| options.store(&mut c.recording), cx)
-                    });
-                }
-            }
+        cx.subscribe(&player, move |_, event: &PlayerEvent, cx| {
+            on_player_event(event, settings.as_ref(), cx)
         })
         .detach();
         player
     })
     .map(|_| ())
     .map_err(|e| Error::Protocol(e.to_string()))
+}
+
+#[cfg(feature = "player")]
+pub(in crate::daemon) fn on_player_event(
+    event: &es_overlays::player::PlayerEvent,
+    settings: Option<&gpui::Entity<es_app::settings_model::SettingsModel>>,
+    cx: &mut App,
+) {
+    use es_overlays::player::PlayerEvent;
+    match event {
+        PlayerEvent::Exported(file) => {
+            es_app::services::videos_changed(cx);
+            es_app::toast::show_toast(super::saved_toast("toast-video-exported", file), cx);
+        }
+        PlayerEvent::Chosen(options) => {
+            if let Some(settings) = settings {
+                let options = *options;
+                settings.update(cx, |s, cx| {
+                    s.update(|c| options.store(&mut c.recording), cx)
+                });
+            }
+        }
+        PlayerEvent::OpenStudio => super::super::coming_soon::coming_soon(
+            super::super::coming_soon::Feature::VideoStudio,
+            cx,
+        ),
+    }
 }

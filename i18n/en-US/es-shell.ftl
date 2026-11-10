@@ -509,6 +509,7 @@ gallery-status-count =
 gallery-item-help = { $title } — Double-click to open. Right-click for actions.
 gallery-menu-open = Open
 gallery-menu-edit = Edit
+gallery-menu-open-studio = Open in Studio
 gallery-menu-reveal = Show in Folder
 gallery-menu-copy-link = Copy Link
 gallery-menu-link-copied = Link Copied

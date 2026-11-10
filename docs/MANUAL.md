@@ -152,8 +152,9 @@ opens the editor. Each capture also appears as a card in a floating preview deck
 - hover actions in slots you can configure; on a card that auto-save has already saved, Save
   becomes Show in Folder, which opens your file manager on the saved file;
 - Settings › Overlay › Card Actions chooses which actions a card shows: Copy, Save / Show in
-  Folder, Edit, Pin, Cloud Share, Preview and Delete. Cloud Share only says "Coming soon", as cloud
-  sharing is not built yet. Dismiss is always there, and at least one
+  Folder, Edit, Pin, Cloud Share, Preview and Delete. Cloud Share opens a small Cloud sharing panel
+  that says it is coming soon, as cloud sharing is not built yet; its close button, Esc or a
+  click outside the panel closes it. Dismiss is always there, and at least one
   other action stays on. Preview and Delete are off at first; with them on, Preview sits at
   the top middle of the card and Delete at the bottom middle. In `config.toml` they are the
   `[overlay.actions]` table (`copy`, `save`, `edit`, `pin`, `share`, `preview`, `delete`);
@@ -420,8 +421,9 @@ Videos are in the gallery too, under Videos and All Media: recordings you have n
 (the project folders in `$XDG_DATA_HOME/easyshot/recordings/`), saved recordings and trim
 exports (`~/Videos/easyshot/`). A video shows its first frame, a play badge and, for a
 recording not yet saved, its length; the frame is a placeholder until ffmpeg has made it, or
-for good if ffmpeg is missing. Opening a video opens the trim viewer. Show in Folder and Move
-to Trash work as for a screenshot; trashing a recording that is not saved yet takes its whole
+for good if ffmpeg is missing. Opening a video opens the trim viewer. A video's context menu
+also has Open in Studio, which opens a Video Studio panel saying it is coming soon. Show in
+Folder and Move to Trash work as for a screenshot; trashing a recording that is not saved yet takes its whole
 project folder. Videos are not counted in the history limit. The tray's recent recordings list
 the same videos, newest first, and the list updates when a recording is kept, saved, exported
 or trashed.
@@ -494,7 +496,9 @@ and a second start from a shortcut, the command line, an `easyshot://` link or t
 bar shows "A recording is already running" and opens no picker.
 
 Each recording is a project folder in `$XDG_DATA_HOME/easyshot/recordings/`. A finished
-recording appears as a deck card, then opens in a trim viewer with export. Saving the card
+recording appears as a deck card, then opens in a trim viewer with export. Open in Studio,
+beside Export, opens a Video Studio panel: Video Studio (cut, zoom, captions and backgrounds)
+is coming soon. Saving the card
 and exporting from the trim viewer both write to `easyshot` inside your Videos folder
 (usually `~/Videos/easyshot/`), with a dated name that never replaces an earlier file.
 

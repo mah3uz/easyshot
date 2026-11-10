@@ -24,6 +24,7 @@ use uuid::Uuid;
 pub enum GalleryEvent {
     Open(PathBuf),
     Edit(PathBuf),
+    OpenStudio,
 }
 
 pub struct Gallery {
@@ -277,6 +278,12 @@ impl Gallery {
         }
         if let Some(file) = self.live_file(id, cx) {
             cx.emit(GalleryEvent::Edit(file));
+        }
+    }
+
+    pub fn open_studio(&mut self, id: Uuid, cx: &mut Context<Self>) {
+        if self.item(id).is_some_and(|i| i.kind == MediaKind::Video) {
+            cx.emit(GalleryEvent::OpenStudio);
         }
     }
 

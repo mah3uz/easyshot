@@ -88,3 +88,12 @@ panels-presets-current = Current Settings
 panels-presets-empty = No Saved Presets
 panels-presets-add = Add Preset
 panels-presets-delete = Delete { $name }
+
+## Coming soon panel
+coming-soon-badge = Coming soon
+coming-soon-close = Close
+coming-soon-a11y = { $feature }, coming soon
+coming-soon-cloud-share = Cloud sharing
+coming-soon-cloud-share-line = Share a capture as a link, hosted for you or in your own storage.
+coming-soon-video-studio = Video Studio
+coming-soon-video-studio-line = Edit recordings: cut, zoom, captions and backgrounds, then export.

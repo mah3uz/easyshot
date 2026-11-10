@@ -309,6 +309,7 @@ fn start(
         Arc::new(BackendNotifier(backend.clone())),
         cx,
     );
+    coming_soon::install(surfaces.clone(), cx);
     let deck_surface = DeckSurface::attach(
         surfaces.clone(),
         &deck,

@@ -1,7 +1,7 @@
 use super::export::ExportMode;
 use super::options::{ExportOptions, Format, Look, Quality, Size};
 use super::trim::clock;
-use super::view::{ExportState, PlayerWindow, TITLE_BAR_HEIGHT};
+use super::view::{ExportState, PlayerEvent, PlayerWindow, TITLE_BAR_HEIGHT};
 use crate::capture::strings::fl;
 use es_ui::a11y::{Accessible, Role};
 use es_ui::components::{
@@ -41,17 +41,32 @@ impl PlayerWindow {
                     .child(name),
             )
             .child(
-                side().justify_end().pr(px(12.)).child(
-                    hold("export-hold").child(
-                        EditorButton::new("export")
-                            .kind(ButtonKind::Prominent)
-                            .icon(IconName::CircleArrowDown)
-                            .label(fl!("player-export"))
-                            .accessible_label(fl!("player-export-a11y"))
-                            .disabled(running || self.engine.is_none())
-                            .on_click(cx.listener(|p, _, _, cx| p.export(cx))),
+                side()
+                    .justify_end()
+                    .gap(px(8.))
+                    .pr(px(12.))
+                    .child(
+                        hold("studio-hold").child(
+                            EditorButton::new("open-studio")
+                                .kind(ButtonKind::Bordered)
+                                .icon(IconName::Film)
+                                .label(fl!("player-open-studio"))
+                                .on_click(
+                                    cx.listener(|_, _, _, cx| cx.emit(PlayerEvent::OpenStudio)),
+                                ),
+                        ),
+                    )
+                    .child(
+                        hold("export-hold").child(
+                            EditorButton::new("export")
+                                .kind(ButtonKind::Prominent)
+                                .icon(IconName::CircleArrowDown)
+                                .label(fl!("player-export"))
+                                .accessible_label(fl!("player-export-a11y"))
+                                .disabled(running || self.engine.is_none())
+                                .on_click(cx.listener(|p, _, _, cx| p.export(cx))),
+                        ),
                     ),
-                ),
             )
     }
 

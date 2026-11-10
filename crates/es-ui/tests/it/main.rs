@@ -1,3 +1,4 @@
+mod coming_soon;
 mod controls;
 mod cursors;
 mod gallery;

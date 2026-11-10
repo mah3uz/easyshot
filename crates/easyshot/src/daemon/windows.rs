@@ -1,4 +1,5 @@
 use super::bar::{BarSources, new_bar, start_recording};
+use super::coming_soon::Feature;
 use es_app::dispatcher::{HomeTab, RouteDispatcher};
 use es_app::errors::{Error, Result};
 use es_app::events::Origin;
@@ -14,7 +15,7 @@ use es_editor::{EditorSession, EditorSource, EditorWindow};
 use es_model::platform::OutputInfo;
 use es_overlays::record::bar::{BAR, BarEvent};
 use es_overlays::record::placement;
-use es_protocol::{ArgValue, PATH_ARG, Route, RouteArgs, SettingsPage};
+use es_protocol::{ArgValue, PATH_ARG, Route, RouteArgs};
 use es_shell::gallery::{GalleryEvent, GalleryFiles};
 use es_shell::home::{self, HomeDeps, HomeEvent, HomeWindow, OpenPicker, Tab};
 use es_shell::onboarding::{self, Onboarding, OnboardingEvent, OnboardingInput};
@@ -25,11 +26,14 @@ use gpui::{
     WindowDecorations, WindowOptions, point, px, size,
 };
 use gpui_component::{Root, TitleBar};
+use pages::page_of;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
+
+mod pages;
 
 pub type FolderPicker = Rc<dyn Fn(&mut App) -> Task<Option<PathBuf>>>;
 
@@ -237,20 +241,6 @@ impl Wiring {
     }
 }
 
-fn page_of(page: SettingsPage) -> settings::Page {
-    use settings::Page;
-    match page {
-        SettingsPage::Home => Page::Home,
-        SettingsPage::General => Page::General,
-        SettingsPage::Capture => Page::Capture,
-        SettingsPage::Overlay => Page::Overlay,
-        SettingsPage::Recording => Page::Recording,
-        SettingsPage::Shortcuts => Page::Shortcuts,
-        SettingsPage::Agents => Page::Agents,
-        SettingsPage::About => Page::About,
-    }
-}
-
 fn open_home(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>> {
     let deps = HomeDeps {
         history: w.history.clone(),
@@ -320,6 +310,7 @@ fn open_home(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>> {
                     tracing::warn!(error = %e, "edit from the gallery");
                 }
             }
+            GalleryEvent::OpenStudio => super::coming_soon::coming_soon(Feature::VideoStudio, cx),
         })
         .detach();
     }

@@ -312,15 +312,15 @@ fn z_and_a_click_toggle_actual_size(cx: &mut TestAppContext) {
 fn cloud_share_says_coming_soon_and_leaves_the_card_alone(cx: &mut TestAppContext) {
     let f = fixture(cx);
     let (item, image, sidecar) = library_card(&f, cx);
+    let asked = cx.update(crate::daemon::coming_soon::record);
 
     act(&f, &item, DeckAction::Share, cx);
 
-    let toast = f.sink.shown().pop().expect("a toast");
-    assert_eq!(toast.title, "Coming soon");
     assert_eq!(
-        toast.message.as_deref(),
-        Some("Cloud sharing is coming soon.")
+        *asked.borrow(),
+        [crate::daemon::coming_soon::Feature::CloudShare]
     );
+    assert!(f.sink.shown().is_empty(), "the panel, not a toast");
     assert_eq!(on_deck(&f, cx), 1, "the card stays");
     assert!(image.exists() && sidecar.exists());
     assert!(f.trash.trashed().is_empty());

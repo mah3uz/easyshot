@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use uuid::Uuid;
 
-const ROLES: [SurfaceRole; 10] = [
+const ROLES: [SurfaceRole; 11] = [
     SurfaceRole::Overlay,
     SurfaceRole::Countdown,
     SurfaceRole::Toast,
@@ -23,6 +23,7 @@ const ROLES: [SurfaceRole; 10] = [
     SurfaceRole::Highlight,
     SurfaceRole::Scroll,
     SurfaceRole::Consent,
+    SurfaceRole::Panel,
 ];
 
 fn out(name: &str) -> OutputId {
@@ -97,6 +98,16 @@ fn the_consent_dialog_grabs_the_keyboard_so_esc_denies_and_typing_elsewhere_stop
 }
 
 #[test]
+fn a_panel_covers_its_output_and_grabs_the_keyboard_so_esc_and_a_press_outside_close_it() {
+    let a = out("DP-1");
+    assert!(wants_exclusive(SurfaceRole::Panel, None, None, &a));
+    let o = layer_options(SurfaceRole::Panel, true);
+    assert_eq!(o.keyboard_interactivity, K::Exclusive);
+    assert_eq!(o.exclusive_zone, Some(px(-1.)));
+    assert!(!passes_input_through(SurfaceRole::Panel));
+}
+
+#[test]
 fn only_an_overlay_under_the_pointer_or_the_consent_dialog_outside_test_mode_grab_the_keyboard() {
     let (a, b) = (out("DP-1"), out("DP-2"));
     assert!(wants_exclusive(SurfaceRole::Overlay, None, Some(&a), &a));
@@ -166,6 +177,7 @@ fn each_role_sits_on_its_layer_and_edges() {
             Anchor::TOP | Anchor::LEFT,
         ),
         (SurfaceRole::Consent, Layer::Overlay, Anchor::empty()),
+        (SurfaceRole::Panel, Layer::Overlay, Anchor::all()),
     ];
     for (role, layer, anchor) in cases {
         let o = layer_options(role, false);

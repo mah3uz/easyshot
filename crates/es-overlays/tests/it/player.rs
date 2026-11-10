@@ -535,3 +535,24 @@ fn pictures_of_the_export_panel() {
         r.s.app.screenshot(&format!("player-export-panel-{name}"));
     }
 }
+
+#[test]
+fn open_in_studio_beside_export_asks_for_video_studio_and_starts_no_export() {
+    let (_d, mut r) = rig();
+    let events = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+    let view = r.s.view.clone();
+    let seen = events.clone();
+    let _sub = r.s.app.cx.update(|cx| {
+        cx.subscribe(&view, move |_, e: &PlayerEvent, _| {
+            seen.borrow_mut().push(e.clone())
+        })
+    });
+    // Across the title bar's right half from the left: Open in Studio comes before Export.
+    let mut x = 620.;
+    while events.borrow().is_empty() && x < 950. {
+        r.s.click(x, 19.);
+        x += 6.;
+    }
+    assert_eq!(*events.borrow(), [PlayerEvent::OpenStudio]);
+    assert_eq!(r.read(|p| p.export_state().clone()), ExportState::Idle);
+}

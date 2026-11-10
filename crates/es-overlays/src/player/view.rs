@@ -40,6 +40,7 @@ pub enum PlayerEvent {
     Exported(PathBuf),
     /// The choices an export started with, for the next time.
     Chosen(ExportOptions),
+    OpenStudio,
 }
 
 #[derive(Clone, Debug, PartialEq)]

@@ -178,6 +178,7 @@ player-mode-precise = Precise
 player-mode-fast = Fast
 player-remove-audio = Remove Audio
 player-export = Export
+player-open-studio = Open in Studio
 player-export-a11y = Export the trimmed video
 player-exporting = Exporting… { $percent }%
 player-exported = Saved { $name }

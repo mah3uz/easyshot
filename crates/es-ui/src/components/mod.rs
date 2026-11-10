@@ -33,6 +33,7 @@ pub use swatch_strip::{SwatchPick, SwatchStrip};
 pub use tile::{Tile, TileGrid};
 
 pub mod alignment_pad;
+pub mod coming_soon;
 pub mod disclosure;
 pub mod focus_pad;
 pub mod gallery_panels;
@@ -43,6 +44,7 @@ pub mod toast;
 pub mod tooltip;
 
 pub use alignment_pad::{ALIGNMENT_PAD, ALIGNMENTS, AlignmentPad, alignment_title};
+pub use coming_soon::{ComingSoon, Feature};
 pub use disclosure::DisclosureSection;
 pub use focus_pad::{CENTRE, FOCUS_PAD_HEIGHT, FocusPad};
 pub use menu::{MenuItem, MenuLead, MenuNote, MenuSection};

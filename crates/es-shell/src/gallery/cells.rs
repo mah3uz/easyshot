@@ -128,6 +128,13 @@ fn item_menu(
             )
             .disabled(kind != MediaKind::Screenshot),
         )
+        .when(kind == MediaKind::Video, |menu| {
+            menu.item(act(
+                fl!("gallery-menu-open-studio"),
+                IconName::Film,
+                |g, id, _, cx| g.open_studio(id, cx),
+            ))
+        })
         .item(act(
             fl!("gallery-menu-reveal"),
             IconName::FolderOpen,
