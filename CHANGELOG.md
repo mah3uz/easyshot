@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.0 - 2026-11-11T05:25:23+06:00
+
 ### New
 - Screenshots of a region, a window, a whole screen or the previous target, always on a frozen screen; text and QR codes (OCR); a colour picker; pins that stay on top; an editor with 13 tools; and a history of your captures.
 - Scrolling capture: draw a region (Space picks a window instead; Shift-click the bar's Scroll button or `capture scroll --window` starts on the window picker), scroll, and get one tall image, with the page's fixed top and bottom bars shown once and a side strip that does not scroll, such as a minimap, kept as the first view showed it, while page content reaching into it stays whole; a scrollbar at the right edge is cut off the image; pages with a playing video or animation join too; scrolling by hand works wherever the pointer is, and Auto Scroll keeps the pointer and hover effects out of the image.
