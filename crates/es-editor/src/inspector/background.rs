@@ -14,7 +14,7 @@ use es_model::{
 use es_render::beautify::gradients::PRESETS;
 use es_store::presets::GradientFile;
 use es_ui::components::{InspectorSlider, ValueFormat};
-use es_ui::motion::{PRESET_APPLY, SETTLE};
+use es_ui::motion::{PRESET_APPLY, SETTLE, STAGE_IN};
 use gpui::{
     App, AppContext, Bounds, Context, Entity, Hsla, PathPromptOptions, Pixels, RenderImage, Rgba,
     Subscription, Task, Window, px,
@@ -188,7 +188,7 @@ impl BackgroundBody {
             if next.uses_canvas_layout() == look.settings().uses_canvas_layout() {
                 look.set(next, cx);
             } else {
-                look.animate(PRESET_APPLY, |s| *s = next, cx);
+                look.animate(STAGE_IN, |s| *s = next, cx);
             }
         });
     }

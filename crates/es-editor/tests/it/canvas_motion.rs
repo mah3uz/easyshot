@@ -22,7 +22,7 @@ use es_model::{
 use es_render::beautify::GradientPreset;
 use es_store::Paths;
 use es_ui::motion::{
-    CROP_COMMIT, CROP_RESHAPE, PRESET_APPLY, SETTLE, Transition, set_reduce_motion,
+    CROP_COMMIT, CROP_RESHAPE, PRESET_APPLY, SETTLE, STAGE_IN, Transition, set_reduce_motion,
 };
 use es_ui::tokens::ThemeMode;
 use gpui::{AppContext, Entity};
@@ -290,11 +290,8 @@ fn a_first_fill_draws_padding_and_shadow_into_place_and_another_fill_just_swaps(
     let mut r = rig(BackgroundSettings::default());
     frame(&mut r, "fill-stage-before");
     pick_first_gradient(&mut r);
-    assert_eq!(
-        r.seen.borrow().last(),
-        Some(&LookEvent::Moved(PRESET_APPLY))
-    );
-    let moving = frames(&mut r, PRESET_APPLY, "fill-stage");
+    assert_eq!(r.seen.borrow().last(), Some(&LookEvent::Moved(STAGE_IN)));
+    let moving = frames(&mut r, STAGE_IN, "fill-stage");
 
     let mut still = rig(BackgroundSettings::default());
     still.app.cx.update(|cx| set_reduce_motion(true, cx));

@@ -146,7 +146,7 @@ impl EditorCanvas {
             return Shown { math, morph: None };
         };
         let t = f64::from(motion.clocked.progress(window, cx));
-        if t >= 1.0 {
+        if motion.clocked.done(cx) {
             self.motion = None;
             return Shown { math, morph: None };
         }

@@ -154,6 +154,7 @@ pub const COMPOSITE_FADE: Transition = fades(180, Easing::EaseOut);
 pub const FILL_SWITCH: Transition = fades(160, Easing::Snappy);
 pub const SETTLE: Transition = moves(180, Easing::Snappy);
 pub const PRESET_APPLY: Transition = moves(200, Easing::Snappy);
+pub const STAGE_IN: Transition = BOUNCY_SPRING;
 pub const CROP_COMMIT: Transition = moves(220, Easing::Snappy);
 
 pub const CROP_RESHAPE: Transition = moves(180, Easing::Snappy);
@@ -214,6 +215,11 @@ impl Clocked {
             window.request_animation_frame();
         }
         self.transition.easing.at(t)
+    }
+
+    /// A spring passes 1 before it is done, so the end is read from the clock, not the value.
+    pub fn done(&self, cx: &App) -> bool {
+        self.linear(cx) >= 1.0
     }
 
     /// Eased from 0 to 1, without asking for frames.

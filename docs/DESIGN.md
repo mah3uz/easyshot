@@ -93,6 +93,7 @@ under 1 %, 380 ms); `SNAPPY_SPRING`, `BOUNCY_SPRING` and `GENTLE_SPRING`.
 |---|---|---|
 | Editor: after Crop, the kept region grows from the crop rectangle to fill the view | `CROP_COMMIT` | 220 ms, snappy |
 | Editor: a preset, or a canvas shape, draws its padding, corners, shadow and shape into place | `PRESET_APPLY` | 200 ms, snappy |
+| Editor: the first background fill springs its padding and shadow in, swinging just past and back, and taking the fill away springs them out | `STAGE_IN` | 600 ms, bouncy spring |
 | Editor: crop Reset, or an aspect change, eases the crop frame from where it was to its new place | `CROP_RESHAPE` | 180 ms, snappy |
 | Editor: cancelling a crop widens the frame to the whole image as the frame and the dimming fade | `CROP_COMMIT` | 220 ms, snappy |
 | Editor: the Progressive Blur Direction row opens and closes with the Directional mode, dropping 8 px into place as it fades | `SECTION_EXPAND` | 180 ms, snappy |
