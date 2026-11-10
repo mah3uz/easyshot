@@ -113,7 +113,7 @@ under 1 %, 380 ms); `SNAPPY_SPRING`, `BOUNCY_SPRING` and `GENTLE_SPRING`.
 | Editor: the inspector switching to or from a tool's options rises 8 px into place and fades in | `PAGE_CHANGE` | 180 ms, ease-out |
 | Introduction: the next step slides in from the side you are heading to as the last one slides out the other way, both fading | `STEP_CHANGE` | 200 ms, ease-out |
 | Home window: the new tab slides in from its side (Media Gallery left, Settings right) as the old one slides out the other way, both fading; the tab switcher's selection glides to the new tab on the same clock | `STEP_CHANGE` | 200 ms, ease-out |
-| Countdown: the dial, or the recording badge, grows from 82 % and fades in | `COUNTDOWN_IN` | 420 ms, snappy |
+| Countdown: the dial, or the recording badge, grows from 82 % and fades in, swinging just past full size and back | `COUNTDOWN_IN` | 600 ms, bouncy spring |
 | Countdown: each new second drops in from above as the last one falls away, both fading | `DIGIT_ROLL` | 300 ms, snappy |
 | Countdown: after the last second the dial shrinks to 82 % and fades out | `COUNTDOWN_OUT` | 300 ms, snappy |
 | Editor: Saved and Copied fade in, hold, and fade out at the end of the hold; the button they replaced fades back | `FLASH`, `FLASH_HOLD` | 200 ms snappy fades, 1.4 s hold |
@@ -122,9 +122,8 @@ under 1 %, 380 ms); `SNAPPY_SPRING`, `BOUNCY_SPRING` and `GENTLE_SPRING`.
 Tooltips open where the pointer is, not anchored to their control, so one tooltip cannot glide
 from control to control; each opens on its own, at once while warm.
 
-The countdown's entry stands in for a spring (0.42 s response, 0.78 damping), which settles in
-about the same time with no visible overshoot; elements have no blur filter, so the entry
-scales and fades without the blur, as a new deck card does.
+Elements have no blur filter, so the countdown's entry and a new deck card scale and fade
+without a blur.
 
 A switch of swatches fades only the new ones in: the old grid leaves at once, so two grids of
 different heights never overlap.

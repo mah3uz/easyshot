@@ -178,7 +178,7 @@ impl Countdown {
         } else {
             COUNTDOWN_ENTRY_SCALE + (1.0 - COUNTDOWN_ENTRY_SCALE) * e
         };
-        (e, scale)
+        (e.min(1.0), scale)
     }
 
     fn entering(&self, now: Instant, reduced: bool) -> bool {
