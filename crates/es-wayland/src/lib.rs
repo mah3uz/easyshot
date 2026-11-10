@@ -6,6 +6,10 @@ mod keyboard;
 mod lock;
 mod output;
 mod shm;
+mod stream;
+mod stream_capture;
+#[cfg(test)]
+mod stream_tests;
 #[cfg(test)]
 mod sway_tests;
 mod toplevel;
@@ -13,6 +17,7 @@ mod worker;
 
 pub use globals::WlGlobals;
 pub use input::CursorSession;
+pub use stream::{StreamEvent, StreamOptions, StreamStats, ToplevelStream};
 pub use toplevel::Toplevel;
 pub use worker::Connection;
 

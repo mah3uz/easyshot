@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 
 const IGNORED: &str = "needs headless sway: tests/harness/sway.sh run -- cargo nextest run -p es-wayland -j 1 --run-ignored only -E 'test(/harness_sway_/)'";
 
-fn harness_output() -> String {
+pub(crate) fn harness_output() -> String {
     let runtime = std::env::var("XDG_RUNTIME_DIR").unwrap_or_default();
     // Refuse to touch a live session: only the harness compositor's runtime dir is accepted.
     assert!(
@@ -22,7 +22,7 @@ fn harness_output() -> String {
     std::env::var("EASYSHOT_TEST_OUTPUT").expect(IGNORED)
 }
 
-fn swaymsg(args: &[&str]) {
+pub(crate) fn swaymsg(args: &[&str]) {
     let out = Process::new("swaymsg")
         .args(args)
         .output()
@@ -97,9 +97,9 @@ fn set_scale(conn: &Connection, name: &str, scale: &str, expect: f64) -> OutputI
     }
 }
 
-struct TestWindow {
+pub(crate) struct TestWindow {
     app_id: String,
-    toplevel: Toplevel,
+    pub(crate) toplevel: Toplevel,
 }
 
 impl TestWindow {
@@ -107,7 +107,7 @@ impl TestWindow {
         Self::running(conn, app_id, "")
     }
 
-    fn running(conn: &Connection, app_id: &str, command: &str) -> Self {
+    pub(crate) fn running(conn: &Connection, app_id: &str, command: &str) -> Self {
         swaymsg(&["exec", &format!("alacritty --class {app_id} {command}")]);
         let deadline = Instant::now() + Duration::from_secs(10);
         loop {

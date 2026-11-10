@@ -22,13 +22,16 @@ pub(crate) struct ShmBuffer {
 }
 
 impl ShmBuffer {
-    pub fn new(
+    pub fn new<D>(
         shm: &WlShm,
-        qh: &QueueHandle<State>,
+        qh: &QueueHandle<D>,
         (width, height): (u32, u32),
         stride: u32,
         format: Format,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self, Error>
+    where
+        D: Dispatch<WlShmPool, ()> + Dispatch<WlBuffer, ()> + 'static,
+    {
         let len = (stride as usize)
             .checked_mul(height as usize)
             .filter(|&l| l > 0 && l <= i32::MAX as usize && stride >= width.saturating_mul(4))

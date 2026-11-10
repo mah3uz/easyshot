@@ -12,6 +12,7 @@ pub mod state;
 pub mod style;
 pub mod swatch;
 mod time_serde;
+pub mod video;
 
 pub use agent::{ActionRecord, AgentCfg, AgentRecord, AlwaysGrant, Consent};
 pub use background::{
@@ -38,6 +39,7 @@ pub use shape::{
 pub use state::{LastRegion, LastTarget, Recovery, State};
 pub use style::StylePreset;
 pub use swatch::Swatch;
+pub use video::{PixelBuf, PixelFormat, VideoFrame};
 
 #[cfg(test)]
 mod fixture_tests {
