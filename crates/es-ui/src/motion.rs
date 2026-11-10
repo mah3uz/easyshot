@@ -13,6 +13,7 @@ pub enum Easing {
     EaseIn,
     /// `cubic-bezier(.2, .8, .2, 1)`: a fast start that settles softly, close to a critically damped spring.
     Snappy,
+    Spring(Spring),
 }
 
 impl Easing {
@@ -23,7 +24,47 @@ impl Easing {
             Self::EaseOut => cubic_bezier([0.0, 0.0, 0.58, 1.0], t),
             Self::EaseIn => cubic_bezier([0.42, 0.0, 1.0, 1.0], t),
             Self::Snappy => cubic_bezier([0.2, 0.8, 0.2, 1.0], t),
+            Self::Spring(_) if t >= 1.0 => 1.0,
+            Self::Spring(spring) => spring.at(t),
         }
+    }
+}
+
+/// A damped spring let go at rest at 0 and pulled to 1, timed in fractions of its transition.
+/// Below a damping of 100 % it passes 1 once by [`Spring::overshoot`] and swings back.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Spring {
+    /// Thousandths of the transition one undamped swing takes.
+    response: u16,
+    damping: u16,
+}
+
+impl Spring {
+    fn zeta(self) -> f32 {
+        f32::from(self.damping) / 100.0
+    }
+
+    fn omega(self) -> f32 {
+        std::f32::consts::TAU * 1000.0 / f32::from(self.response.max(1))
+    }
+
+    pub fn at(self, t: f32) -> f32 {
+        let (zeta, omega) = (self.zeta(), self.omega());
+        let decay = (-zeta * omega * t).exp();
+        if zeta >= 1.0 {
+            return 1.0 - decay * (1.0 + omega * t);
+        }
+        let swing = omega * (1.0 - zeta * zeta).sqrt();
+        1.0 - decay * ((swing * t).cos() + zeta * omega / swing * (swing * t).sin())
+    }
+
+    /// How far past 1 the spring swings, as a fraction of its travel.
+    pub fn overshoot(self) -> f32 {
+        let zeta = self.zeta();
+        if zeta >= 1.0 {
+            return 0.0;
+        }
+        (-zeta * std::f32::consts::PI / (1.0 - zeta * zeta).sqrt()).exp()
     }
 }
 
@@ -71,6 +112,26 @@ const fn fades(ms: u64, easing: Easing) -> Transition {
         fade: true,
     }
 }
+
+/// A spring of `response_ms` per undamped swing and `damping` percent, cut at `ms` once it has
+/// come to rest within half a percent of its travel.
+const fn springs(ms: u64, response_ms: u64, damping: u16) -> Transition {
+    Transition {
+        duration: Duration::from_millis(ms),
+        easing: Easing::Spring(Spring {
+            response: (response_ms * 1000 / ms) as u16,
+            damping,
+        }),
+        fade: false,
+    }
+}
+
+/// Quick, with a small overshoot: a control answering.
+pub const SNAPPY_SPRING: Transition = springs(360, 300, 75);
+/// Lively, with a visible overshoot: something arriving.
+pub const BOUNCY_SPRING: Transition = springs(600, 400, 62);
+/// Soft, all but critically damped: a layout settling.
+pub const GENTLE_SPRING: Transition = springs(380, 350, 85);
 
 pub const POPOVER_OPEN: Transition = moves(130, Easing::EaseOut);
 pub const DECK_HOVER: Transition = fades(120, Easing::EaseOut);
@@ -376,6 +437,64 @@ mod tests {
             "snappy covers more ground early than ease-out"
         );
         assert!((Easing::Snappy.at(0.5) - 0.93).abs() < 0.02);
+    }
+
+    fn curve(t: Transition) -> Vec<f32> {
+        (0..=400).map(|i| t.easing.at(i as f32 / 400.0)).collect()
+    }
+
+    fn spring(t: Transition) -> Spring {
+        match t.easing {
+            Easing::Spring(s) => s,
+            other => panic!("{other:?} is not a spring"),
+        }
+    }
+
+    #[test]
+    fn a_spring_starts_at_rest_overshoots_by_its_damping_and_settles_by_its_end() {
+        for (token, overshoot) in [
+            (SNAPPY_SPRING, 0.028),
+            (BOUNCY_SPRING, 0.084),
+            (GENTLE_SPRING, 0.006),
+        ] {
+            let samples = curve(token);
+            assert_eq!(samples[0], 0.0, "{token:?}");
+            assert!(
+                samples[4] < 0.05,
+                "{token:?} leaves at rest, gathering speed"
+            );
+            assert_eq!(*samples.last().unwrap_or(&0.0), 1.0, "{token:?}");
+            let peak = samples.iter().copied().fold(0.0, f32::max);
+            assert!(
+                (peak - 1.0 - overshoot).abs() < 0.004,
+                "{token:?} swings {} past its end, not {overshoot}",
+                peak - 1.0
+            );
+            assert!((spring(token).overshoot() - overshoot).abs() < 0.002);
+            let tail = &samples[samples.len() - 20..];
+            assert!(
+                tail.iter().all(|v| (v - 1.0).abs() < 0.006),
+                "{token:?} has come to rest before its duration is up, so the cut does not show"
+            );
+        }
+    }
+
+    #[test]
+    fn a_livelier_spring_swings_further_and_the_snappy_one_arrives_first() {
+        let first_past = |t: Transition| curve(t).iter().position(|v| *v >= 1.0);
+        let ms =
+            |t: Transition, i: Option<usize>| i.map(|i| t.duration.as_millis() as usize * i / 400);
+        assert!(
+            spring(BOUNCY_SPRING).overshoot() > spring(SNAPPY_SPRING).overshoot()
+                && spring(SNAPPY_SPRING).overshoot() > spring(GENTLE_SPRING).overshoot()
+        );
+        let snappy = ms(SNAPPY_SPRING, first_past(SNAPPY_SPRING));
+        let bouncy = ms(BOUNCY_SPRING, first_past(BOUNCY_SPRING));
+        assert!(
+            snappy.is_some_and(|s| s < 200) && snappy < bouncy,
+            "snappy reaches its end in {snappy:?} ms, bouncy in {bouncy:?} ms"
+        );
+        assert!(!SNAPPY_SPRING.plays(true) && !BOUNCY_SPRING.plays(true));
     }
 
     #[test]

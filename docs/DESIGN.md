@@ -82,7 +82,12 @@ Custom bitmaps:
 A change takes effect the moment you make it; only its drawing moves, so a click or a key
 pressed during a motion acts on the new state. Every motion is timed from one table of
 tokens (`es-ui` `motion`), so the same kind of change always moves the same way. "Snappy"
-is a fast start that settles softly, `cubic-bezier(.2, .8, .2, 1)`.
+is a fast start that settles softly, `cubic-bezier(.2, .8, .2, 1)`. Something arriving, or a
+layout springing open, moves on a damped spring instead: it leaves at rest, passes its end
+once and swings back, and the motion is cut when it has come to rest within half a percent.
+There are three: the snappy spring (0.3 s swing, 75 % damping, about 3 % past its end, 360
+ms), the bouncy spring (0.4 s, 62 %, about 8 %, 600 ms) and the gentle spring (0.35 s, 85 %,
+under 1 %, 380 ms); `SNAPPY_SPRING`, `BOUNCY_SPRING` and `GENTLE_SPRING`.
 
 | Motion | Token | Time and easing |
 |---|---|---|
