@@ -1,18 +1,8 @@
 <script setup lang="ts">
 // A terminal-style code block with a copy button. `code` is the text that gets copied.
 const props = defineProps<{ code: string; label?: string; prompt?: boolean }>()
-const copied = ref(false)
+const { copied, copy } = useCopy()
 const lines = computed(() => props.code.split('\n'))
-
-async function copy() {
-  try {
-    await navigator.clipboard.writeText(props.code)
-    copied.value = true
-    setTimeout(() => (copied.value = false), 1600)
-  } catch {
-    copied.value = false
-  }
-}
 </script>
 
 <template>
@@ -23,9 +13,9 @@ async function copy() {
       type="button"
       class="absolute top-3 right-3 grid size-8 place-items-center rounded-card-xs text-[#9cc7c9] opacity-70 transition hover:bg-white/10 hover:opacity-100 focus-visible:opacity-100"
       :aria-label="copied ? 'Copied' : 'Copy to clipboard'"
-      @click="copy"
+      @click="copy(code)"
     >
-      <Icon :name="copied ? 'check' : 'copy'" :size="15" />
+      <CopyIcon :copied="copied" />
     </button>
   </div>
 </template>

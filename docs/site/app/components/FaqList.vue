@@ -16,7 +16,7 @@ const open = ref<number | null>(0)
           @click="open = open === i ? null : i"
         >
           {{ item.q }}
-          <span class="grid size-7 shrink-0 place-items-center rounded-full bg-surface-2 transition-transform duration-500 ease-out-soft" :class="open === i && 'rotate-45 bg-accent-soft text-accent'">
+          <span class="grid size-7 shrink-0 place-items-center rounded-full bg-surface-2 transition-[transform,background-color,color] duration-500 ease-out-soft" :class="open === i && 'rotate-45 bg-accent-soft text-accent'">
             <Icon name="plus" :size="15" />
           </span>
         </button>
@@ -28,7 +28,7 @@ const open = ref<number | null>(0)
         class="grid transition-[grid-template-rows] duration-500 ease-out-soft"
         :class="open === i ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'"
       >
-        <div class="overflow-hidden">
+        <div class="overflow-hidden" :inert="open !== i">
           <p class="px-6 pb-6 leading-relaxed text-fg-2" v-html="item.a" />
         </div>
       </div>

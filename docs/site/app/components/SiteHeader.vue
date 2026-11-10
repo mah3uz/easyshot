@@ -59,24 +59,23 @@ watch(() => route.fullPath, () => (open.value = false))
           @click="open = !open"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-            <path :d="open ? 'M6 6l12 12M18 6 6 18' : 'M4 7h16M4 12h16M4 17h16'" class="transition-all" />
+            <path d="M4 12h16" class="origin-center transition duration-300 ease-out-soft [transform-box:fill-box]" :class="open ? 'rotate-45 scale-x-[1.06]' : '-translate-y-[5px]'" />
+            <path d="M4 12h16" class="transition-opacity duration-200" :class="open && 'opacity-0'" />
+            <path d="M4 12h16" class="origin-center transition duration-300 ease-out-soft [transform-box:fill-box]" :class="open ? '-rotate-45 scale-x-[1.06]' : 'translate-y-[5px]'" />
           </svg>
         </button>
       </div>
     </nav>
 
-    <Transition
-      enter-active-class="transition duration-400 ease-out-soft"
-      enter-from-class="opacity-0 -translate-y-2"
-      leave-active-class="transition duration-200"
-      leave-to-class="opacity-0"
-    >
-      <ul v-if="open" id="mobile-nav" class="container-x grid gap-1 pb-5 lg:hidden">
-        <li v-for="l in links" :key="l.to">
-          <NuxtLink :to="l.to" class="block rounded-card-sm px-3 py-3 text-base font-medium hover:bg-surface-2">{{ l.label }}</NuxtLink>
-        </li>
-        <li><a :href="repo" class="block rounded-card-sm px-3 py-3 text-base font-medium hover:bg-surface-2" rel="noopener">GitHub</a></li>
-      </ul>
-    </Transition>
+    <div class="grid transition-[grid-template-rows] duration-500 ease-out-soft lg:hidden" :class="open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'" :inert="!open">
+      <div class="overflow-hidden">
+        <ul id="mobile-nav" class="container-x grid gap-1 pb-5 transition duration-500 ease-out-soft" :class="!open && '-translate-y-2 opacity-0'">
+          <li v-for="l in links" :key="l.to">
+            <NuxtLink :to="l.to" class="block rounded-card-sm px-3 py-3 text-base font-medium hover:bg-surface-2">{{ l.label }}</NuxtLink>
+          </li>
+          <li><a :href="repo" class="block rounded-card-sm px-3 py-3 text-base font-medium hover:bg-surface-2" rel="noopener">GitHub</a></li>
+        </ul>
+      </div>
+    </div>
   </header>
 </template>

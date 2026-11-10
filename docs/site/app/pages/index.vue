@@ -121,7 +121,7 @@ useHead({
             View on GitHub
           </a>
         </div>
-        <p class="rise text-[13px] text-fg-3" style="--d: 0.4s">For Linux on Wayland · Arch packages (AUR) · tarball for other distributions</p>
+        <HeroInstall class="rise" style="--d: 0.4s" />
       </div>
 
       <div class="container-x mt-16 sm:mt-20">

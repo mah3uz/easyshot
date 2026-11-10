@@ -40,22 +40,9 @@ const names = Object.keys(tabs) as Tab[]
 
 <template>
   <div class="grid gap-3">
-    <div class="inline-flex w-fit max-w-full flex-wrap gap-1 rounded-card sm:rounded-full border border-line bg-surface p-1 shadow-soft" role="tablist" aria-label="Compositor">
-      <button
-        v-for="n in names"
-        :key="n"
-        type="button"
-        role="tab"
-        :aria-selected="active === n"
-        class="relative rounded-full px-4 py-1.5 text-sm font-medium transition-colors duration-300"
-        :class="active === n ? 'bg-accent text-[#032830]' : 'text-fg-2 hover:text-fg'"
-        @click="active = n"
-      >
-        {{ n }}
-      </button>
-    </div>
-    <Transition mode="out-in" enter-active-class="transition duration-300 ease-out-soft" enter-from-class="opacity-0 translate-y-1" leave-active-class="transition duration-150" leave-to-class="opacity-0">
-      <CodeBlock :key="active" :label="tabs[active].file" :code="tabs[active].code" role="tabpanel" />
-    </Transition>
+    <TabPills v-model="active" :names="names" label="Compositor" class="w-fit" />
+    <SwapPanel :swap-key="active">
+      <CodeBlock :label="tabs[active].file" :code="tabs[active].code" role="tabpanel" />
+    </SwapPanel>
   </div>
 </template>

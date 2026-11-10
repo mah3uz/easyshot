@@ -19,13 +19,21 @@
   --accent-2: #1388a6;
   --accent-soft: rgba(33, 189, 176, 0.12);
   --grad: linear-gradient(135deg, #62edd4 0%, #21bdb0 45%, #1388a6 100%);
-  --grad-text: linear-gradient(120deg, #0f8f88 0%, #1388a6 60%, #3b6fd1 100%);
+  --gt-1: #0f8f88;
+  --gt-2: #1388a6;
+  --gt-3: #3b6fd1;
+  --gt-at: 60%;
+  --grad-text: linear-gradient(120deg, var(--gt-1) 0%, var(--gt-2) var(--gt-at), var(--gt-3) 100%);
   --sh-sm: 0 1px 2px rgba(4, 48, 64, 0.06), 0 1px 1px rgba(4, 48, 64, 0.04);
   --sh: 0 10px 30px -12px rgba(4, 48, 64, 0.22), 0 2px 6px rgba(4, 48, 64, 0.06);
   --sh-lg: 0 40px 90px -30px rgba(4, 48, 64, 0.38), 0 12px 30px -12px rgba(4, 48, 64, 0.16);
   --glow: rgba(33, 189, 176, 0.25);
   --code-bg: #0b3341;
-  --page-grad: linear-gradient(180deg, #f2f9fa 0%, #f6fafb 40%, #f3f8fa 100%);
+  --pg-1: #f2f9fa;
+  --pg-2: #f6fafb;
+  --pg-3: #f5f9fb;
+  --pg-4: #f3f8fa;
+  --page-grad: linear-gradient(180deg, var(--pg-1) 0%, var(--pg-2) 38%, var(--pg-3) 70%, var(--pg-4) 100%);
   --blob-1: rgba(98, 237, 212, 0.22);
   --blob-2: rgba(19, 136, 166, 0.12);
   --blob-3: rgba(120, 140, 255, 0.1);
@@ -46,13 +54,19 @@
     --accent: #3fd9c4;
     --accent-2: #21bdb0;
     --accent-soft: rgba(98, 237, 212, 0.12);
-    --grad-text: linear-gradient(120deg, #8ff5e3 0%, #3fd9c4 45%, #5fb8ff 100%);
+    --gt-1: #8ff5e3;
+    --gt-2: #3fd9c4;
+    --gt-3: #5fb8ff;
+    --gt-at: 45%;
     --sh-sm: 0 1px 2px rgba(0, 12, 18, 0.4);
     --sh: 0 12px 34px -12px rgba(0, 12, 18, 0.7), 0 2px 6px rgba(0, 12, 18, 0.3);
     --sh-lg: 0 50px 100px -30px rgba(0, 10, 16, 0.85), 0 16px 40px -16px rgba(0, 10, 16, 0.6);
     --glow: rgba(63, 217, 196, 0.22);
     --code-bg: #031a22;
-    --page-grad: linear-gradient(180deg, #073543 0%, #04252f 38%, #03212b 70%, #052a37 100%);
+    --pg-1: #073543;
+    --pg-2: #04252f;
+    --pg-3: #03212b;
+    --pg-4: #052a37;
     --blob-1: rgba(33, 189, 176, 0.28);
     --blob-2: rgba(19, 136, 166, 0.34);
     --blob-3: rgba(76, 110, 245, 0.16);
@@ -73,17 +87,68 @@
   --accent: #3fd9c4;
   --accent-2: #21bdb0;
   --accent-soft: rgba(98, 237, 212, 0.12);
-  --grad-text: linear-gradient(120deg, #8ff5e3 0%, #3fd9c4 45%, #5fb8ff 100%);
+  --gt-1: #8ff5e3;
+  --gt-2: #3fd9c4;
+  --gt-3: #5fb8ff;
+  --gt-at: 45%;
   --sh-sm: 0 1px 2px rgba(0, 12, 18, 0.4);
   --sh: 0 12px 34px -12px rgba(0, 12, 18, 0.7), 0 2px 6px rgba(0, 12, 18, 0.3);
   --sh-lg: 0 50px 100px -30px rgba(0, 10, 16, 0.85), 0 16px 40px -16px rgba(0, 10, 16, 0.6);
   --glow: rgba(63, 217, 196, 0.22);
   --code-bg: #031a22;
-  --page-grad: linear-gradient(180deg, #073543 0%, #04252f 38%, #03212b 70%, #052a37 100%);
+  --pg-1: #073543;
+  --pg-2: #04252f;
+  --pg-3: #03212b;
+  --pg-4: #052a37;
   --blob-1: rgba(33, 189, 176, 0.28);
   --blob-2: rgba(19, 136, 166, 0.34);
   --blob-3: rgba(76, 110, 245, 0.16);
   color-scheme: dark;
+}
+
+/* Gradient stops are typed so a theme change eases the gradients like every other colour. */
+@property --pg-1 { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --pg-2 { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --pg-3 { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --pg-4 { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --gt-1 { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --gt-2 { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --gt-3 { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --gt-at { syntax: '<percentage>'; inherits: true; initial-value: 50%; }
+
+:root {
+  transition-property: --pg-1, --pg-2, --pg-3, --pg-4, --gt-1, --gt-2, --gt-3, --gt-at;
+  transition-duration: 0.4s;
+  transition-timing-function: var(--ease-out-soft);
+}
+
+/* Metric-matched fallbacks, so text does not reflow when the web fonts arrive. */
+@font-face {
+  font-family: 'Inter Fallback';
+  src: local('Arial'), local('ArialMT'), local('Liberation Sans'), local('Arimo'), local('Helvetica');
+  font-weight: 100 500;
+  size-adjust: 106.55%;
+  ascent-override: 90.92%;
+  descent-override: 22.64%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: 'Inter Fallback';
+  src: local('Arial Bold'), local('Arial-BoldMT'), local('Liberation Sans Bold'), local('Arimo Bold'), local('Helvetica Bold');
+  font-weight: 600 900;
+  size-adjust: 101.1%;
+  ascent-override: 95.82%;
+  descent-override: 23.86%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: 'Inter Tight Fallback';
+  src: local('Arial Bold'), local('Arial-BoldMT'), local('Liberation Sans Bold'), local('Arimo Bold'), local('Helvetica Bold');
+  font-weight: 100 900;
+  size-adjust: 95.45%;
+  ascent-override: 101.5%;
+  descent-override: 25.27%;
+  line-gap-override: 0%;
 }
 
 @theme inline {
@@ -103,8 +168,8 @@
   --shadow-soft: var(--sh-sm);
   --shadow-card: var(--sh);
   --shadow-float: var(--sh-lg);
-  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-display: 'Inter Tight', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Inter', 'Inter Fallback', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Inter Tight', 'Inter Tight Fallback', 'Inter', 'Inter Fallback', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }

@@ -72,13 +72,25 @@ const inspector = ref(true)
       </button>
     </div>
 
-    <div class="grid grid-cols-[minmax(0,1fr)]" :class="inspector && 'md:grid-cols-[minmax(0,1fr)_250px]'">
+    <div
+      class="grid grid-cols-[minmax(0,1fr)] transition-[grid-template-columns,grid-template-rows] duration-500 ease-out-soft md:grid-rows-1"
+      :class="inspector ? 'grid-rows-[auto_1fr] md:grid-cols-[minmax(0,1fr)_250px]' : 'grid-rows-[auto_0fr] md:grid-cols-[minmax(0,1fr)_0px]'"
+    >
       <!-- Canvas -->
       <div class="grid min-h-[280px] place-items-center bg-[repeating-conic-gradient(var(--bg-2)_0_25%,var(--bg)_0_50%)] bg-[length:18px_18px] p-4 sm:p-8">
+        <!-- The sizer holds the height of the largest padding, so dragging Padding never moves the page. -->
+        <div class="col-start-1 row-start-1 box-content aspect-[1/0.7165] w-full max-w-[560px] pt-[9.2%]" aria-hidden="true" />
         <div
-          class="w-full max-w-[560px] transition-all duration-700 ease-out-soft [perspective:1200px]"
-          :style="{ background: bg.css, padding: `${padding}%`, borderRadius: 'var(--radius-card)' }"
+          class="relative col-start-1 row-start-1 w-full max-w-[560px] transition-[padding] duration-700 ease-out-soft [perspective:1200px]"
+          :style="{ padding: `${padding}%`, borderRadius: 'var(--radius-card)' }"
         >
+          <i
+            v-for="b in backgrounds"
+            :key="b.id"
+            class="absolute inset-0 rounded-[inherit] transition-opacity duration-700 ease-out-soft"
+            :class="bg.id === b.id ? 'opacity-100' : 'opacity-0'"
+            :style="{ background: b.css }"
+          />
           <div
             class="relative overflow-hidden transition-all duration-700 ease-out-soft"
             :style="{
@@ -105,34 +117,36 @@ const inspector = ref(true)
       </div>
 
       <!-- Inspector -->
-      <aside v-show="inspector" class="grid content-start gap-5 border-t border-line p-5 text-sm md:border-t-0 md:border-l" aria-label="Beautify inspector">
-        <div class="grid gap-2.5">
-          <span class="text-xs font-semibold text-fg-3 uppercase">Background</span>
-          <div class="grid grid-cols-6 gap-1.5 md:grid-cols-3">
-            <button
-              v-for="b in backgrounds"
-              :key="b.id"
-              type="button"
-              class="aspect-[4/3] rounded-card-sm border-2 transition-all duration-300 hover:scale-105"
-              :class="bg.id === b.id ? 'border-accent ring-2 ring-accent-soft' : 'border-transparent'"
-              :style="{ background: b.css }"
-              :aria-label="b.label"
-              :aria-pressed="bg.id === b.id"
-              @click="bg = b"
-            />
+      <aside class="min-h-0 min-w-0 overflow-hidden transition-opacity duration-500 ease-out-soft" :class="!inspector && 'opacity-0'" :inert="!inspector" aria-label="Beautify inspector">
+        <div class="grid h-full content-start gap-5 border-t border-line p-5 text-sm md:w-[250px] md:border-t-0 md:border-l">
+          <div class="grid gap-2.5">
+            <span class="text-xs font-semibold text-fg-3 uppercase">Background</span>
+            <div class="grid grid-cols-6 gap-1.5 md:grid-cols-3">
+              <button
+                v-for="b in backgrounds"
+                :key="b.id"
+                type="button"
+                class="aspect-[4/3] rounded-card-sm border-2 transition-all duration-300 hover:scale-105"
+                :class="bg.id === b.id ? 'border-accent ring-2 ring-accent-soft' : 'border-transparent'"
+                :style="{ background: b.css }"
+                :aria-label="b.label"
+                :aria-pressed="bg.id === b.id"
+                @click="bg = b"
+              />
+            </div>
           </div>
-        </div>
-        <label class="grid gap-2">
-          <span class="flex justify-between text-xs font-semibold text-fg-3 uppercase">Padding <span class="font-mono normal-case">{{ padding }}%</span></span>
-          <input v-model.number="padding" type="range" min="2" max="16" class="accent-[var(--accent)]" />
-        </label>
-        <label class="grid gap-2">
-          <span class="flex justify-between text-xs font-semibold text-fg-3 uppercase">Corners <span class="font-mono normal-case">{{ radius }}px</span></span>
-          <input v-model.number="radius" type="range" min="0" max="28" class="accent-[var(--accent)]" />
-        </label>
-        <div class="grid grid-cols-2 gap-2">
-          <button type="button" class="rounded-card-sm border px-3 py-2 text-xs font-semibold transition" :class="shadow ? 'border-accent bg-accent-soft text-accent' : 'border-line text-fg-2'" :aria-pressed="shadow" @click="shadow = !shadow">Shadow</button>
-          <button type="button" class="rounded-card-sm border px-3 py-2 text-xs font-semibold transition" :class="tilt ? 'border-accent bg-accent-soft text-accent' : 'border-line text-fg-2'" :aria-pressed="tilt" @click="tilt = !tilt">Camera 3D</button>
+          <label class="grid gap-2">
+            <span class="flex justify-between text-xs font-semibold text-fg-3 uppercase">Padding <span class="font-mono normal-case">{{ padding }}%</span></span>
+            <input v-model.number="padding" type="range" min="2" max="16" class="accent-[var(--accent)]" />
+          </label>
+          <label class="grid gap-2">
+            <span class="flex justify-between text-xs font-semibold text-fg-3 uppercase">Corners <span class="font-mono normal-case">{{ radius }}px</span></span>
+            <input v-model.number="radius" type="range" min="0" max="28" class="accent-[var(--accent)]" />
+          </label>
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" class="rounded-card-sm border px-3 py-2 text-xs font-semibold transition" :class="shadow ? 'border-accent bg-accent-soft text-accent' : 'border-line text-fg-2'" :aria-pressed="shadow" @click="shadow = !shadow">Shadow</button>
+            <button type="button" class="rounded-card-sm border px-3 py-2 text-xs font-semibold transition" :class="tilt ? 'border-accent bg-accent-soft text-accent' : 'border-line text-fg-2'" :aria-pressed="tilt" @click="tilt = !tilt">Camera 3D</button>
+          </div>
         </div>
       </aside>
     </div>
