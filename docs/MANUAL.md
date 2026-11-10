@@ -555,7 +555,8 @@ Interface changes ease into place; with Reduce Motion they happen at once:
 - The recording control bar springs in from the capture bar, growing as it fades in.
 - A toast springs in, growing and rising into place, and shrinks away as it fades; with Reduce
   Motion it only fades in and out.
-- Tooltips open after a short rest, and at once when you move straight to the next control.
+- Tooltips open once the pointer has rested on a control for 0.7 seconds, the next control
+  included, so they never jump from one control to the next.
 
 Settings are stored in `config.toml`; see Files. You can edit it by hand. While easyshot
 runs it watches the file and applies your edits at once, without a restart, and a later change

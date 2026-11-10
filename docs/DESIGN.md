@@ -120,10 +120,11 @@ under 1 %, 380 ms); `SNAPPY_SPRING`, `BOUNCY_SPRING` and `GENTLE_SPRING`.
 | Countdown: each new second drops in from above as the last one falls away, both fading | `DIGIT_ROLL` | 300 ms, snappy |
 | Countdown: after the last second the dial shrinks to 82 % and fades out | `COUNTDOWN_OUT` | 300 ms, snappy |
 | Editor: Saved and Copied fade in, hold, and fade out at the end of the hold; the button they replaced fades back | `FLASH`, `FLASH_HOLD` | 200 ms snappy fades, 1.4 s hold |
-| Tooltips open after a rest, and at once while you move straight on | `TOOLTIP_DELAY`, `TOOLTIP_WARM` | 160 ms, 500 ms |
+| Tooltips open after a rest, on every control, including the next one you move straight on to | `TOOLTIP_DELAY` | 700 ms |
 
 Tooltips open where the pointer is, not anchored to their control, so one tooltip cannot glide
-from control to control; each opens on its own, at once while warm.
+from control to control; each opens on its own, after the full rest. A tooltip that opened at once
+on the next control read as one tooltip jumping across as the pointer passed over a row.
 
 Elements have no blur filter, so the countdown's entry and a new deck card scale and fade
 without a blur. Elements have no scale either: a toast grows its card around its words, which

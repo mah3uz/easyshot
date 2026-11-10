@@ -2,7 +2,7 @@ use crate::support;
 
 use std::{cell::RefCell, rc::Rc, time::Duration};
 
-use es_ui::motion::{TOOLTIP_DELAY, TOOLTIP_WARM};
+use es_ui::motion::TOOLTIP_DELAY;
 use gpui::{
     Context, InteractiveElement, IntoElement, MouseMoveEvent, ParentElement, PlatformInput, Render,
     StatefulInteractiveElement, Styled, Window, div, point, px,
@@ -56,7 +56,7 @@ fn last(shown: &Rc<RefCell<Vec<&'static str>>>) -> Option<&'static str> {
 }
 
 #[test]
-fn a_tooltip_waits_its_token_delay_and_its_neighbour_opens_at_once_while_warm() {
+fn every_tooltip_waits_the_full_delay_even_on_the_next_control() {
     let shown = Rc::new(RefCell::new(Vec::new()));
     let (mut app, _) = open(120., |_, _| Pair {
         shown: shown.clone(),
@@ -64,48 +64,42 @@ fn a_tooltip_waits_its_token_delay_and_its_neighbour_opens_at_once_while_warm() 
 
     hover(&mut app, 30.);
     wait(&mut app, TOOLTIP_DELAY - MS);
-    assert_eq!(last(&shown), None, "a cold tooltip waits out its delay");
+    assert_eq!(last(&shown), None, "a tooltip waits out its delay");
     wait(&mut app, MS);
     assert_eq!(last(&shown), Some("a"));
 
     hover(&mut app, 100.);
-    assert_eq!(
-        last(&shown),
-        Some("b"),
-        "moving straight to a neighbour shows its tooltip with no delay"
-    );
-
-    hover(&mut app, 200.);
-    wait(&mut app, TOOLTIP_WARM - 10 * MS);
-    hover(&mut app, 30.);
+    wait(&mut app, TOOLTIP_DELAY - MS);
     assert_eq!(
         last(&shown),
         Some("a"),
-        "the tooltips stay warm for the warm window after the pointer leaves"
-    );
-
-    hover(&mut app, 200.);
-    wait(&mut app, TOOLTIP_WARM);
-    hover(&mut app, 100.);
-    wait(&mut app, TOOLTIP_DELAY - MS);
-    assert_eq!(
-        shown.borrow().len(),
-        3,
-        "once the warm window has passed, the delay applies again"
+        "moving straight to a neighbour waits the whole delay again, so no tooltip jumps across"
     );
     wait(&mut app, MS);
     assert_eq!(last(&shown), Some("b"));
+
+    hover(&mut app, 200.);
+    wait(&mut app, 10 * MS);
+    hover(&mut app, 30.);
+    wait(&mut app, TOOLTIP_DELAY - MS);
+    assert_eq!(
+        shown.borrow().len(),
+        2,
+        "coming straight back after leaving waits the delay too"
+    );
+    wait(&mut app, MS);
+    assert_eq!(last(&shown), Some("a"));
 }
 
 #[test]
-fn the_kit_tooltips_use_the_same_tokens() {
+fn the_kit_tooltips_use_the_same_delay_and_never_stay_warm() {
     let (mut app, _) = open(120., |_, _| Pair {
         shown: Rc::default(),
     });
     let defaults = app.cx.update(|cx| TooltipDefaults::global(cx));
     assert_eq!(
         (defaults.show_delay(), defaults.grace_period()),
-        (TOOLTIP_DELAY, TOOLTIP_WARM)
+        (TOOLTIP_DELAY, Duration::ZERO)
     );
 }
 

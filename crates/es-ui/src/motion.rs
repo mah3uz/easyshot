@@ -180,8 +180,7 @@ pub const DIGIT_ROLL: Transition = moves(300, Easing::Snappy);
 pub const HANDOFF: Transition = moves(200, Easing::Snappy);
 pub const HANDOFF_IN: Transition = SNAPPY_SPRING;
 pub const HANDOFF_SCALE: f32 = 0.94;
-pub const TOOLTIP_DELAY: Duration = Duration::from_millis(160);
-pub const TOOLTIP_WARM: Duration = Duration::from_millis(500);
+pub const TOOLTIP_DELAY: Duration = Duration::from_millis(700);
 
 const REDUCED_FADE_LIMIT: Duration = Duration::from_millis(120);
 
@@ -390,15 +389,16 @@ pub fn reduce_motion(cx: &App) -> bool {
     cx.try_global::<ReduceMotion>().is_some_and(|r| r.0)
 }
 
-/// Plain element tooltips and the kit's managed ones keep separate clocks, so both are set.
+/// Plain element tooltips and the kit's managed ones keep separate clocks, so both are set. Neither
+/// stays warm: a tooltip that opened at once on the next control reads as one jumping across.
 pub fn install_tooltip_timing(cx: &mut App) {
     cx.set_global(TooltipTiming {
         delay: TOOLTIP_DELAY,
-        warm: TOOLTIP_WARM,
+        warm: Duration::ZERO,
     });
     TooltipDefaults::new()
         .with_show_delay(TOOLTIP_DELAY)
-        .with_grace_period(TOOLTIP_WARM)
+        .with_grace_period(Duration::ZERO)
         .install(cx);
 }
 
