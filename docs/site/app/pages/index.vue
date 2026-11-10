@@ -27,7 +27,7 @@ const faq = [
   },
   {
     q: 'Does it upload my screenshots?',
-    a: 'No. Everything stays on your machine: captures, recordings, logs and crash reports. Cloud sharing is coming soon; for now the Cloud Share action on a card only says so.',
+    a: 'No. Everything stays on your machine: captures, recordings, logs and crash reports. Sharing a capture as a link is <a class="text-accent underline" href="/#soon">coming soon</a>.',
   },
   {
     q: 'What does recording need?',
@@ -35,7 +35,7 @@ const faq = [
   },
   {
     q: 'Can I edit recordings into a video?',
-    a: 'The trim viewer cuts a recording and exports MP4, WebM or GIF, with a size, a quality, a colour look and a volume for each sound track. A Video Studio with a timeline, zooms and captions is coming soon.',
+    a: 'Yes, in the <a class="text-accent underline" href="/#trim">trim viewer</a>: trim the start and end, set the sound and the look, and export MP4, WebM or GIF. A full Video Studio is <a class="text-accent underline" href="/#soon">coming soon</a>.',
   },
   {
     q: 'Can AI agents use it?',
@@ -67,6 +67,15 @@ const editorPoints = [
   'Background, padding, corners, shadow, border, watermark and presets',
   'Camera 3D and progressive blur for a polished look',
   'Unsaved edits come back after a crash',
+]
+
+const trimPoints = [
+  'Trim the start and the end',
+  'A volume slider each for system sound and your microphone, mixed into one track on export',
+  'Brightness and four colour looks (Natural, Vivid, Muted and Mono), shown in the player as you choose',
+  'MP4, WebM or GIF, at the original size or 1080p, 720p or 480p, in High, Balanced or Small quality',
+  'Your last choices are remembered',
+  'Saved to <code>~/Videos/easyshot</code>, never over an earlier file',
 ]
 
 const agentSafety = [
@@ -240,10 +249,45 @@ useHead({
             <li class="flex items-center gap-3"><Icon name="zap" :size="17" class="text-accent" /> Uses gpu-screen-recorder, or wf-recorder</li>
             <li class="flex items-center gap-3"><Icon name="app-window" :size="17" class="text-accent" /> A window keeps recording when it is covered or on another workspace</li>
             <li class="flex items-center gap-3"><Icon name="timer" :size="17" class="text-accent" /> Countdown before it starts</li>
-            <li class="flex items-center gap-3"><Icon name="film" :size="17" class="text-accent" /> Trim viewer with MP4, WebM and GIF export</li>
+            <li class="flex items-center gap-3"><Icon name="film" :size="17" class="text-accent" /> <a href="#trim" class="underline decoration-line-strong underline-offset-4 transition-colors hover:text-accent">Trim viewer with MP4, WebM and GIF export</a></li>
           </ul>
         </div>
         <div v-reveal="0.1"><RecordMock /></div>
+      </div>
+    </section>
+
+    <!-- Trim viewer -->
+    <section id="trim" class="py-24 sm:py-32">
+      <div class="container-x grid items-center gap-12 md:grid-cols-[1.1fr_1fr]">
+        <div v-reveal class="order-2 md:order-1"><TrimMock /></div>
+        <div v-reveal="0.1" class="order-1 grid gap-4 md:order-2 [&_code]:rounded-md [&_code]:border [&_code]:border-line [&_code]:bg-surface-2 [&_code]:px-1.5 [&_code]:py-px [&_code]:text-[0.88em] [&_code]:whitespace-nowrap [&_code]:text-fg">
+          <span class="eyebrow"><Icon name="film" :size="15" />Edit your recording</span>
+          <h2 class="text-[clamp(32px,4.4vw,50px)] leading-[1.05]">Trim it, tune it, export it.</h2>
+          <p class="text-lg text-fg-2">
+            The trim viewer opens from a recording's card, from the gallery, or with <code>easyshot open video.mp4</code>.
+            Cut the ends, set the sound, pick a look, and export.
+          </p>
+          <ul class="grid gap-2.5 pt-2">
+            <li v-for="(p, i) in trimPoints" :key="p" v-reveal="i * 0.05" class="flex gap-3 text-[15px] text-fg-2">
+              <span class="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-accent-soft text-accent"><Icon name="check" :size="12" /></span>
+              <span v-html="p" />
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Coming soon -->
+    <section id="soon" class="bg-bg-2/60 py-24 sm:py-32">
+      <div class="container-x">
+        <div v-reveal class="mx-auto mb-14 grid max-w-[680px] justify-items-center gap-4 text-center">
+          <span class="eyebrow"><Icon name="sparkles" :size="15" />Coming soon</span>
+          <h2 class="text-[clamp(34px,5vw,56px)] leading-[1.05]">What's next.</h2>
+          <p class="text-[clamp(17px,2vw,20px)] text-fg-2">
+            Two bigger pieces are on the way: a full studio for your recordings, and links you can share.
+          </p>
+        </div>
+        <SoonCards />
       </div>
     </section>
 
