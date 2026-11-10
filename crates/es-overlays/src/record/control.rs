@@ -8,7 +8,7 @@ use es_protocol::Route;
 use es_record::{AudioSource, Clock};
 use es_ui::a11y::{Accessible as _, Role};
 use es_ui::icons::IconName;
-use es_ui::motion::{Clocked, HANDOFF_IN, HANDOFF_SCALE, progress};
+use es_ui::motion::{BAR_SWAP, Clocked, HANDOFF_IN, HANDOFF_SCALE, progress, since_change};
 use es_ui::theme::{UI_FONT, tokens};
 use gpui::{
     AnyElement, Context, EventEmitter, FontWeight, Hsla, InteractiveElement as _, IntoElement,
@@ -68,6 +68,7 @@ pub struct ControlBar {
     pointer: PointerGlobal,
     press: Option<Press>,
     entry: Option<Clocked>,
+    swap: Option<Clocked>,
     _tick: Task<()>,
 }
 
@@ -101,6 +102,7 @@ impl ControlBar {
             pointer: Rc::new(|| None),
             press: None,
             entry: Clocked::start(HANDOFF_IN, cx),
+            swap: None,
             _tick: tick,
         }
     }
@@ -193,7 +195,12 @@ impl ControlBar {
         cx.notify();
     }
 
+    /// A confirmed card stays up, inert, until the surface closes, so the bar never flashes back
+    /// between the card and leaving.
     pub fn finishing(&mut self, cx: &mut Context<Self>) {
+        if self.phase == Phase::Finishing {
+            return;
+        }
         self.watch.pause();
         self.phase = Phase::Finishing;
         self.set_confirm(None, cx);
@@ -204,6 +211,7 @@ impl ControlBar {
         if self.confirm != confirm {
             let old = self.size();
             self.confirm = confirm;
+            self.swap = Clocked::start(BAR_SWAP, cx);
             let new = self.size();
             let moved = Point::new(
                 self.origin.x + (old.width - new.width) / 2.0,
@@ -226,8 +234,19 @@ impl ControlBar {
         }
     }
 
+    fn cancel(&mut self, cx: &mut Context<Self>) {
+        if !self.phase.busy() {
+            self.set_confirm(None, cx);
+        }
+    }
+
     fn confirmed(&mut self, confirm: Confirm, cx: &mut Context<Self>) {
-        self.set_confirm(None, cx);
+        if self.phase.busy() {
+            return;
+        }
+        self.watch.pause();
+        self.phase = Phase::Finishing;
+        cx.notify();
         cx.emit(ControlEvent::Route(match confirm {
             Confirm::Restart => Route::RecordRestart,
             Confirm::Discard => Route::RecordDiscard,
@@ -298,6 +317,7 @@ impl ControlBar {
         icon: IconName,
         label: String,
         ink: Option<Hsla>,
+        shown: f32,
         cx: &mut Context<Self>,
     ) -> Stateful<gpui::Div> {
         let t = tokens(cx);
@@ -319,7 +339,7 @@ impl ControlBar {
             .when(!busy, |d| {
                 d.hover(|s| s.bg(t.hover_fill)).active(|s| s.opacity(0.55))
             })
-            .child(Icon::new(icon).size(px(17.)));
+            .child(div().opacity(shown).child(Icon::new(icon).size(px(17.))));
         tip(d, label)
     }
 
@@ -331,12 +351,12 @@ impl ControlBar {
         route: Route,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        self.segment(id, icon, label, None, cx)
+        self.segment(id, icon, label, None, 1.0, cx)
             .on_click(cx.listener(move |bar, _, _, cx| bar.act(route.clone(), cx)))
             .into_any_element()
     }
 
-    fn mute(&self, source: AudioSource, cx: &mut Context<Self>) -> AnyElement {
+    fn mute(&self, source: AudioSource, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         let muted = self.is_muted(source);
         let (id, icon, label) = match (source, muted) {
             (AudioSource::Mic, false) => {
@@ -359,7 +379,8 @@ impl ControlBar {
             ),
         };
         let red = muted.then(|| tokens(cx).destructive);
-        self.segment(id, icon, label, red, cx)
+        let shown = since_change(id, muted, BAR_SWAP, window, cx);
+        self.segment(id, icon, label, red, shown, cx)
             .toggled(muted)
             .on_click(cx.listener(move |bar, _, _, cx| {
                 if !bar.phase.busy() {
@@ -391,7 +412,7 @@ impl ControlBar {
         tip(d, fl!("rec-bar-move-help")).into_any_element()
     }
 
-    fn render_bar(&mut self, cx: &mut Context<Self>) -> AnyElement {
+    fn render_bar(&mut self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         let t = tokens(cx).clone();
         let busy = self.phase.busy();
         let time = format_elapsed(self.elapsed());
@@ -401,6 +422,7 @@ impl ControlBar {
             Phase::Paused => fl!("rec-bar-paused"),
             Phase::Finishing => fl!("rec-bar-saving"),
         };
+        let word_shown = since_change("rec-stop-word", self.phase, BAR_SWAP, window, cx);
         let red = if busy {
             t.destructive.opacity(0.5)
         } else {
@@ -433,6 +455,7 @@ impl ControlBar {
                     .flex_1()
                     .text_size(px(13.))
                     .font_weight(FontWeight::MEDIUM)
+                    .opacity(word_shown)
                     .child(word),
             )
             .child(digits(&time, 13., CELL).font_weight(FontWeight::MEDIUM));
@@ -452,7 +475,7 @@ impl ControlBar {
         for source in self.audio.clone() {
             bar = bar
                 .child(separator(t.separator))
-                .child(self.mute(source, cx));
+                .child(self.mute(source, window, cx));
         }
         bar.child(separator(t.separator))
             .child(self.routed("rec-pause", pause_icon, pause_label, Route::RecordPause, cx))
@@ -480,8 +503,9 @@ impl Render for ControlBar {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let body = match self.confirm {
             Some(confirm) => self.render_confirm(confirm, cx),
-            None => self.render_bar(cx),
+            None => self.render_bar(window, cx),
         };
+        let swapped = progress(self.swap, window, cx);
         let e = progress(self.entry, window, cx);
         let scale = HANDOFF_SCALE + (1.0 - HANDOFF_SCALE) * e;
         let c = self.content();
@@ -520,7 +544,7 @@ impl Render for ControlBar {
                         div()
                             .w(px(c.width as f32 * scale))
                             .h(px(c.height as f32 * scale))
-                            .opacity(e.min(1.0))
+                            .opacity(e.min(1.0) * swapped)
                             .child(body),
                     ),
             )

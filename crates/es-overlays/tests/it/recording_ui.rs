@@ -382,8 +382,7 @@ const BAR_IN_CONFIRM: (f32, f32) = (
     (CONFIRM.height + TIP_ROOM - CONTROL.height) as f32 + 19.,
 );
 
-#[test]
-fn start_over_and_discard_ask_first() {
+fn confirm_surface() -> Surface<ControlBar> {
     let clock: Arc<dyn Clock> = Arc::new(TestClock::default());
     let mut s = Surface::open(
         CONFIRM.width as f32,
@@ -392,11 +391,18 @@ fn start_over_and_discard_ask_first() {
     );
     let view = s.view.clone();
     s.app.cx.update(|cx| view.update(cx, |b, cx| b.started(cx)));
+    s
+}
+
+fn confirm(s: &mut Surface<ControlBar>) -> Option<Confirm> {
+    let v = s.view.clone();
+    s.app.cx.update(|cx| v.read(cx).confirm())
+}
+
+#[test]
+fn start_over_and_discard_ask_first() {
+    let mut s = confirm_surface();
     let (events, _sub) = s.record::<ControlEvent>();
-    let confirm = |s: &mut Surface<ControlBar>| {
-        let v = view.clone();
-        s.app.cx.update(|cx| v.read(cx).confirm())
-    };
     s.click(STOP_X + BAR_IN_CONFIRM.0, BAR_IN_CONFIRM.1);
     s.click(PAUSE_X + BAR_IN_CONFIRM.0, BAR_IN_CONFIRM.1);
     assert_eq!(
@@ -424,6 +430,9 @@ fn start_over_and_discard_ask_first() {
         Some(&ControlEvent::Route(Route::RecordRestart))
     );
 
+    let mut s = confirm_surface();
+    let view = s.view.clone();
+    let (events, _sub) = s.record::<ControlEvent>();
     s.click(DISCARD_X + BAR_IN_CONFIRM.0, BAR_IN_CONFIRM.1);
     assert_eq!(confirm(&mut s), Some(Confirm::Discard));
     let size = s.app.cx.update(|cx| view.read(cx).size());
@@ -439,7 +448,7 @@ fn start_over_and_discard_ask_first() {
         .iter()
         .filter(|e| matches!(e, ControlEvent::Route(_)))
         .count();
-    assert_eq!(routes, 2, "only the confirm buttons act");
+    assert_eq!(routes, 1, "only the confirm button acts");
 }
 
 fn screenshot_timer_row(h: f32, i: usize) -> f32 {

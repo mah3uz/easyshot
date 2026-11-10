@@ -4,7 +4,8 @@ use es_ui::a11y::{Accessible as _, Role};
 use es_ui::theme::{UI_FONT, tokens};
 use gpui::{
     AnyElement, Context, FontWeight, Hsla, InteractiveElement as _, IntoElement,
-    ParentElement as _, StatefulInteractiveElement as _, Styled as _, div, px,
+    ParentElement as _, StatefulInteractiveElement as _, Styled as _, div,
+    prelude::FluentBuilder as _, px,
 };
 
 impl ControlBar {
@@ -14,6 +15,7 @@ impl ControlBar {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let t = tokens(cx).clone();
+        let busy = self.phase.busy();
         let (title, message, action) = match confirm {
             Confirm::Restart => (
                 fl!("rec-confirm-restart-title"),
@@ -80,6 +82,7 @@ impl ControlBar {
                     .flex()
                     .justify_end()
                     .gap(px(8.))
+                    .when(busy, |d| d.opacity(0.5))
                     .child(
                         button(
                             "rec-confirm-cancel",
@@ -87,7 +90,7 @@ impl ControlBar {
                             t.fill,
                             t.text,
                         )
-                        .on_click(cx.listener(|bar, _, _, cx| bar.set_confirm(None, cx))),
+                        .on_click(cx.listener(|bar, _, _, cx| bar.cancel(cx))),
                     )
                     .child(
                         button("rec-confirm-ok", action, t.destructive, t.on_accent)

@@ -1,6 +1,6 @@
 use super::*;
 use es_record::AudioSource;
-use es_ui::motion::{HANDOFF_IN, set_reduce_motion};
+use es_ui::motion::{BAR_SWAP, HANDOFF_IN, set_reduce_motion};
 use std::cell::Cell;
 use std::rc::Rc;
 
@@ -243,13 +243,15 @@ fn a_muted_source_is_drawn_in_red_in_both_themes() {
         s.app.cx.update(|cx| {
             view.update(cx, |b, cx| b.set_muted(AudioSource::Mic, true, cx));
         });
-        let mic = s.app.screenshot(&format!("control-bar-mic-muted-{tag}"));
+        s.app.cx.advance_clock(BAR_SWAP.duration);
+        let mic = frame(&mut s, &format!("control-bar-mic-muted-{tag}"));
         assert!(has_red(&mic, FIRST_MUTE_X + MUTE_WIDTH), "{tag}");
         assert!(!has_red(&mic, FIRST_MUTE_X), "{tag}");
         s.app.cx.update(|cx| {
             view.update(cx, |b, cx| b.set_muted(AudioSource::System, true, cx));
         });
-        let both = s.app.screenshot(&format!("control-bar-both-muted-{tag}"));
+        s.app.cx.advance_clock(BAR_SWAP.duration);
+        let both = frame(&mut s, &format!("control-bar-both-muted-{tag}"));
         assert!(has_red(&both, FIRST_MUTE_X), "{tag}");
     }
 }
@@ -308,4 +310,127 @@ fn the_control_bar_springs_in_growing_and_fading_from_the_capture_bar_it_replace
         rest,
         "and is at rest once its spring is done"
     );
+}
+
+fn frame(s: &mut Surface<ControlBar>, name: &str) -> image::RgbaImage {
+    let handle = s.app.window.into();
+    s.app
+        .cx
+        .update_window(handle, |_, window, _| window.refresh())
+        .unwrap_or_default();
+    s.app.screenshot(name)
+}
+
+fn entering_now(s: &mut Surface<ControlBar>) -> bool {
+    let view = s.view.clone();
+    s.app.cx.update(|cx| view.read(cx).entering(cx))
+}
+
+#[test]
+fn a_mute_changes_only_its_icon_fading_the_new_one_in_and_never_replays_the_entrance() {
+    let mut s = open(vec![AudioSource::Mic]);
+    s.app.cx.advance_clock(HANDOFF_IN.duration);
+    assert!(!entering_now(&mut s));
+    let view = s.view.clone();
+    s.app.cx.update(|cx| {
+        view.update(cx, |b, cx| b.set_muted(AudioSource::Mic, true, cx));
+    });
+    let swapped = frame(&mut s, "control-bar-mute-0-swapped");
+    assert!(
+        !entering_now(&mut s),
+        "a mute does not play the bar's entrance again"
+    );
+    assert!(
+        !has_red(&swapped, FIRST_MUTE_X),
+        "the old icon is gone and the red one has not faded in yet"
+    );
+    s.app.cx.advance_clock(BAR_SWAP.duration / 2);
+    let mid = frame(&mut s, "control-bar-mute-1-mid");
+    s.app.cx.advance_clock(BAR_SWAP.duration / 2);
+    let end = frame(&mut s, "control-bar-mute-2-end");
+    assert!(has_red(&end, FIRST_MUTE_X));
+    assert!(mid != end, "the new icon is still fading in half way");
+    assert!(!entering_now(&mut s));
+}
+
+#[test]
+fn the_confirm_card_fades_in_in_place_and_never_replays_the_entrance() {
+    let clock: Arc<dyn Clock> = Arc::new(TestClock::default());
+    let mut s = Surface::open(
+        CONFIRM.width as f32,
+        (CONFIRM.height + TIP_ROOM) as f32,
+        move |cx| ControlBar::new(clock, Vec::new(), cx),
+    );
+    let view = s.view.clone();
+    s.app.cx.update(|cx| view.update(cx, |b, cx| b.started(cx)));
+    s.app.cx.advance_clock(HANDOFF_IN.duration);
+    s.click(DISCARD_X + BAR_IN_CONFIRM.0, BAR_IN_CONFIRM.1);
+    assert_eq!(
+        s.app.cx.update(|cx| view.read(cx).confirm()),
+        Some(Confirm::Discard)
+    );
+    assert!(
+        !entering_now(&mut s),
+        "the card does not play the bar's entrance again"
+    );
+    let shown = |s: &mut Surface<ControlBar>, name: &str| {
+        let shot = frame(s, name);
+        let back = shot.get_pixel(2, 2).0;
+        shot.pixels()
+            .map(|p| {
+                (0..3)
+                    .map(|c| u32::from(p.0[c].abs_diff(back[c])))
+                    .sum::<u32>()
+            })
+            .max()
+            .unwrap_or(0)
+    };
+    let start = shown(&mut s, "control-bar-card-0-start");
+    s.app.cx.advance_clock(BAR_SWAP.duration / 3);
+    let early = shown(&mut s, "control-bar-card-1-early");
+    s.app.cx.advance_clock(BAR_SWAP.duration);
+    let end = shown(&mut s, "control-bar-card-2-end");
+    assert!(
+        start < early && early < end,
+        "the card fades in after the bar has gone: {start} {early} {end}"
+    );
+}
+
+#[test]
+fn a_confirmed_card_stays_inert_until_the_bar_leaves_instead_of_flashing_the_bar_back() {
+    let mut s = confirm_surface();
+    let view = s.view.clone();
+    s.click(DISCARD_X + BAR_IN_CONFIRM.0, BAR_IN_CONFIRM.1);
+    s.click(OK.0, OK.1);
+    let (events, _sub) = s.record::<ControlEvent>();
+    s.app
+        .cx
+        .update(|cx| view.update(cx, |b, cx| b.finishing(cx)));
+    assert_eq!(
+        confirm(&mut s),
+        Some(Confirm::Discard),
+        "the recorder finishing keeps the card up"
+    );
+    assert_eq!(
+        s.app.cx.update(|cx| view.read(cx).phase()),
+        Phase::Finishing
+    );
+    s.click(OK.0, OK.1);
+    s.click(CANCEL.0, CANCEL.1);
+    assert!(
+        events.borrow().is_empty(),
+        "a confirmed card neither acts twice nor resizes back to the bar: {:?}",
+        events.borrow()
+    );
+}
+
+#[test]
+fn stop_from_elsewhere_while_a_card_asks_goes_back_to_the_bar() {
+    let mut s = confirm_surface();
+    let view = s.view.clone();
+    s.click(RESTART_X + BAR_IN_CONFIRM.0, BAR_IN_CONFIRM.1);
+    s.app
+        .cx
+        .update(|cx| view.update(cx, |b, cx| b.finishing(cx)));
+    assert_eq!(confirm(&mut s), None, "the bar shows it is saving");
 }

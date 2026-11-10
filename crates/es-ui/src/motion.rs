@@ -183,6 +183,8 @@ pub const DIGIT_ROLL: Transition = moves(300, Easing::Snappy);
 pub const HANDOFF: Transition = moves(200, Easing::Snappy);
 pub const HANDOFF_IN: Transition = SNAPPY_SPRING;
 pub const HANDOFF_SCALE: f32 = 0.94;
+/// The recording bar changing in place: long enough to follow, and the old state is already gone.
+pub const BAR_SWAP: Transition = fades(220, Easing::EaseOut);
 pub const TOOLTIP_DELAY: Duration = Duration::from_millis(700);
 
 const REDUCED_FADE_LIMIT: Duration = Duration::from_millis(120);

@@ -552,7 +552,9 @@ Interface changes ease into place; with Reduce Motion they happen at once:
   blur Direction row, the low-resolution notice and a preset's delete button ease in and out;
   the focus pad's knob grows as you drag it and glides home on a double-click; the swatches of a
   newly picked fill library fade in.
-- The recording control bar springs in from the capture bar, growing as it fades in.
+- The recording control bar springs in from the capture bar, growing as it fades in. A new mute
+  icon, "Saving…", and the Start over or Discard question fade in where the old state was; once
+  you confirm the question it stays until the bar closes.
 - A toast springs in, growing and rising into place, and shrinks away as it fades; with Reduce
   Motion it only fades in and out.
 - Tooltips open once the pointer has rested on a control for 0.7 seconds, the next control

@@ -113,6 +113,7 @@ as other page changes: at the faster pace the eye lost the page it was following
 | Deck: a new card grows from 88 % and rises 14 px into place as it fades in, swinging just past and back; with Reduce Motion it only fades in, in place (`DECK_ENTER_REDUCED`, 120 ms, linear) | `DECK_ENTER`, `DECK_ENTER_SCALE`, `DECK_ENTER_RISE` | 600 ms, bouncy spring |
 | Toast: grows from 92 % and rises 6 px into place as it fades in, swinging just past and back; it leaves by shrinking to 96 % as it fades, with no swing; with Reduce Motion it only fades in and out (`TOAST_REDUCED`, 120 ms, linear) | `TOAST_IN`, `TOAST_IN_SCALE`, `TOAST_RISE`, `TOAST_OUT`, `TOAST_OUT_SCALE` | 360 ms snappy spring in, 160 ms ease-in out |
 | Recording: the capture bar shrinks to 94 % and fades out as the control bar grows from 94 % and fades in, swinging just past full size; with Reduce Motion the control bar appears at once | `HANDOFF`, `HANDOFF_IN`, `HANDOFF_SCALE` | 200 ms snappy out, 360 ms snappy spring in |
+| Recording: the control bar changing in place: a new mute icon, the Stop button's word ("Saving…"), and the Start over or Discard question taking the bar's place (and the bar coming back on Cancel) fade in once the old state has gone; a confirmed question stays, inert, until the bar leaves; with Reduce Motion each shows at once | `BAR_SWAP` | 220 ms fade, ease-out |
 | Pin: the close button fades in under the pointer and back out after it | `CLOSE_FADE` (pin) | 150 ms fade, ease-out |
 | Settings: the old page fades out while the new one rises 8 px into place and fades in | `SETTINGS_PAGE` | 270 ms, ease-out |
 | Editor: the inspector switching to or from a tool's options rises 8 px into place and fades in | `PAGE_CHANGE` | 180 ms, ease-out |
@@ -134,7 +135,10 @@ without a blur. Elements have no scale either: a toast grows its card around its
 stay their size and fade in.
 
 A switch of swatches fades only the new ones in: the old grid leaves at once, so two grids of
-different heights never overlap.
+different heights never overlap. The recording control bar changes the same way: its surface
+takes the new size at once, so the old state is gone before the new one fades in. A confirmed
+Start over or Discard question stays up until the bar leaves, rather than the bar flashing back
+for the moment the recorder takes to stop.
 
 The preset and shape motion goes through the one canvas renderer, a step at a time; a look
 with the camera or the scene blur is drawn as one finished image, so it changes at once.
