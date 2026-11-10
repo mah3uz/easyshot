@@ -8,6 +8,7 @@ mod deck_stack;
 mod deck_timer;
 mod pin;
 mod player;
+mod player_mix;
 mod recording_ui;
 mod region_geometry;
 mod region_selector;

@@ -260,6 +260,7 @@ fn trimmed(input: &Path, output: PathBuf, mode: ExportMode, remove_audio: bool) 
         trim,
         mode,
         remove_audio,
+        audio_tracks: 1,
         options: ExportOptions::default(),
     }
 }
@@ -523,6 +524,7 @@ fn pictures_of_the_export_panel() {
             quality: Quality::High,
             look: Look::Vivid,
             brightness: 0.1,
+            ..Default::default()
         };
         r.s.app
             .cx

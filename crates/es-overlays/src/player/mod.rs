@@ -7,6 +7,8 @@ mod scrubber;
 pub mod strip;
 #[cfg(feature = "player")]
 mod view;
+#[cfg(feature = "player")]
+mod volume;
 
 pub use es_record::clip::{export, options, trim};
 

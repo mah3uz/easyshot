@@ -62,6 +62,28 @@ pub fn probe_video(runner: &dyn CommandRunner, file: &Path) -> Option<VideoProbe
     parse_probe(&String::from_utf8_lossy(&out.stdout))
 }
 
+pub fn audio_track_count(runner: &dyn CommandRunner, file: &Path) -> usize {
+    let args: Vec<String> = [
+        "-v",
+        "error",
+        "-select_streams",
+        "a",
+        "-show_entries",
+        "stream=index",
+        "-of",
+        "csv=p=0",
+        &file.to_string_lossy(),
+    ]
+    .iter()
+    .map(|s| (*s).to_owned())
+    .collect();
+    runner
+        .run("ffprobe", &args)
+        .ok()
+        .filter(|o| o.status.success())
+        .map_or(0, |o| String::from_utf8_lossy(&o.stdout).lines().count())
+}
+
 fn is_session_dir(p: &Path) -> bool {
     p.is_dir() && p.extension().is_some_and(|e| e == FOLDER_SUFFIX)
 }

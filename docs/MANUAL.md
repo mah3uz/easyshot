@@ -419,8 +419,8 @@ off until you choose one there. The capture bar's recording panel starts with th
 and the start delay; changing them on the bar affects only that recording. With both on, the
 video has two audio tracks, system sound first and the microphone second, kept apart in the
 file; a player that plays one track at a time plays only the system sound unless you switch
-track. `capture.json` in the recording's folder lists the tracks in file order. Exporting keeps
-both tracks.
+track. `capture.json` in the recording's folder lists the tracks in file order. The trim
+viewer plays both tracks together, and an MP4 or WebM export mixes them into one track.
 Each sound the recording takes has a mute button on the control bar, system sound and
 microphone separately. A muted source is recorded as silence until you unmute it, and its
 button turns red. Muting needs `pactl`. wf-recorder records only one sound at a time, on one
@@ -498,10 +498,15 @@ video and keeps its shape, so a video already smaller than the choice stays as i
 is High, Balanced or Small: Small makes the smallest file. Colour is Natural (as recorded),
 Vivid, Muted or Mono (black and white), and the Brightness slider lightens or darkens by up
 to 30%. The player shows the colour and brightness while you choose them; format, size and
-quality apply only to the exported file. Fast (copy without re-encoding) is available only
+quality apply only to the exported file. A recording with two audio tracks shows two more
+sliders, System sound and Microphone, from 0 to 200%: system sound starts at 50% and the
+microphone at 100%, so the voice stays clear. The player plays the tracks at those levels and
+the export mixes them into one track at exactly those levels; with Fast, only the sound is
+re-encoded. A recording with one track has no volume sliders. Fast (copy without re-encoding) is available only
 for an MP4 at its original size and colour; any other choice re-encodes. Your last choices
 are remembered in `config.toml` under `[recording]` as `export_format`, `export_size`,
-`export_quality`, `export_look` and `export_brightness`.
+`export_quality`, `export_look`, `export_brightness`, `export_system_volume` and
+`export_mic_volume`.
 
 When you record a whole screen, Settings, Recording, "Show the control bar when recording a
 whole screen" (on by default) decides where the control bar goes. For an area or a window,
@@ -701,6 +706,8 @@ Commands:
   - `--trim A..B` keeps the seconds from A to B, decimals allowed; either end may be left out,
     as in `2.5..8` or `..10`. An end past the video's length is the end of the video.
   - `--look natural|vivid|muted|mono` and `--brightness AMOUNT` (-0.3 to 0.3) change the picture.
+  - A recording with a system and a microphone track is exported with them mixed into one
+    track, system sound at 50% and the microphone at 100%.
   - `--out PATH` writes the file there; its folder must exist and its type must match the
     format. Without it the file is `NAME-export.EXT` beside the video. An existing file is
     never replaced unless you add `--force`.

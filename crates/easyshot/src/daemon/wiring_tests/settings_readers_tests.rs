@@ -277,6 +277,16 @@ const READERS: &[(&str, &str, &str)] = &[
         ".export_brightness",
     ),
     (
+        "recording.export_system_volume",
+        "crates/es-record/src/clip/options.rs",
+        ".export_system_volume",
+    ),
+    (
+        "recording.export_mic_volume",
+        "crates/es-record/src/clip/options.rs",
+        ".export_mic_volume",
+    ),
+    (
         "default_look.style",
         "crates/es-app/src/pipeline.rs",
         ".style",

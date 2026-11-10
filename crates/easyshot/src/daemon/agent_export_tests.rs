@@ -108,6 +108,8 @@ fn the_options_become_the_same_ffmpeg_arguments_the_trim_viewer_makes() {
             quality: Quality::High,
             look: Look::Mono,
             brightness: -0.1,
+            system_volume: 0.5,
+            mic_volume: 1.,
         }
     );
     assert_eq!((job.trim.start(), job.trim.end()), (1.5, 3.));
@@ -243,7 +245,7 @@ fn audio_tracks(file: &Path) -> usize {
 }
 
 #[test]
-fn a_recording_with_system_and_mic_tracks_exports_with_both() {
+fn a_recording_with_system_and_mic_tracks_exports_with_one_mixed_track() {
     let dir = tempfile::tempdir().unwrap();
     let input = dir.path().join("two.mkv");
     let status = Command::new("ffmpeg")
@@ -269,6 +271,6 @@ fn a_recording_with_system_and_mic_tracks_exports_with_both() {
             ..spec(&input)
         })
         .unwrap_or_else(|Fail(c, m, ..)| panic!("{format}: {c:?} {m}"));
-        assert_eq!(audio_tracks(&out), 2, "{format} keeps the microphone track");
+        assert_eq!(audio_tracks(&out), 1, "{format} mixes the tracks into one");
     }
 }

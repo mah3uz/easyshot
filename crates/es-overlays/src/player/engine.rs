@@ -41,8 +41,24 @@ pub enum Signal {
 
 type Latest = Arc<Mutex<Option<Frame>>>;
 
+/// Every sound track gets its own volume into one mixer, so all of them are heard at once.
+struct Mix {
+    levels: Vec<f64>,
+    volumes: Vec<gst::Element>,
+    mixer: Option<gst::Element>,
+}
+
+impl Mix {
+    fn level(&self, track: usize) -> f64 {
+        self.levels.get(track).copied().unwrap_or(1.)
+    }
+}
+
+type Shared = Arc<Mutex<Mix>>;
+
 pub struct Engine {
-    playbin: gst::Element,
+    playbin: gst::Pipeline,
+    mix: Shared,
     filter: gst::Element,
     balance: gst::Element,
     latest: Latest,
@@ -63,6 +79,56 @@ fn fit_caps(w: u32, h: u32) -> gst::Caps {
         .field("height", gst::IntRange::new(1, h.max(1) as i32))
         .field("pixel-aspect-ratio", gst::Fraction::new(1, 1))
         .build()
+}
+
+fn attach_audio(
+    pipeline: &gst::Pipeline,
+    mix: &Shared,
+    out: AudioOut,
+    pad: &gst::Pad,
+) -> Result<(), String> {
+    let mut mix = mix.lock().unwrap_or_else(|e| e.into_inner());
+    let mut added: Vec<gst::Element> = Vec::new();
+    if mix.mixer.is_none() {
+        let (mixer, convert, resample, sink) = (
+            make("audiomixer")?,
+            make("audioconvert")?,
+            make("audioresample")?,
+            make(out.factory())?,
+        );
+        let tail = [&mixer, &convert, &resample, &sink];
+        pipeline.add_many(tail).map_err(|e| e.to_string())?;
+        gst::Element::link_many(tail).map_err(|e| e.to_string())?;
+        added.extend(tail.into_iter().cloned());
+        mix.mixer = Some(mixer);
+    }
+    let mixer = mix.mixer.clone().ok_or("no audio mixer")?;
+    let (convert, resample, volume) = (
+        make("audioconvert")?,
+        make("audioresample")?,
+        make("volume")?,
+    );
+    volume.set_property("volume", mix.level(mix.volumes.len()));
+    let branch = [&convert, &resample, &volume];
+    pipeline.add_many(branch).map_err(|e| e.to_string())?;
+    gst::Element::link_many(branch).map_err(|e| e.to_string())?;
+    let request = mixer
+        .request_pad_simple("sink_%u")
+        .ok_or("the audio mixer gave no input")?;
+    let from = volume.static_pad("src").ok_or("volume has no src pad")?;
+    from.link(&request).map_err(|e| e.to_string())?;
+    added.extend(branch.into_iter().cloned());
+    for element in added.iter().rev() {
+        element
+            .sync_state_with_parent()
+            .map_err(|e| e.to_string())?;
+    }
+    let sink = convert
+        .static_pad("sink")
+        .ok_or("audioconvert has no sink pad")?;
+    pad.link(&sink).map_err(|e| e.to_string())?;
+    mix.volumes.push(volume);
+    Ok(())
 }
 
 fn read_frame(sample: &gst::Sample) -> Option<Frame> {
@@ -101,14 +167,26 @@ fn secs(t: gst::ClockTime) -> f64 {
 }
 
 impl Engine {
-    /// Opens paused on the first frame.
-    pub fn open(video: &Path, audio: AudioOut, fit: (u32, u32)) -> Result<Self, String> {
+    /// Opens paused on the first frame. `levels` are the volumes of the sound tracks in file order; a track without one plays at full volume.
+    pub fn open(
+        video: &Path,
+        audio: AudioOut,
+        fit: (u32, u32),
+        levels: &[f64],
+    ) -> Result<Self, String> {
         gst::init().map_err(|e| e.to_string())?;
         let uri = gst::glib::filename_to_uri(video, None).map_err(|e| e.to_string())?;
-        let playbin = gst::ElementFactory::make("playbin")
+        let playbin = gst::Pipeline::new();
+        let source = gst::ElementFactory::make("uridecodebin")
             .property("uri", uri.as_str())
             .build()
-            .map_err(|_| "GStreamer element playbin is missing".to_owned())?;
+            .map_err(|_| "GStreamer element uridecodebin is missing".to_owned())?;
+        playbin.add(&source).map_err(|e| e.to_string())?;
+        let mix: Shared = Arc::new(Mutex::new(Mix {
+            levels: levels.to_vec(),
+            volumes: Vec::new(),
+            mixer: None,
+        }));
         let (balance, convert, scale, filter) = (
             make("videobalance")?,
             make("videoconvert")?,
@@ -130,8 +208,27 @@ impl Engine {
             .ok_or_else(|| "videobalance has no sink pad".to_owned())?;
         let ghost = gst::GhostPad::with_target(&pad).map_err(|e| e.to_string())?;
         bin.add_pad(&ghost).map_err(|e| e.to_string())?;
-        playbin.set_property("video-sink", &bin);
-        playbin.set_property("audio-sink", make(audio.factory())?);
+        playbin.add(&bin).map_err(|e| e.to_string())?;
+        let (weak, weak_mix, video_in) = (playbin.downgrade(), mix.clone(), ghost.clone());
+        source.connect_pad_added(move |_, pad| {
+            let Some(pipeline) = weak.upgrade() else {
+                return;
+            };
+            let kind = pad
+                .current_caps()
+                .or_else(|| Some(pad.query_caps(None)))
+                .and_then(|c| c.structure(0).map(|s| s.name().to_string()))
+                .unwrap_or_default();
+            if kind.starts_with("video/") {
+                if !video_in.is_linked() {
+                    let _ = pad.link(&video_in);
+                }
+            } else if kind.starts_with("audio/")
+                && let Err(error) = attach_audio(&pipeline, &weak_mix, audio, pad)
+            {
+                tracing::warn!(%error, "audio track not played");
+            }
+        });
 
         let (tx, signals) = async_channel::unbounded();
         let latest: Latest = Arc::default();
@@ -170,6 +267,7 @@ impl Engine {
             .map_err(|e| e.to_string())?;
         Ok(Engine {
             playbin,
+            mix,
             filter,
             balance,
             latest,
@@ -220,6 +318,31 @@ impl Engine {
             self.balance.property("contrast"),
             self.balance.property("saturation"),
         )
+    }
+
+    /// The sound tracks found in the file; known once the first state change has settled.
+    pub fn audio_tracks(&self) -> usize {
+        self.mix
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .volumes
+            .len()
+    }
+
+    pub fn set_level(&self, track: usize, level: f64) {
+        let mut mix = self.mix.lock().unwrap_or_else(|e| e.into_inner());
+        if mix.levels.len() <= track {
+            mix.levels.resize(track + 1, 1.);
+        }
+        mix.levels[track] = level;
+        if let Some(volume) = mix.volumes.get(track) {
+            volume.set_property("volume", level);
+        }
+    }
+
+    pub fn level(&self, track: usize) -> Option<f64> {
+        let mix = self.mix.lock().unwrap_or_else(|e| e.into_inner());
+        mix.volumes.get(track).map(|v| v.property("volume"))
     }
 
     pub fn fit(&self, w: u32, h: u32) {

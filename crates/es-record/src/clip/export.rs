@@ -1,3 +1,4 @@
+use super::mix::{audio_codec_args, mix_filter, mixes};
 use super::options::{ExportOptions, Format, Quality};
 use super::trim::Trim;
 use std::io::{BufRead, BufReader, Read};
@@ -20,6 +21,8 @@ pub struct ExportJob {
     pub trim: Trim,
     pub mode: ExportMode,
     pub remove_audio: bool,
+    /// How many sound tracks the input has; two are mixed into one by the volumes in `options`.
+    pub audio_tracks: usize,
     pub options: ExportOptions,
 }
 
@@ -84,7 +87,7 @@ fn secs(t: f64) -> String {
     format!("{t:.3}")
 }
 
-fn num(v: f64) -> String {
+pub(super) fn num(v: f64) -> String {
     format!("{v:.3}")
 }
 
@@ -125,7 +128,7 @@ fn gif_filter(o: &ExportOptions) -> String {
     )
 }
 
-fn codec_args(o: &ExportOptions) -> Vec<String> {
+pub(super) fn codec_args(o: &ExportOptions) -> Vec<String> {
     let (crf, audio) = match (o.format, o.quality) {
         (Format::Mp4, Quality::High) => ("18", "192k"),
         (Format::Mp4, Quality::Balanced) => ("23", "160k"),
@@ -181,7 +184,7 @@ fn codec_args(o: &ExportOptions) -> Vec<String> {
 }
 
 /// A stream copy only keeps the picture as it is, so any size, tone or format change re-encodes.
-fn copies_streams(job: &ExportJob) -> bool {
+fn copies_picture(job: &ExportJob) -> bool {
     job.mode == ExportMode::Fast
         && job.options.format == Format::Mp4
         && !job.options.alters_picture()
@@ -204,11 +207,20 @@ pub fn export_args(job: &ExportJob, target: &Path) -> Vec<String> {
     ]);
     if o.format == Format::Gif || job.remove_audio {
         args.push("-an".into());
+    } else if mixes(job) {
+        args.extend(["-filter_complex".into(), mix_filter(o)]);
+        args.extend(["-map", "[mix]"].map(String::from));
     } else {
         args.extend(["-map", "0:a?"].map(String::from));
     }
-    if copies_streams(job) {
-        args.extend(["-c", "copy", "-movflags", "+faststart", "-f", "mp4"].map(String::from));
+    if copies_picture(job) {
+        if mixes(job) {
+            args.extend(["-c:v", "copy"].map(String::from));
+            args.extend(audio_codec_args(o));
+        } else {
+            args.extend(["-c", "copy"].map(String::from));
+        }
+        args.extend(["-movflags", "+faststart", "-f", "mp4"].map(String::from));
     } else {
         if o.format == Format::Gif {
             args.extend(["-vf".into(), gif_filter(o)]);
@@ -288,7 +300,16 @@ mod tests {
             trim,
             mode,
             remove_audio,
+            audio_tracks: 1,
             options: ExportOptions::default(),
+        }
+    }
+
+    fn two_tracks(options: ExportOptions, mode: ExportMode) -> ExportJob {
+        ExportJob {
+            audio_tracks: 2,
+            options,
+            ..job(mode, false)
         }
     }
 
@@ -332,6 +353,55 @@ mod tests {
         let silent = export_args(&job(ExportMode::Fast, true), Path::new("/t"));
         assert!(silent.iter().any(|a| a == "-an"));
         assert!(!silent.iter().any(|a| a == "0:a?"));
+    }
+
+    #[test]
+    fn one_track_is_mapped_as_it_is_and_never_mixed() {
+        let args = export_args(&job(ExportMode::Precise, false), Path::new("/t"));
+        assert!(!args.iter().any(|a| a == "-filter_complex"));
+        assert!(args.iter().any(|a| a == "0:a?"));
+    }
+
+    #[test]
+    fn two_tracks_are_mixed_into_one_at_the_chosen_volumes() {
+        let options = ExportOptions {
+            system_volume: 0.5,
+            mic_volume: 1.5,
+            ..Default::default()
+        };
+        let args = export_args(&two_tracks(options, ExportMode::Precise), Path::new("/t"));
+        let graph = after(&args, "-filter_complex").unwrap();
+        assert!(graph.contains("[0:a:0]volume=0.500[sys]"), "{graph}");
+        assert!(graph.contains("[0:a:1]volume=1.500[mic]"), "{graph}");
+        assert!(graph.contains("amix=inputs=2:normalize=0"), "{graph}");
+        assert!(args.windows(2).any(|w| w == ["-map", "[mix]"]));
+        assert!(!args.iter().any(|a| a == "0:a?"));
+        assert_eq!(after(&args, "-c:a"), Some("aac"));
+    }
+
+    #[test]
+    fn a_fast_export_of_two_tracks_copies_the_picture_and_encodes_the_mix() {
+        let args = export_args(
+            &two_tracks(ExportOptions::default(), ExportMode::Fast),
+            Path::new("/t"),
+        );
+        assert_eq!(after(&args, "-c:v"), Some("copy"));
+        assert_eq!(after(&args, "-c:a"), Some("aac"));
+        assert!(after(&args, "-filter_complex").is_some());
+    }
+
+    #[test]
+    fn a_gif_or_removed_audio_never_mixes() {
+        let gif = ExportOptions {
+            format: Format::Gif,
+            ..Default::default()
+        };
+        let args = export_args(&two_tracks(gif, ExportMode::Precise), Path::new("/t"));
+        assert!(!args.iter().any(|a| a == "-filter_complex"));
+        let mut muted = two_tracks(ExportOptions::default(), ExportMode::Precise);
+        muted.remove_audio = true;
+        let args = export_args(&muted, Path::new("/t"));
+        assert!(args.iter().any(|a| a == "-an") && !args.iter().any(|a| a == "-filter_complex"));
     }
 
     #[test]

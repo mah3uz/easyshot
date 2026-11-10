@@ -138,6 +138,7 @@ impl PlayerWindow {
     pub(super) fn options_panel(
         &self,
         brightness: &Entity<InspectorSlider>,
+        volumes: Option<[Entity<InspectorSlider>; 2]>,
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let view = cx.entity().downgrade();
@@ -224,6 +225,12 @@ impl PlayerWindow {
             .child(option(fl!("player-quality"), 200., quality, cx))
             .child(option(fl!("player-look"), 260., look, cx))
             .child(div().w(px(300.)).child(brightness.clone()))
+            .children(
+                volumes
+                    .into_iter()
+                    .flatten()
+                    .map(|slider| div().w(px(300.)).child(slider)),
+            )
     }
 
     pub(super) fn status(&self, cx: &mut Context<Self>) -> impl IntoElement {

@@ -4,6 +4,7 @@ use super::options::{BRIGHTNESS_LIMIT, ExportOptions};
 use super::scrubber::follow_drags;
 use super::strip::{StripSpec, strip};
 use super::trim::Trim;
+use super::volume::{Volumes, levels};
 use crate::capture::strings::fl;
 use es_record::CommandRunner;
 use es_store::Paths;
@@ -76,6 +77,7 @@ pub struct PlayerWindow {
     pub(super) remove_audio: bool,
     pub(super) options: ExportOptions,
     brightness: Option<(Entity<InspectorSlider>, Subscription)>,
+    pub(super) volumes: Option<Volumes>,
     pub(super) export: ExportState,
     frames: u64,
     dropped: u64,
@@ -106,7 +108,12 @@ fn load_strip(path: &std::path::Path) -> Option<Arc<RenderImage>> {
 
 impl PlayerWindow {
     pub fn new(config: PlayerConfig, cx: &mut Context<Self>) -> Self {
-        let opened = Engine::open(&config.video, config.audio, (1280, 720));
+        let opened = Engine::open(
+            &config.video,
+            config.audio,
+            (1280, 720),
+            &levels(&config.options),
+        );
         let (engine, failure) = match opened {
             Ok(e) => (Some(e), None),
             Err(e) => (None, Some(e)),
@@ -142,6 +149,7 @@ impl PlayerWindow {
             remove_audio: false,
             options,
             brightness: None,
+            volumes: None,
             export: ExportState::Idle,
             frames: 0,
             dropped: 0,
@@ -345,6 +353,7 @@ impl PlayerWindow {
     pub fn set_options(&mut self, options: ExportOptions, cx: &mut Context<Self>) {
         self.options = options;
         self.apply_tone();
+        self.apply_volumes();
         cx.notify();
     }
 
@@ -391,6 +400,7 @@ impl PlayerWindow {
             trim: self.trim,
             mode: self.mode,
             remove_audio: self.remove_audio,
+            audio_tracks: self.engine.as_ref().map_or(0, Engine::audio_tracks),
             options: self.options,
         };
         cx.emit(PlayerEvent::Chosen(self.options));
@@ -451,6 +461,7 @@ impl Render for PlayerWindow {
         }
         self.refit(window);
         let brightness = self.ensure_brightness(window, cx);
+        let volumes = self.ensure_volumes(window, cx);
         if !self.strip_asked {
             self.ask_strip(cx);
         }
@@ -509,7 +520,7 @@ impl Render for PlayerWindow {
                     .border_color(t.separator)
                     .child(self.transport(cx))
                     .child(self.scrubber(cx))
-                    .child(self.options_panel(&brightness, cx))
+                    .child(self.options_panel(&brightness, volumes, cx))
                     .child(self.status(cx)),
             );
         follow_drags(root, cx)

@@ -227,6 +227,8 @@ pub struct Recording {
     pub export_quality: String,
     pub export_look: String,
     pub export_brightness: f64,
+    pub export_system_volume: f64,
+    pub export_mic_volume: f64,
 }
 
 impl Default for Recording {
@@ -249,6 +251,8 @@ impl Default for Recording {
             export_quality: "balanced".into(),
             export_look: "natural".into(),
             export_brightness: 0.,
+            export_system_volume: 0.5,
+            export_mic_volume: 1.,
         }
     }
 }

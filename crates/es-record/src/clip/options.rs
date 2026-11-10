@@ -131,13 +131,33 @@ impl Look {
 
 pub const BRIGHTNESS_LIMIT: f64 = 0.3;
 
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub const VOLUME_LIMIT: f64 = 2.;
+pub const SYSTEM_VOLUME: f64 = 0.5;
+pub const MIC_VOLUME: f64 = 1.;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ExportOptions {
     pub format: Format,
     pub size: Size,
     pub quality: Quality,
     pub look: Look,
     pub brightness: f64,
+    pub system_volume: f64,
+    pub mic_volume: f64,
+}
+
+impl Default for ExportOptions {
+    fn default() -> Self {
+        Self {
+            format: Format::default(),
+            size: Size::default(),
+            quality: Quality::default(),
+            look: Look::default(),
+            brightness: 0.,
+            system_volume: SYSTEM_VOLUME,
+            mic_volume: MIC_VOLUME,
+        }
+    }
 }
 
 impl ExportOptions {
@@ -150,6 +170,8 @@ impl ExportOptions {
             brightness: r
                 .export_brightness
                 .clamp(-BRIGHTNESS_LIMIT, BRIGHTNESS_LIMIT),
+            system_volume: r.export_system_volume.clamp(0., VOLUME_LIMIT),
+            mic_volume: r.export_mic_volume.clamp(0., VOLUME_LIMIT),
         }
     }
 
@@ -159,6 +181,8 @@ impl ExportOptions {
         r.export_quality = self.quality.id().into();
         r.export_look = self.look.id().into();
         r.export_brightness = self.brightness;
+        r.export_system_volume = self.system_volume;
+        r.export_mic_volume = self.mic_volume;
     }
 
     /// Whether the picture itself changes, which rules out copying the stream.

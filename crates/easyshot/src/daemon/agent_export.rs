@@ -6,7 +6,7 @@ use es_record::clip::export::{ExportError, ExportJob, ExportMode, FfmpegRunner, 
 use es_record::clip::options::{ExportOptions, Format, Look, Quality, Size};
 use es_record::clip::trim::{MIN_TRIM_SECS, Trim};
 use es_record::project::{CommandRunner, SystemRunner};
-use es_record::recovery::probe_video;
+use es_record::recovery::{audio_track_count, probe_video};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
@@ -47,7 +47,8 @@ fn run(
             format!("{} is not a video easyshot can read", spec.input.display()),
         )
     })?;
-    let job = job(spec, source.duration_secs)?;
+    let mut job = job(spec, source.duration_secs)?;
+    job.audio_tracks = audio_track_count(probe, &spec.input);
     es_record::clip::export::export(ffmpeg, &job, &mut |_| {}).map_err(|e| match e {
         ExportError::Io(e) => fail(ErrorCode::Failed, e.to_string()),
         ExportError::Ffmpeg(m) => fail(ErrorCode::Failed, format!("ffmpeg failed: {m}")),
@@ -108,6 +109,7 @@ fn job(spec: &ExportSpec, duration: f64) -> Result<ExportJob, Fail> {
             .map_or(Quality::default(), Quality::from_id),
         look: spec.look.as_deref().map_or(Look::default(), Look::from_id),
         brightness: f64::from(spec.brightness_milli) / 1000.,
+        ..ExportOptions::default()
     };
     let output = spec
         .out
@@ -133,6 +135,7 @@ fn job(spec: &ExportSpec, duration: f64) -> Result<ExportJob, Fail> {
         trim,
         mode: ExportMode::Precise,
         remove_audio: false,
+        audio_tracks: 0,
         options,
     })
 }

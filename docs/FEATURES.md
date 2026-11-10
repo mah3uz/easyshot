@@ -241,6 +241,7 @@ More in the manual: [The Home window](MANUAL.md#the-home-window) and [History an
 - Scales an export to 1080p, 720p or 480p without ever enlarging it.
 - Exports in High, Balanced or Small quality.
 - Gives an export a Natural, Vivid, Muted or Mono look, with a brightness slider, previewed in the player.
+- Plays a recording's system sound and microphone tracks together in the trim viewer, each with its own volume slider (system sound starts at 50%), and mixes them into one track on export.
 - Exports an MP4 without re-encoding when you keep its size and colour (Fast).
 - Remembers your last export choices.
 - Puts the control bar for a whole-screen recording on another monitor, or in the bottom-right corner (and in the video) if there is only one.

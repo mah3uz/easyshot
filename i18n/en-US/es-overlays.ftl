@@ -212,6 +212,8 @@ player-look-vivid = Vivid
 player-look-muted = Muted
 player-look-mono = Mono
 player-brightness = Brightness
+player-volume-system = System sound
+player-volume-mic = Microphone
 player-open-failed = This video cannot be played: { $reason }
 
 consent-title = A program wants to use easyshot
