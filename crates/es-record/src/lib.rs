@@ -130,8 +130,6 @@ pub struct RecordingOutput {
     pub file: PathBuf,
     pub first_frame_monotonic_us: u64,
     pub segments: Vec<(u64, u64)>,
-    /// The system sound and the microphone are on two tracks that still need mixing into one.
-    pub split_audio: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

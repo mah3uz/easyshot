@@ -398,7 +398,6 @@ impl RecordingHandle for WfHandle {
                 file,
                 first_frame_monotonic_us: self.first,
                 segments: std::mem::take(&mut self.segments),
-                split_audio: false,
             })
         })
     }

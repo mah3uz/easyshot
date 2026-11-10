@@ -213,7 +213,7 @@ More in the manual: [The Home window](MANUAL.md#the-home-window) and [History an
 - Records an area, a display or a window, started from the capture bar and picker.
 - The recording panel lists every open window grouped by workspace; picking one on another workspace switches to it first. A long list scrolls.
 - Records system sound unless you turn it off, and the microphone once you choose one.
-- Mixes system sound and your microphone into one audio track, so every player plays both.
+- Records system sound and your microphone as two separate audio tracks, system sound first.
 - Starts the capture bar's recording panel with your Recording settings: microphone, system sound and start delay.
 - Says plainly when a recording can't start because a sound device or the chosen area is missing.
 - Counts down, then shows a control bar with stop, pause, resume, restart and discard, handed over from the capture bar with a short fade.

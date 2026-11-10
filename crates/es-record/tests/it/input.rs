@@ -26,7 +26,6 @@ fn out(segments: &[(u64, u64)]) -> RecordingOutput {
         file: PathBuf::from("screen.mkv"),
         first_frame_monotonic_us: FIRST,
         segments: segments.to_vec(),
-        split_audio: false,
     }
 }
 
@@ -253,7 +252,6 @@ impl Rig {
             file: PathBuf::new(),
             first_frame_monotonic_us: self.first,
             segments: vec![(self.first, end)],
-            split_audio: false,
         })
     }
 }

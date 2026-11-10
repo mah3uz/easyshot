@@ -100,7 +100,6 @@ fn run(open: Arc<AtomicBool>, keymap: Arc<Published>, steps: Vec<Step>) -> Vec<S
         file: PathBuf::new(),
         first_frame_monotonic_us: 0,
         segments: Vec::new(),
-        split_audio: false,
     };
     c.stop()
         .unwrap()

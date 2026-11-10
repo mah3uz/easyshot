@@ -1,7 +1,7 @@
 use es_app::deck::{DeckItem, ItemStatus};
 use es_model::CaptureKind;
 use es_model::config::Config;
-use es_model::recording::{RecordingCapture, RecordingInput, RecordingProject};
+use es_model::recording::{AudioTrack, RecordingCapture, RecordingInput, RecordingProject};
 use es_record::project::{CommandRunner, POSTER, ProjectFolder};
 use es_record::{Codec, Container, Quality, RecordingOutput, recovery};
 use es_store::naming::{self, Kind};
@@ -98,11 +98,6 @@ pub fn complete(
     kind: CaptureKind,
     runner: &dyn CommandRunner,
 ) -> es_record::Result<Completed> {
-    if out.split_audio
-        && let Err(e) = es_record::mute::merge_tracks(runner, &out.file)
-    {
-        tracing::warn!(error = %e, "the two sound tracks stay separate");
-    }
     let probe = recovery::probe_video(runner, &out.file);
     let capture = RecordingCapture {
         created_at: meta.created_at,
@@ -123,6 +118,13 @@ pub fn complete(
         recorder: meta.recorder.clone(),
         includes_system_audio: meta.system_audio,
         includes_microphone: meta.mic,
+        audio_tracks: es_record::mute::sources(meta.system_audio, meta.mic)
+            .into_iter()
+            .map(|s| match s {
+                es_record::AudioSource::System => AudioTrack::System,
+                es_record::AudioSource::Mic => AudioTrack::Mic,
+            })
+            .collect(),
         ..RecordingCapture::default()
     };
     let project = RecordingProject {

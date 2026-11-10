@@ -71,7 +71,6 @@ impl RecordingHandle for FakeHandle {
                 file,
                 first_frame_monotonic_us: 0,
                 segments: Vec::new(),
-                split_audio: false,
             })
         })
     }

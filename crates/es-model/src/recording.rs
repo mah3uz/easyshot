@@ -21,6 +21,8 @@ pub struct RecordingCapture {
     pub recorder: String,
     pub includes_system_audio: bool,
     pub includes_microphone: bool,
+    /// The sound tracks of the video file, in file order.
+    pub audio_tracks: Vec<AudioTrack>,
     pub pointer_synthesized: bool,
     pub press_effects_baked: bool,
 }
@@ -41,10 +43,18 @@ impl Default for RecordingCapture {
             recorder: String::new(),
             includes_system_audio: false,
             includes_microphone: false,
+            audio_tracks: Vec::new(),
             pointer_synthesized: false,
             press_effects_baked: false,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AudioTrack {
+    System,
+    Mic,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]

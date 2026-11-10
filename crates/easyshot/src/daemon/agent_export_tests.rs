@@ -231,3 +231,44 @@ fn the_output_folder_must_exist_and_the_input_is_never_the_output() {
     assert_eq!(refused(&into(input.clone())), ErrorCode::InvalidArguments);
     assert!(std::fs::metadata(&input).unwrap().len() > 100);
 }
+
+fn audio_tracks(file: &Path) -> usize {
+    let out = Command::new("ffprobe")
+        .args(["-v", "error", "-select_streams", "a", "-show_entries"])
+        .args(["stream=index", "-of", "csv=p=0"])
+        .arg(file)
+        .output()
+        .unwrap();
+    String::from_utf8_lossy(&out.stdout).lines().count()
+}
+
+#[test]
+fn a_recording_with_system_and_mic_tracks_exports_with_both() {
+    let dir = tempfile::tempdir().unwrap();
+    let input = dir.path().join("two.mkv");
+    let status = Command::new("ffmpeg")
+        .args(["-v", "error", "-f", "lavfi", "-i"])
+        .arg("testsrc=size=320x240:rate=10:duration=2")
+        .args(["-f", "lavfi", "-i", "sine=frequency=300:duration=2"])
+        .args(["-f", "lavfi", "-i", "sine=frequency=900:duration=2"])
+        .args(["-map", "0:v", "-map", "1:a", "-map", "2:a"])
+        .args(["-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "libopus"])
+        .arg(&input)
+        .env_remove("WAYLAND_DISPLAY")
+        .env_remove("DISPLAY")
+        .env_remove("DBUS_SESSION_BUS_ADDRESS")
+        .status()
+        .unwrap();
+    assert!(status.success());
+    assert_eq!(audio_tracks(&input), 2);
+    for format in ["mp4", "webm"] {
+        let out = dir.path().join(format!("clip.{format}"));
+        go(&ExportSpec {
+            format: Some(format.into()),
+            out: Some(out.clone()),
+            ..spec(&input)
+        })
+        .unwrap_or_else(|Fail(c, m, ..)| panic!("{format}: {c:?} {m}"));
+        assert_eq!(audio_tracks(&out), 2, "{format} keeps the microphone track");
+    }
+}

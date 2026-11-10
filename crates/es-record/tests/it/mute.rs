@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used)]
 use crate::common::*;
 
-use es_record::mute::{Mutes, Shape, merge_args, merge_tracks, parse_streams, sources, targets};
+use es_record::mute::{Mutes, parse_streams, sources, targets};
 use es_record::project::CommandRunner;
 use es_record::{AudioSource, Error, GsrRecorder, Recorder};
 use futures::executor::block_on;
@@ -31,18 +31,16 @@ fn listing(pid: u32, ids: &[u32]) -> String {
     format!("[{}]", rows.join(","))
 }
 
-/// A sound server that shows the recorder's streams, either one per source or one per `-a` track.
+/// A sound server that shows one stream per `-a` track the recorder was started with.
 struct Pactl {
     log: PathBuf,
-    shape: Shape,
     calls: Mutex<Vec<String>>,
 }
 
 impl Pactl {
-    fn new(log: PathBuf, shape: Shape) -> Arc<Self> {
+    fn new(log: PathBuf) -> Arc<Self> {
         Arc::new(Self {
             log,
-            shape,
             calls: Mutex::default(),
         })
     }
@@ -79,11 +77,7 @@ impl CommandRunner for Pactl {
             .skip(1)
             .map(|t| t.split(' ').next().unwrap())
             .collect();
-        let streams = match self.shape {
-            Shape::Merged => tracks.len(),
-            _ => tracks.iter().map(|t| t.split('|').count()).sum(),
-        };
-        let ids: Vec<u32> = (0..streams as u32).map(|i| 70 + i).collect();
+        let ids: Vec<u32> = (0..tracks.len() as u32).map(|i| 70 + i).collect();
         ok(listing(pid.parse().unwrap(), &ids))
     }
 }
@@ -100,7 +94,7 @@ fn only_the_recorders_own_streams_are_found_oldest_first() {
 }
 
 #[test]
-fn each_source_maps_to_its_own_stream_unless_they_were_mixed_first() {
+fn each_source_maps_to_its_own_stream_in_track_order() {
     let both = sources(true, true);
     assert_eq!(both, [AudioSource::System, AudioSource::Mic]);
     assert_eq!(targets(&[80, 81], &both, AudioSource::Mic).unwrap(), [81]);
@@ -114,7 +108,7 @@ fn each_source_maps_to_its_own_stream_unless_they_were_mixed_first() {
     );
     assert!(matches!(
         targets(&[80], &both, AudioSource::Mic),
-        Err(Error::Unsupported)
+        Err(Error::NotFound(_))
     ));
     assert!(matches!(
         targets(&[], &both, AudioSource::Mic),
@@ -122,9 +116,9 @@ fn each_source_maps_to_its_own_stream_unless_they_were_mixed_first() {
     ));
 }
 
-fn rig(tmp: &Path, shape: Shape) -> (GsrRecorder, Arc<Pactl>) {
+fn rig(tmp: &Path) -> (GsrRecorder, Arc<Pactl>) {
     let log = tmp.join("log");
-    let pactl = Pactl::new(log.clone(), shape);
+    let pactl = Pactl::new(log.clone());
     let recorder = GsrRecorder::native()
         .trust_kms()
         .with_program(fake("fake-gsr"))
@@ -157,18 +151,18 @@ fn tracks(log: &[String]) -> Vec<String> {
 }
 
 #[test]
-fn separate_streams_keep_one_mixed_track_and_mute_each_stream_alone() {
+fn both_sounds_are_two_tracks_system_first_and_each_mutes_alone() {
     let tmp = tempfile::tempdir().unwrap();
-    let (recorder, pactl) = rig(tmp.path(), Shape::PerSource);
+    let (recorder, pactl) = rig(tmp.path());
     let mut h = recorder.start(both(tmp.path())).unwrap();
     h.set_muted(AudioSource::Mic, true).unwrap();
     h.set_muted(AudioSource::System, true).unwrap();
     h.set_muted(AudioSource::Mic, false).unwrap();
-    let out = block_on(h.stop()).unwrap();
+    block_on(h.stop()).unwrap();
     assert_eq!(
         tracks(&read_log(&tmp.path().join("log"))),
-        ["default_output|default_input"],
-        "one launch, one mixed track"
+        ["default_output + default_input"],
+        "one launch, two tracks, no mixed launch"
     );
     assert_eq!(
         pactl.mutes(),
@@ -178,43 +172,22 @@ fn separate_streams_keep_one_mixed_track_and_mute_each_stream_alone() {
             "set-source-output-mute 71 0"
         ]
     );
-    assert!(!out.split_audio);
 }
 
 #[test]
-fn one_mixed_stream_switches_to_two_tracks_that_mute_alone_and_merge_at_stop() {
+fn stopping_a_two_track_recording_leaves_the_file_as_the_recorder_wrote_it() {
     let tmp = tempfile::tempdir().unwrap();
-    let (recorder, pactl) = rig(tmp.path(), Shape::Merged);
-    let mut h = recorder.start(both(tmp.path())).unwrap();
-    h.set_muted(AudioSource::Mic, true).unwrap();
+    let (recorder, _) = rig(tmp.path());
+    let h = recorder.start(both(tmp.path())).unwrap();
     let out = block_on(h.stop()).unwrap();
-    assert_eq!(
-        tracks(&read_log(&tmp.path().join("log"))),
-        [
-            "default_output|default_input",
-            "default_output + default_input"
-        ]
-    );
-    assert_eq!(pactl.mutes(), ["set-source-output-mute 71 1"]);
-    assert!(out.split_audio, "the two tracks still need merging");
-
-    let again = tmp.path().join("again");
-    std::fs::create_dir_all(&again).unwrap();
-    let h = recorder.start(both(&again)).unwrap();
-    block_on(h.stop()).unwrap();
-    let all = tracks(&read_log(&tmp.path().join("log")));
-    assert_eq!(
-        all.last().unwrap(),
-        "default_output + default_input",
-        "the next recording starts on two tracks"
-    );
-    assert_eq!(all.len(), 3);
+    assert!(out.file.is_file());
+    assert!(!out.file.with_extension("merged.mkv").exists());
 }
 
 #[test]
 fn without_a_sound_server_runner_nothing_is_muted() {
     let tmp = tempfile::tempdir().unwrap();
-    let (_, _) = rig(tmp.path(), Shape::PerSource);
+    let _ = rig(tmp.path());
     let recorder = GsrRecorder::native()
         .trust_kms()
         .with_program(fake("fake-gsr"))
@@ -233,128 +206,11 @@ fn without_a_sound_server_runner_nothing_is_muted() {
 #[test]
 fn a_wrong_stream_count_mutes_nothing() {
     let tmp = tempfile::tempdir().unwrap();
-    let pactl = Pactl::new(tmp.path().join("missing-log"), Shape::PerSource);
+    let pactl = Pactl::new(tmp.path().join("missing-log"));
     let mutes = Mutes::new(pactl.clone(), sources(true, true));
     assert!(matches!(
         mutes.set(42, AudioSource::Mic, true),
         Err(Error::NotFound(_))
     ));
     assert!(pactl.mutes().is_empty());
-}
-
-struct Ffmpeg(Mutex<Vec<Vec<String>>>);
-
-impl CommandRunner for Ffmpeg {
-    fn run(&self, program: &str, args: &[String]) -> std::io::Result<Output> {
-        assert_eq!(program, "ffmpeg");
-        self.0.lock().unwrap().push(args.to_vec());
-        std::fs::write(args.last().unwrap(), b"merged")?;
-        ok(String::new())
-    }
-}
-
-#[test]
-fn two_tracks_are_mixed_into_one_with_the_video_copied() {
-    let tmp = tempfile::tempdir().unwrap();
-    let file = tmp.path().join("screen.mkv");
-    std::fs::write(&file, b"two tracks").unwrap();
-    let ffmpeg = Ffmpeg(Mutex::default());
-    merge_tracks(&ffmpeg, &file).unwrap();
-    let merged = tmp.path().join("screen.merged.mkv");
-    assert_eq!(
-        ffmpeg.0.lock().unwrap()[0],
-        merge_args(&file, &merged),
-        "one ffmpeg run"
-    );
-    assert_eq!(
-        merge_args(&file, &merged).join(" "),
-        format!(
-            "-y -v error -i {} -filter_complex [0:a:0][0:a:1]amix=inputs=2:duration=longest:normalize=0[a] \
-             -map 0:v -map [a] -c:v copy -c:a libopus {}",
-            file.display(),
-            merged.display()
-        )
-    );
-    assert_eq!(
-        std::fs::read(&file).unwrap(),
-        b"merged",
-        "the file is replaced"
-    );
-    assert!(!merged.exists());
-    let mp4 = tmp.path().join("screen.mp4");
-    assert!(merge_args(&mp4, &merged).contains(&"aac".to_owned()));
-}
-
-struct Sources(Mutex<Vec<&'static str>>);
-
-impl CommandRunner for Sources {
-    fn run(&self, _: &str, args: &[String]) -> std::io::Result<Output> {
-        match args[0].as_str() {
-            "list" => ok(self
-                .0
-                .lock()
-                .unwrap()
-                .iter()
-                .enumerate()
-                .map(|(i, n)| format!("{i}\t{n}\tPipeWire\ts16le 2ch 48000Hz\tRUNNING\n"))
-                .collect()),
-            _ => ok(String::new()),
-        }
-    }
-}
-
-fn mic_spec(tmp: &Path, mic: &str) -> es_record::RecordSpec {
-    let mut s = spec(tmp, output("DP-2"));
-    s.mic = Some(mic.into());
-    s
-}
-
-fn mic_rig(tmp: &Path, sources: Arc<Sources>) -> GsrRecorder {
-    GsrRecorder::native()
-        .trust_kms()
-        .with_program(fake("fake-gsr"))
-        .with_ipc_dir(tmp)
-        .with_clock(Arc::new(FakeClock::new()))
-        .with_timing(timing())
-        .with_env("FAKE_LOG", &tmp.join("log").to_string_lossy())
-        .with_audio_runner(sources)
-}
-
-#[test]
-fn unplugging_the_microphone_is_reported_once_and_the_recording_goes_on() {
-    let tmp = tempfile::tempdir().unwrap();
-    let sources = Arc::new(Sources(Mutex::new(vec!["alsa_input.usb-mic", "other"])));
-    let recorder = mic_rig(tmp.path(), sources.clone());
-    let h = recorder
-        .start(mic_spec(tmp.path(), "device:alsa_input.usb-mic"))
-        .unwrap();
-    let events = h.events();
-    assert_eq!(
-        block_on(events.recv()).unwrap(),
-        es_record::RecorderEvent::Started
-    );
-    std::thread::sleep(std::time::Duration::from_millis(300));
-    assert!(events.is_empty(), "mic still there");
-    *sources.0.lock().unwrap() = vec!["other"];
-    assert_eq!(
-        block_on(events.recv()).unwrap(),
-        es_record::RecorderEvent::MicLost
-    );
-    assert!(block_on(h.stop()).is_ok(), "the recording still ends well");
-}
-
-#[test]
-fn a_microphone_the_sound_server_does_not_list_is_not_watched() {
-    let tmp = tempfile::tempdir().unwrap();
-    let sources = Arc::new(Sources(Mutex::new(vec!["other"])));
-    let recorder = mic_rig(tmp.path(), sources);
-    let h = recorder.start(mic_spec(tmp.path(), "device:gone")).unwrap();
-    let events = h.events();
-    assert_eq!(
-        block_on(events.recv()).unwrap(),
-        es_record::RecorderEvent::Started
-    );
-    std::thread::sleep(std::time::Duration::from_millis(400));
-    assert!(events.is_empty());
-    let _ = block_on(h.stop());
 }

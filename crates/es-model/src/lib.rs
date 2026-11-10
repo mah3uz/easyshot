@@ -28,7 +28,7 @@ pub use config::Config;
 pub use document::AnnotationDocument;
 pub use error::{Error, Result};
 pub use format::{Envelope, FormatKind, Header, Migrated, migrate};
-pub use recording::{RecordingCapture, RecordingInput, RecordingProject};
+pub use recording::{AudioTrack, RecordingCapture, RecordingInput, RecordingProject};
 pub use shape::{
     AnnoShape, AnnoShapeId, ArrowBinding, ArrowProps, ArrowTerminal, Arrowhead, DashStyle,
     DrawProps, FillStyle, FontFamily, GeoKind, GeoProps, HIGHLIGHTER_WIDTH_FACTOR, HighlightProps,

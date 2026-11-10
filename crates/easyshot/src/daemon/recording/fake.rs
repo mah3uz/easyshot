@@ -119,7 +119,6 @@ impl RecordingHandle for FakeHandle {
                 file,
                 first_frame_monotonic_us: first,
                 segments,
-                split_audio: false,
             })
         })
     }

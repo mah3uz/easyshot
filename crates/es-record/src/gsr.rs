@@ -1,4 +1,4 @@
-use crate::mute::{AudioSource, MIC_POLLS, Mutes, Shape, mic_arg, mic_source, sources, watch_mic};
+use crate::mute::{AudioSource, MIC_POLLS, Mutes, mic_arg, mic_source, sources, watch_mic};
 use crate::process::{Clock, Helper, SystemClock, Timing, run_blocking, which};
 use crate::project::CommandRunner;
 use crate::units::{RegionUnits, decide_units, needs_unit_probe, parse_monitor_list};
@@ -30,7 +30,6 @@ pub struct GsrRecorder {
     units: Arc<Mutex<RegionUnits>>,
     probed: Arc<Mutex<Option<Probed>>>,
     audio: Option<Arc<dyn CommandRunner>>,
-    split: Arc<AtomicBool>,
 }
 
 type Layout = (String, es_geom::Rect, (u32, u32));
@@ -62,7 +61,6 @@ impl GsrRecorder {
             units: Arc::default(),
             probed: Arc::default(),
             audio: None,
-            split: Arc::default(),
         }
     }
 
@@ -226,7 +224,6 @@ pub fn gsr_args(
     spec: &RecordSpec,
     portal: bool,
     units: &RegionUnits,
-    split: bool,
     ipc: &Path,
     out: &Path,
 ) -> Vec<String> {
@@ -249,15 +246,12 @@ pub fn gsr_args(
     push(&["-k", codec_name(spec.codec)]);
     push(&["-c", container_ext(spec.container)]);
     push(&["-q", quality_name(spec.quality)]);
-    let audio: Vec<String> = match (spec.system_audio, &spec.mic) {
-        (true, Some(m)) if split => vec!["default_output".into(), mic_arg(m)],
-        (true, Some(m)) => vec![format!("default_output|{}", mic_arg(m))],
-        (true, None) => vec!["default_output".into()],
-        (false, Some(m)) => vec![mic_arg(m)],
-        (false, None) => vec![],
-    };
-    for source in &audio {
-        push(&["-a", source]);
+    for source in sources(spec.system_audio, spec.mic.is_some()) {
+        let name = match source {
+            AudioSource::System => "default_output".to_owned(),
+            AudioSource::Mic => spec.mic.as_deref().map(mic_arg).unwrap_or_default(),
+        };
+        push(&["-a", &name]);
     }
     push(&["-cursor", if spec.cursor { "yes" } else { "no" }]);
     push(&["-ipc", &ipc.to_string_lossy()]);
@@ -343,31 +337,12 @@ impl Recorder for GsrRecorder {
             })?;
         let sock = ipc.path().join("gsr.sock");
         let (tx, rx) = async_channel::unbounded();
-        let both = spec.system_audio && spec.mic.is_some();
-        let mut split = both && self.split.load(Ordering::SeqCst);
         let begun = self.clock.monotonic_us();
-        let mut run = self.launch(&spec, split, &sock, &out, &tx)?;
+        let (helper, stopping) = self.launch(&spec, &sock, &out, &tx)?;
         let mutes = self
             .audio
             .clone()
             .map(|runner| Mutes::new(runner, sources(spec.system_audio, spec.mic.is_some())));
-        if both && !split && mutes.as_ref().is_some_and(|m| self.merged(m, &run.0)) {
-            tracing::info!("the recorder mixes its sound into one stream: recording two tracks");
-            self.split.store(true, Ordering::SeqCst);
-            run.1.store(true, Ordering::SeqCst);
-            let graceful = ipc_call(&sock, "stop", None, false).is_ok();
-            run.0.stop(&*self.clock, &self.timing, graceful);
-            for stale in [
-                sock.clone(),
-                out.clone(),
-                PathBuf::from(format!("{}.ts", out.display())),
-            ] {
-                let _ = std::fs::remove_file(stale);
-            }
-            split = true;
-            run = self.launch(&spec, split, &sock, &out, &tx)?;
-        }
-        let (helper, stopping) = run;
         if let (Some(runner), Some(mic)) = (self.audio.clone(), spec.mic.as_deref())
             && let Some(name) = mic_source(&*runner, mic)
         {
@@ -398,7 +373,6 @@ impl Recorder for GsrRecorder {
             seg_start: first,
             segments: Vec::new(),
             mutes,
-            split,
         }))
     }
 }
@@ -407,13 +381,12 @@ impl GsrRecorder {
     fn launch(
         &self,
         spec: &RecordSpec,
-        split: bool,
         sock: &Path,
         out: &Path,
         tx: &async_channel::Sender<RecorderEvent>,
     ) -> Result<(Helper, Arc<AtomicBool>)> {
         let units = self.units.lock().map(|u| u.clone()).unwrap_or_default();
-        let args = gsr_args(spec, self.portal, &units, split, sock, out);
+        let args = gsr_args(spec, self.portal, &units, sock, out);
         let stopping = Arc::new(AtomicBool::new(false));
         let on_exit: Box<dyn FnOnce(std::process::ExitStatus) + Send> = {
             let (tx, stopping) = (tx.clone(), stopping.clone());
@@ -458,26 +431,6 @@ impl GsrRecorder {
         }
         Ok((helper, stopping))
     }
-
-    /// True when the sound server shows fewer capture streams than the recording has sources.
-    fn merged(&self, mutes: &Mutes, helper: &Helper) -> bool {
-        let t0 = self.clock.now();
-        loop {
-            let found = match mutes.streams(helper.pid()) {
-                Ok(found) => found.len(),
-                Err(e) => {
-                    tracing::warn!(error = %e, "the recorder's sound streams");
-                    return false;
-                }
-            };
-            if Shape::of(found, 2) == Shape::PerSource
-                || self.clock.now().saturating_sub(t0) >= self.timing.ipc_wait
-            {
-                return Shape::of(found, 2) == Shape::Merged;
-            }
-            self.clock.sleep(self.timing.poll);
-        }
-    }
 }
 
 struct GsrHandle {
@@ -495,7 +448,6 @@ struct GsrHandle {
     seg_start: u64,
     segments: Vec<(u64, u64)>,
     mutes: Option<Mutes>,
-    split: bool,
 }
 
 impl GsrHandle {
@@ -577,7 +529,6 @@ impl RecordingHandle for GsrHandle {
                 file,
                 first_frame_monotonic_us: first,
                 segments: std::mem::take(&mut self.segments),
-                split_audio: self.split,
             })
         })
     }

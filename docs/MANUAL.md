@@ -400,13 +400,14 @@ A capture bar and recording picker start a recording of an area, a display or a 
 System sound is recorded unless you turn it off in Settings, Recording; the microphone is
 off until you choose one there. The capture bar's recording panel starts with those settings
 and the start delay; changing them on the bar affects only that recording. With both on, the
-video has one audio track that mixes system sound and the microphone, so any player plays both.
+video has two audio tracks, system sound first and the microphone second, kept apart in the
+file; a player that plays one track at a time plays only the system sound unless you switch
+track. `capture.json` in the recording's folder lists the tracks in file order. Exporting keeps
+both tracks.
 Each sound the recording takes has a mute button on the control bar, system sound and
 microphone separately. A muted source is recorded as silence until you unmute it, and its
-button turns red. With gpu-screen-recorder, the first time you mute one of two sounds, the
-recorder restarts its audio on two tracks so that one can be muted alone, and they are mixed
-into one track again when you stop (the video is not re-encoded); that needs `pactl` and
-`ffmpeg`. wf-recorder records only one sound at a time, and its mute button mutes that one.
+button turns red. Muting needs `pactl`. wf-recorder records only one sound at a time, on one
+track, and its mute button mutes that one.
 If the recorder cannot be muted, you get a notice and the button stays as it was.
 If the microphone you chose is not found, or the area is not on any monitor, you get a notice
 that says so. If you unplug the microphone while recording, you get a notice, "Microphone

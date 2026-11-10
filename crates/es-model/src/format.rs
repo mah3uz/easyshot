@@ -66,7 +66,7 @@ impl FormatKind {
     pub fn version(self) -> u32 {
         match self {
             FormatKind::Document => 4,
-            FormatKind::State | FormatKind::Style | FormatKind::Recovery => 2,
+            FormatKind::State | FormatKind::Style | FormatKind::Recovery | FormatKind::Capture => 2,
             _ => 1,
         }
     }
@@ -130,7 +130,8 @@ fn step(kind: FormatKind, from: u32, mut value: serde_json::Value) -> Result<ser
             }
             Ok(value)
         }
-        (FormatKind::Document, 1..=3) | (FormatKind::Style | FormatKind::Recovery, 1) => {
+        (FormatKind::Document, 1..=3)
+        | (FormatKind::Style | FormatKind::Recovery | FormatKind::Capture, 1) => {
             if let Some(body) = value.as_object_mut() {
                 body.insert("version".into(), (from + 1).into());
             }

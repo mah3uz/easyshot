@@ -1,6 +1,6 @@
 use es_model::{
-    AgentRecord, AnnotationDocument, Envelope, FontFamily, FormatKind, GradientLibrary, Header,
-    LastRegion, LastTarget, Migrated, PresetLibrary, RecordingCapture, RecordingInput,
+    AgentRecord, AnnotationDocument, AudioTrack, Envelope, FontFamily, FormatKind, GradientLibrary,
+    Header, LastRegion, LastTarget, Migrated, PresetLibrary, RecordingCapture, RecordingInput,
     RecordingProject, Recovery, ShapeKind, State, StylePreset, Tool, migrate,
 };
 use serde::{Serialize, de::DeserializeOwned};
@@ -249,6 +249,16 @@ fn recording_capture_v1() {
     );
     assert!(c.includes_system_audio && !c.includes_microphone);
     assert_eq!(c.created_at.unix_timestamp(), 1_770_091_506);
+}
+
+#[test]
+fn recording_capture_v2_lists_the_sound_tracks_in_file_order() {
+    let src = fixture("capture", "v2.json");
+    let env: Envelope<RecordingCapture> = serde_json::from_str(&src).unwrap();
+    assert_eq!(env.version, FormatKind::Capture.version());
+    assert_eq!(env.body.audio_tracks, [AudioTrack::System, AudioTrack::Mic]);
+    let old: RecordingCapture = load_v1(FormatKind::Capture);
+    assert!(old.audio_tracks.is_empty());
 }
 
 #[test]
