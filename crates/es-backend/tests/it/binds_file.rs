@@ -84,7 +84,8 @@ fn hyprland_lua_file_is_lua_calls_and_the_line_is_a_guarded_require() {
         helper.file_text(&binds()),
         "-- easyshot rewrites this file when you change its shortcuts. Edit them in easyshot.\n\
          hl.bind(\"SUPER + SHIFT + S\", hl.dsp.exec_cmd(\"easyshot capture region\"))\n\
-         hl.bind(\"Print\", hl.dsp.exec_cmd(\"easyshot capture fullscreen\"))\n"
+         hl.bind(\"Print\", hl.dsp.exec_cmd(\"easyshot capture fullscreen\"))\n\
+         hl.window_rule({ name = \"easyshot-preview\", match = { class = \"^dev.easyshot.app.preview$\" }, float = true, center = true })\n"
     );
     assert_eq!(
         helper.include_line("~/.config/easyshot"),
@@ -100,7 +101,13 @@ fn hyprlang_file_is_bind_lines_and_the_line_is_a_source() {
         helper.file_text(&binds()),
         "# easyshot rewrites this file when you change its shortcuts. Edit them in easyshot.\n\
          bind = SUPER SHIFT, S, exec, easyshot capture region\n\
-         bind = , Print, exec, easyshot capture fullscreen\n"
+         bind = , Print, exec, easyshot capture fullscreen\n\
+         windowrule {\n\
+         \x20   name = easyshot-preview\n\
+         \x20   match:class = ^dev.easyshot.app.preview$\n\
+         \x20   float = yes\n\
+         \x20   center = yes\n\
+         }\n"
     );
     assert_eq!(
         helper.include_line("~/.config/easyshot"),

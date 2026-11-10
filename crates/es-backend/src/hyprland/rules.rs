@@ -103,12 +103,24 @@ pub struct HyprBinds {
 const HEADER: &str =
     "easyshot rewrites this file when you change its shortcuts. Edit them in easyshot.";
 
+fn preview_class() -> String {
+    format!("^{}$", es_protocol::PREVIEW_APP_ID)
+}
+
 fn lua_file(binds: &[(Trigger, Route)]) -> String {
-    format!("-- {HEADER}\n{}", lua_snippet(binds))
+    format!(
+        "-- {HEADER}\n{}hl.window_rule({{ name = \"easyshot-preview\", match = {{ class = \"{}\" }}, float = true, center = true }})\n",
+        lua_snippet(binds),
+        lua_str(&preview_class())
+    )
 }
 
 fn hyprlang_file(binds: &[(Trigger, Route)]) -> String {
-    format!("# {HEADER}\n{}", hyprlang_snippet(binds))
+    format!(
+        "# {HEADER}\n{}windowrule {{\n    name = easyshot-preview\n    match:class = {}\n    float = yes\n    center = yes\n}}\n",
+        hyprlang_snippet(binds),
+        preview_class()
+    )
 }
 
 impl BindHelper for HyprBinds {

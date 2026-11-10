@@ -69,7 +69,8 @@ compositor config, and the files it includes directly, and shows Included or Not
 reads the file only on reload, so Settings has a Reload button that runs `swaymsg reload`;
 Hyprland and niri reload when the file changes. In sway, put the line after your own binds,
 and on niri after your `binds { }` block, so easyshot's keys win a clash. Every command in the
-file is one `easyshot --help` lists.
+file is one `easyshot --help` lists. On Hyprland the file also holds a window rule that floats
+and centres the card Preview window instead of tiling it.
 
 On a desktop where easyshot can write no binds file, it uses the desktop's global-shortcuts
 portal instead, when there is one, and your desktop asks you to confirm the shortcuts the

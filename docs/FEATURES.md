@@ -69,6 +69,7 @@ More in the manual: [Capturing](MANUAL.md#capturing).
 - Offers hover actions on a card, in slots you can set up.
 - Lets you choose which actions a card shows in Settings › Overlay › Card Actions.
 - Opens a card's Preview in a plain window with the image fitted; click or Z toggles 100%, Space or Esc closes it.
+- On Hyprland, opens a card's Preview as a floating window in the middle of the screen, through a rule in the binds file.
 - Moves a card's capture to the Trash with Delete, and a toast's Undo puts it back and returns the card.
 - Turns Save into Show in Folder on a card that was already saved automatically.
 - Lets you drag a card into another app or a file manager as a copy.
