@@ -1,10 +1,13 @@
+use super::cut::Timeline;
 use super::pipeline::{Picture, Pipeline};
 use super::schedule::Schedule;
 use super::{FrameSource, SourceEvent};
+use crate::mute::AudioSource;
 use crate::{Error, RecorderEvent, Result};
 use es_model::VideoFrame;
 use gstreamer as gst;
 use gstreamer::prelude::*;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, RecvTimeoutError};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -18,6 +21,7 @@ const PAUSED_POLL: Duration = Duration::from_millis(100);
 pub(crate) enum Command {
     Pause,
     Resume,
+    Mute(AudioSource, bool),
     Stop,
     Discard,
 }
@@ -54,11 +58,29 @@ pub(crate) struct Pacer {
     pub schedule: Schedule,
     pub last: Picture,
     pub first_us: u64,
+    pub timeline: Arc<Mutex<Timeline>>,
+    /// Sends when the recorded microphone leaves the sound server.
+    pub mic_lost: async_channel::Receiver<RecorderEvent>,
+    pub stopping: Arc<AtomicBool>,
 }
 
 impl Pacer {
     fn now(&self) -> u64 {
         self.clock.time().nseconds()
+    }
+
+    /// Marks the sound timeline at the pipeline clock's time now, and returns that time. The clock
+    /// is read under the timeline's lock, so a sound buffer is cut by a mark it was captured after.
+    fn mark(&self, f: impl FnOnce(&mut Timeline, u64)) -> u64 {
+        let base = self.pipeline.base_time();
+        match self.timeline.lock() {
+            Ok(mut t) => {
+                let now = self.now();
+                f(&mut t, now.saturating_sub(base));
+                now
+            }
+            Err(_) => self.now(),
+        }
     }
 
     fn count(&self, f: impl FnOnce(&mut PacerStats)) {
@@ -129,15 +151,25 @@ impl Pacer {
             } else {
                 Duration::from_nanos(self.schedule.deadline().saturating_sub(self.now()))
             };
+            if self.mic_lost.try_recv().is_ok() {
+                self.pipeline.mic_lost();
+                let _ = self.events.try_send(RecorderEvent::MicLost);
+            }
             match self.commands.recv_timeout(wait) {
                 Ok(Command::Pause) if !paused => {
-                    self.schedule.pause(self.now());
+                    let now = self.mark(Timeline::pause);
+                    self.schedule.pause(now);
                     segments.push((seg_start, monotonic_us()));
                     continue;
                 }
                 Ok(Command::Resume) if paused => {
-                    self.schedule.resume(self.now());
+                    let now = self.mark(Timeline::resume);
+                    self.schedule.resume(now);
                     seg_start = monotonic_us();
+                    continue;
+                }
+                Ok(Command::Mute(source, muted)) => {
+                    self.pipeline.set_muted(source, muted);
                     continue;
                 }
                 Ok(Command::Pause | Command::Resume) | Err(RecvTimeoutError::Timeout) => {}
@@ -157,6 +189,9 @@ impl Pacer {
                 Err(end) => break end,
             }
         };
+        self.mark(Timeline::stop);
+        self.stopping.store(true, Ordering::SeqCst);
+        self.pipeline.unmute_streams();
         if !self.schedule.paused() {
             segments.push((seg_start, monotonic_us()));
         }
@@ -190,6 +225,8 @@ impl Pacer {
     }
 
     fn fail(self, e: Error) -> Result<Spans> {
+        self.stopping.store(true, Ordering::SeqCst);
+        self.pipeline.unmute_streams();
         let _ = self.events.try_send(RecorderEvent::Failed(e.to_string()));
         Err(e)
     }

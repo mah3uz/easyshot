@@ -1,22 +1,29 @@
+mod audio;
+mod cut;
 mod pacer;
 mod pipeline;
 mod schedule;
 #[cfg(test)]
 mod tests;
 
-use crate::process::run_blocking;
+use crate::mute::{AudioSource, MIC_POLLS, mic_source, sources, watch_mic};
+use crate::process::{SystemClock, Timing, run_blocking};
+use crate::project::CommandRunner;
 use crate::{
     Error, RecordSource, RecordSpec, Recorder, RecorderEvent, RecorderProbe, RecordingHandle,
     RecordingOutput, Result,
 };
+use audio::OpenAudio;
+use cut::Timeline;
 use es_model::VideoFrame;
 use futures::future::BoxFuture;
 use gstreamer as gst;
 use gstreamer::prelude::ClockExt;
 use pacer::{Command, Pacer, Spans, monotonic_us};
-use pipeline::{ELEMENTS, Picture, Pipeline, canvas};
+use pipeline::{ELEMENTS, Picture, Pipeline, Sound, bitrate_kbps, canvas};
 use schedule::Schedule;
 use std::path::PathBuf;
+use std::sync::atomic::AtomicBool;
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
@@ -44,10 +51,13 @@ type OpenSource = dyn Fn(&RecordSpec) -> Result<Box<dyn FrameSource>> + Send + S
 
 const FIRST_FRAME_WAIT: Duration = Duration::from_secs(3);
 
-/// Records a window from its own frames into `screen.mkv`, at a constant frame rate.
+/// Records a window from its own frames into `screen.mkv`, at a constant frame rate, with one
+/// sound track per source: system sound first, then the microphone.
 pub struct WindowRecorder {
     open: Arc<OpenSource>,
     encoders: Vec<Encoder>,
+    audio: Arc<OpenAudio>,
+    runner: Option<Arc<dyn CommandRunner>>,
 }
 
 impl WindowRecorder {
@@ -58,11 +68,28 @@ impl WindowRecorder {
         WindowRecorder {
             open: Arc::new(open),
             encoders: Encoder::ORDER.to_vec(),
+            audio: Arc::new(audio::pulse_source),
+            runner: None,
         }
     }
 
     pub fn with_encoders(mut self, encoders: &[Encoder]) -> Self {
         self.encoders = encoders.to_vec();
+        self
+    }
+
+    /// Where each sound track's samples come from, in place of the sound server.
+    pub fn with_audio_sources(
+        mut self,
+        open: impl Fn(AudioSource, &RecordSpec) -> Result<gst::Element> + Send + Sync + 'static,
+    ) -> Self {
+        self.audio = Arc::new(open);
+        self
+    }
+
+    /// Runs `pactl` to notice the recorded microphone leaving; without it nothing is watched.
+    pub fn with_audio_runner(mut self, runner: Arc<dyn CommandRunner>) -> Self {
+        self.runner = Some(runner);
         self
     }
 
@@ -79,13 +106,49 @@ impl WindowRecorder {
         let fps = spec.fps.max(1);
         let mut source = (self.open)(spec)?;
         let first = Picture::new(first_frame(&mut *source)?)?;
-        let pipeline = Pipeline::open(&file, canvas(first.size()), fps, &first, &self.encoders)
-            .inspect_err(|_| {
+        let size = canvas(first.size());
+        let tracks = sources(spec.system_audio, spec.mic.is_some());
+        let timeline = Arc::new(Mutex::new(Timeline::default()));
+        let capture = |s| (self.audio)(s, spec);
+        let sound = Sound {
+            sources: &tracks,
+            capture: &capture,
+            timeline: &timeline,
+        };
+        let video = (size, fps, bitrate_kbps(spec.quality, size, fps));
+        let pipeline =
+            Pipeline::open(&file, video, &first, &self.encoders, &sound).inspect_err(|_| {
                 let _ = std::fs::remove_file(&file);
             })?;
+        pipeline.unmute_streams();
         let clock = pipeline.clock()?;
-        let schedule = Schedule::new(clock.time().nseconds(), fps);
+        let base = pipeline.base_time();
+        let start = match timeline.lock() {
+            Ok(mut t) => {
+                let now = clock.time().nseconds();
+                t.start(now.saturating_sub(base));
+                now
+            }
+            Err(_) => return Err(Error::Pipeline("sound timeline poisoned".into())),
+        };
+        let schedule = Schedule::new(start, fps);
         let first_us = monotonic_us();
+        let stopping = Arc::new(AtomicBool::new(false));
+        let (lost_tx, mic_lost) = async_channel::bounded(1);
+        if let (Some(runner), Some(mic)) = (&self.runner, spec.mic.as_deref())
+            && let Some(name) = mic_source(&**runner, mic)
+        {
+            let every = Timing::default().poll * MIC_POLLS;
+            let clock = Arc::new(SystemClock::default());
+            watch_mic(
+                runner.clone(),
+                name,
+                clock,
+                every,
+                stopping.clone(),
+                lost_tx,
+            );
+        }
         let encoder = pipeline.encoder();
         let (commands, rx) = std::sync::mpsc::channel();
         let (tx, events) = async_channel::unbounded();
@@ -100,6 +163,9 @@ impl WindowRecorder {
             schedule,
             last: first,
             first_us,
+            timeline,
+            mic_lost,
+            stopping,
         };
         let thread = std::thread::Builder::new()
             .name("es-window-pacer".into())
@@ -121,6 +187,7 @@ impl WindowRecorder {
             dir: spec.dir.clone(),
             first_us,
             paused: false,
+            sources: tracks,
         })
     }
 }
@@ -173,7 +240,7 @@ impl Recorder for WindowRecorder {
     }
 
     fn can_record_system_audio(&self, _with_mic: bool) -> bool {
-        false
+        audio::installed()
     }
 }
 
@@ -188,6 +255,7 @@ pub struct WindowRecording {
     dir: PathBuf,
     first_us: u64,
     paused: bool,
+    sources: Vec<AudioSource>,
 }
 
 impl WindowRecording {
@@ -237,6 +305,16 @@ impl RecordingHandle for WindowRecording {
 
     fn resume(&mut self) -> Result<()> {
         self.set_paused(false)
+    }
+
+    /// Records silence from `source` while muted; the sound server's stream is left alone.
+    fn set_muted(&mut self, source: AudioSource, muted: bool) -> Result<()> {
+        if !self.sources.contains(&source) {
+            return Err(Error::NotFound("a stream for that source".into()));
+        }
+        self.commands
+            .send(Command::Mute(source, muted))
+            .map_err(|_| Error::Protocol("recorder is not running".into()))
     }
 
     fn stop(mut self: Box<Self>) -> BoxFuture<'static, Result<RecordingOutput>> {

@@ -1,10 +1,14 @@
-use crate::{Error, Result};
+use super::audio::Track;
+use super::cut::Timeline;
+use crate::mute::AudioSource;
+use crate::{Error, Quality, Result};
 use es_model::{PixelFormat, VideoFrame};
 use gstreamer as gst;
 use gstreamer::prelude::*;
 use gstreamer_app as gst_app;
 use std::path::Path;
 use std::sync::mpsc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -32,15 +36,38 @@ impl Encoder {
 
     // nvh264enc takes the RGB layouts directly and converts on the GPU; the others need 4:2:0
     // so players without High 4:4:4 support can open the file.
-    fn chain(self) -> &'static str {
+    pub(crate) fn chain(self, kbps: u32) -> String {
         match self {
-            Encoder::Nvh264 => "nvh264enc",
-            Encoder::Vah264 => "video/x-raw,format=NV12 ! vah264enc",
-            Encoder::X264 => {
-                "video/x-raw,format=I420 ! x264enc speed-preset=ultrafast tune=zerolatency"
-            }
+            Encoder::Nvh264 => format!("nvh264enc name=encoder rc-mode=cbr bitrate={kbps}"),
+            Encoder::Vah264 => format!(
+                "video/x-raw,format=NV12 ! vah264enc name=encoder rate-control=cbr bitrate={kbps}"
+            ),
+            Encoder::X264 => format!(
+                "video/x-raw,format=I420 \
+                 ! x264enc name=encoder speed-preset=ultrafast tune=zerolatency bitrate={kbps}"
+            ),
         }
     }
+}
+
+/// Video bitrate in kbit/s: the canvas's pixels per second times the quality's bits per pixel,
+/// within 1 to 80 Mbit/s.
+pub(crate) fn bitrate_kbps(quality: Quality, (w, h): (u32, u32), fps: u32) -> u32 {
+    let millibits_per_pixel = match quality {
+        Quality::Medium => 50,
+        Quality::High => 80,
+        Quality::VeryHigh => 110,
+        Quality::Ultra => 150,
+    };
+    let kbps = u64::from(w) * u64::from(h) * u64::from(fps) * millibits_per_pixel / 1_000_000;
+    kbps.clamp(1_000, 80_000) as u32
+}
+
+/// The sound tracks to record, in file order, and where each one's capture comes from.
+pub(crate) struct Sound<'a> {
+    pub sources: &'a [AudioSource],
+    pub capture: &'a dyn Fn(AudioSource) -> Result<gst::Element>,
+    pub timeline: &'a Arc<Mutex<Timeline>>,
 }
 
 pub(crate) const ELEMENTS: [&str; 7] = [
@@ -132,6 +159,8 @@ pub(crate) struct Pipeline {
     encoder: Encoder,
     fps: u32,
     caps_for: Option<(u32, u32, PixelFormat)>,
+    tracks: Vec<Track>,
+    mic_lost: bool,
 }
 
 fn pipeline_err(e: impl std::fmt::Display) -> Error {
@@ -153,10 +182,10 @@ impl Pipeline {
     /// frame without a bus error, and leaves it playing with `first` pushed as tick 0.
     pub fn open(
         path: &Path,
-        canvas: (u32, u32),
-        fps: u32,
+        (canvas, fps, kbps): ((u32, u32), u32, u32),
         first: &Picture,
         order: &[Encoder],
+        sound: &Sound,
     ) -> Result<Pipeline> {
         gst::init().map_err(pipeline_err)?;
         let mut failures = Vec::new();
@@ -165,11 +194,14 @@ impl Pipeline {
                 failures.push(format!("{}: not installed", encoder.element()));
                 continue;
             }
-            match Self::build(path, canvas, fps, encoder).and_then(|mut p| {
-                p.preroll(first)?;
-                Ok(p)
-            }) {
+            match Self::build(path, canvas, fps, &encoder.chain(kbps), encoder)
+                .and_then(|p| p.with_sound(sound))
+                .and_then(|mut p| {
+                    p.preroll(first)?;
+                    Ok(p)
+                }) {
                 Ok(p) => return Ok(p),
+                Err(e @ Error::Audio(_)) => return Err(e),
                 Err(e) => {
                     tracing::warn!(encoder = encoder.element(), error = %e, "video encoder unusable");
                     failures.push(format!("{}: {e}", encoder.element()));
@@ -179,21 +211,28 @@ impl Pipeline {
         Err(Error::NoEncoder(failures.join("; ")))
     }
 
-    fn build(path: &Path, (cw, ch): (u32, u32), fps: u32, encoder: Encoder) -> Result<Pipeline> {
+    fn build(
+        path: &Path,
+        (cw, ch): (u32, u32),
+        fps: u32,
+        chain: &str,
+        encoder: Encoder,
+    ) -> Result<Pipeline> {
         let max_bytes = u64::from(cw) * u64::from(ch) * 4 * 3;
         let launch = format!(
             "appsrc name=src is-live=true format=time block=false max-bytes={max_bytes} \
              ! videoscale add-borders=true \
              ! video/x-raw,width={cw},height={ch},pixel-aspect-ratio=1/1 \
              ! queue max-size-buffers=8 max-size-bytes=0 max-size-time=0 \
-             ! videoconvert ! {} ! h264parse name=parse \
-             ! matroskamux name=mux ! filesink name=sink",
-            encoder.chain()
+             ! videoconvert ! {chain} ! h264parse name=parse \
+             ! matroskamux name=mux ! filesink name=sink"
         );
         let pipeline = gst::parse::launch(&launch)
             .map_err(pipeline_err)?
             .downcast::<gst::Pipeline>()
             .map_err(|_| Error::Pipeline("not a pipeline".into()))?;
+        // The sound server's clock stops with its device; ticks and sound share this one instead.
+        pipeline.use_clock(Some(&gst::SystemClock::obtain()));
         let sink = pipeline
             .by_name("sink")
             .ok_or_else(|| Error::Pipeline("no file sink".into()))?;
@@ -208,7 +247,22 @@ impl Pipeline {
             encoder,
             fps,
             caps_for: None,
+            tracks: Vec::new(),
+            mic_lost: false,
         })
+    }
+
+    fn with_sound(mut self, sound: &Sound) -> Result<Pipeline> {
+        let mux = self
+            .pipeline
+            .by_name("mux")
+            .ok_or_else(|| Error::Pipeline("no muxer".into()))?;
+        for &source in sound.sources {
+            let capture = (sound.capture)(source)?;
+            let track = Track::add(&self.pipeline, &mux, sound.timeline, source, capture)?;
+            self.tracks.push(track);
+        }
+        Ok(self)
     }
 
     fn preroll(&mut self, first: &Picture) -> Result<()> {
@@ -228,11 +282,10 @@ impl Pipeline {
             .ok_or_else(|| Error::Pipeline("no bus".into()))?;
         let began = Instant::now();
         if let Err(e) = self.pipeline.set_state(gst::State::Playing) {
-            let detail = bus
-                .pop_filtered(&[gst::MessageType::Error])
-                .map(|m| describe(&m))
-                .unwrap_or_else(|| e.to_string());
-            return Err(Error::Pipeline(detail));
+            return Err(match bus.pop_filtered(&[gst::MessageType::Error]) {
+                Some(m) => self.failure(&m),
+                None => Error::Pipeline(e.to_string()),
+            });
         }
         let period = 1_000_000_000 / u64::from(self.fps.max(1));
         self.push(first, 0, period)?;
@@ -242,7 +295,7 @@ impl Pipeline {
                 gst::ClockTime::from_mseconds(10),
                 &[gst::MessageType::Error],
             ) {
-                return Err(Error::Pipeline(describe(&msg)));
+                return Err(self.failure(&msg));
             }
             out = out || through.try_recv().is_ok();
             let waited = began.elapsed();
@@ -288,16 +341,64 @@ impl Pipeline {
             .map_err(|e| Error::Pipeline(format!("push: {e:?}")))
     }
 
-    /// The first error on the bus since the last look, without waiting.
-    pub fn error(&self) -> Option<String> {
-        let msg = self
-            .pipeline
-            .bus()?
-            .pop_filtered(&[gst::MessageType::Error])?;
-        Some(describe(&msg))
+    fn failure(&self, msg: &gst::Message) -> Error {
+        match self.track_of(msg) {
+            Some(_) => Error::Audio(describe(msg)),
+            None => Error::Pipeline(describe(msg)),
+        }
     }
 
-    /// Ends the stream and waits until the muxer has written the file's index.
+    fn track_of(&self, msg: &gst::Message) -> Option<AudioSource> {
+        self.tracks.iter().find(|t| t.posted(msg)).map(|t| t.source)
+    }
+
+    /// Whether `msg` is a capture stream failing; its track goes on as silence.
+    fn sound_lost(&self, msg: &gst::Message) -> bool {
+        let Some(source) = self.track_of(msg) else {
+            return false;
+        };
+        tracing::warn!(?source, error = %describe(msg), "sound capture failed; its track goes on silent");
+        true
+    }
+
+    pub fn base_time(&self) -> u64 {
+        self.pipeline.base_time().map_or(0, |t| t.nseconds())
+    }
+
+    pub fn set_muted(&self, source: AudioSource, muted: bool) {
+        let muted = muted || (source == AudioSource::Mic && self.mic_lost);
+        for t in self.tracks.iter().filter(|t| t.source == source) {
+            t.set_muted(muted);
+        }
+    }
+
+    /// From now on the microphone's track is silence, whatever stream the sound server moves
+    /// the capture to.
+    pub fn mic_lost(&mut self) {
+        self.mic_lost = true;
+        self.set_muted(AudioSource::Mic, true);
+    }
+
+    pub fn unmute_streams(&self) {
+        for t in &self.tracks {
+            t.unmute_stream();
+        }
+    }
+
+    /// The first error on the bus since the last look, without waiting; a failed capture stream is
+    /// logged and passed over.
+    pub fn error(&self) -> Option<String> {
+        let bus = self.pipeline.bus()?;
+        loop {
+            let msg = bus.pop_filtered(&[gst::MessageType::Error])?;
+            if !self.sound_lost(&msg) {
+                return Some(describe(&msg));
+            }
+        }
+    }
+
+    /// Ends the video, and waits until the muxer has written the file's index. The sound tracks
+    /// end once the timeline is stopped.
     pub fn finish(self) -> Result<()> {
         self.src
             .end_of_stream()
@@ -306,11 +407,16 @@ impl Pipeline {
             .pipeline
             .bus()
             .ok_or_else(|| Error::Pipeline("no bus".into()))?;
-        let limit = gst::ClockTime::from_nseconds(EOS_LIMIT.as_nanos() as u64);
-        match bus.timed_pop_filtered(limit, &[gst::MessageType::Eos, gst::MessageType::Error]) {
-            Some(m) if m.type_() == gst::MessageType::Eos => Ok(()),
-            Some(m) => Err(Error::Pipeline(describe(&m))),
-            None => Err(Error::Timeout),
+        let until = Instant::now() + EOS_LIMIT;
+        loop {
+            let left = until.saturating_duration_since(Instant::now());
+            let limit = gst::ClockTime::from_nseconds(left.as_nanos() as u64);
+            match bus.timed_pop_filtered(limit, &[gst::MessageType::Eos, gst::MessageType::Error]) {
+                Some(m) if m.type_() == gst::MessageType::Eos => return Ok(()),
+                Some(m) if self.sound_lost(&m) => {}
+                Some(m) => return Err(Error::Pipeline(describe(&m))),
+                None => return Err(Error::Timeout),
+            }
         }
     }
 }

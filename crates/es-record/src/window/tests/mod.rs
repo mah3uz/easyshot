@@ -1,3 +1,5 @@
+mod av;
+mod av_support;
 mod support;
 
 use super::Encoder;

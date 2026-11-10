@@ -6,7 +6,7 @@ use gstreamer as gst;
 use gstreamer::prelude::*;
 use gstreamer_app as gst_app;
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -20,7 +20,27 @@ pub enum Step {
         rate: u32,
         span: Duration,
     },
+    /// Dark frames at 60 per second for `span`, white for 200 ms from the pipeline clock time
+    /// `at` holds once it is set, sent at that moment.
+    Flash {
+        size: (u32, u32),
+        at: Arc<AtomicU64>,
+        span: Duration,
+    },
     Stop,
+}
+
+pub const DARK: u8 = 16;
+pub const WHITE: u8 = 235;
+const FLASH: u64 = 200_000_000;
+
+pub fn clock_now() -> u64 {
+    gst::init().expect("gstreamer");
+    gst::SystemClock::obtain().time().nseconds()
+}
+
+fn sleep_until(t: u64) {
+    std::thread::sleep(Duration::from_nanos(t.saturating_sub(clock_now())));
 }
 
 pub struct Feed {
@@ -77,6 +97,26 @@ pub fn feed(steps: Vec<Step>) -> (Feed, Arc<AtomicBool>) {
                         n += 1;
                         let next = start + period * n;
                         std::thread::sleep(next.saturating_duration_since(Instant::now()));
+                    }
+                }
+                Step::Flash { size, at, span } => {
+                    let end = clock_now() + span.as_nanos() as u64;
+                    let mut next = clock_now();
+                    while next < end {
+                        let t = at.load(Ordering::SeqCst);
+                        if t != 0 && next < t && t < next + SECOND / 60 {
+                            next = t;
+                        }
+                        sleep_until(next);
+                        let lit = t != 0 && (t..t + FLASH).contains(&next);
+                        let shade = if lit { WHITE } else { DARK };
+                        if producer
+                            .send(SourceEvent::Frame(frame(size, shade)))
+                            .is_err()
+                        {
+                            return;
+                        }
+                        next += SECOND / 60;
                     }
                 }
                 Step::Stop => {

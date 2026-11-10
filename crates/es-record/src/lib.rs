@@ -55,6 +55,8 @@ pub enum Error {
     Capture(String),
     #[error("video pipeline: {0}")]
     Pipeline(String),
+    #[error("sound recording: {0}")]
+    Audio(String),
     #[error("no video encoder works: {0}")]
     NoEncoder(String),
     #[error("parse error at line {line}, column {col}: {message}")]
