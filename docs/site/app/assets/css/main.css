@@ -109,6 +109,13 @@
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* Card corners: one radius, stepping down for smaller and nested pieces. */
+@theme {
+  --radius-card: 12px;
+  --radius-card-sm: calc(var(--radius-card) - 4px);
+  --radius-card-xs: calc(var(--radius-card) - 8px);
+}
+
 @theme {
   --color-teal-hi: #62edd4;
   --color-teal: #21bdb0;
@@ -210,7 +217,7 @@
     @apply h-[38px] px-4 text-sm;
   }
   .card {
-    @apply rounded-[18px] border border-line bg-surface shadow-soft backdrop-blur-xl;
+    @apply rounded-card border border-line bg-surface shadow-soft backdrop-blur-xl;
     transition:
       transform 0.5s var(--ease-out-soft),
       box-shadow 0.5s var(--ease-out-soft),
@@ -220,10 +227,10 @@
     @apply -translate-y-1 border-line-strong shadow-card;
   }
   .icon-tile {
-    @apply grid size-11 place-items-center rounded-xl bg-accent-soft text-accent;
+    @apply grid size-11 place-items-center rounded-card-sm bg-accent-soft text-accent;
   }
   .code-block {
-    @apply relative overflow-x-auto rounded-[14px] border border-teal-hi/15 bg-code px-[18px] py-4 font-mono text-[13.5px] leading-[1.7] text-[#d9f5f1];
+    @apply relative overflow-x-auto rounded-card-sm border border-teal-hi/15 bg-code px-[18px] py-4 font-mono text-[13.5px] leading-[1.7] text-[#d9f5f1];
   }
   .code-block .c {
     color: #6f9aa3;

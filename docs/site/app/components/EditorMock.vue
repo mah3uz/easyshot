@@ -14,40 +14,70 @@ const radius = ref(12)
 const shadow = ref(true)
 const tilt = ref(false)
 
-const tools = ['mouse-pointer-2', 'arrow-up-right', 'rectangle-horizontal', 'pencil-line', 'a-large-small', 'droplet', 'eye-off', 'crop']
-const activeTool = ref('arrow-up-right')
+const tools = [
+  ['pointer', 'Select'],
+  ['rectangle-horizontal', 'Rectangle'],
+  ['square', 'Solid rectangle'],
+  ['circle', 'Circle'],
+  ['slash', 'Straight line'],
+  ['arrow-up-right', 'Arrow'],
+  ['pencil-line', 'Freehand'],
+  ['counter', 'Numbered circle'],
+  ['type', 'Text'],
+  ['highlight', 'Highlight'],
+  ['highlighter', 'Highlighter'],
+  ['pixelate', 'Pixelate'],
+  ['droplet', 'Blur'],
+] as const
+const activeTool = ref('Arrow')
+const inspector = ref(true)
 </script>
 
 <template>
-  <div class="overflow-hidden rounded-[22px] border border-line-strong bg-surface shadow-float">
-    <!-- Title bar -->
-    <div class="flex h-11 items-center justify-between gap-2 border-b border-line bg-surface-2 px-2 sm:px-3">
-      <div class="flex min-w-0 items-center gap-0.5 overflow-x-auto sm:gap-1 [scrollbar-width:none]">
-        <button
-          v-for="t in tools"
-          :key="t"
-          type="button"
-          class="grid size-8 shrink-0 place-items-center rounded-lg text-fg-2 transition hover:bg-accent-soft hover:text-accent"
-          :class="activeTool === t && 'bg-accent-soft text-accent'"
-          :aria-label="`Tool: ${t.replace(/-/g, ' ')}`"
-          :aria-pressed="activeTool === t"
-          @click="activeTool = t"
-        >
-          <Icon :name="t" :size="16" />
-        </button>
+  <div class="overflow-hidden rounded-card border border-line-strong bg-surface shadow-float">
+    <!-- Title bar: undo and redo, Save and Export -->
+    <div class="flex h-10 items-center justify-between gap-2 border-b border-line bg-surface-2 px-2 sm:px-3">
+      <div class="flex items-center gap-0.5 text-fg-2">
+        <span class="grid size-7 place-items-center rounded-card-sm" aria-hidden="true"><Icon name="undo-2" :size="15" /></span>
+        <span class="grid size-7 place-items-center rounded-card-sm opacity-50" aria-hidden="true"><Icon name="redo-2" :size="15" /></span>
       </div>
-      <div class="hidden items-center gap-2 sm:flex">
-        <span class="rounded-lg px-2.5 py-1 text-xs font-medium text-fg-2">Copy</span>
-        <span class="rounded-lg bg-accent px-3 py-1 text-xs font-semibold text-[#032830]">Save</span>
+      <div class="flex items-center gap-1.5 text-xs font-medium">
+        <span class="flex items-center gap-1.5 rounded-card-sm px-2.5 py-1 text-fg-2"><Icon name="download" :size="14" />Save</span>
+        <span class="flex items-center gap-1.5 rounded-card-sm bg-accent px-2.5 py-1 font-semibold text-[#032830]"><Icon name="circle-arrow-down" :size="14" />Export</span>
       </div>
     </div>
 
-    <div class="grid grid-cols-[minmax(0,1fr)] md:grid-cols-[minmax(0,1fr)_250px]">
+    <!-- Tool row: crop and rotate, the 13 tools, Smart Redaction, and the inspector toggle -->
+    <div class="flex h-11 items-center gap-0.5 overflow-x-auto border-b border-line px-2 text-fg-2 [scrollbar-width:none] sm:px-3" role="toolbar" aria-label="Tools">
+      <span class="grid size-8 shrink-0 place-items-center" aria-hidden="true"><Icon name="crop" :size="16" /></span>
+      <span class="grid size-8 shrink-0 place-items-center" aria-hidden="true"><Icon name="rotate-ccw" :size="16" /></span>
+      <i class="mx-1 h-5 w-px shrink-0 bg-line-strong" aria-hidden="true" />
+      <button
+        v-for="[icon, label] in tools"
+        :key="label"
+        type="button"
+        class="grid size-8 shrink-0 place-items-center rounded-card-sm transition hover:bg-accent-soft hover:text-accent"
+        :class="activeTool === label && 'bg-accent-soft text-accent'"
+        :aria-label="label"
+        :aria-pressed="activeTool === label"
+        @click="activeTool = label"
+      >
+        <Icon :name="icon" :size="16" />
+      </button>
+      <span class="grid size-8 shrink-0 place-items-center" aria-hidden="true"><Icon name="eye-off" :size="16" /></span>
+      <i class="mx-1 h-5 w-px shrink-0 bg-line-strong" aria-hidden="true" />
+      <span class="flex-1" />
+      <button type="button" class="grid size-8 shrink-0 place-items-center rounded-card-sm transition hover:bg-accent-soft hover:text-accent" :class="inspector && 'text-accent'" aria-label="Show or hide the inspector" :aria-pressed="inspector" @click="inspector = !inspector">
+        <Icon name="panel-right" :size="16" />
+      </button>
+    </div>
+
+    <div class="grid grid-cols-[minmax(0,1fr)]" :class="inspector && 'md:grid-cols-[minmax(0,1fr)_250px]'">
       <!-- Canvas -->
       <div class="grid min-h-[280px] place-items-center bg-[repeating-conic-gradient(var(--bg-2)_0_25%,var(--bg)_0_50%)] bg-[length:18px_18px] p-4 sm:p-8">
         <div
           class="w-full max-w-[560px] transition-all duration-700 ease-out-soft [perspective:1200px]"
-          :style="{ background: bg.css, padding: `${padding}%`, borderRadius: '14px' }"
+          :style="{ background: bg.css, padding: `${padding}%`, borderRadius: 'var(--radius-card)' }"
         >
           <div
             class="relative overflow-hidden transition-all duration-700 ease-out-soft"
@@ -75,7 +105,7 @@ const activeTool = ref('arrow-up-right')
       </div>
 
       <!-- Inspector -->
-      <aside class="grid content-start gap-5 border-t border-line p-5 text-sm md:border-t-0 md:border-l" aria-label="Beautify inspector">
+      <aside v-show="inspector" class="grid content-start gap-5 border-t border-line p-5 text-sm md:border-t-0 md:border-l" aria-label="Beautify inspector">
         <div class="grid gap-2.5">
           <span class="text-xs font-semibold text-fg-3 uppercase">Background</span>
           <div class="grid grid-cols-6 gap-1.5 md:grid-cols-3">
@@ -83,7 +113,7 @@ const activeTool = ref('arrow-up-right')
               v-for="b in backgrounds"
               :key="b.id"
               type="button"
-              class="aspect-[4/3] rounded-lg border-2 transition-all duration-300 hover:scale-105"
+              class="aspect-[4/3] rounded-card-sm border-2 transition-all duration-300 hover:scale-105"
               :class="bg.id === b.id ? 'border-accent ring-2 ring-accent-soft' : 'border-transparent'"
               :style="{ background: b.css }"
               :aria-label="b.label"
@@ -101,10 +131,16 @@ const activeTool = ref('arrow-up-right')
           <input v-model.number="radius" type="range" min="0" max="28" class="accent-[var(--accent)]" />
         </label>
         <div class="grid grid-cols-2 gap-2">
-          <button type="button" class="rounded-lg border px-3 py-2 text-xs font-semibold transition" :class="shadow ? 'border-accent bg-accent-soft text-accent' : 'border-line text-fg-2'" :aria-pressed="shadow" @click="shadow = !shadow">Shadow</button>
-          <button type="button" class="rounded-lg border px-3 py-2 text-xs font-semibold transition" :class="tilt ? 'border-accent bg-accent-soft text-accent' : 'border-line text-fg-2'" :aria-pressed="tilt" @click="tilt = !tilt">Camera 3D</button>
+          <button type="button" class="rounded-card-sm border px-3 py-2 text-xs font-semibold transition" :class="shadow ? 'border-accent bg-accent-soft text-accent' : 'border-line text-fg-2'" :aria-pressed="shadow" @click="shadow = !shadow">Shadow</button>
+          <button type="button" class="rounded-card-sm border px-3 py-2 text-xs font-semibold transition" :class="tilt ? 'border-accent bg-accent-soft text-accent' : 'border-line text-fg-2'" :aria-pressed="tilt" @click="tilt = !tilt">Camera 3D</button>
         </div>
       </aside>
+    </div>
+
+    <!-- Footer: zoom and Copy -->
+    <div class="flex h-10 items-center justify-between border-t border-line bg-surface-2 px-3 text-xs text-fg-2">
+      <span class="font-mono">100%</span>
+      <span class="flex items-center gap-1.5 rounded-card-sm px-2.5 py-1 font-medium"><Icon name="copy" :size="14" />Copy</span>
     </div>
   </div>
 </template>

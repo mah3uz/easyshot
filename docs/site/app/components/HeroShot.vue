@@ -1,12 +1,18 @@
 <script setup lang="ts">
 // The hero picture: a frozen desktop, a region being selected, and the preview deck.
 // Drawn in HTML so it stays sharp, themes itself and animates without video.
+const corners = [
+  { icon: 'pin', at: 'top-1.5 left-1.5' },
+  { icon: 'x', at: 'top-1.5 right-1.5' },
+  { icon: 'pencil', at: 'bottom-1.5 left-1.5' },
+  { icon: 'cloud-upload', at: 'bottom-1.5 right-1.5' },
+]
 </script>
 
 <template>
   <div class="relative mx-auto w-full max-w-[1080px] [perspective:2000px]">
     <div class="pointer-events-none absolute -inset-x-10 -top-10 bottom-0 -z-10 rounded-[60px] bg-[radial-gradient(ellipse_at_center,var(--glow),transparent_65%)] blur-2xl" />
-    <div class="hero-tilt relative overflow-hidden rounded-[22px] border border-line-strong shadow-float sm:rounded-[28px]">
+    <div class="hero-tilt relative overflow-hidden rounded-card border border-line-strong shadow-float">
       <div class="absolute inset-0 bg-[url(/img/wall-3.webp)] bg-cover bg-center" />
       <img
         :src="photoUrl('valley', 1600)"
@@ -55,15 +61,21 @@
           </div>
         </div>
 
-        <!-- Preview deck -->
-        <div class="absolute bottom-[5%] left-[3%] grid w-[22%] min-w-[120px] gap-2">
-          <div class="deck-card overflow-hidden rounded-xl border border-white/30 bg-white/20 p-1 shadow-xl backdrop-blur-md">
+        <!-- Preview deck: stacked in the corner, newest in front, older cards peeking above -->
+        <div class="absolute right-[3%] bottom-[5%] w-[24%] min-w-[128px]">
+          <div v-for="d in [2, 1]" :key="d" class="deck-peek absolute inset-0 rounded-card-sm border border-white/20 bg-[#0d1b20] shadow-xl" :style="{ '--d': d }" />
+          <div class="deck-card relative overflow-hidden rounded-card-sm border border-white/20 bg-black/90 shadow-xl">
             <ShotWindow photo="lake" :chrome="false" class="pointer-events-none" />
-            <div class="deck-actions absolute inset-1 flex items-center justify-center gap-1.5 rounded-lg bg-teal-ink/55 opacity-0 backdrop-blur-[2px]">
-              <span class="rounded-md bg-white/90 px-2 py-1 text-[10px] font-semibold text-teal-ink">Copy</span>
-              <span class="rounded-md bg-white/90 px-2 py-1 text-[10px] font-semibold text-teal-ink">Save</span>
+            <div class="deck-actions absolute inset-0 bg-black/30 opacity-0">
+              <span v-for="c in corners" :key="c.icon" class="absolute grid size-[18px] place-items-center rounded-full border border-white/20 bg-black/45 text-white sm:size-[22px]" :class="c.at">
+                <Icon :name="c.icon" :size="10" />
+              </span>
+              <div class="flex h-full items-center justify-center gap-1.5">
+                <span v-for="l in ['Copy', 'Save']" :key="l" class="rounded-full bg-white/85 px-2 py-0.5 text-[9px] font-semibold text-black/85 sm:text-[10px]">{{ l }}</span>
+              </div>
             </div>
           </div>
+          <span class="deck-count absolute -top-[17px] -left-2 grid size-5 place-items-center rounded-full bg-white/95 text-[11px] font-bold text-black/85 shadow-lg">3</span>
         </div>
       </div>
     </div>
@@ -87,7 +99,7 @@
   width: 0;
   height: 0;
   box-shadow: 0 0 0 9999px rgba(3, 30, 40, 0.45);
-  animation: select 7s cubic-bezier(0.65, 0, 0.35, 1) 1.2s infinite;
+  animation: select 7s cubic-bezier(0.65, 0, 0.35, 1) 1.2s infinite backwards;
 }
 @media (min-width: 640px) {
   .sel {
@@ -147,6 +159,30 @@
 .deck-actions {
   animation: actions 7s ease 1.2s infinite;
 }
+.deck-peek {
+  transform-origin: top center;
+  transform: translateY(calc(var(--d) * -7px)) scale(calc(1 - var(--d) * 0.05));
+  filter: brightness(calc(1 - var(--d) * 0.2));
+  opacity: 0;
+  animation: badge 7s linear 1.2s infinite;
+}
+.deck-count {
+  opacity: 0;
+  animation: badge 7s linear 1.2s infinite;
+}
+@keyframes badge {
+  0%,
+  78% {
+    opacity: 0;
+  }
+  84%,
+  97% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
 @keyframes deck {
   0%,
   74% {
@@ -181,13 +217,16 @@
     transform: none;
   }
   .sel {
+    animation: none;
     width: 50%;
     height: 58%;
     box-shadow: 0 0 0 9999px rgba(3, 30, 40, 0.45);
   }
   .sel-box,
   .sel-size,
-  .deck-card {
+  .deck-card,
+  .deck-peek,
+  .deck-count {
     opacity: 1;
     transform: none;
   }

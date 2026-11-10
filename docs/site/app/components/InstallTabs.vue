@@ -22,7 +22,7 @@ const active = ref<Method>('AUR')
 
 <template>
   <div class="grid gap-4">
-    <div class="flex max-w-full flex-wrap gap-1 rounded-2xl border border-line bg-surface p-1 shadow-soft sm:w-fit sm:rounded-full" role="tablist" aria-label="Install method">
+    <div class="flex max-w-full flex-wrap gap-1 rounded-card border border-line bg-surface p-1 shadow-soft sm:w-fit sm:rounded-full" role="tablist" aria-label="Install method">
       <button
         v-for="n in names"
         :key="n"

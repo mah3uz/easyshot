@@ -23,15 +23,23 @@ const faq = [
   },
   {
     q: 'How do I set the keyboard shortcuts?',
-    a: 'Wayland apps cannot grab global keys. Choose your keys in Settings › Shortcuts; easyshot writes them to its own file, and you add one include line to your Hyprland, sway or niri config, once. easyshot never edits your config itself.',
+    a: 'Wayland apps cannot grab global keys, and easyshot sets none until you choose them. Pick your keys in Settings › Shortcuts or in the first-run step, which suggests the Print keys where they are free. easyshot writes them to its own binds file for Hyprland, sway or niri, and you add the one include line it shows you to your config, once; Check tells you whether it is included. easyshot never edits your config itself.',
   },
   {
     q: 'Does it upload my screenshots?',
-    a: 'No. Everything stays on your machine: captures, recordings, logs and crash reports. easyshot has no cloud sharing.',
+    a: 'No. Everything stays on your machine: captures, recordings, logs and crash reports. Cloud sharing is coming soon; for now the Cloud Share action on a card only says so.',
   },
   {
     q: 'What does recording need?',
-    a: "gpu-screen-recorder (preferred) or wf-recorder. Without one, the tray's Record item is disabled and tells you what to install. Text capture needs Tesseract; QR codes are read without it.",
+    a: "gpu-screen-recorder (preferred) or wf-recorder, and ffmpeg to trim and export. Without a recorder, the tray's Record item is greyed out and tells you what to install. Recording a window from its own picture needs GStreamer's good plugins and an H.264 encoder; without them a window recording records the window's area on screen. Text capture needs Tesseract; QR codes are read without it.",
+  },
+  {
+    q: 'Can I edit recordings into a video?',
+    a: 'The trim viewer cuts a recording and exports MP4, WebM or GIF, with a size, a quality, a colour look and a volume for each sound track. A Video Studio with a timeline, zooms and captions is coming soon.',
+  },
+  {
+    q: 'Can AI agents use it?',
+    a: 'Yes, once you allow it. <code>easyshot agent</code> lets an agent or script list windows, take screenshots with secrets covered, read text, record and annotate, and <code>easyshot agent mcp</code> is a Model Context Protocol server. Agent access is off until you turn it on, asks you in a dialog first, and a tray badge with one-click Revoke shows while it is granted.',
   },
 ]
 
@@ -88,10 +96,6 @@ useHead({
   <div>
     <!-- Hero -->
     <section class="relative overflow-hidden pt-[130px] pb-20 sm:pt-[150px]">
-      <div class="pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
-        <div class="absolute top-[-200px] left-1/2 h-[700px] w-[1100px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,var(--glow),transparent)] opacity-90" />
-        <div class="absolute inset-0 bg-[linear-gradient(to_right,var(--line)_1px,transparent_1px),linear-gradient(to_bottom,var(--line)_1px,transparent_1px)] [mask-image:radial-gradient(ellipse_at_top,black_20%,transparent_70%)] bg-[size:56px_56px]" />
-      </div>
 
       <div class="container-x grid justify-items-center gap-7 text-center">
         <img src="/logo.svg" alt="easyshot logo" width="96" height="96" class="rise size-20 drop-shadow-[0_20px_30px_rgba(19,136,166,.35)] sm:size-24" />
@@ -117,7 +121,7 @@ useHead({
             View on GitHub
           </a>
         </div>
-        <p class="rise text-[13px] text-fg-3" style="--d: 0.4s">For Linux on Wayland · Arch packages (AUR)</p>
+        <p class="rise text-[13px] text-fg-3" style="--d: 0.4s">For Linux on Wayland · Build it from source today</p>
       </div>
 
       <div class="container-x mt-16 sm:mt-20">
@@ -130,7 +134,7 @@ useHead({
       <div class="container-x flex flex-wrap items-center justify-center gap-x-12 gap-y-4 text-fg-3">
         <span class="text-[13px] font-medium">Made for tiling Wayland</span>
         <span v-for="c in ['Hyprland', 'sway', 'niri']" :key="c" class="font-display text-2xl font-bold tracking-tight text-fg-2">{{ c }}</span>
-        <span class="text-[13px]">+ any compositor with layer-shell</span>
+        <span class="text-[13px]">+ basic capture on other Wayland compositors</span>
       </div>
     </section>
 
@@ -208,13 +212,14 @@ useHead({
           <span class="eyebrow"><Icon name="video" :size="15" />Record</span>
           <h2 class="text-[clamp(32px,4.4vw,50px)] leading-[1.05]">Record your screen, with sound.</h2>
           <p class="text-lg text-fg-2">
-            Record an area, a display or a window, with system audio and your microphone. Pause, restart or discard from a
-            small control bar, then trim the clip in the viewer that opens when you stop.
+            Record an area, a display or a window, with system sound and your microphone as two separate tracks. Mute
+            either sound, pause, start over or discard from a small control bar, then trim the clip in the viewer.
           </p>
           <ul class="grid gap-2.5 pt-2 text-[15px] text-fg-2">
             <li class="flex items-center gap-3"><Icon name="zap" :size="17" class="text-accent" /> Uses gpu-screen-recorder, or wf-recorder</li>
+            <li class="flex items-center gap-3"><Icon name="app-window" :size="17" class="text-accent" /> A window keeps recording when it is covered or on another workspace</li>
             <li class="flex items-center gap-3"><Icon name="timer" :size="17" class="text-accent" /> Countdown before it starts</li>
-            <li class="flex items-center gap-3"><Icon name="film" :size="17" class="text-accent" /> Trim viewer with export</li>
+            <li class="flex items-center gap-3"><Icon name="film" :size="17" class="text-accent" /> Trim viewer with MP4, WebM and GIF export</li>
           </ul>
         </div>
         <div v-reveal="0.1"><RecordMock /></div>
@@ -229,7 +234,7 @@ useHead({
           <h2 class="text-[clamp(32px,4.4vw,50px)] leading-[1.05]">Your keys. Your compositor.</h2>
           <p class="text-lg text-fg-2">
             Every action is a command, so any key bind, launcher or script can drive easyshot. Settings › Shortcuts writes your
-            keys to its own file, gives you the one line to include, and checks which keys are already taken.
+            keys to its own file, gives you the one line to include, and checks which keys are already taken. You might bind:
           </p>
           <div class="flex flex-wrap items-center gap-x-6 gap-y-3 pt-2 text-sm text-fg-2">
             <span class="flex items-center gap-1.5 whitespace-nowrap"><kbd>Super</kbd><kbd>Shift</kbd><kbd>4</kbd><span class="ml-1">capture an area</span></span>
@@ -264,8 +269,8 @@ useHead({
           <span class="eyebrow"><Icon name="download" :size="15" />Install</span>
           <h2 class="text-[clamp(32px,4.4vw,50px)] leading-[1.05]">Get it your way.</h2>
           <p class="text-lg text-fg-2">
-            easyshot comes as two Arch (AUR) packages, or you can build it from source. The package starts the background service
-            for you; then add your key binds and press one.
+            Build easyshot from source today. Two Arch (AUR) packages are on the way but not published yet; the package starts
+            the background service for you. Then choose your keys and press one.
           </p>
           <NuxtLink to="/how-to" class="group mt-2 inline-flex w-fit items-center gap-1.5 font-semibold text-accent">
             Full setup guide <Icon name="arrow-up-right" :size="16" class="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
@@ -289,7 +294,7 @@ useHead({
     <!-- CTA -->
     <section class="pb-28">
       <div class="container-x">
-        <div v-reveal class="relative overflow-hidden rounded-[32px] bg-[#043040] px-6 py-16 text-center text-white shadow-float sm:px-12 sm:py-20">
+        <div v-reveal class="relative overflow-hidden rounded-card bg-[#043040] px-6 py-16 text-center text-white shadow-float sm:px-12 sm:py-20">
           <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(98,237,212,.35),transparent_60%)]" aria-hidden="true" />
           <div class="relative grid justify-items-center gap-6">
             <img src="/logo.svg" alt="" width="72" height="72" class="animate-float" loading="lazy" />

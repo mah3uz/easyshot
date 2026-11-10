@@ -73,9 +73,9 @@ watch(() => route.fullPath, () => (open.value = false))
     >
       <ul v-if="open" id="mobile-nav" class="container-x grid gap-1 pb-5 lg:hidden">
         <li v-for="l in links" :key="l.to">
-          <NuxtLink :to="l.to" class="block rounded-xl px-3 py-3 text-base font-medium hover:bg-surface-2">{{ l.label }}</NuxtLink>
+          <NuxtLink :to="l.to" class="block rounded-card-sm px-3 py-3 text-base font-medium hover:bg-surface-2">{{ l.label }}</NuxtLink>
         </li>
-        <li><a :href="repo" class="block rounded-xl px-3 py-3 text-base font-medium hover:bg-surface-2" rel="noopener">GitHub</a></li>
+        <li><a :href="repo" class="block rounded-card-sm px-3 py-3 text-base font-medium hover:bg-surface-2" rel="noopener">GitHub</a></li>
       </ul>
     </Transition>
   </header>

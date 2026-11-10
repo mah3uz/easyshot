@@ -4,7 +4,7 @@ const open = ref<number | null>(0)
 </script>
 
 <template>
-  <div class="divide-y divide-line overflow-hidden rounded-[22px] border border-line bg-surface shadow-soft">
+  <div class="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface shadow-soft">
     <div v-for="(item, i) in items" :key="item.q">
       <h3 class="m-0 font-sans text-base font-semibold tracking-normal">
         <button

@@ -22,7 +22,7 @@ const steps = [
 const needs = [
   { icon: 'monitor', title: 'A Wayland compositor', text: 'Hyprland 0.57+, sway 1.12 or niri 26.04 (built for niri, not tested on it). Others with layer-shell and a capture protocol work for basic capture. Not KDE or GNOME.' },
   { icon: 'scan-text', title: 'Tesseract (optional)', text: 'For text capture (OCR) and Smart Redaction. Install the English data too, for example tesseract-data-eng.' },
-  { icon: 'video', title: 'A recorder (optional)', text: 'gpu-screen-recorder (preferred) or wf-recorder for recording; ffmpeg for trimming and export.' },
+  { icon: 'video', title: 'A recorder (optional)', text: 'gpu-screen-recorder (preferred) or wf-recorder for recording; ffmpeg for trimming and export. To record a window from its own picture: GStreamer good plugins and an H.264 encoder.' },
 ]
 
 const keys = [
@@ -40,7 +40,7 @@ const captures = [
   { icon: 'app-window', title: 'Window', cmd: 'easyshot capture window', text: 'Hover to highlight a window, click to take it.' },
   { icon: 'monitor', title: 'Full screen', cmd: 'easyshot capture fullscreen', text: 'The output under the pointer.' },
   { icon: 'timer', title: 'Timed', cmd: 'easyshot capture window --timed 5', text: 'Pick first, then a countdown runs and a fresh frame is taken. Add --timed to region, window or fullscreen.' },
-  { icon: 'unfold-vertical', title: 'Scrolling', cmd: 'easyshot capture scroll', text: 'Draw the area to scroll, or press Space to pick a window, then scroll. easyshot joins it into one tall image, with fixed top and bottom bars shown once and a minimap or side panel kept as the first view showed it, even on pages with a playing video. Press the shortcut again, or Stop, to finish.' },
+  { icon: 'unfold-vertical', title: 'Scrolling', cmd: 'easyshot capture scroll', text: 'Draw the area to scroll, or press Space to pick a window, then scroll by hand or with Auto Scroll where your compositor allows it. easyshot joins it into one tall image, with fixed top and bottom bars shown once, a minimap or side panel kept as the first view showed it and a scrollbar at the right edge cut off, even on pages with a playing video. Press the shortcut again, or Stop, to finish.' },
   { icon: 'scan-text', title: 'Text', cmd: 'easyshot ocr', text: 'Reads the text, or a QR code, in an area and copies it.' },
 ]
 
@@ -60,6 +60,8 @@ const files = [
   ['Recordings', '~/.local/share/easyshot/recordings/'],
   ['Logs and crash reports', '~/.local/state/easyshot/log/'],
   ['Default save folder', '~/Pictures/Screenshots'],
+  ['Saved recordings and exports', '~/Videos/easyshot/'],
+  ['Your keys (binds file)', '~/.config/easyshot/binds.conf, binds.lua or binds.kdl'],
 ]
 
 const trouble = [
@@ -129,7 +131,6 @@ useHead({
   <div>
     <!-- Header -->
     <section class="relative overflow-hidden pt-[130px] pb-16 sm:pt-[150px]">
-      <div class="pointer-events-none absolute top-[-240px] left-1/2 -z-10 h-[600px] w-[1000px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,var(--glow),transparent)]" aria-hidden="true" />
       <div class="container-x grid justify-items-center gap-6 text-center">
         <nav aria-label="Breadcrumb" class="rise text-[13px] text-fg-3">
           <NuxtLink to="/" class="hover:text-accent">Home</NuxtLink> <span class="mx-1.5">/</span> <span class="text-fg-2">How-to</span>
@@ -201,7 +202,7 @@ useHead({
             Wayland apps cannot grab global keys, so your compositor binds them, and easyshot sets none until you choose. On first run, <strong>Set your shortcuts</strong> suggests keys; later, use <strong>Settings › Shortcuts</strong>. easyshot writes your keys to its own file in <code>~/.config/easyshot/</code> and keeps it up to date. You add one line to your compositor config, once, and press <strong>Copy Line</strong> to get it. <strong>Check</strong> shows whether it is Included. easyshot never edits your config. The file it writes looks like the lines below, for example.
           </p>
           <BindSnippet />
-          <div class="overflow-hidden rounded-[18px] border border-line">
+          <div class="overflow-hidden rounded-card border border-line">
             <table class="w-full text-left text-[14.5px]">
               <caption class="sr-only">Global actions you can bind</caption>
               <thead class="bg-surface-2 text-xs tracking-wider text-fg-3 uppercase">
@@ -220,7 +221,7 @@ useHead({
 
         <!-- 5 -->
         <HowStep :n="5" id="capture" title="Take a screenshot">
-          <p>Press the key you bound to <code>easyshot capture region</code>. The screen freezes, you drag an area, and the capture lands as a card in the preview deck, where you can copy, save, annotate, pin or drag it into another app or a file manager. Once auto-save has saved it, Save becomes Show in Folder. Several captures stack up in the corner; hover the stack to fan the cards out.</p>
+          <p>Press the key you bound to <code>easyshot capture region</code>. The screen freezes, you drag an area, and the capture lands as a card in the preview deck, where you can copy, save, edit, pin or drag it into another app or a file manager. Once auto-save has saved it, Save becomes Show in Folder. Several captures stack up in the corner; hover the stack to fan the cards out.</p>
           <div class="grid gap-3 sm:grid-cols-2">
             <div v-for="c in captures" :key="c.title" class="card card-hover grid content-start gap-2.5 p-5">
               <h3 class="flex items-center gap-2 text-base"><Icon :name="c.icon" :size="18" class="text-accent" />{{ c.title }}</h3>
@@ -233,11 +234,11 @@ useHead({
         <!-- 6 -->
         <HowStep :n="6" id="annotate" title="Annotate and share">
           <p>
-            Choose <strong>Annotate</strong> on a deck card, or capture with <code>--annotate</code>. Add arrows, shapes, text and steps, with each tool's options (colour, stroke, arrowheads, font) in the sidebar, blur what is private with <strong>Smart Redaction</strong> (it says what it hid and offers Undo), highlight text with the <strong>Highlighter</strong>, then set a background,
+            Click a deck card or choose <strong>Edit</strong> on it, or capture with <code>--annotate</code>. Add arrows, shapes, text and steps, with each tool's options (colour, stroke, arrowheads, font) in the inspector, blur what is private with <strong>Smart Redaction</strong> (it says what it hid and offers Undo), highlight text with the <strong>Highlighter</strong>, then set a background,
             padding, shadow and canvas shape in the inspector on the right. Save keeps your edits editable; Export writes PNG or JPEG.
           </p>
           <div class="grid gap-2 sm:grid-cols-2">
-            <div v-for="k in editorKeys" :key="k[0]" class="flex items-center justify-between gap-4 rounded-xl border border-line bg-surface px-4 py-3 text-[14px]">
+            <div v-for="k in editorKeys" :key="k[0]" class="flex items-center justify-between gap-4 rounded-card-sm border border-line bg-surface px-4 py-3 text-[14px]">
               <span class="text-fg-2">{{ k[1] }}</span>
               <span class="flex shrink-0 gap-1"><kbd v-for="part in k[0].split(' ')" :key="part">{{ part }}</kbd></span>
             </div>
@@ -247,16 +248,17 @@ useHead({
 
         <!-- 7 -->
         <HowStep :n="7" id="record" title="Record your screen">
-          <p>Press the key you bound to <code>easyshot record</code>, pick an area, a display or a window, system sound is recorded unless you turn it off, and the microphone only if you choose one. After the countdown a small bar lets you stop, pause, restart or discard.</p>
+          <p>Press the key you bound to <code>easyshot record</code> and pick an area, a display or a window. The recording panel lists every open window by workspace, with its app's icon and title. System sound is recorded unless you turn it off, and the microphone once you choose one, as two separate tracks. After the countdown a small bar lets you stop, mute each sound, pause, start over or discard.</p>
           <CodeBlock prompt code="easyshot record          # start
-easyshot record stop     # stop and open the trim viewer" />
-          <p>The recording appears as a deck card and opens in the trim viewer, where you cut it and export it. Saved recordings and exports go to <code>~/Videos/easyshot/</code>. One recording runs at a time. Where your compositor allows it, a window recording follows that window itself, so it still shows the window when something covers it or it is on another workspace.</p>
+easyshot record stop     # stop; the recording lands as a deck card" />
+          <p>The recording appears as a deck card and opens in the trim viewer, where you cut it, set a volume for each track and export MP4, WebM or GIF. Saved recordings and exports go to <code>~/Videos/easyshot/</code>. One recording runs at a time. Where your compositor allows it, a window recording follows that window itself, so it still shows the window when something covers it or it is on another workspace.</p>
         </HowStep>
 
         <!-- 8 -->
         <HowStep :n="8" id="settings" title="Settings and files">
           <p>Easyshot in your app menu, or <code>easyshot</code> on its own, opens the Home window: your media gallery and Settings, one tab each. The tray's Settings item and <code>easyshot settings</code> open it on Settings. Every change applies at once. You can also edit <code>config.toml</code> by hand: easyshot watches it and applies changes live.</p>
-          <dl class="divide-y divide-line overflow-hidden rounded-[18px] border border-line bg-surface">
+          <Callout>AI agents and scripts can use <code>easyshot agent</code> to capture, read text, record and annotate. It is off until you turn it on in Settings › Agents or with <code>easyshot agent enable</code>, and asks you before each session.</Callout>
+          <dl class="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
             <div v-for="f in files" :key="f[0]" class="grid gap-1 px-4 py-3 sm:grid-cols-[200px_1fr]">
               <dt class="text-[14px] font-medium">{{ f[0] }}</dt>
               <dd class="m-0 font-mono text-[13px] break-all text-fg-2">{{ f[1] }}</dd>

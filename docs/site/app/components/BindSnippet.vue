@@ -40,7 +40,7 @@ const names = Object.keys(tabs) as Tab[]
 
 <template>
   <div class="grid gap-3">
-    <div class="inline-flex w-fit max-w-full flex-wrap gap-1 rounded-2xl sm:rounded-full border border-line bg-surface p-1 shadow-soft" role="tablist" aria-label="Compositor">
+    <div class="inline-flex w-fit max-w-full flex-wrap gap-1 rounded-card sm:rounded-full border border-line bg-surface p-1 shadow-soft" role="tablist" aria-label="Compositor">
       <button
         v-for="n in names"
         :key="n"

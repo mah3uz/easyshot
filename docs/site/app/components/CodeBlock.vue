@@ -21,7 +21,7 @@ async function copy() {
     <pre class="m-0 pr-10"><code><template v-for="(l, i) in lines" :key="i"><span v-if="prompt && l && !l.startsWith('#')" class="p">$ </span><span :class="l.startsWith('#') && 'c'">{{ l }}</span>{{ i < lines.length - 1 ? '\n' : '' }}</template></code></pre>
     <button
       type="button"
-      class="absolute top-3 right-3 grid size-8 place-items-center rounded-lg text-[#9cc7c9] opacity-70 transition hover:bg-white/10 hover:opacity-100 focus-visible:opacity-100"
+      class="absolute top-3 right-3 grid size-8 place-items-center rounded-card-xs text-[#9cc7c9] opacity-70 transition hover:bg-white/10 hover:opacity-100 focus-visible:opacity-100"
       :aria-label="copied ? 'Copied' : 'Copy to clipboard'"
       @click="copy"
     >
