@@ -163,11 +163,11 @@ useHead({
           </div>
           <p v-reveal="0.1" class="text-lg text-fg-2">
             A full editor with 13 tools opens right after the capture. Point things out, hide what is private, then put it
-            on a background that is ready to share.
+            on a background that is ready to share. Try the controls below.
           </p>
         </div>
         <div v-reveal="0.1">
-          <RealShot shot="editor" sizes="(min-width: 1180px) 1132px, 100vw" />
+          <EditorMock />
         </div>
         <ul class="grid gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
           <li v-for="(p, i) in editorPoints" :key="p" v-reveal="i * 0.05" class="flex gap-3 text-[15px] text-fg-2">
@@ -222,12 +222,7 @@ useHead({
             <li class="flex items-center gap-3"><Icon name="film" :size="17" class="text-accent" /> Trim viewer with MP4, WebM and GIF export</li>
           </ul>
         </div>
-        <figure v-reveal="0.1" class="relative pb-6">
-          <RealShot shot="record" sizes="(min-width: 1180px) 620px, (min-width: 768px) 54vw, 100vw" />
-          <div class="absolute right-2 bottom-0 w-[200px] sm:-right-4 sm:w-[260px]">
-            <RealShot shot="recbar" sizes="260px" />
-          </div>
-        </figure>
+        <div v-reveal="0.1"><RecordMock /></div>
       </div>
     </section>
 
