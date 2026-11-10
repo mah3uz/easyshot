@@ -114,6 +114,12 @@ impl DeckView {
         view
     }
 
+    /// Cards already on screen when the deck is rebuilt keep their place instead of entering again.
+    pub fn settled(mut self) -> Self {
+        self.arrivals.values_mut().for_each(|a| *a = None);
+        self
+    }
+
     pub fn hovered(&self) -> Option<Uuid> {
         self.hovered
     }
@@ -428,6 +434,7 @@ pub struct DeckSurface {
     settings: Cell<DeckSettings>,
     shown: RefCell<Option<Shown>>,
     observe: RefCell<Option<Subscription>>,
+    rebuilt: Cell<bool>,
 }
 
 impl DeckSurface {
@@ -443,6 +450,7 @@ impl DeckSurface {
             settings: Cell::new(settings),
             shown: RefCell::default(),
             observe: RefCell::default(),
+            rebuilt: Cell::default(),
         });
         let weak: Weak<Self> = Rc::downgrade(&this);
         let observe = cx.observe(deck, move |_, cx| {
@@ -471,6 +479,7 @@ impl DeckSurface {
         self.settings.set(settings);
         if let Some(shown) = self.shown.borrow_mut().take() {
             shown.handle.close(cx);
+            self.rebuilt.set(true);
         }
         if let Err(error) = self.sync(cx) {
             tracing::warn!(%error, "deck surface");
@@ -515,7 +524,11 @@ impl DeckSurface {
                     self.surfaces
                         .open_surface(SurfaceRole::Deck, &output, geometry.panel(), cx)?;
                 let deck = self.deck.clone();
-                let view = cx.new(|cx| DeckView::new(deck, settings, cx));
+                let settled = self.rebuilt.replace(false);
+                let view = cx.new(|cx| {
+                    let view = DeckView::new(deck, settings, cx);
+                    if settled { view.settled() } else { view }
+                });
                 handle.set_content(view.into(), cx);
                 *slot = Some(Shown {
                     handle,

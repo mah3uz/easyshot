@@ -303,3 +303,60 @@ fn a_new_card_grows_and_rises_into_place_as_it_fades_in_and_only_fades_under_red
     );
     assert!(fading.2 < settled.2, "and only fades in");
 }
+
+#[test]
+fn a_rebuilt_deck_draws_its_cards_in_place_instead_of_entering_again() {
+    use crate::deck::Stage;
+    use crate::window_mode_support::Surface;
+    use es_app::deck::{Deck, DeckPolicy};
+    use es_overlays::deck::view::DeckView;
+    use gpui::AppContext as _;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    let draw = |settled: bool, tag: &str| {
+        let dir = tempfile::tempdir().unwrap();
+        let shot = crate::deck::item(dir.path(), 9);
+        let settings = DeckSettings::default();
+        let panel = settings.geometry(1).panel();
+        let made = Rc::new(RefCell::new(None));
+        let out = made.clone();
+        let mut s = Surface::open(panel.width as f32, panel.height as f32, move |cx| {
+            let deck = cx.new(|_| {
+                Deck::new(DeckPolicy {
+                    delay: None,
+                    keep_until_saved: false,
+                })
+            });
+            deck.update(cx, |d, cx| d.show(shot, cx));
+            let view = cx.new(|cx| {
+                let view = DeckView::new(deck.clone(), settings, cx);
+                if settled { view.settled() } else { view }
+            });
+            *out.borrow_mut() = Some(view.clone());
+            Stage {
+                content: view.into(),
+                dark: true,
+            }
+        });
+        let view = made.borrow_mut().take().unwrap();
+        s.app.until("the thumbnail loads", |cx| {
+            view.read(cx).has_image(Uuid::from_u128(9))
+        });
+        s.app.cx.advance_clock(DECK_ENTER.duration / 8);
+        let handle = s.app.window.into();
+        s.app
+            .cx
+            .update_window(handle, |_, window, _| window.refresh())
+            .unwrap();
+        let rows = picture_rows(&s.app.screenshot(tag)).unwrap();
+        drop(dir);
+        rows
+    };
+    let entering = draw(false, "deck-new-early");
+    let rebuilt = draw(true, "deck-rebuilt-early");
+    assert!(
+        rebuilt.1 - rebuilt.0 > entering.1 - entering.0 + 4,
+        "a card already shown is drawn at full size at once: {rebuilt:?} vs {entering:?}"
+    );
+}

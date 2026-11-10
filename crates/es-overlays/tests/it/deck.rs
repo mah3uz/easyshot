@@ -142,8 +142,8 @@ fn the_newest_card_sits_in_the_corner_the_deck_is_anchored_to() {
 }
 
 pub(crate) struct Stage {
-    content: AnyView,
-    dark: bool,
+    pub(crate) content: AnyView,
+    pub(crate) dark: bool,
 }
 
 impl Render for Stage {
