@@ -88,14 +88,12 @@ async fn only_the_rectangle_recorder_dims_around_what_it_records(cx: &mut TestAp
     assert_eq!(rectangle.log.borrow().dimmed, [true]);
 }
 
-#[gpui::test]
-async fn a_closed_window_ends_the_recording_keeps_it_and_says_so(cx: &mut TestAppContext) {
-    let rig = rig_full(
-        cx,
-        FakeRecorder::default(),
-        Some(window_recorder(true)),
-        false,
-    );
+/// Records until the window recorder reports the window gone; the toasts shown, as title and message.
+fn record_until_the_window_ends(
+    recorder: FakeRecorder,
+    cx: &mut TestAppContext,
+) -> Vec<(String, Option<String>)> {
+    let rig = rig_full(cx, FakeRecorder::default(), Some(recorder), false);
     let sink = es_app::toast::MemorySink::new();
     cx.update(|cx| {
         es_app::toast::install_toasts(
@@ -110,11 +108,34 @@ async fn a_closed_window_ends_the_recording_keeps_it_and_says_so(cx: &mut TestAp
 
     assert!(!rig.recordings.is_recording());
     let cards = cards(&rig, cx);
-    assert_eq!(cards.len(), 1);
+    assert_eq!(cards.len(), 1, "the recording is kept");
     assert!(cards[0].video);
-    let shown = sink.shown();
-    assert!(shown.iter().any(|t| {
-        t.title == "The window closed"
-            && t.message.as_deref() == Some("The recording stopped. It’s saved.")
+    sink.shown()
+        .into_iter()
+        .map(|t| (t.title, t.message))
+        .collect()
+}
+
+#[gpui::test]
+async fn a_closed_window_ends_the_recording_keeps_it_and_says_so(cx: &mut TestAppContext) {
+    let shown = record_until_the_window_ends(window_recorder(true), cx);
+    assert!(shown.iter().any(|(title, message)| {
+        title == "The window closed"
+            && message.as_deref() == Some("The recording stopped. It’s saved.")
+    }));
+}
+
+#[gpui::test]
+async fn a_window_that_can_no_longer_be_captured_ends_the_recording_keeps_it_and_says_so(
+    cx: &mut TestAppContext,
+) {
+    let recorder = FakeRecorder {
+        lost: true,
+        ..window_recorder(false)
+    };
+    let shown = record_until_the_window_ends(recorder, cx);
+    assert!(shown.iter().any(|(title, message)| {
+        title == "The window can’t be recorded any more"
+            && message.as_deref() == Some("The recording stopped. It’s saved.")
     }));
 }

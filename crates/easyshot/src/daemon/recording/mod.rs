@@ -413,11 +413,12 @@ impl Recordings {
                 show_toast(Toast::new("toast-recording-mic-lost", IconName::Info), cx);
                 return;
             }
-            RecorderEvent::WindowClosed => {
-                show_toast(
-                    Toast::new("toast-recording-window-closed", IconName::Info),
-                    cx,
-                );
+            RecorderEvent::WindowClosed | RecorderEvent::WindowLost => {
+                let title = match event {
+                    RecorderEvent::WindowLost => "toast-recording-window-lost",
+                    _ => "toast-recording-window-closed",
+                };
+                show_toast(Toast::new(title, IconName::Info), cx);
                 let _ = self.stop(cx);
                 return;
             }
@@ -576,7 +577,9 @@ impl Recordings {
                 let Some(session) = me.end_session(cx) else {
                     return;
                 };
-                if let Err(e) = std::fs::remove_dir_all(session.folder.dir()) {
+                if let Err(e) = std::fs::remove_dir_all(session.folder.dir())
+                    && e.kind() != std::io::ErrorKind::NotFound
+                {
                     tracing::warn!(error = %e, "recording folder not removed");
                 }
                 if !again {

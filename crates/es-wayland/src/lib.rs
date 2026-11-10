@@ -8,6 +8,7 @@ mod output;
 mod shm;
 mod stream;
 mod stream_capture;
+mod stream_retry;
 #[cfg(test)]
 mod stream_tests;
 #[cfg(test)]

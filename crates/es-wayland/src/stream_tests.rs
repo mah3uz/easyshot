@@ -244,6 +244,9 @@ fn hypr_stream_probe() {
         "hidden-workspace",
         "covered-by-fullscreen",
         "visible-again",
+        "beside-another-window",
+        "moved-to-busy-workspace",
+        "moved-back",
     ] {
         hypr_step(phase);
         count(&stream, Duration::from_millis(400), &mut last);

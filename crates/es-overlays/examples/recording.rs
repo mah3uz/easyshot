@@ -301,6 +301,7 @@ fn record(
                         RecorderEvent::Resumed => bar.set_paused(false, cx),
                         RecorderEvent::MicLost
                         | RecorderEvent::WindowClosed
+                        | RecorderEvent::WindowLost
                         | RecorderEvent::Failed(_) => {}
                     })
                 });

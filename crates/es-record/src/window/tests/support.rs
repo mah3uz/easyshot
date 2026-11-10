@@ -28,6 +28,7 @@ pub enum Step {
         span: Duration,
     },
     Stop,
+    Fail,
 }
 
 pub const DARK: u8 = 16;
@@ -121,6 +122,10 @@ pub fn feed(steps: Vec<Step>) -> (Feed, Arc<AtomicBool>) {
                 }
                 Step::Stop => {
                     let _ = producer.send(SourceEvent::Stopped);
+                    return;
+                }
+                Step::Fail => {
+                    let _ = producer.send(SourceEvent::Failed("capture failed".into()));
                     return;
                 }
             }

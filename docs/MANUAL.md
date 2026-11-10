@@ -451,11 +451,14 @@ windows already on screen record.
 Where the compositor lets easyshot capture a window by itself (sway, Hyprland and other
 compositors with window capture), a window recording records that
 window's own pictures, so the video shows the window even when something covers it or it is on
-another workspace. The recording has no sound. It runs at the frame rate you set and is encoded by
+another workspace. System sound and the microphone, when you choose them, are recorded as two tracks in step with the picture, and pauses are cut from both. It runs at the frame rate you set and is encoded by
 easyshot with GStreamer on your graphics card where it can (NVENC, then VA-API) and on the
 processor otherwise. If the window is resized the video keeps its first size and shows the
-window fitted inside it with bars. If the window closes, the recording stops, is kept, and
-you get the notice "The window closed". The pointer track in `input.json` is relative to
+window fitted inside it with bars. Moving the window to another workspace or monitor does not
+stop the recording; while the window is resizing, the video holds its last picture. If the window
+closes, the recording stops, is kept, and you get the notice "The window closed"; if easyshot can
+no longer capture the window, the recording stops the same way with the notice "The window can’t
+be recorded any more". The pointer track in `input.json` is relative to
 where the window was when the recording started, so it is off if you move the window. On sway
 a window is recorded at its logical size, not at the scaled display's pixels. Where window
 capture is not available, such as niri's current release, a window recording records the

@@ -153,6 +153,8 @@ pub enum RecorderEvent {
     MicLost,
     /// The recorded window closed; the file is finished and `stop` returns it.
     WindowClosed,
+    /// The recorded window can no longer be captured; the file is finished and `stop` returns it.
+    WindowLost,
     Failed(String),
 }
 

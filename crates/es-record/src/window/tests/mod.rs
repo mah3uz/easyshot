@@ -179,6 +179,21 @@ fn a_closed_window_finishes_a_playable_file_and_says_the_window_closed() {
 }
 
 #[test]
+fn a_capture_that_fails_while_recording_finishes_a_playable_file_and_says_the_window_was_lost() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let (feed, dropped) = feed(vec![frames(HD, 1.5), Step::Fail]);
+    let rec = recorder(feed, &test_encoders())
+        .start_window(&spec(dir.path(), 30))
+        .expect("start");
+    let events = rec.events();
+    assert!(wait_for(&events, &RecorderEvent::WindowLost));
+    assert!(dropped.load(Ordering::SeqCst), "the capture is let go");
+    let out = block_on(Box::new(rec).stop()).expect("the file is kept");
+    let file = decode(&out.file, &[]);
+    assert!(file.frames > 20, "{} frames", file.frames);
+}
+
+#[test]
 fn discard_leaves_no_file() {
     let dir = tempfile::tempdir().expect("tempdir");
     let folder = dir.path().join("rec");

@@ -18,6 +18,8 @@ pub struct FakeRecorder {
     pub window: bool,
     /// Reports its window closed as soon as it has started.
     pub closes: bool,
+    /// Reports its window can no longer be captured as soon as it has started.
+    pub lost: bool,
     pub clock: Option<Arc<dyn Clock>>,
 }
 
@@ -59,6 +61,9 @@ impl Recorder for FakeRecorder {
         let _ = tx.try_send(RecorderEvent::Started);
         if self.closes {
             let _ = tx.try_send(RecorderEvent::WindowClosed);
+        }
+        if self.lost {
+            let _ = tx.try_send(RecorderEvent::WindowLost);
         }
         let first = self.clock.as_ref().map_or(0, |c| c.monotonic_us());
         Ok(Box::new(FakeHandle {

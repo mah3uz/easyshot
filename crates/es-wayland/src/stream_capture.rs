@@ -1,6 +1,7 @@
 use crate::Error;
 use crate::shm::{ShmBuffer, pick_format};
 use crate::stream::{Counters, Shared, StreamEvent, StreamOptions, bump};
+use crate::stream_retry::{AfterFailure, Retries};
 use es_model::{PixelBuf, PixelFormat, VideoFrame};
 use rustix::event::{PollFd, PollFlags, Timespec, poll};
 use rustix::time::{ClockId, clock_gettime};
@@ -31,7 +32,7 @@ use wayland_protocols::ext::image_copy_capture::v1::client::{
     ext_image_copy_capture_session_v1::{self, ExtImageCopyCaptureSessionV1},
 };
 
-const MAX_RETRIES: u32 = 10;
+const RETRY_AFTER: Duration = Duration::from_millis(50);
 
 fn pixel_format(f: Format) -> Option<PixelFormat> {
     match f {
@@ -92,7 +93,7 @@ struct Capture {
     buffer: Option<ShmBuffer>,
     frame: Option<(ExtImageCopyCaptureFrameV1, u64)>,
     presented: Option<u64>,
-    failures: u32,
+    retries: Retries,
     interval: Duration,
     requested_at: Option<Instant>,
     wait_until: Option<Instant>,
@@ -139,7 +140,7 @@ impl Session {
             buffer: None,
             frame: None,
             presented: None,
-            failures: 0,
+            retries: Retries::default(),
             interval: match options.fps {
                 0 => Duration::ZERO,
                 fps => Duration::from_secs(1) / fps,
@@ -320,7 +321,7 @@ impl Capture {
             return;
         };
         frame.destroy();
-        self.failures = 0;
+        self.retries.ready();
         let Some(buf) = &self.buffer else { return };
         let Some(format) = pixel_format(buf.format) else {
             return self.end(StreamEvent::Failed(Error::Unsupported("shm format")));
@@ -348,30 +349,17 @@ impl Capture {
         };
         frame.destroy();
         bump(&self.shared.counters.failures);
-        match reason {
-            WEnum::Value(FailureReason::Stopped) => self.end(StreamEvent::Stopped),
-            WEnum::Value(FailureReason::BufferConstraints) if self.generation > generation => {
-                self.buffer = None;
-                self.request(qh);
-            }
-            // Without newer constraints the compositor refused a buffer made to its own; the
-            // new ones may still be on their way, so this retries but counts.
-            WEnum::Value(FailureReason::BufferConstraints) => {
-                self.buffer = None;
-                self.retry(reason, qh);
-            }
-            _ => self.retry(reason, qh),
+        if reason == WEnum::Value(FailureReason::BufferConstraints) {
+            self.buffer = None;
         }
-    }
-
-    fn retry(&mut self, reason: WEnum<FailureReason>, qh: &QueueHandle<Capture>) {
-        self.failures += 1;
-        if self.failures > MAX_RETRIES {
-            self.end(StreamEvent::Failed(Error::CaptureFailed(format!(
+        match self.retries.failed(reason, self.generation > generation) {
+            AfterFailure::RequestNow => self.request(qh),
+            // New constraints arriving before then ask for the next frame at once.
+            AfterFailure::RetryLater => self.wait_until = Some(Instant::now() + RETRY_AFTER),
+            AfterFailure::Stopped => self.end(StreamEvent::Stopped),
+            AfterFailure::GiveUp => self.end(StreamEvent::Failed(Error::CaptureFailed(format!(
                 "{reason:?}"
-            ))));
-        } else {
-            self.request(qh);
+            )))),
         }
     }
 }
@@ -396,7 +384,9 @@ impl Dispatch<ExtImageCopyCaptureSessionV1, ()> for Capture {
                 let Some(format) = pick_format(&formats, false) else {
                     return state.end(StreamEvent::Failed(Error::Unsupported("shm format")));
                 };
-                state.constraints = Some((state.pending_size, format));
+                let constraints = Some((state.pending_size, format));
+                state.retries.constraints(state.constraints != constraints);
+                state.constraints = constraints;
                 state.generation += 1;
                 state.request(qh);
             }

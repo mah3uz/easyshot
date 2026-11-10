@@ -217,8 +217,12 @@ impl Pacer {
                 done.map(|()| segments)
             }
             End::SourceFailed(m) => {
+                tracing::warn!(error = %m, "window capture ended");
                 let done = pipeline.finish();
-                let _ = events.try_send(RecorderEvent::Failed(format!("window capture: {m}")));
+                let _ = events.try_send(match &done {
+                    Ok(()) => RecorderEvent::WindowLost,
+                    Err(e) => RecorderEvent::Failed(e.to_string()),
+                });
                 done.map(|()| segments)
             }
         }
