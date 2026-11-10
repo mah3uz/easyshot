@@ -30,6 +30,8 @@ pub struct Stitcher {
     footer: usize,
     stamped: usize,
     right: Option<usize>,
+    strip: usize,
+    bar: bool,
     moving: Vec<bool>,
     /// `moving` placed on the canvas, for an animation that scrolls with the page.
     volatile: Vec<bool>,
@@ -61,6 +63,8 @@ impl Stitcher {
             footer: 0,
             stamped: 0,
             right: None,
+            strip: 0,
+            bar: false,
             moving: Vec::new(),
             volatile: Vec::new(),
             fixed: Vec::new(),
@@ -95,7 +99,7 @@ impl Stitcher {
                 canvas.data[i..i + 4].copy_from_slice(&self.fill[x]);
             }
         }
-        Some(canvas)
+        Some(without_bar(canvas, if self.bar { self.strip } else { 0 }))
     }
 
     pub fn push(&mut self, frame: &Frame) -> Push {
@@ -169,7 +173,13 @@ impl Stitcher {
             return Push::Duplicate;
         }
         if dy > MIN_LOCK_SHIFT && self.right.is_none() {
-            self.right = Some(scrollbar_margin(prev, frame, guess, dy));
+            let (margin, strip) = scrollbar_margin(prev, frame, guess, dy);
+            self.right = Some(margin);
+            self.strip = strip;
+        }
+        // Only a strip that changes on screen between frames is a scrollbar; a panel that stands still keeps what the first view showed.
+        if self.strip > 0 && !self.bar {
+            self.bar = strip_changes(prev, frame, self.strip);
         }
         self.keep_fixed(&found_cols);
         let Some(prev) = self.prev.as_ref() else {
@@ -358,6 +368,23 @@ impl Stitcher {
     }
 }
 
+// A thumb that moves with each frame would otherwise show down the right edge at every position it had.
+fn without_bar(canvas: Frame, strip: usize) -> Frame {
+    if strip == 0 || strip >= canvas.width {
+        return canvas;
+    }
+    let width = canvas.width - strip;
+    let mut data = Vec::with_capacity(width * canvas.height * 4);
+    for y in 0..canvas.height {
+        data.extend_from_slice(&canvas.row(y)[..width * 4]);
+    }
+    Frame {
+        width,
+        height: canvas.height,
+        data,
+    }
+}
+
 fn columns(width: usize, right: usize, fixed: &[bool]) -> Vec<usize> {
     (0..width.saturating_sub(right))
         .step_by(4)
@@ -416,13 +443,29 @@ fn fixed_edge(
     (len, still)
 }
 
-fn scrollbar_margin(prev: &Frame, next: &Frame, ex: Exclusions, dy: usize) -> usize {
+fn strip_changes(prev: &Frame, next: &Frame, strip: usize) -> bool {
+    let from = (next.width - strip) * 4;
+    let rows = (0..next.height)
+        .filter(|&y| {
+            let sum: f64 = (from..next.width * 4)
+                .step_by(4)
+                .map(|i| pixel_sad(&prev.row(y)[i..], &next.row(y)[i..]))
+                .sum();
+            sum / strip as f64 > CHANGE_SAD
+        })
+        .take(2)
+        .count();
+    rows >= 2
+}
+
+/// The margin to leave out of matching and the width of the strip found, which is the margin without its padding.
+fn scrollbar_margin(prev: &Frame, next: &Frame, ex: Exclusions, dy: usize) -> (usize, usize) {
     let rows = next.height.saturating_sub(ex.top + ex.bottom + dy);
     let (from, to) = (rows / 5, rows * 4 / 5);
     let step = (to.saturating_sub(from) / 40).max(1);
     let sampled: Vec<usize> = (from..to).step_by(step).collect();
     if sampled.is_empty() {
-        return 0;
+        return (0, 0);
     }
     let changing = |x: usize| {
         let sum: f64 = sampled
@@ -449,9 +492,10 @@ fn scrollbar_margin(prev: &Frame, next: &Frame, ex: Exclusions, dy: usize) -> us
         }
     }
     match left {
-        Some(x) if (3..=40).contains(&(next.width - x)) => {
-            (next.width - x + SCROLLBAR_PAD).min(next.width - 1)
-        }
-        _ => 0,
+        Some(x) if (3..=40).contains(&(next.width - x)) => (
+            (next.width - x + SCROLLBAR_PAD).min(next.width - 1),
+            next.width - x,
+        ),
+        _ => (0, 0),
     }
 }

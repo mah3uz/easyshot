@@ -359,3 +359,52 @@ fn shift_robust_finds_the_shift_where_most_edges_reappear() {
         "unrelated frames share no edges"
     );
 }
+
+const OFFS: [usize; 6] = [0, 120, 250, 380, 520, 660];
+
+// The thumb sits at a different row in each frame, so copying the strip down the image would repeat it.
+#[test]
+fn a_moving_scrollbar_thumb_is_cropped_off_the_saved_image() {
+    let page = noise_page(160, 1400, 4);
+    let mut st = Stitcher::new();
+    for (i, off) in OFFS.into_iter().enumerate() {
+        let mut f = window(&page, off, 300);
+        paint_cols(&mut f, 144, |y| {
+            let top = 40 + off / 4;
+            if (top..top + 60).contains(&y) {
+                [20, 20, 20, 255]
+            } else {
+                [220, 220, 220, 255]
+            }
+        });
+        assert!(matches!(st.push(&f), Push::Appended(_)), "frame {i}");
+    }
+    let out = st.finish().unwrap();
+    assert_eq!((out.width, out.height), (144, 960));
+    assert_eq!(left_cols(&out, 144), left_cols(&window(&page, 0, 960), 144));
+}
+
+#[test]
+fn a_static_side_strip_is_kept_as_the_first_view_showed_it() {
+    let page = noise_page(160, 1400, 4);
+    let strip = |y: usize| [(y * 7 % 251) as u8, 90, (y % 13) as u8 * 10, 255];
+    let mut st = Stitcher::new();
+    for off in OFFS {
+        let mut f = window(&page, off, 300);
+        paint_cols(&mut f, 136, strip);
+        st.push(&f);
+    }
+    let out = st.finish().unwrap();
+    assert_eq!(out.width, 160);
+    let at = (10 * 160 + 140) * 4;
+    assert_eq!(out.data[at..at + 4], strip(10));
+}
+
+#[test]
+fn a_page_without_a_scrollbar_keeps_its_width() {
+    let page = noise_page(160, 1400, 4);
+    let mut st = Stitcher::new();
+    push_all(&mut st, &page, 300, &OFFS);
+    let out = st.finish().unwrap();
+    assert_eq!((out.width, out.height), (160, 960));
+}
