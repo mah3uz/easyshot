@@ -192,7 +192,7 @@ fn agreement(
     same.into_iter().map(|n| n as f64 / rows).collect()
 }
 
-/// Content moving by itself breaks a whole-area correlation, so this counts the edges that reappear unchanged at each shift; a fixed animation spoils only the edges it covers.
+/// Content moving by itself breaks a whole-area correlation, so this counts the edges that reappear unchanged at each shift, in the column bands where most of them do; an animation spoils only the bands it covers, however many edges it has.
 pub fn shift_robust(prev: &Frame, next: &Frame, ex: Exclusions) -> Option<usize> {
     if prev.width != next.width || prev.height != next.height {
         return None;
@@ -205,15 +205,15 @@ pub fn shift_robust(prev: &Frame, next: &Frame, ex: Exclusions) -> Option<usize>
         return None;
     }
     let edges = edges(&n, bands);
-    let mut best = (0, 0, 0);
+    let mut best = (0, 0);
     for dy in 0..=len - min_overlap {
-        let (same, seen) = edges_kept(&p, &n, bands, &edges, dy);
+        let same = edges_kept_in_agreeing_bands(&p, &n, bands, &edges, dy);
         if same > best.0 {
-            best = (same, seen, dy);
+            best = (same, dy);
         }
     }
-    let (same, seen, dy) = best;
-    (same >= min_overlap && same as f64 >= MIN_SHARE * seen as f64).then_some(dy)
+    let (same, dy) = best;
+    (same >= min_overlap).then_some(dy)
 }
 
 /// Whether most edges stayed where they were, so content animating in place does not count as a move.
@@ -237,15 +237,38 @@ fn edges(n: &[f64], bands: usize) -> Vec<usize> {
         .collect()
 }
 
+fn edges_kept_in_agreeing_bands(
+    p: &[f64],
+    n: &[f64],
+    bands: usize,
+    edges: &[usize],
+    dy: usize,
+) -> usize {
+    let limit = (n.len() / bands).saturating_sub(dy) * bands;
+    let mut per_band = vec![(0, 0); bands];
+    for &i in edges.iter().take_while(|&&i| i < limit) {
+        let (same, seen) = &mut per_band[i % bands];
+        *seen += 1;
+        *same += usize::from(edge_kept(p, n, bands, i, dy));
+    }
+    per_band
+        .into_iter()
+        .filter(|&(same, seen)| same as f64 >= MIN_SHARE * seen as f64)
+        .map(|(same, _)| same)
+        .sum()
+}
+
+fn edge_kept(p: &[f64], n: &[f64], bands: usize, i: usize, dy: usize) -> bool {
+    let j = i + dy * bands;
+    (p[j] - n[i]).abs() <= SAME && (p[j - bands] - n[i - bands]).abs() <= SAME
+}
+
 fn edges_kept(p: &[f64], n: &[f64], bands: usize, edges: &[usize], dy: usize) -> (usize, usize) {
     let limit = (n.len() / bands).saturating_sub(dy) * bands;
     let (mut seen, mut same) = (0, 0);
     for &i in edges.iter().take_while(|&&i| i < limit) {
         seen += 1;
-        let j = i + dy * bands;
-        if (p[j] - n[i]).abs() <= SAME && (p[j - bands] - n[i - bands]).abs() <= SAME {
-            same += 1;
-        }
+        same += usize::from(edge_kept(p, n, bands, i, dy));
     }
     (same, seen)
 }

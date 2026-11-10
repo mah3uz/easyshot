@@ -107,8 +107,10 @@ first time easyshot starts. The binds file always comes first where it can be wr
   frame that showed it. A see-through top bar that appears only after you start scrolling is
   left out. A strip at either side that does not scroll with the page, such as a code
   editor's minimap, a side panel or a scrollbar, keeps what the first frame showed; below that
-  it shows only its background colour. Content that animates as it scrolls by is left out when
-  frames are matched. When an Auto Scroll step does not join, it goes back half way and tries
+  it shows only its background colour. A heading or picture that reaches into such a strip is
+  kept whole, and a background that stays still behind the page is not taken for a strip.
+  Content that animates, whether it scrolls by or stays in place, is left out when frames are
+  matched. When an Auto Scroll step does not join, it goes back half way and tries
   again, never further.
 - **Variants.** Region capture also comes as "& Copy", "& Save", "& Annotate" and "& Pin".
 

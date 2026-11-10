@@ -1,4 +1,4 @@
-use crate::columns::{common_colour, fixed_columns};
+use crate::columns::{Columns, common_colour, fixed_columns};
 use crate::shift::{Exclusions, Mask, pixel_sad, shift_masked, shift_robust};
 use crate::{Frame, frame_hash};
 
@@ -34,6 +34,7 @@ pub struct Stitcher {
     /// `moving` placed on the canvas, for an animation that scrolls with the page.
     volatile: Vec<bool>,
     fixed: Vec<bool>,
+    scrolled: Vec<bool>,
     fill: Vec<[u8; 4]>,
     first_rows: usize,
 }
@@ -63,6 +64,7 @@ impl Stitcher {
             moving: Vec::new(),
             volatile: Vec::new(),
             fixed: Vec::new(),
+            scrolled: Vec::new(),
             fill: Vec::new(),
             first_rows: 0,
         }
@@ -77,12 +79,23 @@ impl Stitcher {
         &self.moving
     }
 
+    /// The image so far, with columns that do not scroll still showing what each frame added there.
     pub fn image(&self) -> Option<&Frame> {
         self.canvas.as_ref()
     }
 
+    /// Columns that do not scroll keep what the first frame showed; below it they take their most common colour there, so a minimap or side panel never repeats down the page.
     pub fn finish(self) -> Option<Frame> {
-        self.canvas
+        let mut canvas = self.canvas?;
+        let width = canvas.width;
+        let end = canvas.height.saturating_sub(self.footer);
+        for x in (0..self.fixed.len()).filter(|&x| self.fixed[x]) {
+            for y in self.first_rows..end {
+                let i = (y * width + x) * 4;
+                canvas.data[i..i + 4].copy_from_slice(&self.fill[x]);
+            }
+        }
+        Some(canvas)
     }
 
     pub fn push(&mut self, frame: &Frame) -> Push {
@@ -127,13 +140,16 @@ impl Stitcher {
         let Some(mut dy) = self.find_shift(prev, frame, guess, prior, &self.fixed) else {
             return self.moved_in_place(frame, hash);
         };
-        let mut found_cols = Vec::new();
+        let mut found_cols = Columns {
+            fixed: Vec::new(),
+            scrolled: Vec::new(),
+        };
         if dy > 0 {
-            found_cols = fixed_columns(prev, frame, dy, &self.overlap(frame.height, dy, guess));
+            found_cols = self.fixed_columns(prev, frame, dy, guess);
             let mut wider = self.fixed.clone();
             wider.resize(frame.width, false);
-            let new = found_cols.iter().filter(|&&x| !wider[x]).count();
-            found_cols.iter().for_each(|&x| wider[x] = true);
+            let new = found_cols.fixed.iter().filter(|&&x| !wider[x]).count();
+            found_cols.fixed.iter().for_each(|&x| wider[x] = true);
             // Columns found at a wrong shift would be wrong too, so only those found again at the shift matched without them are kept.
             if new > 0
                 && let Some(again) = self
@@ -141,8 +157,7 @@ impl Stitcher {
                     .filter(|&again| again > 0 && again != dy)
             {
                 dy = again;
-                let rows = self.overlap(frame.height, dy, guess);
-                found_cols = fixed_columns(prev, frame, dy, &rows);
+                found_cols = self.fixed_columns(prev, frame, dy, guess);
             }
         }
         if dy == 0 {
@@ -221,6 +236,16 @@ impl Stitcher {
         found.or_else(|| shift_robust(prev, frame, guess).filter(|&dy| dy > 0))
     }
 
+    /// The side columns that did not move with the page, less any seen carrying page content in an earlier pair.
+    fn fixed_columns(&self, prev: &Frame, frame: &Frame, dy: usize, guess: Exclusions) -> Columns {
+        let mut found = fixed_columns(prev, frame, dy, &self.overlap(frame.height, dy, guess));
+        let scrolled = |x: usize| self.scrolled.get(x).copied().unwrap_or(false);
+        found
+            .fixed
+            .retain(|&x| !scrolled(x) && !found.scrolled.contains(&x));
+        found
+    }
+
     /// The rows of the new frame, clear of bars and of known animation, whose page rows the previous frame shows `dy` rows lower.
     fn overlap(&self, height: usize, dy: usize, ex: Exclusions) -> Vec<usize> {
         let flagged = |m: &[bool], y: usize| m.get(y).copied().unwrap_or(false);
@@ -244,22 +269,23 @@ impl Stitcher {
         }
     }
 
-    /// Columns that do not scroll keep what the first frame showed; below it they take their most common colour there, so a minimap or side panel never repeats down the page.
-    fn keep_fixed(&mut self, found: &[usize]) {
-        let Some(canvas) = self.canvas.as_mut() else {
+    // The canvas keeps every column's own pixels until `finish`, so a column found to carry page content later loses none of it.
+    fn keep_fixed(&mut self, found: &Columns) {
+        let Some(canvas) = self.canvas.as_ref() else {
             return;
         };
         let width = canvas.width;
         self.fixed.resize(width, false);
+        self.scrolled.resize(width, false);
         self.fill.resize(width, [0, 0, 0, 255]);
-        let added: Vec<usize> = found.iter().copied().filter(|&x| !self.fixed[x]).collect();
-        let end = canvas.height.saturating_sub(self.footer);
-        for &x in &added {
-            self.fixed[x] = true;
-            self.fill[x] = common_colour(canvas, self.header..self.first_rows, x);
-            for y in self.first_rows..end {
-                let i = (y * width + x) * 4;
-                canvas.data[i..i + 4].copy_from_slice(&self.fill[x]);
+        for &x in &found.scrolled {
+            self.scrolled[x] = true;
+            self.fixed[x] = false;
+        }
+        for &x in &found.fixed {
+            if !self.fixed[x] {
+                self.fixed[x] = true;
+                self.fill[x] = common_colour(canvas, self.header..self.first_rows, x);
             }
         }
     }
@@ -322,19 +348,12 @@ impl Stitcher {
         canvas.data.resize(total * stride, 0);
         canvas.height = total;
         let from = placed.saturating_sub(self.top).max(self.header);
-        let bar = frame.height.saturating_sub(footer);
         for y in from..frame.height {
             let cy = self.top + y;
             if cy >= total {
                 break;
             }
-            let row = &mut canvas.data[cy * stride..(cy + 1) * stride];
-            row.copy_from_slice(frame.row(y));
-            if y < bar {
-                for x in (0..self.fixed.len()).filter(|&x| self.fixed[x]) {
-                    row[x * 4..x * 4 + 4].copy_from_slice(&self.fill[x]);
-                }
-            }
+            canvas.data[cy * stride..(cy + 1) * stride].copy_from_slice(frame.row(y));
         }
     }
 }
