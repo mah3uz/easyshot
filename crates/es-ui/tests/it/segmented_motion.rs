@@ -1,7 +1,7 @@
 use crate::support::{self, App, WIDTH};
 use es_ui::{
     components::{Segment, Segmented},
-    motion::{STEP_CHANGE, set_reduce_motion},
+    motion::{THUMB_GLIDE, set_reduce_motion},
 };
 use gpui::{Context, Entity, IntoElement, ParentElement, Render, Styled, Window, div};
 
@@ -67,13 +67,13 @@ fn the_selection_thumb_slides_to_the_new_segment_over_the_tab_change() {
     select(&mut app, &host, 2);
     let start = thumb_x(&mut app, "segmented-thumb-1-start", fill);
     assert!((start - from).abs() < 3., "it leaves from One: {start}");
-    app.cx.advance_clock(STEP_CHANGE.duration / 2);
-    let mid = thumb_x(&mut app, "segmented-thumb-2-mid", fill);
+    app.cx.advance_clock(THUMB_GLIDE.duration / 8);
+    let mid = thumb_x(&mut app, "segmented-thumb-2-early", fill);
     assert!(
         mid > from + 10. && mid < segment * 2.5 - 10.,
-        "half way it is between One and Three: {mid}"
+        "early in its spring it is between One and Three: {mid}"
     );
-    app.cx.advance_clock(STEP_CHANGE.duration);
+    app.cx.advance_clock(THUMB_GLIDE.duration);
     let end = thumb_x(&mut app, "segmented-thumb-3-end", fill);
     assert!((end - segment * 2.5).abs() < 3., "it lands on Three: {end}");
 }

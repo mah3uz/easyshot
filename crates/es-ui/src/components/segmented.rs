@@ -11,7 +11,7 @@ use crate::{
     a11y::{Accessible, Role},
     components::button::{Interaction, focus_halo, keyed_focus, shows_focus},
     icons::IconName,
-    motion::{STEP_CHANGE, tween},
+    motion::{THUMB_GLIDE, tween},
     theme::tokens,
     tokens::{Appearance, Typeset},
 };
@@ -145,7 +145,7 @@ impl RenderOnce for Segmented {
         let hover_fill = t.bordered_fill;
         let share = 1.0 / count.max(1) as f32;
         let thumb_at = if self.glides {
-            tween(self.id.clone(), selected as f32, STEP_CHANGE, window, cx)
+            tween(self.id.clone(), selected as f32, THUMB_GLIDE, window, cx)
         } else {
             selected as f32
         };

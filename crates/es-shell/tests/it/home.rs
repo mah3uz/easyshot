@@ -8,7 +8,7 @@ use es_shell::home::{self, HomeDeps, HomeEvent, HomeWindow, OpenPicker, Tab};
 use es_shell::settings::{ClipboardSink, Page, SettingsDeps};
 use es_store::ConfigFile;
 use es_testkit::Headless;
-use es_ui::motion::{STEP_CHANGE, set_reduce_motion};
+use es_ui::motion::{TAB_SLIDE, set_reduce_motion};
 use es_ui::tokens::ThemeMode;
 use gpui::{
     AppContext, Entity, ExternalPaths, FileDropEvent, MouseButton, MouseDownEvent, MouseUpEvent,
@@ -300,9 +300,9 @@ fn tab_slide(mode: ThemeMode, tag: &str) {
         content(&start) == content(&before),
         "the gallery is still in place as the switch starts"
     );
-    rig.app.cx.advance_clock(STEP_CHANGE.duration / 2);
+    rig.app.cx.advance_clock(TAB_SLIDE.duration / 2);
     let mid = rig.frame(&format!("home-tab-slide-{tag}-2-mid"));
-    rig.app.cx.advance_clock(STEP_CHANGE.duration);
+    rig.app.cx.advance_clock(TAB_SLIDE.duration);
     let end = rig.frame(&format!("home-tab-slide-{tag}-3-end"));
     assert!(
         content(&mid) != content(&before) && mid != end,
@@ -310,7 +310,7 @@ fn tab_slide(mode: ThemeMode, tag: &str) {
     );
 
     show(&mut rig, Tab::Gallery);
-    rig.app.cx.advance_clock(STEP_CHANGE.duration);
+    rig.app.cx.advance_clock(TAB_SLIDE.duration);
     rig.app.cx.update(|cx| set_reduce_motion(true, cx));
     show(&mut rig, Tab::Settings);
     assert!(

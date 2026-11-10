@@ -7,7 +7,7 @@ use es_ui::{
     a11y::{Accessible, Role},
     components::{ButtonKind, EditorButton, Segment, Segmented},
     icons::IconName,
-    motion::{Clocked, STEP_CHANGE, progress},
+    motion::{Clocked, TAB_SLIDE},
     theme::{UI_FONT, tokens},
 };
 use gpui::{
@@ -129,7 +129,7 @@ impl HomeWindow {
     pub fn show(&mut self, tab: Tab, cx: &mut Context<Self>) {
         self.focus_gallery |= tab == Tab::Gallery && self.tab != tab;
         if tab != self.tab {
-            self.tab_motion = Clocked::start(STEP_CHANGE, cx).map(|c| (c, self.tab));
+            self.tab_motion = Clocked::start(TAB_SLIDE, cx).map(|c| (c, self.tab));
         }
         self.tab = tab;
         cx.notify();
@@ -201,8 +201,8 @@ impl Render for HomeWindow {
             Tab::Settings => self.settings.clone().into_any_element(),
         };
         let (arrived, from) = match self.tab_motion {
-            Some((clock, from)) => (progress(Some(clock), window, cx), from),
-            None => (1.0, self.tab),
+            Some((clock, from)) if !clock.done(cx) => (clock.progress(window, cx), from),
+            _ => (1.0, self.tab),
         };
         let toward = if self.tab.index() < from.index() {
             -1.0
@@ -210,14 +210,14 @@ impl Render for HomeWindow {
             1.0
         };
         let width = window.viewport_size().width * toward;
-        let leaving = (arrived < 1.0 && from != self.tab).then(|| {
+        let leaving = (from != self.tab).then(|| {
             div()
                 .absolute()
                 .top_0()
                 .bottom_0()
                 .w_full()
                 .left(-width * arrived)
-                .opacity(1.0 - arrived)
+                .opacity((1.0 - arrived).max(0.0))
                 .child(content(from))
         });
         div()
@@ -245,7 +245,7 @@ impl Render for HomeWindow {
                             .bottom_0()
                             .w_full()
                             .left(width * (1.0 - arrived))
-                            .opacity(arrived)
+                            .opacity(arrived.min(1.0))
                             .child(content(self.tab)),
                     ),
             )
