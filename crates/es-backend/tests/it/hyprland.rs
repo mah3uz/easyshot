@@ -32,6 +32,8 @@ fn monitors() -> Vec<Monitor> {
 #[derive(Clone, Copy, PartialEq)]
 enum Answer {
     Recorded,
+    Hyprlang,
+    LuaError,
     Never,
 }
 
@@ -67,11 +69,20 @@ impl FakeHypr {
                     std::thread::sleep(Duration::from_secs(2));
                     continue;
                 }
-                let reply = if request.starts_with("eval ")
-                    || request.starts_with("dispatch focuswindow address:0xddd4")
-                {
+                let lua = answer != Answer::Hyprlang;
+                let reply = if request.starts_with("eval ") {
+                    if lua {
+                        b"ok".to_vec()
+                    } else {
+                        b"unknown request".to_vec()
+                    }
+                } else if answer == Answer::LuaError && request.starts_with("dispatch ") {
+                    b"error: 3 [string \"return hl.dispatch(focuswindow address:0xddd4)\"]:1: ')' expected near 'address'".to_vec()
+                } else if request.starts_with("dispatch hl.dsp.") && !lua {
+                    b"invalid dispatcher".to_vec()
+                } else if request.contains("address:0xddd4") {
                     b"ok".to_vec()
-                } else if request.starts_with("dispatch focuswindow") {
+                } else if request.starts_with("dispatch ") {
                     b"Window not found".to_vec()
                 } else {
                     replies.get(request.as_str()).cloned().unwrap_or_default()
@@ -141,23 +152,60 @@ fn the_full_list_adds_windows_on_other_workspaces_without_geometry() {
 }
 
 #[test]
-fn focusing_dispatches_focuswindow_for_the_address_and_reports_a_refusal() {
+fn a_lua_config_is_sent_the_lua_dispatcher_and_a_refusal_is_reported() {
     assert_eq!(
-        hyprland::focus_command("ddd4"),
-        "dispatch focuswindow address:0xddd4"
+        hyprland::focus_command("ddd4", true),
+        "dispatch hl.dsp.focus({ window = 'address:0xddd4' })"
     );
     let fake = FakeHypr::start(Answer::Recorded).with_events(Vec::new());
     let windows = HyprWindows::start(fake.ipc(), None).expect("start");
     assert!(windows.can_focus());
     windows.focus(&WindowId("0xddd4".into())).expect("focus");
+    let requests = fake.requests();
+    assert!(requests.contains(&"dispatch hl.dsp.focus({ window = 'address:0xddd4' })".to_owned()));
     assert!(
-        fake.requests()
-            .contains(&"dispatch focuswindow address:0xddd4".to_owned())
+        !requests
+            .iter()
+            .any(|r| r.starts_with("dispatch focuswindow"))
     );
     match windows.focus(&WindowId("0x9999".into())) {
         Err(Error::Protocol(m)) => assert!(m.contains("Window not found"), "{m}"),
         other => panic!("a refused focus must be reported, got {other:?}"),
     }
+}
+
+#[test]
+fn a_hyprlang_config_is_sent_the_legacy_dispatcher_and_a_refusal_is_reported() {
+    assert_eq!(
+        hyprland::focus_command("ddd4", false),
+        "dispatch focuswindow address:0xddd4"
+    );
+    let fake = FakeHypr::start(Answer::Hyprlang).with_events(Vec::new());
+    let windows = HyprWindows::start(fake.ipc(), None).expect("start");
+    windows.focus(&WindowId("0xddd4".into())).expect("focus");
+    let requests = fake.requests();
+    assert!(requests.contains(&"dispatch focuswindow address:0xddd4".to_owned()));
+    assert!(!requests.iter().any(|r| r.starts_with("dispatch hl.dsp.")));
+    match windows.focus(&WindowId("0x9999".into())) {
+        Err(Error::Protocol(m)) => assert!(m.contains("Window not found"), "{m}"),
+        other => panic!("a refused focus must be reported, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_lua_error_reply_to_focus_is_an_error() {
+    let fake = FakeHypr::start(Answer::LuaError).with_events(Vec::new());
+    let windows = HyprWindows::start(fake.ipc(), None).expect("start");
+    match windows.focus(&WindowId("0xddd4".into())) {
+        Err(Error::Protocol(m)) => assert!(m.contains("')' expected"), "{m}"),
+        other => panic!("a Lua error must be reported, got {other:?}"),
+    }
+}
+
+#[test]
+fn the_window_list_comes_from_the_clients_reply() {
+    let fake = FakeHypr::start(Answer::Recorded).with_events(Vec::new());
+    let windows = HyprWindows::start(fake.ipc(), None).expect("start");
     assert_eq!(windows.all().len(), 4);
 }
 

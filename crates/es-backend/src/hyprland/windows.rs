@@ -217,10 +217,9 @@ impl WindowList for HyprWindows {
         true
     }
     fn focus(&self, w: &WindowId) -> Result<()> {
-        let reply = self
-            .inner
-            .ipc
-            .request(&focus_command(&self.inner.address_of(w)))?;
+        let ipc = &self.inner.ipc;
+        let lua = ipc.is_lua();
+        let reply = ipc.request(&focus_command(&self.inner.address_of(w), lua))?;
         match String::from_utf8_lossy(&reply).trim() {
             "ok" => Ok(()),
             other => Err(Error::Protocol(format!("hyprland focuswindow: {other}"))),

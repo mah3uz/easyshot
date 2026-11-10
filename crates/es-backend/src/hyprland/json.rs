@@ -203,8 +203,13 @@ pub fn all_windows(clients: &[Client], monitors: &[Monitor]) -> Vec<WindowInfo> 
     shown
 }
 
-pub fn focus_command(addr: &str) -> String {
-    format!("dispatch focuswindow address:{}", address(addr))
+pub fn focus_command(addr: &str, lua: bool) -> String {
+    let addr = address(addr);
+    if lua {
+        format!("dispatch hl.dsp.focus({{ window = 'address:{addr}' }})")
+    } else {
+        format!("dispatch focuswindow address:{addr}")
+    }
 }
 
 pub fn output_at(monitors: &[Monitor], p: Point) -> Option<OutputId> {

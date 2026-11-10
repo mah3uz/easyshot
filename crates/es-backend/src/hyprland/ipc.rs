@@ -78,6 +78,12 @@ impl Ipc {
         }
     }
 
+    /// Only a Lua config manager answers `eval`; a hyprlang one does not know the command.
+    pub fn is_lua(&self) -> bool {
+        self.request("eval return true")
+            .is_ok_and(|reply| String::from_utf8_lossy(&reply).trim() == "ok")
+    }
+
     pub fn has_socket(&self) -> bool {
         self.dir.join(REQUEST_SOCKET).exists()
     }
