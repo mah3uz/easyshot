@@ -12,4 +12,5 @@ mod pipeline;
 mod platform_ui;
 mod settings;
 mod settle;
+mod toast;
 mod windows;

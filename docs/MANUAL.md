@@ -156,6 +156,9 @@ opens the editor. Each capture also appears as a card in a floating preview deck
   is on the deck; when the front card goes, the next one comes forward;
 - Save All and Clear All, above the cards while the deck is fanned out.
 
+A toast stays for 2.5 seconds, an error for 5 and one with Undo for 8. It waits while the pointer
+is on it and goes on with the time it had left when the pointer leaves.
+
 Cards on the deck survive a restart if they are younger than 24 hours. A card shows the
 capture inside your default look, and the editor opens it with that look still editable.
 `easyshot deck toggle` hides the deck and shows it again; hidden cards do not disappear on

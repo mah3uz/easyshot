@@ -1,21 +1,24 @@
 use super::surfaces::{LayerShellSurfaces, LayerSurfaceHandle};
 use super::{SurfaceHandle as _, SurfaceRole};
 use crate::errors::{Error, Result};
-use crate::toast::{ToastRequest, ToastSink, ToastStyle};
+use crate::toast::{Countdown, ToastRequest, ToastSink, ToastStyle};
 use es_geom::Size;
 use es_model::platform::OutputId;
 use es_ui::components::{Toast, ToastStyle as CardStyle};
 use es_ui::icons::IconName;
 use es_ui::motion::TOAST_OUT;
 use gpui::{
-    App, AppContext as _, Bounds, Context, Entity, IntoElement, ParentElement as _, Pixels, Render,
-    Styled as _, Window, div, px,
+    App, AppContext as _, Bounds, Context, Entity, InteractiveElement as _, IntoElement,
+    ParentElement as _, Pixels, Render, StatefulInteractiveElement as _, Styled as _, Window, div,
+    px,
 };
 use gpui_component::IconNamed as _;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
+use std::time::{Duration, Instant};
 
 const SURFACE: Size = Size::new(420., 132.);
+const TICK: Duration = Duration::from_millis(50);
 const TOP_GAP: Pixels = px(12.);
 
 struct ToastHost {
@@ -23,6 +26,7 @@ struct ToastHost {
     toast: ToastRequest,
     leaving: bool,
     region: Rc<Cell<Option<Bounds<Pixels>>>>,
+    hovered: Rc<Cell<bool>>,
     shown: Rc<RefCell<Option<Shown>>>,
 }
 
@@ -51,6 +55,7 @@ impl Render for ToastHost {
             });
         }
         let region = self.region.clone();
+        let hovered = self.hovered.clone();
         div().size_full().flex().justify_center().pt(TOP_GAP).child(
             div()
                 .on_children_prepainted(move |bounds, window, _| {
@@ -60,6 +65,8 @@ impl Render for ToastHost {
                         window.set_input_region(card.as_ref().map(std::slice::from_ref));
                     }
                 })
+                .id(("toast-card", self.id))
+                .on_hover(move |over, _, _| hovered.set(*over))
                 .child(card),
         )
     }
@@ -112,18 +119,29 @@ impl ToastSurface {
             .surfaces
             .open_surface(SurfaceRole::Toast, &output, SURFACE, cx)?;
         let toast = toast.clone();
+        let hovered = Rc::new(Cell::new(false));
         let host = cx.new(|_| ToastHost {
             id,
             toast,
             leaving: false,
             region: Rc::default(),
+            hovered: hovered.clone(),
             shown: self.shown.clone(),
         });
         handle.set_content(host.clone().into(), cx);
         *self.shown.borrow_mut() = Some(Shown { id, handle, host });
         let shown = self.shown.clone();
         cx.spawn(async move |cx| {
-            cx.background_executor().timer(duration).await;
+            let mut countdown = Countdown::new(duration);
+            let mut last = Instant::now();
+            loop {
+                cx.background_executor().timer(TICK).await;
+                let now = Instant::now();
+                if countdown.advance(now - last, hovered.get()) {
+                    break;
+                }
+                last = now;
+            }
             let still = cx.update(|cx| leave(&shown, id, cx));
             if still {
                 cx.background_executor().timer(TOAST_OUT.duration).await;
