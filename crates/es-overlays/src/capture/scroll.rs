@@ -5,8 +5,8 @@ use es_scroll::{
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::time::{Duration, Instant};
 
-/// Wayland reports no scroll events from other clients, so manual mode watches the frames instead.
-pub const POLL: Duration = Duration::from_millis(150);
+/// Wayland reports no scroll events from other clients, so manual mode watches the frames, often enough that a quick spin of the wheel still leaves consecutive frames overlapping.
+pub const POLL: Duration = Duration::from_millis(50);
 pub const QUIET: Duration = Duration::from_millis(250);
 pub const AUTO_SPEED: u32 = 3;
 
@@ -284,13 +284,16 @@ pub fn run(
         } else {
             src.sleep(POLL);
             if !src.pointer_inside() {
+                tracing::debug!(inside = false, "scroll capture poll");
                 continue;
             }
             let Some(frame) = src.grab() else {
+                tracing::debug!(inside = true, grabbed = false, "scroll capture poll");
                 continue;
             };
             let (hash, now) = (frame_hash(&frame), src.now());
-            if hash != seen {
+            let changed = hash != seen;
+            let push = if changed {
                 seen = hash;
                 moved = Some(now);
                 session.push(&frame, false)
@@ -299,8 +302,17 @@ pub fn run(
                 settled(src, session.stitcher.moving())
                     .map_or(Push::NoOverlap, |f| session.push(&f, false))
             } else {
+                tracing::debug!(inside = true, changed, "scroll capture poll");
                 continue;
-            }
+            };
+            tracing::debug!(
+                inside = true,
+                changed,
+                ?push,
+                height = session.stitcher.height(),
+                "scroll capture poll"
+            );
+            push
         };
         if push == Push::Full {
             return session.finish();

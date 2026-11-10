@@ -13,6 +13,7 @@ mod recording_ui;
 mod region_geometry;
 mod region_selector;
 mod scroll_hud;
+mod scroll_manual;
 mod scroll_session;
 mod text_style;
 mod window_mode;
