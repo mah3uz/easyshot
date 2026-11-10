@@ -587,7 +587,7 @@ impl Render for EditorWindow {
                     }),
             )
             .child(self.footer(window, cx))
-            .children(self.redact_toast_view(&t, cx))
+            .children(self.redact_toast_view(cx))
             .children(dialog)
     }
 }

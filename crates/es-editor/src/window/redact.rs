@@ -3,7 +3,7 @@ use es_model::{AnnoShape, AnnoShapeId, RedactionKind, RedactionProps, ShapeKind}
 use es_ocr::redact::Kind;
 use es_ui::{
     a11y::{Accessible, Role},
-    components::EditorButton,
+    components::{Toast as Card, ToastClock},
     tokens::{Tokens, Typeset},
 };
 use gpui::{
@@ -35,7 +35,7 @@ pub(super) struct Tasks {
     probe: Option<Task<()>>,
     reset: Option<Task<()>>,
     flash: Option<Task<()>>,
-    toast: Option<Task<()>>,
+    toast: Option<ToastClock>,
 }
 
 /// What the last scan did; `added` is empty when it found nothing.
@@ -207,12 +207,9 @@ impl EditorWindow {
             text: toast_text(added.len(), &kinds),
             added,
         });
-        self.redact_tasks.toast = Some(cx.spawn(async move |this, cx| {
-            cx.background_executor().timer(TOAST_HOLD).await;
-            let _ = this.update(cx, |w, cx| {
-                w.redact_toast = None;
-                cx.notify();
-            });
+        self.redact_tasks.toast = Some(ToastClock::start(TOAST_HOLD, cx, |w, cx| {
+            w.redact_toast = None;
+            cx.notify();
         }));
         self.flash_regions(regions, cx);
         self.set_redact(State::Added(rects.len()), row, cx);
@@ -265,13 +262,16 @@ impl EditorWindow {
 }
 
 impl EditorWindow {
-    pub(crate) fn redact_toast_view(
-        &self,
-        t: &Tokens,
-        cx: &mut Context<Self>,
-    ) -> Option<AnyElement> {
+    pub(crate) fn redact_toast_view(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
         let toast = self.redact_toast.as_ref()?;
-        let undoable = !toast.added.is_empty();
+        let clock = self.redact_tasks.toast.as_ref()?;
+        let mut card = Card::new("redact-toast", toast.text.clone()).clock(clock);
+        if !toast.added.is_empty() {
+            let this = cx.entity().downgrade();
+            card = card.action(fl!("editor-redact-undo"), move |_, cx| {
+                let _ = this.update(cx, |w, cx| w.undo_redaction(cx));
+            });
+        }
         Some(
             div()
                 .id("redact-toast-row")
@@ -281,30 +281,7 @@ impl EditorWindow {
                 .bottom(px(52.))
                 .flex()
                 .justify_center()
-                .child(
-                    div()
-                        .id("redact-toast")
-                        .flex()
-                        .items_center()
-                        .gap(px(12.))
-                        .py(px(8.))
-                        .px(px(14.))
-                        .rounded(t.metrics.popover_radius)
-                        .bg(t.dropdown)
-                        .border(t.metrics.hairline)
-                        .border_color(t.border)
-                        .typeset(t.type_scale.label)
-                        .text_color(t.text)
-                        .accessible(Role::Status, toast.text.clone())
-                        .child(toast.text.clone())
-                        .when(undoable, |d| {
-                            d.child(
-                                EditorButton::new("redact-undo")
-                                    .label(fl!("editor-redact-undo"))
-                                    .on_click(cx.listener(|w, _, _, cx| w.undo_redaction(cx))),
-                            )
-                        }),
-                )
+                .child(card)
                 .into_any_element(),
         )
     }

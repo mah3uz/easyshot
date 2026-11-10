@@ -227,3 +227,50 @@ fn a_missing_tesseract_adds_nothing_and_says_so() {
         Some("Smart Redaction needs tesseract, which is not installed.")
     );
 }
+
+fn pointer(app: &mut App, event: gpui::PlatformInput) {
+    let window = app.window.into();
+    app.cx
+        .update_window(window, |_, window, cx| {
+            window.dispatch_event(event, cx);
+            window.refresh();
+        })
+        .unwrap();
+    app.settle();
+}
+
+#[test]
+fn the_toast_waits_while_the_pointer_is_on_it_and_goes_once_it_has_left() {
+    if !have_tesseract() {
+        return;
+    }
+    use es_editor::window::redact::TOAST_HOLD;
+    use gpui::{Modifiers, MouseExitEvent, MouseMoveEvent, PlatformInput, point, px};
+    let blank = RgbaImage::from_pixel(400, 200, image::Rgba([255; 4]));
+    let (mut app, editor) = launch(blank);
+    scan(&mut app, &editor, RedactionKind::Blur);
+    let on_card = point(px(540.), px(645.));
+    let shown = |app: &App| editor.read_with(&app.cx, |w, _| w.redact_toast().is_some());
+    pointer(
+        &mut app,
+        PlatformInput::MouseMove(MouseMoveEvent {
+            position: on_card,
+            pressed_button: None,
+            modifiers: Modifiers::default(),
+        }),
+    );
+    app.cx.advance_clock(TOAST_HOLD * 3);
+    app.settle();
+    assert!(shown(&app), "held while the pointer is on the card");
+    pointer(
+        &mut app,
+        PlatformInput::MouseExited(MouseExitEvent {
+            position: on_card,
+            pressed_button: None,
+            modifiers: Modifiers::default(),
+        }),
+    );
+    app.cx.advance_clock(TOAST_HOLD + std::time::Duration::from_secs(1));
+    app.settle();
+    assert!(!shown(&app), "gone once the time left has run out");
+}
