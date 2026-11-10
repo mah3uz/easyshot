@@ -8,37 +8,85 @@ use es_ui::components::{Toast, ToastStyle as CardStyle};
 use es_ui::icons::IconName;
 use es_ui::motion::TOAST_OUT;
 use gpui::{
-    App, AppContext as _, Bounds, Context, Entity, InteractiveElement as _, IntoElement,
-    ParentElement as _, Pixels, Render, StatefulInteractiveElement as _, Styled as _, Window, div,
-    px,
+    App, AppContext as _, Bounds, Context, DispatchPhase, Entity, IntoElement, MouseExitEvent,
+    MouseMoveEvent, ParentElement as _, Pixels, Render, Styled as _, Window, canvas, div, px,
 };
 use gpui_component::IconNamed as _;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 const SURFACE: Size = Size::new(420., 132.);
 const TICK: Duration = Duration::from_millis(50);
 const TOP_GAP: Pixels = px(12.);
 
-struct ToastHost {
-    id: u64,
+/// The card on its surface, and its countdown.
+pub struct ToastHost {
     toast: ToastRequest,
     leaving: bool,
     region: Rc<Cell<Option<Bounds<Pixels>>>>,
     hovered: Rc<Cell<bool>>,
-    shown: Rc<RefCell<Option<Shown>>>,
+    close: Rc<dyn Fn(&mut App)>,
+}
+
+impl ToastHost {
+    /// Runs down while the pointer is off the card, then plays the exit and calls `close`.
+    pub fn start(
+        toast: ToastRequest,
+        close: impl Fn(&mut App) + 'static,
+        cx: &mut App,
+    ) -> Entity<Self> {
+        let duration = toast.duration;
+        cx.new(|cx| {
+            cx.spawn(async move |this, cx| {
+                let mut countdown = Countdown::new(duration);
+                let mut last = cx.background_executor().now();
+                loop {
+                    cx.background_executor().timer(TICK).await;
+                    let now = cx.background_executor().now();
+                    let Ok(hovered) = this.read_with(cx, |host: &ToastHost, _| host.hovered.get())
+                    else {
+                        return;
+                    };
+                    if countdown.advance(now - last, hovered) {
+                        break;
+                    }
+                    last = now;
+                }
+                let left = this.update(cx, |host, cx| {
+                    host.leaving = true;
+                    cx.notify();
+                });
+                if left.is_ok() {
+                    cx.background_executor().timer(TOAST_OUT.duration).await;
+                    let _ = this.update(cx, |host, cx| (host.close.clone())(cx));
+                }
+            })
+            .detach();
+            ToastHost {
+                toast,
+                leaving: false,
+                region: Rc::default(),
+                hovered: Rc::default(),
+                close: Rc::new(close),
+            }
+        })
+    }
+
+    pub fn leaving(&self) -> bool {
+        self.leaving
+    }
 }
 
 impl Render for ToastHost {
-    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
-        let (id, shown) = (self.id, self.shown.clone());
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let id = cx.entity_id().as_u64();
         let t = &self.toast;
         let style = match t.style {
             ToastStyle::Normal => CardStyle::Normal,
             ToastStyle::Error => CardStyle::Error,
         };
-        let mut card = Toast::new(("toast", self.id), t.title.clone())
+        let mut card = Toast::new(("toast", id), t.title.clone())
             .style(style)
             .leaving(self.leaving);
         if let Some(message) = &t.message {
@@ -48,27 +96,52 @@ impl Render for ToastHost {
             card = card.icon(icon);
         }
         if let Some((label, undo)) = t.undo.clone() {
+            let close = self.close.clone();
             card = card.action(label, move |_, cx| {
                 undo.run(cx);
-                let shown = shown.clone();
-                cx.defer(move |cx| close(&shown, id, cx));
+                let close = close.clone();
+                cx.defer(move |cx| close(cx));
             });
         }
         let region = self.region.clone();
-        let hovered = self.hovered.clone();
-        div().size_full().flex().justify_center().pt(TOP_GAP).child(
-            div()
-                .on_children_prepainted(move |bounds, window, _| {
-                    let card = bounds.first().copied();
-                    if card.is_some() && card != region.get() {
-                        region.set(card);
-                        window.set_input_region(card.as_ref().map(std::slice::from_ref));
+        let (region_at, hovered) = (self.region.clone(), self.hovered.clone());
+        // Element hover keeps the last position after the pointer leaves the surface, so it would stay on the card.
+        let pointer = canvas(
+            |_, _, _| {},
+            move |_, _, window, _| {
+                let moved = hovered.clone();
+                window.on_mouse_event(move |e: &MouseMoveEvent, phase, _, _| {
+                    if phase == DispatchPhase::Bubble {
+                        moved.set(region_at.get().is_some_and(|r| r.contains(&e.position)));
                     }
-                })
-                .id(("toast-card", self.id))
-                .on_hover(move |over, _, _| hovered.set(*over))
-                .child(card),
+                });
+                let left = hovered.clone();
+                window.on_mouse_event(move |_: &MouseExitEvent, phase, _, _| {
+                    if phase == DispatchPhase::Bubble {
+                        left.set(false);
+                    }
+                });
+            },
         )
+        .absolute()
+        .size_full();
+        div()
+            .size_full()
+            .flex()
+            .justify_center()
+            .pt(TOP_GAP)
+            .child(pointer)
+            .child(
+                div()
+                    .on_children_prepainted(move |bounds, window, _| {
+                        let card = bounds.first().copied();
+                        if card.is_some() && card != region.get() {
+                            region.set(card);
+                            window.set_input_region(card.as_ref().map(std::slice::from_ref));
+                        }
+                    })
+                    .child(card),
+            )
     }
 }
 
@@ -82,7 +155,6 @@ pub fn card_icon(icon: gpui_component::IconName) -> Option<IconName> {
 struct Shown {
     id: u64,
     handle: LayerSurfaceHandle,
-    host: Entity<ToastHost>,
 }
 
 /// One toast at a time; a new one replaces the one on screen.
@@ -114,41 +186,13 @@ impl ToastSurface {
         self.dismiss(cx);
         let id = self.next.get();
         self.next.set(id + 1);
-        let duration = toast.duration;
         let handle = self
             .surfaces
             .open_surface(SurfaceRole::Toast, &output, SURFACE, cx)?;
-        let toast = toast.clone();
-        let hovered = Rc::new(Cell::new(false));
-        let host = cx.new(|_| ToastHost {
-            id,
-            toast,
-            leaving: false,
-            region: Rc::default(),
-            hovered: hovered.clone(),
-            shown: self.shown.clone(),
-        });
-        handle.set_content(host.clone().into(), cx);
-        *self.shown.borrow_mut() = Some(Shown { id, handle, host });
         let shown = self.shown.clone();
-        cx.spawn(async move |cx| {
-            let mut countdown = Countdown::new(duration);
-            let mut last = Instant::now();
-            loop {
-                cx.background_executor().timer(TICK).await;
-                let now = Instant::now();
-                if countdown.advance(now - last, hovered.get()) {
-                    break;
-                }
-                last = now;
-            }
-            let still = cx.update(|cx| leave(&shown, id, cx));
-            if still {
-                cx.background_executor().timer(TOAST_OUT.duration).await;
-                cx.update(|cx| close(&shown, id, cx));
-            }
-        })
-        .detach();
+        let host = ToastHost::start(toast.clone(), move |cx| close(&shown, id, cx), cx);
+        handle.set_content(host.into(), cx);
+        *self.shown.borrow_mut() = Some(Shown { id, handle });
         Ok(output)
     }
 
@@ -157,22 +201,6 @@ impl ToastSurface {
             old.handle.close(cx);
         }
     }
-}
-
-fn leave(shown: &RefCell<Option<Shown>>, id: u64, cx: &mut App) -> bool {
-    let Some(host) = shown
-        .borrow()
-        .as_ref()
-        .filter(|s| s.id == id)
-        .map(|s| s.host.clone())
-    else {
-        return false;
-    };
-    host.update(cx, |host, cx| {
-        host.leaving = true;
-        cx.notify();
-    });
-    true
 }
 
 fn close(shown: &RefCell<Option<Shown>>, id: u64, cx: &mut App) {

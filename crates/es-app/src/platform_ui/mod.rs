@@ -7,7 +7,7 @@ mod toast_surface;
 pub use clipboard::{BackendClipboardSink, with_file_items};
 pub use pinned::{PinnedOutput, PinnedOutputSource};
 pub use surfaces::{Gate, LayerShellSurfaces, LayerSurfaceHandle, OutputSource};
-pub use toast_surface::{ToastSurface, card_icon};
+pub use toast_surface::{ToastHost, ToastSurface, card_icon};
 
 use crate::errors::Result;
 use es_geom::{Point, Rect, Rgba, Size};
