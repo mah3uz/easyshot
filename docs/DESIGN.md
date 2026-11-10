@@ -85,9 +85,12 @@ tokens (`es-ui` `motion`), so the same kind of change always moves the same way.
 is a fast start that settles softly, `cubic-bezier(.2, .8, .2, 1)`. Something arriving, or a
 layout springing open, moves on a damped spring instead: it leaves at rest, passes its end
 once and swings back, and the motion is cut when it has come to rest within half a percent.
-There are three: the snappy spring (0.3 s swing, 75 % damping, about 3 % past its end, 360
-ms), the bouncy spring (0.4 s, 62 %, about 8 %, 600 ms) and the gentle spring (0.35 s, 85 %,
-under 1 %, 380 ms); `SNAPPY_SPRING`, `BOUNCY_SPRING` and `GENTLE_SPRING`.
+There are four: the snappy spring (0.3 s swing, 75 % damping, about 3 % past its end, 360
+ms), the bouncy spring (0.4 s, 62 %, about 8 %, 600 ms), the gentle spring (0.35 s, 85 %,
+under 1 %, 380 ms) and the calm spring, the gentle one half again as long (0.525 s, 85 %, under
+1 %, 570 ms); `SNAPPY_SPRING`, `BOUNCY_SPRING`, `GENTLE_SPRING` and `CALM_SPRING`. A whole page
+crossing a window moves on the calm spring and a Settings page change takes half again as long
+as other page changes: at the faster pace the eye lost the page it was following.
 
 | Motion | Token | Time and easing |
 |---|---|---|
@@ -111,10 +114,10 @@ under 1 %, 380 ms); `SNAPPY_SPRING`, `BOUNCY_SPRING` and `GENTLE_SPRING`.
 | Toast: grows from 92 % and rises 6 px into place as it fades in, swinging just past and back; it leaves by shrinking to 96 % as it fades, with no swing; with Reduce Motion it only fades in and out (`TOAST_REDUCED`, 120 ms, linear) | `TOAST_IN`, `TOAST_IN_SCALE`, `TOAST_RISE`, `TOAST_OUT`, `TOAST_OUT_SCALE` | 360 ms snappy spring in, 160 ms ease-in out |
 | Recording: the capture bar shrinks to 94 % and fades out as the control bar grows from 94 % and fades in, swinging just past full size; with Reduce Motion the control bar appears at once | `HANDOFF`, `HANDOFF_IN`, `HANDOFF_SCALE` | 200 ms snappy out, 360 ms snappy spring in |
 | Pin: the close button fades in under the pointer and back out after it | `CLOSE_FADE` (pin) | 150 ms fade, ease-out |
-| Settings: the old page fades out while the new one rises 8 px into place and fades in | `PAGE_CHANGE` | 180 ms, ease-out |
+| Settings: the old page fades out while the new one rises 8 px into place and fades in | `SETTINGS_PAGE` | 270 ms, ease-out |
 | Editor: the inspector switching to or from a tool's options rises 8 px into place and fades in | `PAGE_CHANGE` | 180 ms, ease-out |
 | Introduction: the next step slides in from the side you are heading to as the last one slides out the other way, both fading | `STEP_CHANGE` | 200 ms, ease-out |
-| Home window: the new tab slides in from its side (Media Gallery left, Settings right) as the old one slides out the other way, both fading, settling softly | `TAB_SLIDE` | 380 ms, gentle spring |
+| Home window: the new tab slides in from its side (Media Gallery left, Settings right) as the old one slides out the other way, both fading, settling softly | `TAB_SLIDE` | 570 ms, calm spring (the gentle spring, half again as long) |
 | The tab switcher's selection glides to the new tab, swinging just past and back | `THUMB_GLIDE` | 360 ms, snappy spring |
 | Countdown: the dial, or the recording badge, grows from 82 % and fades in, swinging just past full size and back | `COUNTDOWN_IN` | 600 ms, bouncy spring |
 | Countdown: each new second drops in from above as the last one falls away, both fading | `DIGIT_ROLL` | 300 ms, snappy |

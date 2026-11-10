@@ -29,7 +29,7 @@ use es_ui::{
     a11y::{Accessible, Role},
     components::{InspectorSlider, SliderEvent, ValueFormat},
     icons::IconName,
-    motion::{Clocked, PAGE_CHANGE},
+    motion::{Clocked, SETTINGS_PAGE},
     theme::tokens,
 };
 use gpui::{
@@ -330,7 +330,7 @@ impl SettingsWindow {
 
     pub fn show(&mut self, page: Page, cx: &mut Context<Self>) {
         if page != self.page {
-            self.page_motion = Clocked::start(PAGE_CHANGE, cx).map(|c| (c, self.page));
+            self.page_motion = Clocked::start(SETTINGS_PAGE, cx).map(|c| (c, self.page));
         }
         self.page = page;
         self.confirm_restore = None;

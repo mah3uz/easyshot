@@ -7,7 +7,7 @@ use es_store::{ConfigFile, Paths};
 use es_testkit::Headless;
 use es_ui::{
     assets::Assets,
-    motion::{PAGE_CHANGE, set_reduce_motion},
+    motion::{SETTINGS_PAGE, set_reduce_motion},
     tokens::ThemeMode,
 };
 use gpui::{AppContext, Entity};
@@ -92,14 +92,14 @@ fn page_change(mode: ThemeMode, tag: &str) {
         pane(&start) == pane(&before),
         "the old page is still whole as the change starts, so the pane never blinks empty"
     );
-    app.cx.advance_clock(PAGE_CHANGE.duration / 2);
+    app.cx.advance_clock(SETTINGS_PAGE.duration / 2);
     let mid = frame(&mut app, &format!("settings-page-change-{tag}-2-mid"));
-    app.cx.advance_clock(PAGE_CHANGE.duration / 2);
+    app.cx.advance_clock(SETTINGS_PAGE.duration / 2);
     let end = frame(&mut app, &format!("settings-page-change-{tag}-3-end"));
     assert!(start != mid && mid != end && start != end);
 
     show(&mut app, Page::Home);
-    app.cx.advance_clock(PAGE_CHANGE.duration);
+    app.cx.advance_clock(SETTINGS_PAGE.duration);
     app.cx.update(|cx| set_reduce_motion(true, cx));
     show(&mut app, Page::Capture);
     assert!(

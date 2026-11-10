@@ -132,6 +132,8 @@ pub const SNAPPY_SPRING: Transition = springs(360, 300, 75);
 pub const BOUNCY_SPRING: Transition = springs(600, 400, 62);
 /// Soft, all but critically damped: a layout settling.
 pub const GENTLE_SPRING: Transition = springs(380, 350, 85);
+/// The gentle spring, half again as long: a whole page crossing a window.
+pub const CALM_SPRING: Transition = springs(570, 525, 85);
 
 pub const POPOVER_OPEN: Transition = moves(130, Easing::EaseOut);
 pub const DECK_HOVER: Transition = fades(120, Easing::EaseOut);
@@ -167,9 +169,10 @@ pub const BUTTON_POP_SCALE: f32 = 0.82;
 pub const NOTICE_EXPAND: Transition = moves(220, Easing::Snappy);
 
 pub const PAGE_CHANGE: Transition = moves(180, Easing::EaseOut);
+pub const SETTINGS_PAGE: Transition = moves(270, Easing::EaseOut);
 pub const PAGE_RISE: Pixels = px(8.);
 pub const STEP_CHANGE: Transition = moves(200, Easing::EaseOut);
-pub const TAB_SLIDE: Transition = GENTLE_SPRING;
+pub const TAB_SLIDE: Transition = CALM_SPRING;
 pub const THUMB_GLIDE: Transition = SNAPPY_SPRING;
 pub const COUNTDOWN_IN: Transition = BOUNCY_SPRING;
 pub const COUNTDOWN_IN_REDUCED: Transition = fades(120, Easing::Linear);
@@ -472,6 +475,7 @@ mod tests {
             (SNAPPY_SPRING, 0.028),
             (BOUNCY_SPRING, 0.084),
             (GENTLE_SPRING, 0.006),
+            (CALM_SPRING, 0.006),
         ] {
             let samples = curve(token);
             assert_eq!(samples[0], 0.0, "{token:?}");
@@ -511,6 +515,15 @@ mod tests {
             "snappy reaches its end in {snappy:?} ms, bouncy in {bouncy:?} ms"
         );
         assert!(!SNAPPY_SPRING.plays(true) && !BOUNCY_SPRING.plays(true));
+    }
+
+    #[test]
+    fn a_whole_page_moves_half_again_as_slowly_as_a_control_and_settles_the_same_way() {
+        assert_eq!(curve(TAB_SLIDE), curve(GENTLE_SPRING));
+        assert_eq!(TAB_SLIDE.duration * 2, GENTLE_SPRING.duration * 3);
+        assert_eq!(SETTINGS_PAGE.duration * 2, PAGE_CHANGE.duration * 3);
+        assert_eq!(SETTINGS_PAGE.easing, PAGE_CHANGE.easing);
+        assert!(!TAB_SLIDE.plays(true) && !SETTINGS_PAGE.plays(true));
     }
 
     #[test]
