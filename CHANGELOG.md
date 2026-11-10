@@ -25,7 +25,7 @@
 - The recording control bar can be dragged by its grip anywhere on its screen, and remembers its spot for each screen; it has a mute button for each sound being recorded (system sound, microphone) and tooltips, and it springs in from the capture bar.
 - Recording a whole screen puts the control bar on another monitor, so it is not in the video; with one monitor it sits in the bottom-right corner and is recorded. A switch in Settings › Recording turns the bar off, and the tray controls the recording either way.
 - A window recording records that window's own pictures where the compositor allows it, so the video shows the window even when it is covered or on another workspace, keeps recording when the window moves to another workspace or monitor, and a window that closes or can no longer be captured ends the recording with the file kept; elsewhere it records the window's area on screen.
-- The recording panel lists every open window grouped by workspace, with the ones on screen first; choosing a window on another workspace switches to it before recording starts, and says so if it cannot.
+- The recording panel lists every open window grouped by workspace, with the ones on screen first, each by its app's icon, title and app name; choosing a window on another workspace switches to it before recording starts, and says so if it cannot.
 - The editor remembers your last annotation style across sessions, and each tool's options have a Reset to defaults button.
 - Crop, rotate and flip the image in the editor; annotations follow, and each step can be undone.
 - In the editor the mouse wheel zooms about the pointer and touchpad scrolling pans; annotations stay on the image.

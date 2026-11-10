@@ -442,8 +442,12 @@ gpu-screen-recorder or wf-recorder, nothing starts: you get a notice that names 
 Arch package to install.
 
 The recording panel's Window menu lists every open window, grouped by workspace, with the
-workspaces on screen first. With many windows the menu stops at about 60% of the screen's height
-and scrolls with the wheel or Up, Down, Page Up, Page Down, Home and End. Choosing a window on another workspace switches to it, waits up to a
+workspaces on screen first. Each window shows its app's icon, its title and, after it, the app's
+name from its desktop entry; a window without a title shows the app's name instead. An app
+without a desktop entry is named from the last part of its app id, and one without an icon shows
+a plain window symbol. With many windows the menu stops at about 60% of the screen's height and
+scrolls with the wheel. Up and Down move through the windows, Page Up, Page Down, Home and End
+jump, and Enter picks the highlighted one. Choosing a window on another workspace switches to it, waits up to a
 second for it to appear on a monitor, and then starts as usual; if easyshot cannot switch to
 it, you get a notice and nothing records. Switching works on Hyprland, sway and niri
 (Hyprland and niri unverified); on a desktop that cannot focus a window by command, only

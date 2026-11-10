@@ -1,6 +1,8 @@
+mod menu;
+
 use super::bar::{captioned, divider};
-use super::groups::window_groups;
 use crate::capture::strings::fl;
+use es_desktop::AppLabel;
 use es_geom::{Rect, Size};
 use es_model::platform::{OutputId, OutputInfo, WindowInfo};
 use es_record::{AudioDevice, AudioKind, RecordSource};
@@ -9,19 +11,19 @@ use es_ui::components::icon_button::IconButton;
 use es_ui::icons::IconName;
 use es_ui::theme::{UI_FONT, tokens};
 use gpui::{
-    AnyElement, Context, EventEmitter, FontWeight, InteractiveElement as _, IntoElement,
-    ParentElement as _, Render, ScrollHandle, StatefulInteractiveElement as _, Styled as _, Window,
-    div, point, prelude::FluentBuilder as _, px,
+    Context, EventEmitter, FontWeight, InteractiveElement as _, IntoElement, ParentElement as _,
+    Render, ScrollHandle, StatefulInteractiveElement as _, Styled as _, Window, div, point,
+    prelude::FluentBuilder as _, px,
 };
-use gpui_component::Icon;
+use menu::Pick;
+use std::collections::HashMap;
+
+pub use menu::window_text;
 
 pub const WIDTH: f64 = 460.0;
 const PAD: f64 = 20.0;
 const GAP: f64 = 16.0;
-const ROW: f64 = 26.0;
 const MAX_DELAY: u32 = 60;
-const SCREEN_SHARE: f64 = 0.6;
-const MIN_MENU_ROWS: f64 = 4.0;
 const BASE_HEIGHT: f64 = PAD + 18.0 + 2.0 + 15.0 + GAP + 52.0 + GAP + 28.0 + PAD;
 
 #[derive(Debug, Clone)]
@@ -78,14 +80,6 @@ pub enum Menu {
     Mic,
 }
 
-#[derive(Clone)]
-enum Pick {
-    Display(OutputId),
-    Window(usize),
-    Refresh,
-    Mic(Option<String>),
-}
-
 pub struct RecordingOptions {
     outputs: Vec<OutputInfo>,
     windows: Vec<WindowInfo>,
@@ -94,7 +88,11 @@ pub struct RecordingOptions {
     system_audio: bool,
     delay: u32,
     menu: Option<Menu>,
+    /// The open menu's row under the pointer or chosen with the keyboard.
+    active: Option<usize>,
     scroll: ScrollHandle,
+    /// By app id, read once: the menu must not search the disk as it draws.
+    apps: HashMap<String, AppLabel>,
 }
 
 impl EventEmitter<OptionsEvent> for RecordingOptions {}
@@ -112,12 +110,21 @@ impl RecordingOptions {
             system_audio: false,
             delay: 0,
             menu: None,
+            active: None,
             scroll: ScrollHandle::new(),
+            apps: HashMap::new(),
         }
     }
 
     pub fn set_windows(&mut self, windows: Vec<WindowInfo>, cx: &mut Context<Self>) {
+        for w in &windows {
+            if !self.apps.contains_key(&w.app_id) {
+                let label = es_desktop::app_label(&w.app_id);
+                self.apps.insert(w.app_id.clone(), label);
+            }
+        }
         self.windows = windows;
+        self.active = None;
         self.resized(cx);
     }
 
@@ -151,51 +158,13 @@ impl RecordingOptions {
     }
 
     pub fn size(&self) -> Size {
-        let rows = self.menu.map_or(0, |m| self.rows(m).len());
-        let menu = if rows == 0 {
+        let rows = self.menu.map(|m| self.rows(m)).unwrap_or_default();
+        let menu = if rows.is_empty() {
             0.0
         } else {
-            self.menu_height(rows) + GAP
+            self.menu_height(&rows) + GAP
         };
         Size::new(WIDTH, BASE_HEIGHT + menu)
-    }
-
-    fn menu_height(&self, rows: usize) -> f64 {
-        let screen = self
-            .outputs
-            .iter()
-            .map(|o| o.logical.height())
-            .fold(f64::INFINITY, f64::min);
-        let room = (screen * SCREEN_SHARE - BASE_HEIGHT - GAP).max(MIN_MENU_ROWS * ROW + 8.0);
-        (rows as f64 * ROW + 8.0).min(room)
-    }
-
-    pub fn menu_offset(&self) -> f64 {
-        -f64::from(self.scroll.offset().y)
-    }
-
-    /// Scrolls the open menu for Up, Down, PageUp, PageDown, Home and End; false when the key is
-    /// not one of them or no menu is open.
-    pub fn scroll_menu(&mut self, key: &str, cx: &mut Context<Self>) -> bool {
-        let Some(menu) = self.menu else {
-            return false;
-        };
-        let page = self.menu_height(self.rows(menu).len()) - 8.0 - ROW;
-        let now = self.menu_offset();
-        let to = match key {
-            "up" => now - ROW,
-            "down" => now + ROW,
-            "pageup" => now - page,
-            "pagedown" => now + page,
-            "home" => 0.0,
-            "end" => f64::MAX,
-            _ => return false,
-        };
-        let to = to.clamp(0.0, f64::from(self.scroll.max_offset().y));
-        self.scroll
-            .set_offset(point(self.scroll.offset().x, px(-(to as f32))));
-        cx.notify();
-        true
     }
 
     fn resized(&mut self, cx: &mut Context<Self>) {
@@ -205,6 +174,7 @@ impl RecordingOptions {
 
     fn toggle_menu(&mut self, menu: Menu, cx: &mut Context<Self>) {
         self.menu = (self.menu != Some(menu)).then_some(menu);
+        self.active = None;
         self.scroll.set_offset(point(px(0.), px(0.)));
         self.resized(cx);
     }
@@ -247,119 +217,6 @@ impl RecordingOptions {
             cx.emit(OptionsEvent::Delay(secs));
             cx.notify();
         }
-    }
-
-    fn rows(&self, menu: Menu) -> Vec<(String, bool, Option<Pick>)> {
-        match menu {
-            Menu::Display => self
-                .outputs
-                .iter()
-                .enumerate()
-                .map(|(n, o)| {
-                    let number = n + 1;
-                    let name = if o.description.is_empty() {
-                        fl!("rec-display-fallback", n = number)
-                    } else {
-                        o.description.clone()
-                    };
-                    let (w, h) = o.physical;
-                    let text = fl!("rec-display-item", name = name, w = w, h = h);
-                    (text, false, Some(Pick::Display(o.id.clone())))
-                })
-                .collect(),
-            Menu::Window => {
-                let mut rows = Vec::new();
-                for group in window_groups(&self.windows) {
-                    if let Some(name) = group.workspace {
-                        let header = if group.shown {
-                            fl!("rec-windows-workspace-shown", name = name)
-                        } else {
-                            fl!("rec-windows-workspace", name = name)
-                        };
-                        rows.push((header, false, None));
-                    }
-                    for i in group.windows {
-                        let w = &self.windows[i];
-                        let text = if w.title.is_empty() {
-                            fl!("rec-window-item-app-only", app = w.app_id.clone())
-                        } else {
-                            fl!(
-                                "rec-window-item",
-                                app = w.app_id.clone(),
-                                title = w.title.clone()
-                            )
-                        };
-                        rows.push((text, false, Some(Pick::Window(i))));
-                    }
-                }
-                if rows.is_empty() {
-                    rows.push((fl!("rec-windows-empty"), false, None));
-                }
-                rows.push((fl!("rec-windows-refresh"), false, Some(Pick::Refresh)));
-                rows
-            }
-            Menu::Mic => std::iter::once((
-                fl!("rec-mic-off"),
-                self.mic.is_none(),
-                Some(Pick::Mic(None)),
-            ))
-            .chain(self.mics.iter().map(|d| {
-                let on = self.mic.as_deref().is_some_and(|m| same_mic(&d.name, m));
-                (
-                    d.description.clone(),
-                    on,
-                    Some(Pick::Mic(Some(d.name.clone()))),
-                )
-            }))
-            .collect(),
-        }
-    }
-
-    fn render_menu(&self, menu: Menu, cx: &mut Context<Self>) -> AnyElement {
-        let t = tokens(cx).clone();
-        let label = match menu {
-            Menu::Display => fl!("rec-a11y-display-multi"),
-            Menu::Window => fl!("rec-a11y-window"),
-            Menu::Mic => fl!("rec-a11y-mic-off"),
-        };
-        let mut list = div()
-            .id("rec-menu")
-            .accessible(Role::Menu, label)
-            .flex()
-            .flex_col()
-            .p(px(4.))
-            .max_h(px(self.menu_height(self.rows(menu).len()) as f32))
-            .overflow_y_scroll()
-            .track_scroll(&self.scroll)
-            .rounded(px(8.))
-            .bg(t.dropdown)
-            .border_1()
-            .border_color(t.border);
-        for (i, (text, checked, pick)) in self.rows(menu).into_iter().enumerate() {
-            let live = pick.is_some();
-            list = list.child(
-                div()
-                    .id(("rec-menu-row", i))
-                    .accessible(Role::MenuItem, text.clone())
-                    .flex()
-                    .items_center()
-                    .gap(px(6.))
-                    .h(px(ROW as f32))
-                    .px(px(8.))
-                    .rounded(px(5.))
-                    .text_size(px(12.))
-                    .text_color(if live { t.text } else { t.text_tertiary })
-                    .child(div().w(px(14.)).when(checked, |d| {
-                        d.child(Icon::new(IconName::Check).size(px(12.)))
-                    }))
-                    .child(div().flex_1().truncate().child(text))
-                    .when_some(pick, |d, pick| {
-                        d.hover(|s| s.bg(t.hover_fill))
-                            .on_click(cx.listener(move |o, _, _, cx| o.pick(pick.clone(), cx)))
-                    }),
-            );
-        }
-        list.into_any_element()
     }
 }
 

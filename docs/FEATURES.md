@@ -219,7 +219,7 @@ More in the manual: [The Home window](MANUAL.md#the-home-window) and [History an
 
 - Records an area, a display or a window, started from the capture bar and picker.
 - Records a window's own pictures where the compositor allows it, so the video shows the window even when it is covered or on another workspace, keeps recording when the window moves to another workspace or monitor, and ends with the recording kept if the window closes or can no longer be captured; elsewhere it records the window's area on screen. [Window recordings](MANUAL.md#recording)
-- The recording panel lists every open window grouped by workspace; picking one on another workspace switches to it first. A long list scrolls.
+- The recording panel lists every open window grouped by workspace, each with its app's icon, title and app name; picking one on another workspace switches to it first. A long list scrolls and works from the keyboard.
 - Records system sound unless you turn it off, and the microphone once you choose one.
 - Records system sound and your microphone as two separate audio tracks, system sound first.
 - Starts the capture bar's recording panel with your Recording settings: microphone, system sound and start delay.

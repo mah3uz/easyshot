@@ -187,7 +187,7 @@ impl CaptureBar {
         if self.popup == Some(Popup::Options)
             && self
                 .options
-                .update(cx, |o, cx| o.scroll_menu(&event.keystroke.key, cx))
+                .update(cx, |o, cx| o.menu_key(&event.keystroke.key, cx))
         {
             return;
         }

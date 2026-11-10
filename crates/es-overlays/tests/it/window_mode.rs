@@ -159,7 +159,7 @@ fn the_list_names_apps_and_filters_as_you_type() {
         "Firefox — Release notes",
         "a reverse-domain id with no desktop entry reads as its last part"
     );
-    assert_eq!(windows::fallback_name("foot"), "Foot");
+    assert_eq!(es_desktop::fallback_name("foot"), "Foot");
 
     let frozen = frame(W, H, 2., grey);
     let mut s = Surface::open(W, H, |cx| WindowPicker::new(&frozen, Some(items), cx));

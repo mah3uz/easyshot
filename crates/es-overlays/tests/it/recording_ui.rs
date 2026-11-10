@@ -185,8 +185,11 @@ const MORE_X: f32 = 427.;
 const LESS_X: f32 = 355.;
 const STEPPER_Y: f32 = 153.;
 
+// Inside the menu's border and padding; choices are 32 tall, workspace labels 28, the line 9.
+const MENU_TOP: f32 = 144.;
+
 fn menu_row(i: usize) -> f32 {
-    144. + 13. + i as f32 * 26.
+    MENU_TOP + 16. + i as f32 * 32.
 }
 
 #[test]
@@ -236,7 +239,7 @@ fn the_options_build_a_request_from_their_controls() {
         .update(|cx| view.update(cx, |o, cx| o.set_windows(vec![window("notes.md")], cx)));
     s.click(WINDOW_X, ROW_Y);
     s.app.screenshot("recording-options-window-menu");
-    s.click(LESS_X, menu_row(1));
+    s.click(LESS_X, menu_row(1) + 9.);
     assert!(
         matches!(events.borrow().last(), Some(OptionsEvent::RefreshWindows)),
         "the row after the windows refreshes them"
@@ -588,8 +591,8 @@ fn the_window_menu_has_a_header_per_workspace_and_picks_the_right_window() {
         .cx
         .update(|cx| view.update(cx, |o, cx| o.set_windows(windows, cx)));
     s.click(WINDOW_X, ROW_Y);
-    // Rows: header 1, near, header 2, far, refresh.
-    s.click(LESS_X, menu_row(3));
+    // Rows: header 1, near, header 2, far, line, refresh.
+    s.click(LESS_X, MENU_TOP + 28. + 32. + 28. + 16.);
     assert!(matches!(
         events.borrow().last(),
         Some(OptionsEvent::Start(r)) if matches!(&r.target, RecordingTarget::Window(w) if w.id.0 == "far")

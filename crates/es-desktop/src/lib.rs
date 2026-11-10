@@ -11,7 +11,7 @@ mod sound;
 mod tray;
 mod tray_icon;
 
-pub use apps::{app_name, app_name_in};
+pub use apps::{AppLabel, app_label, app_label_in, app_name, app_name_in, fallback_name};
 pub use autostart::{autostart_enabled, autostart_file, set_autostart, set_autostart_in};
 pub use bus::Labels;
 pub use files::{

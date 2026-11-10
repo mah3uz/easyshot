@@ -3,6 +3,7 @@ mod cursors;
 mod gallery;
 mod hello;
 mod inspector_motion;
+mod menu;
 mod panels;
 mod picks;
 mod pointer_leave;
