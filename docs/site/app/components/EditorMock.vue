@@ -10,7 +10,7 @@ const backgrounds = [
 ]
 const bg = ref(backgrounds[0]!)
 const padding = ref(9)
-const radius = ref(12)
+const radius = ref(6)
 const shadow = ref(true)
 const tilt = ref(false)
 

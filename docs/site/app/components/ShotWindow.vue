@@ -11,7 +11,7 @@ const p = computed(() => photos[props.photo])
 </script>
 
 <template>
-  <div class="@container overflow-hidden bg-white text-[#0a2631]" style="border-radius: 1.6cqw">
+  <div class="@container overflow-hidden bg-white text-[#0a2631]" style="border-radius: 0.8cqw">
     <div v-if="chrome" class="flex items-center gap-[1.4cqw] bg-[#eef3f5] px-[2cqw]" style="height: 6.4cqw">
       <span class="flex gap-[0.9cqw]"><i v-for="c in ['#ff5f57', '#febc2e', '#28c840']" :key="c" class="block rounded-full" :style="{ background: c, width: '1.5cqw', height: '1.5cqw' }" /></span>
       <span class="mx-auto truncate rounded-full bg-white px-[2cqw] text-[#5c7680]" style="font-size: 1.8cqw; line-height: 3.6cqw; width: 46%">unsplash.com/photos/{{ photo }}</span>
