@@ -99,7 +99,7 @@ const inspector = ref(true)
               transform: tilt ? 'rotateX(14deg) rotateY(-16deg) rotateZ(3deg)' : 'none',
             }"
           >
-            <ShotWindow photo="forest" redact>
+            <ShotWindow photo="forest" redact radius="inherit">
               <svg class="absolute inset-0 size-full" viewBox="0 0 1600 900" aria-hidden="true">
                 <defs>
                   <marker id="ah" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">

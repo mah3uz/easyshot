@@ -2,16 +2,18 @@
 // A captured web page: a photo-sharing page in a browser window, drawn in HTML.
 // It scales with its container (container query units), so it works from deck-card size
 // to full width. `redact` covers the e-mail with a pixelate shape, as Smart Redaction does.
-const props = withDefaults(defineProps<{ photo: PhotoKey; redact?: boolean; eager?: boolean; chrome?: boolean }>(), {
+// Its own corner is a fixed length: cqw on the container itself would resolve against an outer container.
+const props = withDefaults(defineProps<{ photo: PhotoKey; redact?: boolean; eager?: boolean; chrome?: boolean; radius?: string }>(), {
   redact: false,
   eager: false,
   chrome: true,
+  radius: 'var(--radius-card-xs)',
 })
 const p = computed(() => photos[props.photo])
 </script>
 
 <template>
-  <div class="@container overflow-hidden bg-white text-[#0a2631]" style="border-radius: 0.8cqw">
+  <div class="@container overflow-hidden bg-white text-[#0a2631]" :style="{ borderRadius: radius }">
     <div v-if="chrome" class="flex items-center gap-[1.4cqw] bg-[#eef3f5] px-[2cqw]" style="height: 6.4cqw">
       <span class="flex gap-[0.9cqw]"><i v-for="c in ['#ff5f57', '#febc2e', '#28c840']" :key="c" class="block rounded-full" :style="{ background: c, width: '1.5cqw', height: '1.5cqw' }" /></span>
       <span class="mx-auto truncate rounded-full bg-white px-[2cqw] text-[#5c7680]" style="font-size: 1.8cqw; line-height: 3.6cqw; width: 46%">unsplash.com/photos/{{ photo }}</span>
