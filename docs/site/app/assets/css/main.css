@@ -388,6 +388,119 @@ html [data-reveal].is-in {
   animation-delay: var(--d, 0s);
 }
 
+.hero-mark {
+  position: relative;
+  width: 112px;
+  height: 112px;
+}
+.hero-mark::before {
+  content: '';
+  position: absolute;
+  inset: -30%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, var(--glow), transparent);
+}
+.hero-ping::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: hero-ping 2s ease-out infinite;
+}
+/* Not "ping": Tailwind ships a ping keyframe that fades to opacity 0 and wins. */
+@keyframes hero-ping {
+  from {
+    box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 60%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 9px transparent;
+  }
+}
+.hero-chip {
+  transition:
+    transform 0.4s var(--ease-out-soft),
+    border-color 0.25s,
+    color 0.25s;
+}
+.hero-chip:hover {
+  transform: translateY(-2px);
+}
+.hero-word {
+  position: relative;
+  display: inline-block;
+  padding: 0 0.06em;
+}
+.hero-sel {
+  position: absolute;
+  inset: -0.04em -0.08em -0.06em;
+  border: 2px solid var(--accent);
+  border-radius: 4px;
+  pointer-events: none;
+  clip-path: inset(-12px 100% 100% -12px);
+  animation: sel-draw 1.4s cubic-bezier(0.65, 0, 0.35, 1) 0.9s forwards;
+}
+.hero-sel i {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--color-teal-deep);
+}
+.hero-sel i:nth-child(1) {
+  left: -6px;
+  top: -6px;
+}
+.hero-sel i:nth-child(2) {
+  right: -6px;
+  top: -6px;
+}
+.hero-sel i:nth-child(3) {
+  left: -6px;
+  bottom: -6px;
+}
+.hero-sel i:nth-child(4) {
+  right: -6px;
+  bottom: -6px;
+}
+.hero-sel em {
+  position: absolute;
+  left: 50%;
+  bottom: -34px;
+  transform: translateX(-50%);
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-teal-ink) 88%, transparent);
+  color: #fff;
+  font: normal 500 12px/1 var(--font-mono);
+  letter-spacing: 0;
+  white-space: nowrap;
+  opacity: 0;
+  animation: sel-fade 0.4s ease 2.2s forwards;
+}
+@keyframes sel-draw {
+  to {
+    clip-path: inset(-12px -12px -48px -12px);
+  }
+}
+@keyframes sel-fade {
+  to {
+    opacity: 1;
+  }
+}
+@media (max-width: 639px) {
+  .hero-mark {
+    width: 92px;
+    height: 92px;
+  }
+  .hero-sel em {
+    bottom: -30px;
+    font-size: 11px;
+  }
+}
+
 .page-enter-active,
 .page-leave-active {
   transition:
@@ -426,5 +539,13 @@ html [data-reveal].is-in {
   .js [data-reveal] {
     opacity: 1;
     transform: none;
+  }
+  .hero-sel {
+    clip-path: none;
+    animation: none;
+  }
+  .hero-sel em {
+    opacity: 1;
+    animation: none;
   }
 }

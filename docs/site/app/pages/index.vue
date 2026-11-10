@@ -50,6 +50,16 @@ const why = [
   { icon: 'keyboard', title: 'Keyboard first', text: 'Every action has a command, and your compositor binds the keys.' },
 ]
 
+const chips = [
+  { icon: 'square-dashed', text: 'Area & window' },
+  { icon: 'unfold-vertical', text: 'Scrolling capture' },
+  { icon: 'scan-text', text: 'Text (OCR)' },
+  { icon: 'pencil-line', text: 'Annotate' },
+  { icon: 'eye-off', text: 'Smart Redaction' },
+  { icon: 'video', text: 'Screen recording' },
+  { icon: 'pin', text: 'Pin to screen' },
+]
+
 const editorPoints = [
   'Arrows, shapes, pen, highlighter, text, numbered steps, blur and pixelate',
   'Crop with aspect presets, rotate and flip, and undo for all of it',
@@ -97,44 +107,46 @@ useHead({
     <!-- Hero -->
     <section class="relative overflow-hidden pt-[130px] pb-20 sm:pt-[150px]">
 
-      <div class="container-x grid justify-items-center gap-7 text-center">
-        <img src="/logo.svg" alt="easyshot logo" width="96" height="96" class="rise size-20 drop-shadow-[0_20px_30px_rgba(19,136,166,.35)] sm:size-24" />
-        <a :href="repo" rel="noopener" class="rise group inline-flex items-center gap-2 rounded-full border border-line bg-surface py-1.5 pr-3.5 pl-1.5 text-[13.5px] text-fg-2 shadow-soft transition hover:border-accent" style="--d: 0.08s">
-          <span class="rounded-full bg-accent-soft px-2 py-0.5 text-xs font-semibold text-accent">Open source</span>
+      <div class="container-x grid justify-items-center gap-6 text-center">
+        <div class="hero-mark rise">
+          <img src="/logo.svg" alt="easyshot logo" width="112" height="112" class="size-full animate-float drop-shadow-[0_22px_30px_rgba(19,136,166,.35)]" />
+        </div>
+        <a :href="repo" rel="noopener" class="rise group inline-flex items-center gap-2.5 rounded-full border border-line bg-surface py-1.5 pr-4 pl-2 text-sm text-fg-2 backdrop-blur-xl transition hover:border-accent max-sm:gap-2 max-sm:pr-3 max-sm:text-[12.5px]" style="--d: 0.08s">
+          <b class="hero-ping inline-flex shrink-0 items-center gap-[7px] rounded-full bg-accent-soft px-2.5 py-[3px] text-[12.5px] font-semibold tracking-[0.02em] whitespace-nowrap text-accent">Open source</b>
           Free, built with Rust
           <Icon name="arrow-up-right" :size="14" class="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
         </a>
-        <h1 class="rise max-w-[900px] text-[clamp(42px,7.4vw,84px)] leading-[1.02]" style="--d: 0.16s">
-          Screenshots, done right<br class="hidden sm:block" />
-          on <span class="grad-text">Wayland</span>.
+        <h1 class="rise max-w-[820px] text-[clamp(42px,8vw,88px)] leading-[1.02] font-extrabold" style="--d: 0.16s">
+          Screenshots, done right on
+          <span class="hero-word"><span class="grad-text">Wayland</span><span class="hero-sel" aria-hidden="true"><i /><i /><i /><i /><em>812 × 214</em></span></span>.
         </h1>
-        <p class="rise max-w-[640px] text-[clamp(17px,2.2vw,21px)] leading-relaxed text-fg-2" style="--d: 0.24s">
-          easyshot is a free and open-source alternative to CleanShot for Linux. Capture, annotate and record your
-          screen on Hyprland, sway and niri, from a key bind.
+        <p class="rise mt-[18px] max-w-[600px] text-[clamp(17px,2.3vw,21px)] leading-relaxed text-pretty text-fg-2 max-sm:mt-2.5" style="--d: 0.24s">
+          Capture an area, a window, text or a scrolling page, mark it up in a full editor, and record your screen. All
+          from a key bind, on Hyprland, sway and niri.
         </p>
-        <div class="rise flex flex-wrap justify-center gap-3" style="--d: 0.32s">
-          <NuxtLink to="/how-to" class="btn btn-primary">
+        <ul class="rise flex max-w-[640px] flex-wrap justify-center gap-2" style="--d: 0.32s" aria-label="Features">
+          <li v-for="c in chips" :key="c.text" class="hero-chip inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-2 text-sm text-fg-2 backdrop-blur-xl hover:border-accent hover:text-fg">
+            <Icon :name="c.icon" :size="16" class="text-accent" />{{ c.text }}
+          </li>
+        </ul>
+        <div class="rise mt-2 flex flex-wrap justify-center gap-3 max-sm:w-full max-sm:max-w-[340px]" style="--d: 0.4s">
+          <NuxtLink to="/how-to" class="btn btn-primary max-sm:w-full">
             <Icon name="download" :size="18" /> Get started
           </NuxtLink>
-          <a :href="repo" rel="noopener" class="btn btn-ghost">
+          <a :href="repo" rel="noopener" class="btn btn-ghost backdrop-blur-xl max-sm:w-full">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z" /></svg>
             View on GitHub
           </a>
         </div>
-        <HeroInstall class="rise" style="--d: 0.4s" />
+        <HeroInstall class="rise" style="--d: 0.48s" />
+        <div class="rise mt-1.5 flex flex-wrap items-center justify-center gap-x-7 gap-y-2.5 text-[13px] text-fg-3" style="--d: 0.56s" aria-label="Supported compositors">
+          <span class="max-sm:basis-full">Made for tiling Wayland</span>
+          <b v-for="c in ['Hyprland', 'sway', 'niri']" :key="c" class="font-display text-xl font-bold tracking-[-0.03em] text-fg-2">{{ c }}</b>
+        </div>
       </div>
 
       <div class="container-x mt-16 sm:mt-20">
         <HeroShot />
-      </div>
-    </section>
-
-    <!-- Compositors -->
-    <section class="border-y border-line bg-bg-2/50 py-10" aria-label="Supported compositors">
-      <div class="container-x flex flex-wrap items-center justify-center gap-x-12 gap-y-4 text-fg-3">
-        <span class="text-[13px] font-medium">Made for tiling Wayland</span>
-        <span v-for="c in ['Hyprland', 'sway', 'niri']" :key="c" class="font-display text-2xl font-bold tracking-tight text-fg-2">{{ c }}</span>
-        <span class="text-[13px]">+ basic capture on other Wayland compositors</span>
       </div>
     </section>
 
