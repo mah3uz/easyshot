@@ -156,7 +156,7 @@ fn click(
         this.select(Some(id), cx);
         this.focus.focus(window, cx);
         if event.click_count() >= 2 {
-            this.open(id, cx);
+            this.activate(id, cx);
         }
     });
 }

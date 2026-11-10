@@ -378,3 +378,36 @@ fn the_extension_is_kept_apart_from_the_name_in_both_views() {
     rig.draw();
     rig.picture("gallery-extension-list");
 }
+
+#[test]
+fn double_click_edits_an_image_and_opens_a_video_in_the_trim_viewer() {
+    let mut rig = rig();
+    let seen: Rc<RefCell<Vec<GalleryEvent>>> = Rc::default();
+    let (sink, gallery) = (seen.clone(), rig.gallery.clone());
+    rig.app.cx.update(|cx| {
+        cx.subscribe(&gallery, move |_, e: &GalleryEvent, _| {
+            sink.borrow_mut().push(e.clone())
+        })
+        .detach();
+    });
+    let shown = rig.read(|g| g.shown().to_vec());
+    let shot = shown
+        .iter()
+        .find(|i| i.kind == MediaKind::Screenshot)
+        .unwrap()
+        .clone();
+    let video = shown
+        .iter()
+        .find(|i| i.kind == MediaKind::Video)
+        .unwrap()
+        .clone();
+    rig.update(|g, cx| g.activate(shot.id, cx));
+    rig.update(|g, cx| g.activate(video.id, cx));
+    assert_eq!(
+        *seen.borrow(),
+        vec![
+            GalleryEvent::Edit(shot.file),
+            GalleryEvent::Open(video.file)
+        ]
+    );
+}

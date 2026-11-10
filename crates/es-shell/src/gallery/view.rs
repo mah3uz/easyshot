@@ -262,6 +262,14 @@ impl Gallery {
         }
     }
 
+    pub fn activate(&mut self, id: Uuid, cx: &mut Context<Self>) {
+        match self.item(id).map(|i| i.kind) {
+            Some(MediaKind::Screenshot) => self.edit(id, cx),
+            Some(MediaKind::Video) => self.open(id, cx),
+            None => {}
+        }
+    }
+
     pub fn edit(&mut self, id: Uuid, cx: &mut Context<Self>) {
         let Some(item) = self.item(id) else { return };
         if item.kind != MediaKind::Screenshot {

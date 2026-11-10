@@ -392,6 +392,9 @@ changes it too, as do Ctrl+plus and Ctrl+minus, and Ctrl+0 goes back to the defa
 size is remembered in `config.toml` as `item_size` under `[gallery]`. The list view keeps its
 small icons.
 
+Double-clicking a screenshot opens it in the editor and double-clicking a video opens the trim
+viewer; the item menu's Open opens a screenshot in your default image viewer.
+
 Each item shows its file extension after the name, in a quieter colour, in both views; a long
 name is shortened, never the extension.
 
