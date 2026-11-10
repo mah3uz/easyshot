@@ -1,5 +1,6 @@
-use super::windows::FolderPicker;
-use es_backend::Backend;
+use super::windows::{FolderPicker, Wiring};
+use es_app::toast::{IconName, Toast, show_toast};
+use es_backend::{Backend, Caps};
 use es_desktop::{FilePicker, OpenFilter, OpenRequest, SaveRequest};
 use es_editor::session::io::{ChooseRequest, ExportChooser};
 use es_shell::home::OpenPicker;
@@ -18,7 +19,7 @@ impl ExportChooser for PortalChooser {
         request: ChooseRequest,
         cx: &mut App,
     ) -> Task<Result<Option<PathBuf>, String>> {
-        choose_with(self.0.files.as_deref(), request, cx)
+        choose_with(self.0.files().as_deref(), request, cx)
     }
 }
 
@@ -29,6 +30,11 @@ fn choose_with(
 ) -> Task<Result<Option<PathBuf>, String>> {
     let Some(files) = files else {
         let path = unique_path(&request.suggested_name, &request.folder, "-", exists);
+        show_toast(
+            Toast::new("toast-exported-without-chooser", IconName::Info)
+                .arg("path", path.display().to_string()),
+            cx,
+        );
         return Task::ready(Ok(Some(path)));
     };
     let asked = files.save(SaveRequest {
@@ -83,7 +89,7 @@ const OPEN_MIME_TYPES: [&str; 7] = [
 pub fn open_picker(backend: Arc<Backend>) -> OpenPicker {
     Rc::new(move |cx| {
         let strings = es_app::strings::loader();
-        let Some(files) = backend.files.as_deref() else {
+        let Some(files) = backend.files() else {
             return Task::ready(None);
         };
         let asked = files.open(OpenRequest {
@@ -100,6 +106,12 @@ pub fn open_picker(backend: Arc<Backend>) -> OpenPicker {
     })
 }
 
+/// Home offers Open… only while a file chooser is there to ask.
+pub fn for_home(w: &Wiring) -> Option<OpenPicker> {
+    let picker = w.open_picker.borrow().clone()?;
+    (w.caps)().contains(Caps::FILE_PICKER).then_some(picker)
+}
+
 pub fn declining_folder_picker() -> FolderPicker {
     Rc::new(|_| Task::ready(None))
 }
@@ -107,6 +119,7 @@ pub fn declining_folder_picker() -> FolderPicker {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use es_app::toast::{MemorySink, install_toasts};
     use es_store::ExportFormat;
     use futures::future::BoxFuture;
     use gpui::TestAppContext;
@@ -156,11 +169,32 @@ mod tests {
         );
     }
 
+    fn toasts(cx: &mut TestAppContext) -> Arc<MemorySink> {
+        let sink = MemorySink::new();
+        let notifier = Arc::new(es_desktop::RecordingNotifier::new(false));
+        cx.update(|cx| install_toasts(sink.clone(), notifier, cx));
+        sink
+    }
+
+    #[gpui::test]
+    fn an_export_with_no_chooser_to_ask_says_where_the_file_went(cx: &mut TestAppContext) {
+        let sink = toasts(cx);
+        let dir = tempfile::tempdir().unwrap();
+        choose(None, dir.path(), cx).unwrap();
+        let shown = sink.shown();
+        assert_eq!(shown.len(), 1);
+        let message = shown[0].message.clone().unwrap_or_default();
+        let path = dir.path().join("shot.png").display().to_string();
+        assert!(message.contains(&path), "{message}");
+    }
+
     #[gpui::test]
     fn with_a_file_chooser_its_answer_is_used(cx: &mut TestAppContext) {
+        let sink = toasts(cx);
         let dir = tempfile::tempdir().unwrap();
         let elsewhere = PathBuf::from("/elsewhere/out.png");
         let picker = Chosen(elsewhere.clone());
         assert_eq!(choose(Some(&picker), dir.path(), cx), Ok(Some(elsewhere)));
+        assert!(sink.shown().is_empty(), "the chooser already told the user");
     }
 }

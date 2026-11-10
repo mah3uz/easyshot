@@ -2,11 +2,15 @@ use anyhow::{Context as _, Result};
 use es_app::dispatcher::RouteDispatcher;
 use es_app::events::{Origin, PlatformEvent};
 use es_app::jobs::{JobFinished, JobId, Jobs};
-use es_backend::Backend;
+use es_backend::{Backend, Caps};
+use es_desktop::AppearanceEvent;
 use es_desktop::dbus::{self, Callbacks, Endpoint, Incoming, Service};
+use futures::future::{self, Either};
+use futures::{StreamExt, stream};
 use gpui::{App, Task};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::pin::pin;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -27,11 +31,11 @@ fn endpoint(backend: &Backend) -> Endpoint {
     Endpoint::session()
 }
 
-fn callbacks(backend: &Backend) -> Callbacks {
-    let doctor =
-        crate::doctor::with_input(&backend.doctor_json(), crate::doctor_tools::input_here());
+fn callbacks(backend: &Arc<Backend>) -> Callbacks {
+    let backend = backend.clone();
     Callbacks::new(Arc::new(move || {
-        let doctor = doctor.clone();
+        let doctor =
+            crate::doctor::with_input(&backend.doctor_json(), crate::doctor_tools::input_here());
         Box::pin(async move { doctor })
     }))
 }
@@ -146,12 +150,7 @@ pub fn platform_sources(
     cx: &mut App,
 ) -> Vec<Task<()>> {
     let mut tasks = vec![
-        forward(
-            backend.shortcuts.activations(),
-            events,
-            PlatformEvent::Shortcut,
-            cx,
-        ),
+        follow_portal(backend, events, cx),
         forward(
             backend.notifier.actions(),
             events,
@@ -159,17 +158,63 @@ pub fn platform_sources(
             cx,
         ),
     ];
-    if let Some(appearance) = &backend.appearance {
-        tasks.push(forward(
-            appearance.changes(),
-            events,
-            PlatformEvent::Appearance,
-            cx,
-        ));
-    }
     if let Some(tray) = &backend.tray {
         tray_feed.refresh(cx);
         tasks.push(forward(tray.activations(), events, PlatformEvent::Tray, cx));
     }
     tasks
+}
+
+pub fn live_caps(backend: &Arc<Backend>) -> Rc<dyn Fn() -> Caps> {
+    let backend = backend.clone();
+    Rc::new(move || backend.caps())
+}
+
+/// Shortcuts and appearance come from whichever providers the portal offers now; a provider
+/// that arrives late sends the desktop's current appearance first.
+fn follow_portal(
+    backend: &Arc<Backend>,
+    events: &async_channel::Sender<PlatformEvent>,
+    cx: &App,
+) -> Task<()> {
+    backend.follow_portal();
+    let (backend, events) = (backend.clone(), events.clone());
+    let changes = backend.portal_changes();
+    cx.spawn(async move |_| {
+        loop {
+            let shortcuts = backend.shortcuts().activations();
+            let appearance = backend.appearance().map(|a| a.changes());
+            let mut platform = Box::pin(stream::select(
+                shortcuts.map(PlatformEvent::Shortcut),
+                stream::iter(appearance)
+                    .flatten()
+                    .map(PlatformEvent::Appearance),
+            ));
+            let changed = loop {
+                let event = platform.next();
+                match future::select(pin!(changes.recv()), event).await {
+                    Either::Left((changed, _)) => break changed.is_ok(),
+                    Either::Right((Some(event), _)) => {
+                        if events.send(event).await.is_err() {
+                            return;
+                        }
+                    }
+                    Either::Right((None, _)) => break changes.recv().await.is_ok(),
+                }
+            };
+            if !changed {
+                return;
+            }
+            if let Some(a) = backend.appearance() {
+                for event in [
+                    AppearanceEvent::ColorScheme(a.color_scheme()),
+                    AppearanceEvent::ReduceMotion(a.reduce_motion()),
+                ] {
+                    if events.send(PlatformEvent::Appearance(event)).await.is_err() {
+                        return;
+                    }
+                }
+            }
+        }
+    })
 }

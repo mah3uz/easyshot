@@ -269,7 +269,7 @@ fn pointer_comes_only_from_set_pointer() {
         Some(OutputId(TEST_OUT.into()))
     );
     assert_eq!(pointer.focused_output(), Some(OutputId(TEST_OUT.into())));
-    assert!(b.caps.contains(Caps::POINTER_GLOBAL));
+    assert!(b.caps().contains(Caps::POINTER_GLOBAL));
 }
 
 #[test]
@@ -300,14 +300,14 @@ fn clipboard_writes_files_instead_of_the_real_clipboard() {
 fn virtual_input_is_off_in_test_mode() {
     let b = isolated(scratch("input-off"));
     assert!(b.virtual_input.is_none());
-    assert!(!b.caps.contains(Caps::VIRTUAL_INPUT));
+    assert!(!b.caps().contains(Caps::VIRTUAL_INPUT));
 }
 
 #[test]
 fn virtual_input_needs_the_harness_opt_in() {
     let b = isolated_with(scratch("input"), true);
     assert!(b.virtual_input.is_some());
-    assert!(b.caps.contains(Caps::VIRTUAL_INPUT));
+    assert!(b.caps().contains(Caps::VIRTUAL_INPUT));
     let on = |v: &str| {
         let env = es_backend::Env::from_vars([
             ("EASYSHOT_TEST", "1"),

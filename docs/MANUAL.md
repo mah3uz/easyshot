@@ -366,7 +366,7 @@ and an MP4, WebM, MKV, MOV or GIF opens in the trim viewer. Three ways in:
 
 - the Open… button at the right of the Home window's header, which asks for a file in your
   desktop's file chooser (images and videos only; the button is missing when the desktop
-  has no file chooser portal);
+  has no file chooser portal as the Home window opens);
 - dropping a file onto the Home window (with several, the first opens);
 - Open with Easyshot in your file manager, or `easyshot open <file>`.
 
@@ -504,7 +504,8 @@ version 1.
 General, Appearance, Theme is System, Light or Dark. System follows your desktop's light or dark
 choice, as the settings portal reports it, and changes when you change it. There is no Reduce
 Motion switch in easyshot: it follows your desktop's "enable animations" setting (the
-`org.gnome.desktop.interface` key the portal reports) and changes with it.
+`org.gnome.desktop.interface` key the portal reports) and changes with it. If the portal
+starts after easyshot, easyshot follows it from the moment it starts.
 
 ### Motion
 
@@ -621,7 +622,10 @@ Commands:
   chosen for each job; and the tools you could install, with their package names. A
   recorder tool is not listed as missing while another recorder is in use. Colour and the
   check and cross glyphs appear only when the output is a terminal and `NO_COLOR` is not
-  set; otherwise it prints `ok` and `no` in plain ASCII. The summary also says whether
+  set; otherwise it prints `ok` and `no` in plain ASCII. It reports what is true now: a
+  portal or notification server that started after the daemon counts, and notification
+  buttons are checked only with a notification server already running, never by starting
+  one. The summary also says whether
   clicks and keys can be recorded and whether your settings file is fine, missing, from a
   newer easyshot, or has an error. `--raw` prints the full report instead: every rejected
   provider with its reason, the Wayland globals, the portal interfaces and the missing
@@ -1002,7 +1006,7 @@ the editor. Whether the buttons show depends on your notification server.
 | Window capture | The window's rectangle is cropped from the frozen screen. |
 | Window geometry | Window mode shows a list of windows instead of hover highlight. |
 | Virtual input | No Auto Scroll; manual scroll capture still works. |
-| File picker portal | Export saves to your save folder and tells you where. |
+| File picker portal | Export saves to your save folder and a notice says where. A portal that starts later brings the file chooser, light or dark and Reduce Motion with it. |
 | Tray | The capture bar opens if no tray has appeared 10 seconds after the daemon starts, so you can still reach easyshot; the icon is added if one appears later. |
 | Recorder | The tray's Record item is disabled with an install hint; other ways to record answer with the hint at once. |
 | Tesseract | OCR reads QR codes only; a region without one shows a notice that text recognition needs Tesseract. |

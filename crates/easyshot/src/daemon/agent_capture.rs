@@ -146,7 +146,7 @@ async fn run(
     if let Some(out) = &spec.out {
         check_out(out)?;
     }
-    check_caps(deps.backend.caps, &spec.target)?;
+    check_caps(deps.backend.caps(), &spec.target)?;
     if spec.delay > 0 {
         cx.background_executor()
             .timer(Duration::from_secs(u64::from(spec.delay)))

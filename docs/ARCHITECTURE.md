@@ -182,12 +182,21 @@ to show it.
 The recorder providers are gpu-screen-recorder, then wf-recorder.
 
 Startup never calls a method on a name that might only be activatable: the probe lists names
-and asks who owns them, and `DesktopNotifier::connect` sends nothing to
-`org.freedesktop.Notifications` unless it already has an owner. Capabilities, and so whether
-actions are offered, are read when the name gains an owner or at the first notification;
-`Caps::NOTIFY_ACTIONS` reflects what was known at startup and nothing reads it later, because
-the notifier decides per notification. `ActionInvoked` is matched on the interface, so it
+and asks who owns them, introspects the portal through its owner's unique name, and
+`DesktopNotifier::connect` sends nothing to `org.freedesktop.Notifications` unless it already
+has an owner. Capabilities, and so whether actions are offered, are read when the name gains an
+owner or at the first notification. `ActionInvoked` is matched on the interface, so it
 survives a change of server.
+
+`Backend::caps()` is read live, not fixed at startup: `NOTIFY_ACTIONS` is what the notifier
+knows now, and `FILE_PICKER`, `APPEARANCE` and `PORTAL_SHORTCUTS` follow the portal. The daemon
+calls `Backend::follow_portal`, one thread that watches `NameOwnerChanged` for
+`org.freedesktop.portal.Desktop`; when the owner's interfaces change it re-runs selection for
+files, appearance and shortcuts with the same probe and registry, swaps them, updates the
+report and sends one message on `portal_changes()`. The daemon's one listener re-subscribes to
+shortcut and appearance events and replays the current appearance. Losing the owner removes
+the three. Test mode never follows the portal. Doctor's report from the daemon is built per
+request.
 
 The `wayland::*` providers are chosen by protocol globals, not compositor name. Any
 compositor with layer-shell and a capture protocol works without new code. Compositor

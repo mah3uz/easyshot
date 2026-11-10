@@ -160,7 +160,7 @@ fn rig_files(
             Rc::new(Declining),
             files,
             declining_folder_picker(),
-            Caps::empty(),
+            Rc::new(|| Caps::FILE_PICKER),
             binds,
             Rc::new(Vec::new),
             None,

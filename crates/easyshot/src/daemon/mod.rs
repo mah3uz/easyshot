@@ -178,10 +178,10 @@ fn detect_backend() -> Result<(Arc<Backend>, Option<OutputId>)> {
     probe.labels = Some(labels());
     probe.await_tray = !test_mode_requested();
     let backend = Arc::new(Backend::detect(&probe));
-    for line in &backend.report.errors {
+    for line in &backend.report().errors {
         tracing::warn!(probe = %line, "desktop probe");
     }
-    tracing::info!(caps = ?backend.caps, "backend");
+    tracing::info!(caps = ?backend.caps(), "backend");
     #[cfg(feature = "test-hooks")]
     wake_test_pointer(&backend);
     Ok((backend, test_output))
@@ -225,7 +225,7 @@ pub fn run(_args: DaemonArgs) -> Result<()> {
     let (backend, test_output) = detect_backend()?;
     crash_context.set_providers(
         backend
-            .report
+            .report()
             .entries
             .iter()
             .map(|e| {
@@ -262,7 +262,7 @@ fn start(
     cx: &mut App,
 ) -> Result<()> {
     let settings = cx.new(|_| SettingsModel::new(config));
-    let look = look::install(&settings, backend.appearance.as_deref(), cx);
+    let look = look::install(&settings, backend.appearance().as_deref(), cx);
     if let Some(e) = settings.read(cx).load_error() {
         tracing::warn!(error = %e, "settings file has an error; using defaults");
     }
@@ -368,7 +368,7 @@ fn start(
         } else {
             pickers::folder_picker()
         },
-        backend.caps,
+        bus::live_caps(backend),
         es_shell::settings::from_backend(backend.clone()),
         {
             let backend = backend.clone();
@@ -380,7 +380,7 @@ fn start(
     wiring.register();
     if test_mode {
         wiring.set_wallpaper_chooser(Rc::new(pickers::Declining));
-    } else if backend.caps.contains(es_backend::Caps::FILE_PICKER) {
+    } else {
         wiring.set_open_picker(pickers::open_picker(backend.clone()));
     }
     wiring.set_bar_sources(bar::BarSources {

@@ -3,7 +3,7 @@ use serde_json::{Value, json};
 
 impl Backend {
     pub fn doctor_json(&self) -> String {
-        doctor_json(&self.report, self.caps, &self.compositor)
+        doctor_json(&self.report(), self.caps(), &self.compositor)
     }
 }
 

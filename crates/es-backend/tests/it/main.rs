@@ -5,6 +5,7 @@ mod hyprland;
 mod hyprland_fade;
 mod niri;
 mod normalise;
+mod portal_follow;
 mod registry;
 mod sway;
 mod sway_harness;

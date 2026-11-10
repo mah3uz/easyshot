@@ -7,7 +7,7 @@ use std::sync::Arc;
 #[cfg(feature = "test-hooks")]
 use es_model::platform::OutputId;
 
-const PORTAL_NAME: &str = "org.freedesktop.portal.Desktop";
+pub(crate) const PORTAL_NAME: &str = "org.freedesktop.portal.Desktop";
 const PORTAL_PATH: &str = "/org/freedesktop/portal/desktop";
 
 #[derive(Debug, Clone, Default)]
@@ -22,7 +22,7 @@ impl DbusNames {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PortalIfaces {
     pub screenshot: bool,
     pub screencast: bool,
@@ -165,7 +165,7 @@ impl TestConfig {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct Probe {
     pub globals: WlGlobals,
     pub dbus: DbusNames,
@@ -245,18 +245,32 @@ fn gather_dbus() -> zbus::Result<(DbusNames, PortalIfaces)> {
             .into_iter()
             .map(|n| n.to_string()),
     );
-    // Introspecting an activatable but stopped portal would start it and can stall startup.
-    let portals = if owned.contains(PORTAL_NAME) {
-        let xml = zbus::blocking::fdo::IntrospectableProxy::builder(&conn)
-            .destination(PORTAL_NAME)?
-            .path(PORTAL_PATH)?
-            .build()?
-            .introspect()?;
-        PortalIfaces::from_introspection(&xml)
-    } else {
-        PortalIfaces::default()
+    let portals = match bus.get_name_owner(zbus::names::BusName::try_from(PORTAL_NAME)?) {
+        Ok(owner) => portal_ifaces(&conn, owner.as_str())?,
+        Err(_) => PortalIfaces::default(),
     };
     Ok((DbusNames { names }, portals))
+}
+
+// A unique name is never activated; the well-known name of a stopped portal would start it.
+pub(crate) fn portal_ifaces(
+    conn: &zbus::blocking::Connection,
+    owner: &str,
+) -> zbus::Result<PortalIfaces> {
+    let xml = zbus::blocking::fdo::IntrospectableProxy::builder(conn)
+        .destination(owner.to_owned())?
+        .path(PORTAL_PATH)?
+        .cache_properties(zbus::proxy::CacheProperties::No)
+        .build()?
+        .introspect()?;
+    Ok(PortalIfaces::from_introspection(&xml))
+}
+
+pub(crate) fn session_bus(env: &Env) -> zbus::Result<zbus::blocking::Connection> {
+    match env.var("DBUS_SESSION_BUS_ADDRESS") {
+        Some(address) => zbus::blocking::connection::Builder::address(address)?.build(),
+        None => zbus::blocking::Connection::session(),
+    }
 }
 
 pub struct Provider<T: ?Sized> {

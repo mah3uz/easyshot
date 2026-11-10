@@ -98,7 +98,7 @@ async fn run(
             (image, source)
         }
         OcrInput::Target(target) => {
-            check_caps(deps.backend.caps, &target)?;
+            check_caps(deps.backend.caps(), &target)?;
             let shot = acquire(deps, &target, scope, cx).await?;
             let output = shot
                 .frame

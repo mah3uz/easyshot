@@ -1,4 +1,5 @@
 use crate::error::{Error, Result};
+use crate::portal::{self, Portal};
 use crate::probe::{Probe, TOOL_PACKAGES};
 use crate::registry::{Registry, select, select_all};
 use crate::traits::{
@@ -86,11 +87,8 @@ pub struct Backend {
     pub binds: Option<Box<dyn BindHelper>>,
     pub fade: Option<Box<dyn LayerFade>>,
     pub clipboard: Box<dyn Clipboard>,
-    pub shortcuts: Box<dyn Shortcuts>,
     pub tray: Option<Box<dyn Tray>>,
     pub notifier: Box<dyn Notifier>,
-    pub files: Option<Box<dyn FilePicker>>,
-    pub appearance: Option<Box<dyn Appearance>>,
     /// Best provider first.
     pub recorders: Vec<Box<dyn Recorder>>,
     pub cursor: Option<Arc<dyn CursorSource>>,
@@ -99,9 +97,9 @@ pub struct Backend {
     pub virtual_input: Option<Box<dyn VirtualInput>>,
     pub overlay: OverlayKind,
     /// Derived from the chosen providers and `Probe.tools`, never set by hand.
-    pub caps: Caps,
+    pub(crate) caps: Caps,
     pub compositor: CompositorInfo,
-    pub report: ProviderReport,
+    pub(crate) portal: Arc<Portal>,
     #[cfg(feature = "test-hooks")]
     pub test: Option<crate::test_mode::TestHooks>,
 }
@@ -125,16 +123,7 @@ impl Backend {
                 .iter()
                 .map(|(name, version)| (name.clone(), serde_json::json!(version)))
                 .collect(),
-            portals: [
-                ("FileChooser", probe.portals.file_chooser),
-                ("Settings", probe.portals.settings),
-                ("GlobalShortcuts", probe.portals.global_shortcuts),
-                ("ScreenCast", probe.portals.screencast),
-                ("Screenshot", probe.portals.screenshot),
-            ]
-            .into_iter()
-            .map(|(name, on)| (name.to_owned(), serde_json::json!(on)))
-            .collect(),
+            portals: portal::portals_report(&probe.portals),
             ..ProviderReport::default()
         };
         let capture = select("capture", reg.capture, probe, &mut report);
@@ -151,34 +140,46 @@ impl Backend {
             Some(inner) => inner,
             None => Box::new(NoCapture::new()),
         };
+        let pointer = select("pointer", reg.pointer, probe, &mut report);
+        let binds = select("binds", reg.binds, probe, &mut report);
+        let fade = select("fade", reg.fade, probe, &mut report);
+        let clipboard = select("clipboard", reg.clipboard, probe, &mut report)
+            .unwrap_or_else(|| Box::new(NoClipboard));
+        let virtual_input = select("virtual_input", reg.virtual_input, probe, &mut report);
+        let cursor = select("cursor", reg.cursor, probe, &mut report).map(Arc::from);
+        let screen_lock =
+            select("screen_lock", &[wayland::LOCK_NOTIFY], probe, &mut report).map(Arc::from);
+        let shortcuts = portal::select_shortcuts(probe, reg, &mut report);
+        let tray = select("tray", reg.tray, probe, &mut report);
+        let notifier = select("notifier", reg.notifier, probe, &mut report)
+            .unwrap_or_else(|| Box::new(desktop::NoNotifier::new()));
+        let chosen = portal::Chosen {
+            files: select("files", reg.files, probe, &mut report).map(Arc::from),
+            appearance: select("appearance", reg.appearance, probe, &mut report).map(Arc::from),
+            shortcuts,
+        };
+        let recorders = select_all("recorders", reg.recorders, probe, &mut report);
         let backend = Backend {
             capture,
             windows: Box::new(windows),
-            pointer: select("pointer", reg.pointer, probe, &mut report),
-            binds: select("binds", reg.binds, probe, &mut report),
-            fade: select("fade", reg.fade, probe, &mut report),
-            clipboard: select("clipboard", reg.clipboard, probe, &mut report)
-                .unwrap_or_else(|| Box::new(NoClipboard)),
-            virtual_input: select("virtual_input", reg.virtual_input, probe, &mut report),
-            cursor: select("cursor", reg.cursor, probe, &mut report).map(Arc::from),
+            pointer,
+            binds,
+            fade,
+            clipboard,
+            virtual_input,
+            cursor,
             keymap: wayland::keymap(probe),
-            screen_lock: select("screen_lock", &[wayland::LOCK_NOTIFY], probe, &mut report)
-                .map(Arc::from),
-            shortcuts: select("shortcuts", reg.shortcuts, probe, &mut report)
-                .unwrap_or_else(|| Box::new(desktop::UserBinds::new())),
-            tray: select("tray", reg.tray, probe, &mut report),
-            notifier: select("notifier", reg.notifier, probe, &mut report)
-                .unwrap_or_else(|| Box::new(desktop::NoNotifier::new())),
-            files: select("files", reg.files, probe, &mut report),
-            appearance: select("appearance", reg.appearance, probe, &mut report),
-            recorders: select_all("recorders", reg.recorders, probe, &mut report),
+            screen_lock,
+            tray,
+            notifier,
+            recorders,
             overlay: OverlayKind::LayerShell,
             caps: Caps::empty(),
             compositor: CompositorInfo {
                 name: probe.env.current_desktop().unwrap_or_default().to_owned(),
                 version: None,
             },
-            report,
+            portal: Arc::new(Portal::new(chosen, report, probe, reg)),
             #[cfg(feature = "test-hooks")]
             test: None,
         };
@@ -190,10 +191,50 @@ impl Backend {
         let caps = derive_caps(&backend, probe);
         Backend { caps, ..backend }
     }
+
+    /// Notification actions and the portal's providers are read as they are now.
+    pub fn caps(&self) -> Caps {
+        let mut caps = self.caps;
+        caps.set(Caps::NOTIFY_ACTIONS, self.notifier.supports_actions());
+        caps.set(Caps::FILE_PICKER, self.files().is_some());
+        caps.set(Caps::APPEARANCE, self.appearance().is_some());
+        caps.set(
+            Caps::PORTAL_SHORTCUTS,
+            self.portal.chosen("shortcuts") == Some(desktop::PORTAL_GLOBAL_SHORTCUTS.name),
+        );
+        caps
+    }
+
+    pub fn report(&self) -> ProviderReport {
+        self.portal.report()
+    }
+
+    pub fn files(&self) -> Option<Arc<dyn FilePicker>> {
+        self.portal.files()
+    }
+
+    pub fn appearance(&self) -> Option<Arc<dyn Appearance>> {
+        self.portal.appearance()
+    }
+
+    pub fn shortcuts(&self) -> Arc<dyn Shortcuts> {
+        self.portal.shortcuts()
+    }
+
+    /// Starts following the desktop portal, so its providers come and go with it.
+    pub fn follow_portal(&self) {
+        portal::follow(&self.portal);
+    }
+
+    /// Receives one message each time the portal's providers change; the daemon has one listener.
+    pub fn portal_changes(&self) -> async_channel::Receiver<()> {
+        self.portal.changes()
+    }
 }
 
 fn derive_caps(b: &Backend, probe: &Probe) -> Caps {
-    let chosen = |cap: &str| b.report.chosen(cap);
+    let report = b.report();
+    let chosen = |cap: &str| report.chosen(cap);
     let mut caps = Caps::empty();
     caps.set(Caps::LAYER_SHELL, probe.globals.layer_shell.is_some());
     caps.set(Caps::CAPTURE_OUTPUT, chosen("capture").is_some());
@@ -209,19 +250,12 @@ fn derive_caps(b: &Backend, probe: &Probe) -> Caps {
         chosen("clipboard").is_some() && !b.clipboard.needs_focused_window(),
     );
     caps.set(Caps::TRAY, b.tray.is_some());
-    caps.set(Caps::NOTIFY_ACTIONS, b.notifier.supports_actions());
-    caps.set(
-        Caps::PORTAL_SHORTCUTS,
-        chosen("shortcuts") == Some(desktop::PORTAL_GLOBAL_SHORTCUTS.name),
-    );
     caps.set(Caps::SHORTCUT_TRIGGERS, chosen("binds").is_some());
     caps.set(Caps::POINTER_GLOBAL, b.pointer.is_some());
     caps.set(Caps::VIRTUAL_INPUT, b.virtual_input.is_some());
     caps.set(Caps::RECORDER, !b.recorders.is_empty());
     caps.set(Caps::OCR, probe.tools.tesseract);
     caps.set(Caps::BIND_CHECK, b.binds.is_some());
-    caps.set(Caps::FILE_PICKER, b.files.is_some());
-    caps.set(Caps::APPEARANCE, b.appearance.is_some());
     caps.set(Caps::CURSOR_STREAM, b.cursor.is_some());
     caps
 }

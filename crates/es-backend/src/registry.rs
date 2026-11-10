@@ -73,6 +73,7 @@ pub static APPEARANCE: &[Provider<dyn Appearance>] = &[desktop::PORTAL_SETTINGS]
 
 pub static RECORDERS: &[Provider<dyn Recorder>] = &[desktop::GSR_NATIVE, desktop::WF_RECORDER];
 
+#[derive(Clone, Copy)]
 pub struct Registry {
     pub capture: &'static [Provider<dyn Capture>],
     pub windows: &'static [Provider<dyn WindowList>],

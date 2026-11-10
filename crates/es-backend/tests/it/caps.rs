@@ -133,7 +133,7 @@ fn probe() -> Probe {
 fn caps_are_exactly_what_the_chosen_providers_and_tools_give() {
     let b = Backend::detect_with(&probe(), &fakes());
     assert_eq!(
-        b.caps,
+        b.caps(),
         Caps::LAYER_SHELL
             | Caps::CAPTURE_OUTPUT
             | Caps::WINDOW_LIST
@@ -148,13 +148,13 @@ fn caps_are_exactly_what_the_chosen_providers_and_tools_give() {
 #[test]
 fn nothing_detected_gives_no_caps_and_working_fallbacks() {
     let b = Backend::detect_with(&Probe::default(), &Registry::EMPTY);
-    assert_eq!(b.caps, Caps::empty());
+    assert_eq!(b.caps(), Caps::empty());
     assert!(b.capture.outputs().is_empty());
     assert!(b.windows.snapshot().is_empty());
     assert!(b.clipboard.set(vec![ClipItem::Text("x".into())]).is_err());
-    assert!(b.shortcuts.user_binds_required());
+    assert!(b.shortcuts().user_binds_required());
     assert_eq!(
-        b.report.missing_tools.len(),
+        b.report().missing_tools.len(),
         es_backend::TOOL_PACKAGES.len()
     );
 }
@@ -217,12 +217,12 @@ fn platform_detect_picks_ext_capture_in_headless_sway() {
     let probe = Probe::gather().expect("probe");
     let b = Backend::detect(&probe);
     assert_eq!(
-        b.report.chosen("capture"),
+        b.report().chosen("capture"),
         Some("ext-image-copy"),
         "{}",
         b.doctor_json()
     );
-    assert!(b.caps.contains(Caps::CAPTURE_OUTPUT | Caps::LAYER_SHELL));
+    assert!(b.caps().contains(Caps::CAPTURE_OUTPUT | Caps::LAYER_SHELL));
 }
 
 #[test]
@@ -241,7 +241,7 @@ fn a_usable_binds_file_sets_shortcut_triggers_and_not_the_portal_flag() {
         ..Registry::EMPTY
     };
     let b = Backend::detect_with(&p, &reg);
-    assert!(b.caps.contains(Caps::SHORTCUT_TRIGGERS));
-    assert!(!b.caps.contains(Caps::PORTAL_SHORTCUTS));
-    assert!(b.shortcuts.user_binds_required());
+    assert!(b.caps().contains(Caps::SHORTCUT_TRIGGERS));
+    assert!(!b.caps().contains(Caps::PORTAL_SHORTCUTS));
+    assert!(b.shortcuts().user_binds_required());
 }

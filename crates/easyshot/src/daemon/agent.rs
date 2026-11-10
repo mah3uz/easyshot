@@ -37,7 +37,7 @@ pub struct Sources {
 pub fn sources(backend: &Arc<Backend>) -> Sources {
     let (outputs, windows) = (backend.clone(), backend.clone());
     Sources {
-        caps: backend.caps,
+        caps: backend.caps(),
         outputs: Arc::new(move || outputs.capture.outputs()),
         windows: Arc::new(move || windows.windows.snapshot()),
     }

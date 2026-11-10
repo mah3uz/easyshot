@@ -44,7 +44,7 @@ pub struct Wiring {
     pub chooser: Rc<dyn ExportChooser>,
     pub files: Arc<dyn GalleryFiles>,
     pub folder: FolderPicker,
-    pub caps: Caps,
+    pub caps: Rc<dyn Fn() -> Caps>,
     pub binds: Option<Arc<dyn BindHelper>>,
     pub outputs: Rc<dyn Fn() -> Vec<OutputInfo>>,
     pub surfaces: Option<Rc<LayerShellSurfaces>>,
@@ -56,7 +56,7 @@ pub struct Wiring {
     home: RefCell<Option<WeakEntity<HomeWindow>>>,
     recoveries: RefCell<HashMap<PathBuf, PathBuf>>,
     wallpaper: RefCell<Option<Rc<dyn WallpaperChooser>>>,
-    open_picker: RefCell<Option<OpenPicker>>,
+    pub(super) open_picker: RefCell<Option<OpenPicker>>,
 }
 
 struct Handle(AnyWindowHandle);
@@ -95,7 +95,7 @@ impl Wiring {
         chooser: Rc<dyn ExportChooser>,
         files: Arc<dyn GalleryFiles>,
         folder: FolderPicker,
-        caps: Caps,
+        caps: Rc<dyn Fn() -> Caps>,
         binds: Option<Arc<dyn BindHelper>>,
         outputs: Rc<dyn Fn() -> Vec<OutputInfo>>,
         surfaces: Option<Rc<LayerShellSurfaces>>,
@@ -259,7 +259,7 @@ fn open_home(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>> {
         settings: SettingsDeps {
             settings: w.settings.clone(),
             history: Some(w.history.clone()),
-            caps: w.caps,
+            caps: (w.caps)(),
             binds: w.binds.clone(),
             paths: w.paths.clone(),
             clipboard: Rc::new(settings::SystemClipboard),
@@ -267,7 +267,7 @@ fn open_home(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>> {
             version: env!("EASYSHOT_VERSION").to_owned(),
             input_access: Rc::new(es_record::input::system_access),
         },
-        open_picker: w.open_picker.borrow().clone(),
+        open_picker: super::pickers::for_home(w),
     };
     let window = opened(home::open(deps, cx))?;
     let view = window
@@ -442,7 +442,7 @@ fn finish_editor(
 pub(super) fn onboarding_input(w: &Wiring, cx: &App) -> OnboardingInput {
     let config = w.settings.read(cx).config();
     OnboardingInput {
-        caps: w.caps,
+        caps: (w.caps)(),
         binds: w.binds.clone(),
         clipboard: Some(Rc::new(settings::SystemClipboard)),
         global_shortcuts: config.global_shortcuts.clone(),

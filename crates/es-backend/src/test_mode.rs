@@ -37,6 +37,7 @@ impl TestHooks {
 pub fn isolate(b: Backend, cfg: &TestConfig) -> Backend {
     let hooks = TestHooks::default();
     let windows: Arc<dyn WindowList> = Arc::new(TestWindows::new(b.windows, cfg.output.clone()));
+    b.portal.set_shortcuts(Arc::new(UserBinds::new()));
     Backend {
         capture: Box::new(TestCapture::new(
             b.capture,
@@ -49,7 +50,6 @@ pub fn isolate(b: Backend, cfg: &TestConfig) -> Backend {
             output: cfg.output.clone(),
         })),
         clipboard: Box::new(ClipboardSink::new(cfg.dir.join("clipboard"))),
-        shortcuts: Box::new(UserBinds::new()),
         tray: b.tray.map(|_| Box::new(NoopTray::new()) as Box<dyn Tray>),
         notifier: Box::new(TestNotifier::new()),
         virtual_input: b.virtual_input.filter(|_| cfg.virtual_input),

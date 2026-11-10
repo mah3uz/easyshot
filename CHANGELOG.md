@@ -4,6 +4,7 @@
 
 ### New
 
+- The desktop portal is followed while easyshot runs: a file chooser, light or dark and Reduce Motion that start after easyshot are used from then on, an export with no file chooser shows a notice saying where the file went, and `easyshot doctor` reports notification buttons and portal features as they are now.
 - Settings › Overlay › Card Actions chooses which actions a preview card shows (Copy, Save / Show in Folder, Edit, Pin, Cloud Share, Preview, Delete); Preview opens the capture full size in a plain window (Z or a click toggles 100%, Space or Esc closes it) and Delete moves it to the Trash with an Undo button on the toast; Dismiss is always there and at least one other action stays on.
 - Open any image or video from your computer: the Home window's Open… button, dropping a file onto the window, Open with Easyshot in your file manager, or `easyshot open FILE`; a PNG or JPEG opens in the editor, an MP4, WebM, MKV, MOV or GIF in the trim viewer, and any other file shows a toast.
 - The gallery's preview size, from small to two previews a row, set with a slider in its toolbar, Ctrl+scroll over the grid, or Ctrl+plus, Ctrl+minus and Ctrl+0, and remembered in `[gallery] item_size`.

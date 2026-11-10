@@ -37,6 +37,13 @@ fn labels(p: &Probe) -> Labels {
         .unwrap_or_else(|| Arc::new(|id: &str| id.to_owned()))
 }
 
+fn session(p: &Probe) -> Endpoint {
+    match p.env.var("DBUS_SESSION_BUS_ADDRESS") {
+        Some(address) => Endpoint::session().on_address(address),
+        None => Endpoint::session(),
+    }
+}
+
 pub const PORTAL_GLOBAL_SHORTCUTS: Provider<dyn Shortcuts> = Provider {
     name: "portal-global-shortcuts",
     probe: |p| p.portals.global_shortcuts.then_some(10),
@@ -45,7 +52,7 @@ pub const PORTAL_GLOBAL_SHORTCUTS: Provider<dyn Shortcuts> = Provider {
             return Ok(Box::new(RecordingShortcuts::new(false)));
         }
         Ok(Box::new(futures::executor::block_on(
-            PortalShortcuts::start(&Endpoint::session(), labels(p)),
+            PortalShortcuts::start(&session(p), labels(p)),
         )))
     },
 };
@@ -121,7 +128,7 @@ pub const FREEDESKTOP_NOTIFICATIONS: Provider<dyn Notifier> = Provider {
         if test_mode(p) {
             return Ok(Box::new(RecordingNotifier::new(false)));
         }
-        futures::executor::block_on(DesktopNotifier::connect(&Endpoint::session()))
+        futures::executor::block_on(DesktopNotifier::connect(&session(p)))
             .map(|n| Box::new(n) as Box<dyn Notifier>)
             .map_err(|e| unavailable("notifications", &e))
     },
@@ -134,7 +141,7 @@ pub const PORTAL_FILE_CHOOSER: Provider<dyn FilePicker> = Provider {
         if test_mode(p) {
             return not_in_test_mode("file dialog");
         }
-        Ok(Box::new(PortalFilePicker::new(Endpoint::session())))
+        Ok(Box::new(PortalFilePicker::new(session(p))))
     },
 };
 
@@ -145,7 +152,7 @@ pub const PORTAL_SETTINGS: Provider<dyn Appearance> = Provider {
         if test_mode(p) {
             return not_in_test_mode("portal Settings");
         }
-        futures::executor::block_on(PortalAppearance::start(&Endpoint::session()))
+        futures::executor::block_on(PortalAppearance::start(&session(p)))
             .map(|a| Box::new(a) as Box<dyn Appearance>)
             .map_err(|e| unavailable("portal Settings", &e))
     },

@@ -165,6 +165,7 @@ More in the manual: [The tray menu](MANUAL.md#the-tray-menu).
 - Shows every screenshot at half size if you turn on Always use a low-resolution preview.
 - Saves with the edits kept, so you can reopen and keep editing.
 - Exports PNG or JPEG.
+- Exports to your save folder with a notice saying where when no file chooser is running, and uses the desktop's file chooser, light or dark and Reduce Motion as soon as its portal starts.
 - Asks before closing with unsaved changes.
 - Reopens your unsaved edits after an unexpected stop.
 
