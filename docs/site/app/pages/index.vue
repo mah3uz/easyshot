@@ -33,7 +33,23 @@ const faq = [
   },
   {
     q: 'Does it upload my screenshots?',
-    a: 'No. Everything stays on your machine: captures, recordings, logs and crash reports. Sharing a capture as a link is <a class="text-accent underline" href="/#soon">coming soon</a>.',
+    a: 'Only the ones you share. Captures, recordings, logs and crash reports stay on your machine. When you press Share, that one file goes to easyshot Free or to your own bucket. See <a class="text-accent underline" href="/#share">Share</a>.',
+  },
+  {
+    q: 'Are shared links private?',
+    a: 'They are unlisted, not private. A link is long and random and is not listed anywhere, but anyone who has it can open the page and download the file. Share only what you are happy for anyone with the link to see.',
+  },
+  {
+    q: 'How long do shared links last?',
+    a: 'On easyshot Free, 1, 3 or 7 days: you choose when you share. Then the file is deleted, and anyone opening the link sees a plain “page not found”. Links to your own bucket last as long as you keep the files there.',
+  },
+  {
+    q: 'Can I use my own storage?',
+    a: 'Yes. In Settings › Sharing, choose My own bucket and fill in any S3-compatible storage, such as Cloudflare R2, AWS S3, Backblaze B2 or MinIO. easyshot uploads straight to it. Your keys stay in your keyring, or in a private file when no keyring is running.',
+  },
+  {
+    q: 'What are the limits on free sharing?',
+    a: 'Images up to 10 MB, GIFs up to 20 MB and videos up to 200 MB. easyshot re-encodes a bigger video to fit, which holds roughly 13 to 27 minutes of 1080p screen recording. Each install also has a daily allowance. See the <a class="text-accent underline" href="/terms">Terms of Service</a>.',
   },
   {
     q: 'What does recording need?',
@@ -51,7 +67,7 @@ const faq = [
 
 const why = [
   { icon: 'heart', title: 'Free and open source', text: 'Read the code, change it, ship it.' },
-  { icon: 'shield-check', title: 'Private by default', text: 'No account and no uploads. Crash reports stay on your disk.' },
+  { icon: 'shield-check', title: 'Private by default', text: 'No account. Nothing leaves your machine unless you share it.' },
   { icon: 'zap', title: 'Native and fast', text: 'Written in Rust with GPUI, rendered on your GPU.' },
   { icon: 'keyboard', title: 'Keyboard first', text: 'Every action has a command, and your compositor binds the keys.' },
 ]
@@ -63,6 +79,7 @@ const chips = [
   { icon: 'pencil-line', text: 'Annotate' },
   { icon: 'eye-off', text: 'Smart Redaction' },
   { icon: 'video', text: 'Screen recording' },
+  { icon: 'cloud-upload', text: 'Share a link' },
   { icon: 'pin', text: 'Pin to screen' },
   { icon: 'sparkles', text: 'AI agents (MCP)' },
 ]
@@ -82,6 +99,38 @@ const trimPoints = [
   'MP4, WebM or GIF, at the original size or 1080p, 720p or 480p, in High, Balanced or Small quality',
   'Your last choices are remembered',
   'Saved to <code>~/Videos/easyshot</code>, never over an earlier file',
+]
+
+const sharePoints = [
+  'A toast shows the upload with Cancel, then Open and Copy Link',
+  'The link opens a page with the image or video, Download and Copy link',
+  'Unlisted, not private: anyone who has the link can open it',
+  'From a terminal: <code>easyshot share shot.png</code>',
+]
+
+const shareTargets = [
+  {
+    icon: 'cloud-upload',
+    title: 'easyshot Free',
+    text: 'No account and no setup.',
+    points: [
+      'Images up to 10 MB, GIFs up to 20 MB',
+      'Videos up to 200 MB, re-encoded to fit: roughly 13 to 27 minutes of 1080p screen recording',
+      'A daily allowance for each install',
+      'After the days you pick, the file is deleted and the link shows “page not found”',
+    ],
+  },
+  {
+    icon: 'hard-drive',
+    title: 'Your own bucket',
+    text: 'Any S3-compatible storage: Cloudflare R2, AWS S3, Backblaze B2 or MinIO.',
+    points: [
+      'easyshot uploads straight to your storage',
+      'Keys in your keyring, or in a private file when no keyring runs',
+      'Links last as long as you keep the files',
+      'Test Connection in Settings › Sharing checks it end to end',
+    ],
+  },
 ]
 
 const agentSafety = [
@@ -159,7 +208,7 @@ useHead({
           Capture an area, a window, text or a scrolling page, mark it up in a full editor, and record your screen. All
           from a key bind, on Hyprland, sway and niri.
         </p>
-        <ul class="rise flex max-w-[660px] flex-wrap justify-center gap-2" style="--d: 0.32s" aria-label="Features">
+        <ul class="rise flex max-w-[760px] flex-wrap justify-center gap-2" style="--d: 0.32s" aria-label="Features">
           <li v-for="c in chips" :key="c.text" class="hero-chip inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-2 text-sm text-fg-2 hover:border-accent hover:text-fg">
             <Icon :name="c.icon" :size="16" class="text-accent" />{{ c.text }}
           </li>
@@ -300,19 +349,44 @@ useHead({
           </ul>
         </div>
       </div>
+      <div id="soon" class="container-x mt-16 scroll-mt-28 sm:mt-20"><SoonCards /></div>
     </section>
 
-    <!-- Coming soon -->
-    <section id="soon" class="bg-bg-2/60 py-24 sm:py-32">
-      <div class="container-x">
-        <div v-reveal class="mx-auto mb-14 grid max-w-[680px] justify-items-center gap-4 text-center">
-          <span class="eyebrow"><Icon name="sparkles" :size="15" />Coming soon</span>
-          <h2 class="text-[clamp(34px,5vw,56px)] leading-[1.05]">What's next.</h2>
-          <p class="text-[clamp(17px,2vw,20px)] text-fg-2">
-            Two bigger pieces are on the way: a full studio for your recordings, and links you can share.
-          </p>
+    <!-- Share -->
+    <section id="share" class="bg-bg-2/60 py-24 sm:py-32">
+      <div class="container-x grid grid-cols-[minmax(0,1fr)] gap-12">
+        <div class="grid items-center gap-12 md:grid-cols-[1fr_1.1fr]">
+          <div v-reveal class="grid gap-4 [&_code]:rounded-md [&_code]:border [&_code]:border-line [&_code]:bg-surface-2 [&_code]:px-1.5 [&_code]:py-px [&_code]:text-[0.88em] [&_code]:whitespace-nowrap [&_code]:text-fg">
+            <span class="eyebrow"><Icon name="cloud-upload" :size="15" />Share</span>
+            <h2 class="text-[clamp(32px,4.4vw,50px)] leading-[1.05]">Send it as a link.</h2>
+            <p class="text-lg text-fg-2">
+              Press Share on a capture card, in the editor, the trim viewer or the gallery, and pick 1, 3 or 7 days. The link
+              is on your clipboard at once, so you can paste it while the file uploads.
+            </p>
+            <ul class="grid gap-2.5 pt-2">
+              <li v-for="(p, i) in sharePoints" :key="p" v-reveal="i * 0.05" class="flex gap-3 text-[15px] text-fg-2">
+                <span class="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-accent-soft text-accent"><Icon name="check" :size="12" /></span>
+                <span v-html="p" />
+              </li>
+            </ul>
+          </div>
+          <div v-reveal="0.1"><ShareMock /></div>
         </div>
-        <SoonCards />
+        <div class="grid gap-4 md:grid-cols-2">
+          <article v-for="(t, i) in shareTargets" :key="t.title" v-reveal="i * 0.07" class="card grid content-start gap-4 p-6 sm:p-8">
+            <span class="icon-tile"><Icon :name="t.icon" :size="21" /></span>
+            <div class="grid gap-1.5">
+              <h3 class="text-[clamp(20px,2.2vw,24px)] leading-tight">{{ t.title }}</h3>
+              <p class="text-[15px] text-fg-2">{{ t.text }}</p>
+            </div>
+            <ul class="grid gap-2.5">
+              <li v-for="p in t.points" :key="p" class="flex gap-3 text-[15px] text-fg-2">
+                <span class="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-accent-soft"><i class="size-1.5 rounded-full bg-accent" /></span>
+                {{ p }}
+              </li>
+            </ul>
+          </article>
+        </div>
       </div>
     </section>
 

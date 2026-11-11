@@ -4,7 +4,7 @@ const { siteUrl, repo } = useRuntimeConfig().public
 usePageSeo({
   title: 'How to take screenshots and record your screen on Wayland',
   description:
-    'Install easyshot, bind your keys on Hyprland, sway or niri, and take, annotate and record your first capture. A step-by-step guide.',
+    'Install easyshot, bind your keys on Hyprland, sway or niri, and take, annotate, record and share your first capture. A step-by-step guide.',
   path: '/how-to',
 })
 
@@ -14,8 +14,9 @@ const steps = [
   { id: 'start', title: 'Start the service' },
   { id: 'shortcuts', title: 'Bind your keys' },
   { id: 'capture', title: 'Take a screenshot' },
-  { id: 'annotate', title: 'Annotate and share' },
+  { id: 'annotate', title: 'Annotate and export' },
   { id: 'record', title: 'Record your screen' },
+  { id: 'share', title: 'Share a link' },
   { id: 'settings', title: 'Settings and files' },
   { id: 'agents', title: 'Use it from an AI agent' },
 ]
@@ -43,6 +44,11 @@ const captures = [
   { icon: 'timer', title: 'Timed', cmd: 'easyshot capture window --timed 5', text: 'Pick first, then a countdown runs and a fresh frame is taken. Add --timed to region, window or fullscreen.' },
   { icon: 'unfold-vertical', title: 'Scrolling', cmd: 'easyshot capture scroll', text: 'Draw the area to scroll, or press Space to pick a window, then scroll by hand or with Auto Scroll where your compositor allows it. easyshot joins it into one tall image, with fixed top and bottom bars shown once, a minimap or side panel kept as the first view showed it and a scrollbar at the right edge cut off, even on pages with a playing video. Press the shortcut again, or Stop, to finish.' },
   { icon: 'scan-text', title: 'Text', cmd: 'easyshot ocr', text: 'Reads the text, or a QR code, in an area and copies it.' },
+]
+
+const shareTargets = [
+  { icon: 'cloud-upload', title: 'easyshot Free', text: 'No account and no setup. Images up to 10 MB, GIFs up to 20 MB, and videos up to 200 MB, re-encoded to fit (roughly 13 to 27 minutes of 1080p screen recording), with a daily allowance for each install. After the days you pick, the file is deleted.' },
+  { icon: 'hard-drive', title: 'Your own bucket', text: 'Any S3-compatible storage, such as Cloudflare R2, AWS S3, Backblaze B2 or MinIO. Fill in its details and keys, and press Test Connection. Keys go to your keyring, or a private file. Links last as long as you keep the files.' },
 ]
 
 const editorKeys = [
@@ -114,7 +120,7 @@ useHead({
         '@context': 'https://schema.org',
         '@type': 'HowTo',
         name: 'How to take screenshots and record your screen on Wayland with easyshot',
-        description: 'Install easyshot, bind your keys, and take, annotate and record your first capture.',
+        description: 'Install easyshot, bind your keys, and take, annotate, record and share your first capture.',
         image: `${siteUrl}/og.png`,
         totalTime: 'PT10M',
         tool: [{ '@type': 'HowToTool', name: 'A Wayland compositor: Hyprland, sway or niri' }],
@@ -154,7 +160,7 @@ useHead({
           From install to your <span class="grad-text">first screenshot</span>.
         </h1>
         <p class="rise max-w-[600px] text-[clamp(17px,2vw,20px)] text-fg-2" style="--d: 0.16s">
-          Eight short steps, and a ninth if you use an AI agent. About ten minutes, most of it spent choosing which keys to use.
+          Nine short steps, and a tenth if you use an AI agent. About ten minutes, most of it spent choosing which keys to use.
         </p>
         <div class="rise flex flex-wrap justify-center gap-2" style="--d: 0.24s">
           <span v-for="c in ['Hyprland', 'sway', 'niri']" :key="c" class="rounded-full border border-line bg-surface px-3 py-1 text-[13px] font-medium text-fg-2 shadow-soft">{{ c }}</span>
@@ -247,7 +253,7 @@ useHead({
         </HowStep>
 
         <!-- 6 -->
-        <HowStep :n="6" id="annotate" title="Annotate and share">
+        <HowStep :n="6" id="annotate" title="Annotate and export">
           <p>
             Click a deck card or choose <strong>Edit</strong> on it, or capture with <code>--annotate</code>. Add arrows, shapes, text and steps, with each tool's options (colour, stroke, arrowheads, font) in the inspector, blur what is private with <strong>Smart Redaction</strong> (it says what it hid and offers Undo), highlight text with the <strong>Highlighter</strong>, then set a background,
             padding, shadow and canvas shape in the inspector on the right. Save keeps your edits editable; Export writes PNG or JPEG.
@@ -270,9 +276,25 @@ easyshot record stop     # stop; the recording lands as a deck card" />
         </HowStep>
 
         <!-- 8 -->
-        <HowStep :n="8" id="settings" title="Settings and files">
+        <HowStep :n="8" id="share" title="Share a link">
+          <p>Press <strong>Share</strong> on a capture's card, in the editor, in the trim viewer or in the gallery. Give the link a title if you like, pick how long it lasts, 1, 3 or 7 days, and press <strong>Share</strong>. The link is copied at once, and a toast shows the upload with <strong>Cancel</strong>, then <strong>Open</strong> and <strong>Copy Link</strong>. A card with a live link carries a small cloud mark.</p>
+          <p>The first time, easyshot asks where shares go. You can change it later in <strong>Settings › Sharing</strong>.</p>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div v-for="t in shareTargets" :key="t.title" class="card grid content-start gap-3 p-5">
+              <span class="icon-tile"><Icon :name="t.icon" :size="20" /></span>
+              <h3 class="text-base">{{ t.title }}</h3>
+              <p class="text-[14px] leading-relaxed text-fg-2">{{ t.text }}</p>
+            </div>
+          </div>
+          <p>The link opens a page with the image or video, and <strong>Download</strong> and <strong>Copy link</strong>. To share from a terminal, run the command below; it prints the link.</p>
+          <CodeBlock prompt code="easyshot share shot.png --days 3" />
+          <Callout>Share links are unlisted, not private: anyone who has a link can open it. Free shares follow the <NuxtLink to="/terms" class="text-accent underline">Terms of Service</NuxtLink>.</Callout>
+        </HowStep>
+
+        <!-- 9 -->
+        <HowStep :n="9" id="settings" title="Settings and files">
           <p>Easyshot in your app menu, or <code>easyshot</code> on its own, opens the Home window: your media gallery and Settings, one tab each. The tray's Settings item and <code>easyshot settings</code> open it on Settings. Every change applies at once. You can also edit <code>config.toml</code> by hand: easyshot watches it and applies changes live.</p>
-          <Callout>AI agents and scripts can use <code>easyshot agent</code> to capture, read text, record and annotate. Step 9, <a href="#agents" class="text-accent underline">Use it from an AI agent</a>, sets it up.</Callout>
+          <Callout>AI agents and scripts can use <code>easyshot agent</code> to capture, read text, record and annotate. Step 10, <a href="#agents" class="text-accent underline">Use it from an AI agent</a>, sets it up.</Callout>
           <dl class="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
             <div v-for="f in files" :key="f[0]" class="grid gap-1 px-4 py-3 sm:grid-cols-[200px_1fr]">
               <dt class="text-[14px] font-medium">{{ f[0] }}</dt>
@@ -281,8 +303,8 @@ easyshot record stop     # stop; the recording lands as a deck card" />
           </dl>
         </HowStep>
 
-        <!-- 9 -->
-        <HowStep :n="9" id="agents" title="Use it from an AI agent">
+        <!-- 10 -->
+        <HowStep :n="10" id="agents" title="Use it from an AI agent">
           <p><code>easyshot agent</code> (or <code>easyshot ai</code>) lets an AI agent or a script list your outputs and windows, take screenshots, read text and QR codes, annotate an image, and record a short demo and export it. With <code class="whitespace-nowrap">--json</code> each command prints exactly one JSON object, errors included, and each kind of error has its own exit code.</p>
 
           <h3 class="text-xl text-fg">Turn agent access on</h3>

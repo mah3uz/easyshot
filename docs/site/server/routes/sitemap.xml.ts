@@ -4,6 +4,7 @@ export default defineEventHandler((event) => {
   const pages = [
     { path: '/', priority: '1.0' },
     { path: '/how-to', priority: '0.8' },
+    { path: '/terms', priority: '0.3' },
   ]
   const urls = pages
     .map((p) => `  <url><loc>${siteUrl}${p.path}</loc><lastmod>${today}</lastmod><priority>${p.priority}</priority></url>`)

@@ -7,6 +7,7 @@ v4, generated as a static site and served by Cloudflare Workers static assets.
 
 - `/`: the home page (`app/pages/index.vue`)
 - `/how-to`: the step-by-step guide (`app/pages/how-to.vue`)
+- `/terms`: the Terms of Service for easyshot Free (`app/pages/terms.vue`)
 - `/sitemap.xml` and `/robots.txt` are made at build time from `server/routes/`
 
 The mock-ups (hero, editor, recording bar) are HTML in `app/components/`, so they theme
@@ -116,6 +117,7 @@ frame (AVIF or WebP) for `prefers-reduced-motion` and slow connections.
 | Editor | `EditorMock.vue` | Open a capture in the editor; draw an arrow and a box, add a step number, run Smart Redaction, then change background, padding, corners and camera 3D in the inspector. Keep the interactive mock-up as a fallback, or show the video above it. | 16:10 loop, 12–15 s, 2560×1600 |
 | Smart Redaction | `pages/index.vue` | A screenshot with an e-mail, a token, a card number and an IP address; press the redaction button and watch the pixelate shapes appear. Use made-up values only. | 4:3 loop, 4–6 s |
 | Recording | `RecordMock.vue` | Start an area recording: countdown, the highlighted area, the control bar with the clock running, pause and resume, stop, then the trim viewer opening. | 16:10 loop, 8–10 s |
+| Share | `ShareMock.vue` | Press Share on a deck card, pick 7 days and press Share; the toast shows Link copied with the upload's progress, then Shared with Open and Copy Link. | 16:10 loop, 6–8 s |
 | Keyboard | `BindSnippet.vue` | Settings › Shortcuts: Copy Snippet for Hyprland, then Check marking a key that is already bound. | still, 2× PNG or WebP |
 | Open Graph | `scripts/og.mjs` | Replace the drawn window with a real editor screenshot once one exists. | 1200×630 PNG, under 300 KB |
 

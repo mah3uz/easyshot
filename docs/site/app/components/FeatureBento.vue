@@ -9,7 +9,8 @@ const tiles = [
   { icon: 'pin', title: 'Pin to screen', text: 'Keep a screenshot floating above every window while you work.', art: 'pin' },
   { icon: 'timer', title: 'Timed capture', text: 'Wait 3, 5 or 10 seconds to open that menu first.', art: 'timer' },
   { icon: 'video', title: 'Screen recording', text: 'Record an area, a display or a window, even one that is covered, with system sound and your microphone on two tracks.', span: 'md:col-span-2', art: 'rec' },
-  { icon: 'images', title: 'Preview deck', text: 'Every capture lands as a card, stacked in the corner. Hover to copy, save, edit or pin it, or drag it into any app.', span: 'md:col-span-2', art: 'deck' },
+  { icon: 'images', title: 'Preview deck', text: 'Every capture lands as a card, stacked in the corner. Hover to copy, save, edit, pin or share it, or drag it into any app.', art: 'deck' },
+  { icon: 'cloud-upload', title: 'Share a link', text: 'The link is copied while it uploads. Free for 1, 3 or 7 days, or kept in your own bucket.', art: 'share' },
 ]
 </script>
 
@@ -69,6 +70,16 @@ const tiles = [
         <!-- deck -->
         <div v-else-if="t.art === 'deck'" class="absolute inset-0 flex items-end gap-2">
           <img v-for="(k, n) in (['forest', 'lake', 'valley'] as const)" :key="k" :src="photoUrl(k, 400)" alt="" loading="lazy" width="400" height="250" onerror="this.onerror=null;this.src='/img/landscape.svg'" class="aspect-[16/10] w-[30%] max-w-28 rounded-card-sm border border-line bg-[url(/img/landscape.svg)] bg-cover object-cover shadow-card transition-transform duration-500 ease-out-soft group-hover:-translate-y-2" :style="{ transitionDelay: `${n * 60}ms` }" />
+        </div>
+        <!-- share -->
+        <div v-else-if="t.art === 'share'" class="absolute inset-0 grid grid-cols-[minmax(0,1fr)] content-center gap-2.5">
+          <span class="flex h-9 items-center gap-2 rounded-full border border-line bg-surface-2 px-3 hover-motion group-hover:border-accent">
+            <Icon name="link" :size="14" class="shrink-0 text-accent" />
+            <span class="min-w-0 truncate font-mono text-[11.5px] text-fg-2">share.easyshot.site/7Kp2mX9qR4</span>
+          </span>
+          <span class="flex gap-1.5">
+            <span v-for="n in [1, 3, 7]" :key="n" class="rounded-full border px-2 py-0.5 font-mono text-[11px]" :class="n === 7 ? 'border-accent bg-accent-soft text-accent' : 'border-line text-fg-3'">{{ n }}d</span>
+          </span>
         </div>
       </div>
       <div class="grid gap-1.5">

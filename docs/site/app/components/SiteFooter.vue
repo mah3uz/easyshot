@@ -8,6 +8,7 @@ const cols = [
       { label: 'Features', to: '/#features' },
       { label: 'Annotate', to: '/#annotate' },
       { label: 'Record', to: '/#record' },
+      { label: 'Share', to: '/#share' },
       { label: 'FAQ', to: '/#faq' },
     ],
   },
@@ -26,6 +27,7 @@ const cols = [
       { label: 'Manual', href: `${repo}/blob/main/docs/MANUAL.md` },
       { label: 'Changelog', href: `${repo}/blob/main/CHANGELOG.md` },
       { label: 'Report an issue', href: `${repo}/issues` },
+      { label: 'Terms of Service', to: '/terms' },
     ],
   },
 ]
