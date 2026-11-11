@@ -10,7 +10,7 @@ function watchIntro() {
 usePageSeo({
   title: 'easyshot — screenshots, annotation and screen recording for Linux Wayland',
   description:
-    'Free, open-source screenshots for Linux on Wayland. Capture an area, window, text or scrolling page, annotate it in a full editor, and record your screen on Hyprland, sway and niri.',
+    'A free, open-source alternative to CleanShot for Linux. Capture an area, window, text or scrolling page, annotate it in a full editor, and record your screen on Hyprland, sway and niri.',
   path: '/',
 })
 
@@ -155,7 +155,7 @@ useHead({
           applicationSubCategory: 'Screenshot tool',
           operatingSystem: 'Linux (Wayland)',
           description:
-            'Screenshots, annotation and screen recording for Linux on Wayland. Free and open source.',
+            'Screenshots, annotation and screen recording for Linux on Wayland. A free, open-source alternative to CleanShot.',
           url: siteUrl,
           image: `${siteUrl}/og.png`,
           codeRepository: repo,
