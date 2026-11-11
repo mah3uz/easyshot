@@ -27,7 +27,7 @@ const fromSite = [
   block(site, ':root'),
   block(site, '@media (prefers-color-scheme: dark)'),
   block(site, ":root[data-theme='dark']"),
-  `:root {\n  ${['font-sans', 'font-display', 'font-mono', 'ease-out-soft', 'ease-hover', 'radius-card'].map((n) => declaration(site, n)).join('\n  ')}\n}`,
+  `:root {\n  ${['font-sans', 'font-display', 'ease-out-soft', 'ease-hover', 'radius-card'].map((n) => declaration(site, n)).join('\n  ')}\n}`,
   ...['.page-bg', '.page-bg i', '.page-bg .b1', '.page-bg .b2', '.page-bg .b3', '@keyframes drift1', '@keyframes drift2'].map((p) => block(site, p)),
 ].join('\n')
 
