@@ -29,6 +29,16 @@ pub fn open_target(current: &OsStr) -> Vec<CompletionCandidate> {
     out
 }
 
+pub fn share_target(current: &OsStr) -> Vec<CompletionCandidate> {
+    let Some(current) = current.to_str() else {
+        return Vec::new();
+    };
+    image_paths(current)
+        .into_iter()
+        .map(CompletionCandidate::new)
+        .collect()
+}
+
 pub fn window_ids(current: &OsStr) -> Vec<CompletionCandidate> {
     let Some(current) = current.to_str() else {
         return Vec::new();

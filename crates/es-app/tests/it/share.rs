@@ -5,7 +5,8 @@ use es_app::platform_ui::ClipboardSink;
 use es_app::services::Strings;
 use es_app::settings_model::SettingsModel;
 use es_app::share::{
-    ShareDeleted, ShareFailure, ShareJobEvent, ShareJobKind, ShareStart, Shares, Target, Targets,
+    Caps, ShareDeleted, ShareFailure, ShareJobEvent, ShareJobKind, ShareStart, Shares, Target,
+    Targets,
 };
 use es_model::platform::ClipItem;
 use es_model::{
@@ -25,12 +26,12 @@ use uuid::Uuid;
 
 const PAGE: &str = "https://share.example/s/abc123";
 
-type Outcome =
+pub(crate) type Outcome =
     Box<dyn Fn(&ShareRequest) -> std::result::Result<ShareRecord, ShareError> + Send + Sync>;
 type DeleteOutcome = Box<dyn Fn(&ShareRecord) -> std::result::Result<(), ShareError> + Send + Sync>;
 
-struct Fake {
-    opened: AtomicUsize,
+pub(crate) struct Fake {
+    pub(crate) opened: AtomicUsize,
     outcome: Outcome,
     delete: DeleteOutcome,
     deleted: Mutex<Vec<String>>,
@@ -38,7 +39,7 @@ struct Fake {
 }
 
 impl Fake {
-    fn new(outcome: Outcome) -> Arc<Self> {
+    pub(crate) fn new(outcome: Outcome) -> Arc<Self> {
         Arc::new(Self {
             opened: AtomicUsize::new(0),
             outcome,
@@ -94,6 +95,13 @@ impl Targets for FakeTargets {
         self.0.opened.fetch_add(1, Ordering::SeqCst);
         Ok(Box::new(FakeTarget(self.0.clone())))
     }
+
+    fn caps(&self, _mode: ShareMode, _cfg: &ShareCfg) -> std::result::Result<Caps, ShareFailure> {
+        Ok(Caps {
+            image_max_bytes: 1 << 20,
+            video_max_bytes: 1 << 26,
+        })
+    }
 }
 
 #[derive(Default)]
@@ -106,7 +114,7 @@ impl ClipboardSink for Clip {
     }
 }
 
-fn made(req: &ShareRequest) -> ShareRecord {
+pub(crate) fn made(req: &ShareRequest) -> ShareRecord {
     let now = OffsetDateTime::now_utc();
     record(
         "abc123",
@@ -164,18 +172,18 @@ fn history_entry(share_url: Option<String>) -> HistoryEntry {
     }
 }
 
-struct Rig {
-    _dir: tempfile::TempDir,
+pub(crate) struct Rig {
+    pub(crate) _dir: tempfile::TempDir,
     paths: Paths,
     settings: Entity<SettingsModel>,
     history: Entity<History>,
-    shares: Entity<Shares>,
+    pub(crate) shares: Entity<Shares>,
     clip: Rc<Clip>,
-    events: Rc<RefCell<Vec<ShareJobEvent>>>,
+    pub(crate) events: Rc<RefCell<Vec<ShareJobEvent>>>,
     deletes: Rc<RefCell<Vec<ShareDeleted>>>,
 }
 
-fn rig(cx: &mut TestAppContext, fake: &Arc<Fake>, prepare: impl FnOnce(&Paths)) -> Rig {
+pub(crate) fn rig(cx: &mut TestAppContext, fake: &Arc<Fake>, prepare: impl FnOnce(&Paths)) -> Rig {
     let dir = tempfile::tempdir().unwrap();
     let paths = Paths::rooted(dir.path());
     paths.ensure_all().unwrap();
@@ -222,16 +230,16 @@ fn rig(cx: &mut TestAppContext, fake: &Arc<Fake>, prepare: impl FnOnce(&Paths)) 
     }
 }
 
-fn consent(rig: &Rig, cx: &mut TestAppContext) {
+pub(crate) fn consent(rig: &Rig, cx: &mut TestAppContext) {
     rig.shares
         .update(cx, |s, cx| s.consent(ShareMode::Free, cx));
 }
 
-fn kinds(rig: &Rig) -> Vec<ShareJobKind> {
+pub(crate) fn kinds(rig: &Rig) -> Vec<ShareJobKind> {
     rig.events.borrow().iter().map(|e| e.kind.clone()).collect()
 }
 
-fn wait_until(cx: &mut TestAppContext, what: &str, mut done: impl FnMut() -> bool) {
+pub(crate) fn wait_until(cx: &mut TestAppContext, what: &str, mut done: impl FnMut() -> bool) {
     cx.executor().allow_parking();
     for _ in 0..200 {
         cx.run_until_parked();
@@ -243,7 +251,7 @@ fn wait_until(cx: &mut TestAppContext, what: &str, mut done: impl FnMut() -> boo
     panic!("timed out waiting for {what}");
 }
 
-fn finished(rig: &Rig) -> bool {
+pub(crate) fn finished(rig: &Rig) -> bool {
     kinds(rig)
         .iter()
         .any(|k| matches!(k, ShareJobKind::Done(_) | ShareJobKind::Failed(_)))

@@ -6,6 +6,7 @@ use super::trim::Trim;
 use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ExportMode {
@@ -63,26 +64,47 @@ pub fn command(program: &str, args: &[String]) -> Command {
 
 impl FfmpegRunner for SystemFfmpeg {
     fn run(&self, args: &[String], on_line: &mut dyn FnMut(&str)) -> std::io::Result<RunOutcome> {
-        let mut child = command("ffmpeg", args).spawn()?;
-        let stderr = child.stderr.take().map(|mut pipe| {
-            std::thread::spawn(move || {
-                let mut text = String::new();
-                let _ = pipe.read_to_string(&mut text);
-                text
-            })
-        });
-        if let Some(out) = child.stdout.take() {
-            for line in BufReader::new(out).lines() {
-                on_line(&line?);
-            }
-        }
-        let status = child.wait()?;
-        let stderr = stderr.and_then(|t| t.join().ok()).unwrap_or_default();
-        Ok(RunOutcome {
-            success: status.success(),
-            stderr,
-        })
+        run_ffmpeg(args, on_line, None)
     }
+}
+
+/// Stops ffmpeg at its next progress line once the flag is set, which is within about a second.
+pub struct CancellableFfmpeg<'a>(pub &'a AtomicBool);
+
+impl FfmpegRunner for CancellableFfmpeg<'_> {
+    fn run(&self, args: &[String], on_line: &mut dyn FnMut(&str)) -> std::io::Result<RunOutcome> {
+        run_ffmpeg(args, on_line, Some(self.0))
+    }
+}
+
+fn run_ffmpeg(
+    args: &[String],
+    on_line: &mut dyn FnMut(&str),
+    cancel: Option<&AtomicBool>,
+) -> std::io::Result<RunOutcome> {
+    let mut child = command("ffmpeg", args).spawn()?;
+    let stderr = child.stderr.take().map(|mut pipe| {
+        std::thread::spawn(move || {
+            let mut text = String::new();
+            let _ = pipe.read_to_string(&mut text);
+            text
+        })
+    });
+    if let Some(out) = child.stdout.take() {
+        for line in BufReader::new(out).lines() {
+            if cancel.is_some_and(|c| c.load(Ordering::Relaxed)) {
+                let _ = child.kill();
+                break;
+            }
+            on_line(&line?);
+        }
+    }
+    let status = child.wait()?;
+    let stderr = stderr.and_then(|t| t.join().ok()).unwrap_or_default();
+    Ok(RunOutcome {
+        success: status.success(),
+        stderr,
+    })
 }
 
 fn secs(t: f64) -> String {

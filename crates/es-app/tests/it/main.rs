@@ -14,6 +14,8 @@ mod platform_ui;
 mod settings;
 mod settle;
 mod share;
+mod share_file;
+mod share_prepare;
 mod share_words;
 mod toast;
 mod windows;

@@ -1,11 +1,13 @@
 use super::failure::ShareFailure;
+use super::prepare::Caps;
 use es_desktop::SecretsError;
 use es_model::{BucketKeys, ShareCfg, ShareMode, ShareRecord};
 use es_share::{Bucket, BucketConfig, Event, Free, InstallTokens, ShareError, ShareRequest};
 use es_store::Paths;
 use es_store::shares;
-use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 pub const FREE_BASE_URL: &str = "https://share.easyshot.site";
 
@@ -53,6 +55,8 @@ impl Target for Bucket {
 /// Builds a target on the share's thread: reading the keyring may wait on an unlock prompt.
 pub trait Targets: Send + Sync {
     fn open(&self, mode: ShareMode, cfg: &ShareCfg) -> Result<Box<dyn Target>, ShareFailure>;
+    /// The most a target takes of one file; may ask the service, so it blocks.
+    fn caps(&self, mode: ShareMode, cfg: &ShareCfg) -> Result<Caps, ShareFailure>;
 }
 
 pub trait Keyring: Send + Sync {
@@ -68,10 +72,13 @@ impl Keyring for SystemKeyring {
     }
 }
 
+const LIMITS_FRESH_FOR: Duration = Duration::from_secs(60 * 60);
+
 pub struct LiveTargets {
     paths: Paths,
     app_version: String,
     keyring: Arc<dyn Keyring>,
+    limits: Mutex<Option<(Instant, Caps)>>,
 }
 
 impl LiveTargets {
@@ -80,7 +87,16 @@ impl LiveTargets {
             paths,
             app_version: app_version.into(),
             keyring,
+            limits: Mutex::new(None),
         }
+    }
+
+    fn free(&self) -> Free {
+        Free::new(
+            FREE_BASE_URL,
+            &self.app_version,
+            StoreTokens(self.paths.clone()),
+        )
     }
 
     /// An unset bucket is refused before the keyring is asked, so no unlock prompt shows for nothing.
@@ -130,11 +146,7 @@ impl LiveTargets {
 impl Targets for LiveTargets {
     fn open(&self, mode: ShareMode, cfg: &ShareCfg) -> Result<Box<dyn Target>, ShareFailure> {
         match mode {
-            ShareMode::Free => Ok(Box::new(Free::new(
-                FREE_BASE_URL,
-                &self.app_version,
-                StoreTokens(self.paths.clone()),
-            ))),
+            ShareMode::Free => Ok(Box::new(self.free())),
             ShareMode::Bucket => {
                 let config = self.bucket_config(cfg)?;
                 match Bucket::new(&config, &self.app_version) {
@@ -146,6 +158,25 @@ impl Targets for LiveTargets {
                 }
             }
         }
+    }
+
+    fn caps(&self, mode: ShareMode, _cfg: &ShareCfg) -> Result<Caps, ShareFailure> {
+        if mode == ShareMode::Bucket {
+            return Ok(Caps::BUCKET);
+        }
+        let mut cached = self.limits.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some((at, caps)) = *cached
+            && at.elapsed() < LIMITS_FRESH_FOR
+        {
+            return Ok(caps);
+        }
+        let limits = self.free().limits().map_err(|e| ShareFailure::from(&e))?;
+        let caps = Caps {
+            image_max_bytes: limits.image_max_bytes,
+            video_max_bytes: limits.video_max_bytes,
+        };
+        *cached = Some((Instant::now(), caps));
+        Ok(caps)
     }
 }
 

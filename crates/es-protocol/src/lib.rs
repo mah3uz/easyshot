@@ -7,7 +7,7 @@ mod timed;
 pub use agent::AgentRoute;
 pub use catalogue::{CATALOGUE, entry_by_id, entry_for_route};
 pub use keys::{Modifiers, Trigger, key_label, key_recording_name, key_spoken_name};
-pub use route::PATH_ARG;
+pub use route::{DAYS_ARG, MAX_TITLE_CHARS, PATH_ARG, TITLE_ARG};
 pub use timed::{MAX_TIMED_SECONDS, SECONDS_ARG, TimedMode};
 
 use std::collections::BTreeMap;
@@ -85,6 +85,12 @@ pub enum Route {
     PinLast,
     UnpinAll,
     Open(PathBuf),
+    /// `days` of `None` is the sharing setting.
+    Share {
+        path: PathBuf,
+        days: Option<u8>,
+        title: Option<String>,
+    },
     EditClipboard,
     Settings(Option<SettingsPage>),
     DeckToggle,

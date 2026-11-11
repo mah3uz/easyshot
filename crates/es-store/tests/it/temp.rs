@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used)]
 use es_store::Paths;
-use es_store::temp::{TempKind, create, purge};
+use es_store::temp::{TempKind, create, make_dir, purge};
 use std::os::unix::fs::PermissionsExt;
 use std::time::{Duration, SystemTime};
 
@@ -46,4 +46,17 @@ fn purge_removes_day_old_items_and_leaves_fresh_ones() {
     assert_eq!(removed, 1);
     assert!(!old_dir.exists());
     assert!(fresh.exists());
+}
+
+#[test]
+fn a_share_dir_is_under_the_cache_and_purged_when_a_day_old() {
+    let (_d, paths) = setup();
+    let dir = make_dir(&paths, TempKind::Share).unwrap();
+    assert_eq!(dir.parent().unwrap(), paths.share_dir());
+    std::fs::File::open(&dir)
+        .unwrap()
+        .set_modified(SystemTime::now() - Duration::from_secs(25 * 3600))
+        .unwrap();
+    assert_eq!(purge(&paths, SystemTime::now()).unwrap(), 1);
+    assert!(!dir.exists());
 }

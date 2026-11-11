@@ -712,7 +712,9 @@ Ctrl+C to cancel. If the daemon is not running, easyshot tries to start it; if t
 it tells you to run `easyshot daemon` or `systemctl --user start easyshot.service`.
 `easyshot open <url>` handles `easyshot://` links; `easyshot open <file>` opens a PNG or
 JPEG in the editor and an MP4, WebM, MKV, MOV or GIF in the trim viewer, and fails for any
-other file; `easyshot open` alone opens the Home window.
+other file; `easyshot open` alone opens the Home window. `easyshot share <file> [--days 1|3|7] [--title TEXT]`
+uploads a PNG, JPEG, video or recording folder, makes it fit what the service takes, and prints
+the link; it needs sharing to be set up in Settings › Sharing first.
 
 Exit codes: 0 done, 1 error, 2 cancelled, 3 the daemon is not running or went away.
 

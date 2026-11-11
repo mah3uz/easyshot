@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### New
+- `easyshot share FILE [--days 1|3|7] [--title TEXT]` uploads an image, a video or a recording and prints its link.
+
 ## 0.1.0 - 2026-11-11T05:25:23+06:00
 
 ### New

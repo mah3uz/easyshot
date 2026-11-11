@@ -88,7 +88,7 @@ D-Bus, shortcuts and notifications. The URL scheme accepts exactly nine routes w
 arguments (`capture/region`, `capture/fullscreen`, `capture/window`, `capture/scroll`,
 `record`, `ocr`, `color-picker`, `home`, `settings`). `home`, `gallery` and `settings`
 open the one Home window (`es-shell::home`) on its tab. D-Bus `Command` rejects anything outside the
-closed `Route`; `open <path>` canonicalises the path and requires a regular image or video file of an accepted type.
+closed `Route`; `open <path>` canonicalises the path and requires a regular image or video file of an accepted type. `share <path>` takes the same checks (or a `.easyshotrec` folder holding its video) and is not in the URL allowlist; the daemon prepares the file off the GPUI thread (`es-app::share::prepare`: an image over the target's cap is re-encoded once as JPEG through `es-render`, a video by `share_plan` and `export_share`) and answers the job with the page link.
 
 Every recorder helper runs in its own process group beside a `/bin/sh` watcher in that
 group. The watcher reads a pipe only the daemon writes: a newline after the helper is reaped

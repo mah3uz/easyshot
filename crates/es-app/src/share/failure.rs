@@ -1,3 +1,4 @@
+use super::prepare::PrepareError;
 use crate::fl;
 use crate::services::Strings;
 use es_share::{BucketFault, Code, ShareError};
@@ -15,6 +16,10 @@ pub enum ShareFailure {
     Network,
     Bucket(BucketFault),
     File,
+    /// Even at 720p the clip does not fit; this many milliseconds of it would.
+    TooLong {
+        max_duration_ms: u64,
+    },
     Unexpected,
     Cancelled,
 }
@@ -38,6 +43,26 @@ impl From<&ShareError> for ShareFailure {
     }
 }
 
+impl From<PrepareError> for ShareFailure {
+    fn from(error: PrepareError) -> Self {
+        match error {
+            PrepareError::TooLong {
+                max_duration_ms_at_720p,
+                ..
+            } => Self::TooLong {
+                max_duration_ms: max_duration_ms_at_720p,
+            },
+            PrepareError::TooLarge => Self::Refused {
+                code: Code::TooLarge,
+                retry_after_s: None,
+            },
+            PrepareError::File => Self::File,
+            PrepareError::Encode => Self::Unexpected,
+            PrepareError::Cancelled => Self::Cancelled,
+        }
+    }
+}
+
 impl ShareFailure {
     pub fn id(&self) -> &'static str {
         match self {
@@ -46,6 +71,7 @@ impl ShareFailure {
             Self::Keyring => "share-failed-keyring",
             Self::Network => "share-failed-network",
             Self::File => "share-failed-file",
+            Self::TooLong { .. } => "share-failed-too-long",
             Self::Unexpected => "share-failed-unexpected",
             Self::Cancelled => "share-failed-cancelled",
             Self::Bucket(fault) => match fault {
@@ -74,6 +100,10 @@ impl ShareFailure {
 
     /// Never the service's own text: only the app's words, with the wait it asked for.
     pub fn message(&self, strings: &Strings) -> String {
+        if let Self::TooLong { max_duration_ms } = self {
+            let minutes: u64 = max_duration_ms / 60_000;
+            return fl!("share-failed-too-long", minutes = minutes);
+        }
         let text = strings.get(self.id());
         let Self::Refused {
             code,

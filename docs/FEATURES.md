@@ -287,6 +287,7 @@ More in the manual: [Settings](MANUAL.md#settings).
 - Opens the Home window with a bare `easyshot`, and lists commands with `easyshot --help`.
 - Cancels a command with Ctrl+C.
 - Starts the daemon when it is not running, or tells you how.
+- Shares an image, a video or a recording from the command line with `easyshot share FILE` and prints the link.
 - Opens a link, an image or a video with `easyshot open`: a PNG or JPEG in the editor, an MP4, WebM, MKV, MOV or GIF in the trim viewer.
 - Exits 0 when done, 1 on error, 2 when cancelled and 3 when the daemon is not running.
 - Prints the version, with the commit for a git build, from `easyshot --version`.

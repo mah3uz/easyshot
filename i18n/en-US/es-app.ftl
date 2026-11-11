@@ -136,6 +136,11 @@ share-failed-bucket-credentials = Your bucket refused your keys. Check them in S
 share-failed-bucket-bucket = Your bucket wasn’t found or refused the upload. Check its name and region in Settings.
 share-failed-bucket-public-url = Your bucket’s public URL doesn’t serve the shared files. Check it in Settings.
 share-failed-bucket-network = { -app-name } couldn’t reach your bucket. Check the endpoint and your connection.
+share-failed-too-long = This clip is too long to share. { $minutes ->
+        [0] Less than a minute of it fits.
+        [one] A minute of it fits.
+       *[other] { $minutes } minutes of it fit.
+    } Trim it and try again.
 share-retry-later = Try again later.
 share-retry-minutes = Try again in { $minutes ->
         [one] a minute

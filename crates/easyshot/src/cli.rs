@@ -1,7 +1,9 @@
 use anyhow::{Result, anyhow, bail};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use clap_complete::engine::ArgValueCompleter;
-use es_protocol::{ArgValue, PATH_ARG, Route, RouteArgs, SettingsPage, TimedMode};
+use es_protocol::{
+    ArgValue, DAYS_ARG, PATH_ARG, Route, RouteArgs, SettingsPage, TITLE_ARG, TimedMode,
+};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -43,6 +45,17 @@ pub enum Command {
     Open {
         #[arg(add = ArgValueCompleter::new(crate::complete::open_target))]
         target: Option<String>,
+    },
+    /// Upload an image, a video or a recording and print its share link
+    Share {
+        #[arg(add = ArgValueCompleter::new(crate::complete::share_target))]
+        file: String,
+        /// How many days the link lasts; without it, the sharing setting
+        #[arg(long, value_name = "DAYS", value_parser = clap::builder::TypedValueParser::try_map(clap::builder::PossibleValuesParser::new(["1", "3", "7"]), |d| d.parse::<u8>()))]
+        days: Option<u8>,
+        /// A title shown on the share page
+        #[arg(long)]
+        title: Option<String>,
     },
     /// Edit the image on the clipboard
     EditClipboard,
@@ -213,6 +226,9 @@ impl Cli {
                 target: Some(target),
             } => Request::Route(open_route(target)?),
             Command::Open { target: None } => Request::Route(Route::Home),
+            Command::Share { file, days, title } => {
+                Request::Route(share_route(file, *days, title.as_deref())?)
+            }
             Command::EditClipboard => Request::Route(Route::EditClipboard),
             Command::Deck { action } => Request::Route(match action {
                 DeckAction::Toggle => Route::DeckToggle,
@@ -280,6 +296,21 @@ fn capture_route(a: &CaptureArgs) -> Result<Route> {
         (CaptureMode::Timed, None) => Ok(Route::CaptureTimed),
         (CaptureMode::Scroll, None) => Ok(Route::CaptureScroll),
     }
+}
+
+fn share_route(file: &str, days: Option<u8>, title: Option<&str>) -> Result<Route> {
+    let mut args = RouteArgs::default();
+    args.0
+        .insert(PATH_ARG.to_owned(), ArgValue::Str(file.to_owned()));
+    if let Some(days) = days {
+        args.0
+            .insert(DAYS_ARG.to_owned(), ArgValue::Int(i64::from(days)));
+    }
+    if let Some(title) = title {
+        args.0
+            .insert(TITLE_ARG.to_owned(), ArgValue::Str(title.to_owned()));
+    }
+    Route::parse("share", &args).map_err(|e| anyhow!("{e}"))
 }
 
 fn open_route(target: &str) -> Result<Route> {

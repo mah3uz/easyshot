@@ -1,7 +1,11 @@
 mod failure;
+mod job;
+mod prepare;
 mod target;
 
 pub use failure::ShareFailure;
+pub use job::run_route;
+pub use prepare::{Caps, Job as PrepareJob, PrepareError, Prepared, Tools, prepare, prepare_with};
 pub use target::{FREE_BASE_URL, Keyring, LiveTargets, SystemKeyring, Target, Targets};
 
 use crate::history::History;
@@ -10,16 +14,19 @@ use crate::settings_model::SettingsModel;
 use es_model::config::SHARE_DAYS;
 use es_model::platform::ClipItem;
 use es_model::{FormatKind, ShareCfg, ShareMode, ShareRecord, ShareSource, ShareTarget};
+use es_record::clip::options::ExportOptions;
 use es_share::{Code, Event, ShareError};
 use es_store::shares::SharesFile;
 use es_store::{JsonFile, Paths};
 use gpui::{App, Context, Entity, EventEmitter, Task};
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use time::OffsetDateTime;
+use uuid::Uuid;
 
 pub const SWEEP_EVERY: Duration = Duration::from_secs(60 * 60);
 
@@ -30,8 +37,17 @@ pub struct ShareJobId(pub u64);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ShareJobKind {
-    Reserved { page_url: String },
-    Progress { sent: u64, total: u64 },
+    /// The file is being made ready to send, in thousandths.
+    Preparing {
+        permille: u16,
+    },
+    Reserved {
+        page_url: String,
+    },
+    Progress {
+        sent: u64,
+        total: u64,
+    },
     Done(Box<ShareRecord>),
     Failed(ShareFailure),
     Cancelled,
@@ -53,7 +69,16 @@ pub struct ShareDeleted {
     pub result: Result<(), ShareFailure>,
 }
 
+/// A local file to share: an image, a video or a recording folder. `days` of `None` is the setting.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FileShare {
+    pub path: PathBuf,
+    pub days: Option<u8>,
+    pub title: Option<String>,
+}
+
 enum Msg {
+    Preparing(u16),
     Event(Event),
     Finished(Result<ShareRecord, ShareFailure>),
 }
@@ -65,6 +90,7 @@ struct Job {
 
 /// Runs share uploads and deletes, and owns the record of every link made.
 pub struct Shares {
+    paths: Paths,
     file: SharesFile,
     writable: bool,
     settings: Entity<SettingsModel>,
@@ -109,6 +135,7 @@ impl Shares {
             }
         });
         let mut shares = Self {
+            paths: paths.clone(),
             file,
             writable,
             settings,
@@ -168,9 +195,98 @@ impl Shares {
 
     /// Nothing is sent until the user has chosen where shares go.
     pub fn start(&mut self, start: ShareStart, cx: &mut Context<Self>) -> ShareJobId {
+        let id = self.next_id();
+        let cfg = self.settings.read(cx).config().share.clone();
+        self.launch(id, cfg, cx, move |targets, cfg, cancel, send| {
+            let target = targets.open(cfg.target, cfg)?;
+            target
+                .share(&start, &mut |e| send(Msg::Event(e)), cancel)
+                .map_err(|e| ShareFailure::from(&e))
+        })
+    }
+
+    /// Makes the file fit the target, then shares it as `start` does; cancel covers both steps.
+    pub fn start_file(&mut self, file: FileShare, cx: &mut Context<Self>) -> ShareJobId {
+        let id = self.next_id();
+        let config = self.settings.read(cx).config();
+        let cfg = config.share.clone();
+        let video = ExportOptions::from_config(&config.recording);
+        let days = file.days.unwrap_or_else(|| cfg.days());
+        if !SHARE_DAYS.contains(&days) {
+            let refused = ShareFailure::Refused {
+                code: Code::BadRequest,
+                retry_after_s: None,
+            };
+            cx.emit(ShareJobEvent {
+                id,
+                kind: ShareJobKind::Failed(refused),
+            });
+            return id;
+        }
+        let source = self.source_of(&file.path, cx);
+        let paths = self.paths.clone();
+        self.launch(id, cfg, cx, move |targets, cfg, cancel, send| {
+            let target = targets.open(cfg.target, cfg)?;
+            let caps = targets.caps(cfg.target, cfg)?;
+            let job = PrepareJob {
+                paths: &paths,
+                caps,
+                video,
+                cancel,
+            };
+            let prepared = prepare(&file.path, &job, &mut |f| {
+                send(Msg::Preparing((f.clamp(0., 1.) * 1000.) as u16))
+            })
+            .map_err(ShareFailure::from)?;
+            let request = ShareStart {
+                media: prepared.media.clone(),
+                title: file.title,
+                days,
+                source,
+            };
+            target
+                .share(&request, &mut |e| send(Msg::Event(e)), cancel)
+                .map_err(|e| ShareFailure::from(&e))
+        })
+    }
+
+    fn next_id(&mut self) -> ShareJobId {
         let id = ShareJobId(self.next);
         self.next += 1;
-        let cfg = self.settings.read(cx).config().share.clone();
+        id
+    }
+
+    /// An image in the history is shared as that capture; any other file by its path.
+    fn source_of(&self, path: &Path, cx: &App) -> ShareSource {
+        if path.is_dir() || es_store::media::is_video(path) {
+            return ShareSource::Recording(path.to_owned());
+        }
+        let known = self
+            .history
+            .read(cx)
+            .entries()
+            .iter()
+            .find(|e| e.file == path)
+            .map(|e| e.id);
+        ShareSource::Capture(known.unwrap_or_else(|| {
+            Uuid::new_v5(&Uuid::NAMESPACE_URL, path.as_os_str().as_encoded_bytes())
+        }))
+    }
+
+    fn launch(
+        &mut self,
+        id: ShareJobId,
+        cfg: ShareCfg,
+        cx: &mut Context<Self>,
+        work: impl FnOnce(
+            &dyn Targets,
+            &ShareCfg,
+            &AtomicBool,
+            &dyn Fn(Msg),
+        ) -> Result<ShareRecord, ShareFailure>
+        + Send
+        + 'static,
+    ) -> ShareJobId {
         if !cfg.consented {
             cx.emit(ShareJobEvent {
                 id,
@@ -185,15 +301,11 @@ impl Shares {
         let spawned = std::thread::Builder::new()
             .name("share".into())
             .spawn(move || {
-                let result = targets.open(cfg.target, &cfg).and_then(|target| {
-                    let mut on_event = |e| {
-                        let _ = tx.send_blocking(Msg::Event(e));
-                    };
-                    target
-                        .share(&start, &mut on_event, &flag)
-                        .map_err(|e| ShareFailure::from(&e))
-                });
-                let _ = tx.send_blocking(Msg::Finished(result));
+                let send = |msg| {
+                    let _ = tx.send_blocking(msg);
+                };
+                let result = work(&*targets, &cfg, &flag, &send);
+                send(Msg::Finished(result));
             });
         if let Err(e) = spawned {
             tracing::warn!(error = %e, "share thread");
@@ -267,7 +379,8 @@ impl Shares {
             return;
         };
         let kind = match msg {
-            Msg::Event(_) if cancelled => return,
+            Msg::Event(_) | Msg::Preparing(_) if cancelled => return,
+            Msg::Preparing(permille) => ShareJobKind::Preparing { permille },
             Msg::Event(Event::Reserved { page_url, .. }) => {
                 self.copy_link(&page_url, cx);
                 ShareJobKind::Reserved { page_url }

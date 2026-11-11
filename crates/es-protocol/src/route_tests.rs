@@ -48,6 +48,7 @@ fn variant_index(route: &Route) -> usize {
         Route::Quit => 32,
         Route::AgentRevoke => 33,
         Route::Agent(_) => 34,
+        Route::Share { .. } => 36,
     }
 }
 
@@ -56,7 +57,7 @@ fn all_lists_every_variant() {
     let seen: std::collections::BTreeSet<usize> = Route::all().iter().map(variant_index).collect();
     assert_eq!(
         seen,
-        (0..=35).collect(),
+        (0..=36).collect(),
         "a variant is missing from Route::all"
     );
 }
@@ -322,4 +323,99 @@ fn url_rejects_everything_outside_the_allowlist() {
             "{url:?}"
         );
     }
+}
+
+fn share_args(p: &Path) -> RouteArgs {
+    path_args(p)
+}
+
+fn recording_folder(root: &Path, name: &str, video: &str) -> PathBuf {
+    let dir = root.join(name);
+    std::fs::create_dir(&dir).unwrap();
+    std::fs::write(dir.join(video), [0x1A, 0x45, 0xDF, 0xA3]).unwrap();
+    dir
+}
+
+#[test]
+fn share_takes_the_files_open_takes_and_keeps_days_and_title() {
+    let dir = tempfile::tempdir().unwrap();
+    let png = dir.path().join("a.png");
+    std::fs::write(&png, [0x89, b'P', b'N', b'G']).unwrap();
+    let mkv = dir.path().join("b.mkv");
+    std::fs::write(&mkv, [0x1A, 0x45, 0xDF, 0xA3]).unwrap();
+    let mut args = share_args(&png);
+    args.0.insert(DAYS_ARG.into(), ArgValue::Int(3));
+    args.0
+        .insert(TITLE_ARG.into(), ArgValue::Str(" Login bug ".into()));
+    let r = Route::parse("share", &args).unwrap();
+    assert_eq!(
+        r,
+        Route::Share {
+            path: png.canonicalize().unwrap(),
+            days: Some(3),
+            title: Some("Login bug".into())
+        }
+    );
+    assert_eq!(Route::parse(&r.as_str(), &r.args()).unwrap(), r);
+    assert!(Route::parse("share", &share_args(&mkv)).is_ok());
+}
+
+#[test]
+fn share_takes_a_recording_folder_and_no_other_directory() {
+    let dir = tempfile::tempdir().unwrap();
+    let rec = recording_folder(dir.path(), "EasyShot_x.easyshotrec", "screen.mkv");
+    assert_eq!(
+        Route::parse("share", &share_args(&rec)).unwrap(),
+        Route::Share {
+            path: rec.canonicalize().unwrap(),
+            days: None,
+            title: None
+        }
+    );
+    let plain = recording_folder(dir.path(), "videos", "screen.mkv");
+    let empty = dir.path().join("Empty.easyshotrec");
+    std::fs::create_dir(&empty).unwrap();
+    for bad in [&plain, &empty, dir.path()] {
+        assert!(
+            matches!(
+                Route::parse("share", &share_args(bad)),
+                Err(Error::InvalidArgs { .. })
+            ),
+            "{bad:?}"
+        );
+    }
+}
+
+#[test]
+fn share_refuses_wrong_files_links_to_them_and_bad_options() {
+    let dir = tempfile::tempdir().unwrap();
+    let text = dir.path().join("t.txt");
+    std::fs::write(&text, [0x89, b'P', b'N', b'G']).unwrap();
+    let fake = dir.path().join("f.png");
+    std::fs::write(&fake, b"hello").unwrap();
+    let link = dir.path().join("link.png");
+    std::os::unix::fs::symlink(&fake, &link).unwrap();
+    let to_dir = dir.path().join("dirlink");
+    std::os::unix::fs::symlink(dir.path(), &to_dir).unwrap();
+    for bad in [&text, &fake, &link, &to_dir, &dir.path().join("gone.png")] {
+        assert!(Route::parse("share", &share_args(bad)).is_err(), "{bad:?}");
+    }
+    let png = dir.path().join("a.png");
+    std::fs::write(&png, [0x89, b'P', b'N', b'G']).unwrap();
+    let with = |key: &str, value: ArgValue| {
+        let mut args = share_args(&png);
+        args.0.insert(key.into(), value);
+        Route::parse("share", &args)
+    };
+    assert!(with(DAYS_ARG, ArgValue::Int(300)).is_err());
+    assert!(with(DAYS_ARG, ArgValue::Str("3".into())).is_err());
+    assert!(with(TITLE_ARG, ArgValue::Str("x".repeat(MAX_TITLE_CHARS + 1))).is_err());
+    assert!(with("other", ArgValue::Bool(true)).is_err());
+    assert!(Route::parse("share", &no_args()).is_err());
+}
+
+#[test]
+fn share_is_not_reachable_from_a_url() {
+    assert!(Route::from_url("easyshot://share").is_err());
+    assert!(Route::from_url("easyshot://share/a.png").is_err());
 }

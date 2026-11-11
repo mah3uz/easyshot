@@ -87,6 +87,8 @@ pub(crate) fn env(bus: &PrivateBus, dir: &Path) -> Env {
         bundle_dir: dir.to_owned(),
         now: 1_700_000_000,
         styled: false,
+        share_ready: Box::new(|| true),
+        progress: false,
     }
 }
 
@@ -501,4 +503,75 @@ fn doctor_and_the_settings_row_agree_when_the_group_is_added_but_not_active() {
     assert!(doctor::render_text(&report).contains("added to the group, log out and in"));
     let other = es_record::input::access_for(&nodes, &groups, Some("carol"));
     assert_eq!(other, InputAccess::Denied, "a user not in the group");
+}
+
+fn share_request(args: &[&str]) -> anyhow::Result<crate::cli::Request> {
+    Cli::try_parse_from(std::iter::once("easyshot").chain(args.iter().copied()))?.request()
+}
+
+#[test]
+fn share_parses_its_file_days_and_title_into_the_route() {
+    let dir = tempfile::tempdir().unwrap();
+    let png = dir.path().join("a.png");
+    std::fs::write(&png, [0x89, b'P', b'N', b'G', 0]).unwrap();
+    let file = png.to_str().unwrap();
+    let got = share_request(&["share", file, "--days", "3", "--title", "Login bug"]).unwrap();
+    assert_eq!(
+        got,
+        crate::cli::Request::Route(Route::Share {
+            path: png.canonicalize().unwrap(),
+            days: Some(3),
+            title: Some("Login bug".into()),
+        })
+    );
+    let plain = share_request(&["share", file]).unwrap();
+    assert_eq!(
+        plain,
+        crate::cli::Request::Route(Route::Share {
+            path: png.canonicalize().unwrap(),
+            days: None,
+            title: None,
+        })
+    );
+}
+
+#[test]
+fn share_refuses_a_lifetime_that_is_not_offered_and_files_it_cannot_send() {
+    let dir = tempfile::tempdir().unwrap();
+    let png = dir.path().join("a.png");
+    std::fs::write(&png, [0x89, b'P', b'N', b'G', 0]).unwrap();
+    let file = png.to_str().unwrap();
+    assert!(share_request(&["share", file, "--days", "2"]).is_err());
+    let text = dir.path().join("a.txt");
+    std::fs::write(&text, b"hello").unwrap();
+    assert!(share_request(&["share", text.to_str().unwrap()]).is_err());
+    assert!(share_request(&["share", dir.path().to_str().unwrap()]).is_err());
+}
+
+#[test]
+fn share_before_sharing_is_set_up_says_where_to_set_it_up_and_asks_nothing_of_the_daemon() {
+    let bus = PrivateBus::start();
+    let dir = tempfile::tempdir().unwrap();
+    let png = dir.path().join("a.png");
+    std::fs::write(&png, [0x89, b'P', b'N', b'G', 0]).unwrap();
+    let mut env = env(&bus, dir.path());
+    env.share_ready = Box::new(|| false);
+    let (code, out, err) = run_cli(&["share", png.to_str().unwrap()], &env);
+    assert_eq!((code, out.as_str()), (EXIT_ERROR, ""));
+    assert!(err.contains("Settings › Sharing"), "{err}");
+}
+
+#[test]
+fn share_prints_the_link_and_sends_the_route() {
+    let bus = PrivateBus::start();
+    let dir = tempfile::tempdir().unwrap();
+    let png = dir.path().join("a.png");
+    std::fs::write(&png, [0x89, b'P', b'N', b'G', 0]).unwrap();
+    let server = serve(&bus, 1, JobStatus::Ok, "https://share.example/abc");
+    let (code, out, _) = run_cli(&["share", png.to_str().unwrap()], &env(&bus, dir.path()));
+    assert_eq!(
+        (code, out.as_str()),
+        (EXIT_OK, "https://share.example/abc\n")
+    );
+    assert!(matches!(server.finish().as_slice(), [Route::Share { .. }]));
 }

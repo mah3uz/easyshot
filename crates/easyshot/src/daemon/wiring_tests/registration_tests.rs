@@ -34,6 +34,8 @@ fn dispatch_all(
     coordinator.set_direct_capture(Rc::new(Cancelling));
     coordinator.set_pipeline(Rc::new(|_, _, _| Task::ready(Ok(()))));
     let dispatcher = RouteDispatcher::new(jobs.clone(), coordinator, rig.wiring.windows.clone());
+    let reporter = jobs.clone();
+    dispatcher.set_share_handler(Rc::new(move |job, _, _| reporter.report(job, &Ok(()))));
     let sources = crate::daemon::agent::Sources {
         caps: Caps::empty(),
         outputs: Arc::new(Vec::new),

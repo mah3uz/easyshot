@@ -12,6 +12,7 @@ pub enum TempKind {
     Clipboard,
     Drag,
     Unstaged,
+    Share,
 }
 
 fn root(paths: &Paths, kind: TempKind) -> PathBuf {
@@ -19,6 +20,7 @@ fn root(paths: &Paths, kind: TempKind) -> PathBuf {
         TempKind::Clipboard => paths.clipboard_dir(),
         TempKind::Drag => paths.drag_dir(),
         TempKind::Unstaged => paths.unstaged_dir(),
+        TempKind::Share => paths.share_dir(),
     }
 }
 
@@ -34,10 +36,22 @@ pub fn create(paths: &Paths, kind: TempKind, file_name: &str, bytes: &[u8]) -> R
     Ok(file)
 }
 
+/// An empty private `<root>/<uuid>` for files a job writes itself; the caller removes it.
+pub fn make_dir(paths: &Paths, kind: TempKind) -> Result<PathBuf> {
+    let dir = root(paths, kind).join(Uuid::new_v4().to_string());
+    ensure_private_dir(&dir)?;
+    Ok(dir)
+}
+
 /// Removes item directories not modified for a day; returns how many went.
 pub fn purge(paths: &Paths, now: SystemTime) -> Result<usize> {
     let mut removed = 0;
-    for kind in [TempKind::Clipboard, TempKind::Drag, TempKind::Unstaged] {
+    for kind in [
+        TempKind::Clipboard,
+        TempKind::Drag,
+        TempKind::Unstaged,
+        TempKind::Share,
+    ] {
         let dir = root(paths, kind);
         let read = match std::fs::read_dir(&dir) {
             Ok(r) => r,

@@ -2,6 +2,7 @@ use crate::capture_coordinator::{CaptureCoordinator, CaptureKind, CaptureRequest
 use crate::errors::{Error, Result};
 use crate::events::Origin;
 use crate::jobs::{JobId, Jobs};
+use crate::share::FileShare;
 use crate::windows::{WindowKey, WindowKind, Windows};
 use es_model::capture::CaptureVariant;
 use es_protocol::{AgentRoute, Route, SettingsPage, TimedMode};
@@ -39,6 +40,8 @@ pub enum HomeTab {
 pub type ActionHandler = Rc<dyn Fn(Action, &mut App) -> Result<()>>;
 /// Owns the job it is handed: it must finish it.
 pub type AgentHandler = Rc<dyn Fn(JobId, AgentRoute, Origin, &mut App)>;
+/// Owns the job it is handed: it must finish it.
+pub type ShareHandler = Rc<dyn Fn(JobId, FileShare, &mut App)>;
 
 enum Target {
     Capture(CaptureRequest),
@@ -46,6 +49,7 @@ enum Target {
     Home(Option<HomeTab>),
     Action(Action),
     Agent(AgentRoute),
+    Share(FileShare),
 }
 
 fn capture(kind: CaptureKind, variant: CaptureVariant) -> Target {
@@ -107,6 +111,7 @@ fn target(route: Route) -> Target {
         Route::Quit => Target::Action(Action::Quit),
         Route::AgentRevoke => Target::Action(Action::RevokeAgent),
         Route::Agent(route) => Target::Agent(route),
+        Route::Share { path, days, title } => Target::Share(FileShare { path, days, title }),
     }
 }
 
@@ -117,6 +122,7 @@ pub struct RouteDispatcher {
     windows: Windows,
     actions: Rc<RefCell<Option<ActionHandler>>>,
     agent: Rc<RefCell<Option<AgentHandler>>>,
+    share: Rc<RefCell<Option<ShareHandler>>>,
 }
 
 impl RouteDispatcher {
@@ -127,6 +133,7 @@ impl RouteDispatcher {
             windows,
             actions: Rc::default(),
             agent: Rc::default(),
+            share: Rc::default(),
         }
     }
 
@@ -140,6 +147,10 @@ impl RouteDispatcher {
 
     pub fn set_agent_handler(&self, handler: AgentHandler) {
         *self.agent.borrow_mut() = Some(handler);
+    }
+
+    pub fn set_share_handler(&self, handler: ShareHandler) {
+        *self.share.borrow_mut() = Some(handler);
     }
 
     pub fn dispatch(&self, route: Route, origin: Origin, cx: &mut App) -> JobId {
@@ -167,6 +178,13 @@ impl RouteDispatcher {
                 let handler = self.agent.borrow().clone();
                 match handler {
                     Some(handler) => return handler(job, route, origin, cx),
+                    None => Err(Error::Unsupported),
+                }
+            }
+            Target::Share(file) => {
+                let handler = self.share.borrow().clone();
+                match handler {
+                    Some(handler) => return handler(job, file, cx),
                     None => Err(Error::Unsupported),
                 }
             }

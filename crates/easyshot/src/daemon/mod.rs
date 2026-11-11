@@ -501,6 +501,11 @@ fn start(
     ];
     subscriptions.extend(tray_subscriptions);
     dispatcher.set_action_handler(routes::actions(action_deps));
+    let shares = cx.global::<Services>().shares.clone();
+    let share_jobs = jobs.clone();
+    dispatcher.set_share_handler(Rc::new(move |job, file, cx| {
+        es_app::share::run_route(&shares, &share_jobs, job, file, cx)
+    }));
     let crash_notice = Rc::new(std::cell::RefCell::new(crash::announce(
         paths,
         &BackendNotifier(backend.clone()),

@@ -8,6 +8,9 @@ use crate::timed::TimedMode;
 use crate::{ArgValue, Error, Result, Route, RouteArgs, SettingsPage, timed};
 
 pub const PATH_ARG: &str = "path";
+pub const DAYS_ARG: &str = "days";
+pub const TITLE_ARG: &str = "title";
+pub const MAX_TITLE_CHARS: usize = 120;
 
 static PLAIN: &[(&str, Route)] = &[
     ("capture/region", Route::CaptureRegion),
@@ -57,6 +60,8 @@ static URL_ROUTES: &[(&str, Route)] = &[
 ];
 
 const URL_SCHEME: &str = "easyshot";
+const RECORDING_SUFFIX: &str = ".easyshotrec";
+const RECORDING_VIDEOS: [&str; 2] = ["screen.mkv", "screen.mp4"];
 const OPEN_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "mp4", "webm", "mkv", "mov", "gif"];
 const PNG_MAGIC: &[u8] = &[0x89, b'P', b'N', b'G'];
 const JPEG_MAGIC: &[u8] = &[0xFF, 0xD8, 0xFF];
@@ -99,6 +104,9 @@ impl Route {
         let unknown = || Error::UnknownRoute(route.to_owned());
         if route == "open" {
             return Route::open_from_args(args);
+        }
+        if route == "share" {
+            return Route::share_from_args(args);
         }
         if let Some(mode) = TimedMode::from_route_name(route) {
             return Route::timed_from_args(route, mode, args);
@@ -157,6 +165,11 @@ impl Route {
     pub fn all() -> Vec<Route> {
         let mut all: Vec<Route> = PLAIN.iter().map(|(_, r)| r.clone()).collect();
         all.push(Route::Open(PathBuf::from("image.png")));
+        all.push(Route::Share {
+            path: PathBuf::from("image.png"),
+            days: Some(7),
+            title: Some("Title".to_owned()),
+        });
         all.extend(TimedMode::ALL.map(|mode| Route::timed(mode, Some(3))));
         all.push(Route::Settings(None));
         all.extend(SettingsPage::ALL.map(|p| Route::Settings(Some(p))));
@@ -167,6 +180,7 @@ impl Route {
     pub fn as_str(&self) -> Cow<'static, str> {
         match self {
             Route::Open(_) => Cow::Borrowed("open"),
+            Route::Share { .. } => Cow::Borrowed("share"),
             Route::Timed { mode, .. } => Cow::Borrowed(mode.route_name()),
             Route::Settings(None) => Cow::Borrowed("settings"),
             Route::Settings(Some(page)) => Cow::Owned(format!("settings/{}", page.as_str())),
@@ -193,6 +207,7 @@ impl Route {
             Route::Settings(None) => vec!["settings"],
             Route::Home => vec![],
             Route::Open(_) => vec!["open"],
+            Route::Share { .. } => vec!["share"],
             Route::Timed { mode, .. } => vec!["capture", mode.word(), "--timed"],
             Route::Agent(a) => a.command_args(),
             other => PLAIN
@@ -212,6 +227,18 @@ impl Route {
                 args.0
                     .insert(PATH_ARG.to_owned(), ArgValue::Path(path.clone()));
             }
+            Route::Share { path, days, title } => {
+                args.0
+                    .insert(PATH_ARG.to_owned(), ArgValue::Path(path.clone()));
+                if let Some(days) = days {
+                    args.0
+                        .insert(DAYS_ARG.to_owned(), ArgValue::Int(i64::from(*days)));
+                }
+                if let Some(title) = title {
+                    args.0
+                        .insert(TITLE_ARG.to_owned(), ArgValue::Str(title.clone()));
+                }
+            }
             Route::Timed {
                 seconds: Some(n), ..
             } => {
@@ -224,31 +251,96 @@ impl Route {
     }
 
     fn open_from_args(args: &RouteArgs) -> Result<Route> {
-        let bad = |reason: &str| Error::InvalidArgs {
-            route: "open".to_owned(),
-            reason: reason.to_owned(),
-        };
+        let bad = |reason: &str| invalid("open", reason);
         if args.0.len() != 1 {
             return Err(bad("expected exactly one argument: path"));
         }
-        let path = match args.0.get(PATH_ARG) {
-            Some(ArgValue::Path(p)) => p.clone(),
-            Some(ArgValue::Str(s)) => PathBuf::from(s),
-            _ => return Err(bad("path must be a string or path")),
-        };
-        if path.as_os_str().is_empty() {
-            return Err(bad("path is empty"));
-        }
-        let canonical = path.canonicalize().map_err(|e| bad(&e.to_string()))?;
+        let canonical = canonical_path("open", args)?;
         if !has_openable_extension(&canonical) {
             return Err(bad("not a PNG or JPEG image or a video"));
         }
-        let mut file = open_regular(&canonical).ok_or_else(|| bad("not a regular file"))?;
-        if !has_openable_magic(&mut file) {
-            return Err(bad("not a PNG or JPEG image or a video"));
-        }
+        check_media_file("open", &canonical)?;
         Ok(Route::Open(canonical))
     }
+
+    fn share_from_args(args: &RouteArgs) -> Result<Route> {
+        let bad = |reason: &str| invalid("share", reason);
+        if let Some(extra) = args
+            .0
+            .keys()
+            .find(|k| ![PATH_ARG, DAYS_ARG, TITLE_ARG].contains(&k.as_str()))
+        {
+            return Err(bad(&format!("unknown argument: {extra}")));
+        }
+        let path = canonical_path("share", args)?;
+        if path.is_dir() {
+            if !is_recording_folder(&path) {
+                return Err(bad("not a recording folder"));
+            }
+        } else {
+            if !has_openable_extension(&path) {
+                return Err(bad("not a PNG or JPEG image or a video"));
+            }
+            check_media_file("share", &path)?;
+        }
+        let days = match args.0.get(DAYS_ARG) {
+            None => None,
+            Some(ArgValue::Int(d)) => {
+                Some(u8::try_from(*d).map_err(|_| bad("days is out of range"))?)
+            }
+            Some(_) => return Err(bad("days must be a number")),
+        };
+        let title = match args.0.get(TITLE_ARG) {
+            None => None,
+            Some(ArgValue::Str(t)) => {
+                let t = t.trim();
+                if t.chars().count() > MAX_TITLE_CHARS {
+                    return Err(bad("the title is too long"));
+                }
+                (!t.is_empty()).then(|| t.to_owned())
+            }
+            Some(_) => return Err(bad("title must be a string")),
+        };
+        Ok(Route::Share { path, days, title })
+    }
+}
+
+fn invalid(route: &str, reason: &str) -> Error {
+    Error::InvalidArgs {
+        route: route.to_owned(),
+        reason: reason.to_owned(),
+    }
+}
+
+fn canonical_path(route: &str, args: &RouteArgs) -> Result<PathBuf> {
+    let path = match args.0.get(PATH_ARG) {
+        Some(ArgValue::Path(p)) => p.clone(),
+        Some(ArgValue::Str(s)) => PathBuf::from(s),
+        _ => return Err(invalid(route, "path must be a string or path")),
+    };
+    if path.as_os_str().is_empty() {
+        return Err(invalid(route, "path is empty"));
+    }
+    path.canonicalize()
+        .map_err(|e| invalid(route, &e.to_string()))
+}
+
+fn check_media_file(route: &str, path: &Path) -> Result<()> {
+    let mut file = open_regular(path).ok_or_else(|| invalid(route, "not a regular file"))?;
+    if has_openable_magic(&mut file) {
+        Ok(())
+    } else {
+        Err(invalid(route, "not a PNG or JPEG image or a video"))
+    }
+}
+
+fn is_recording_folder(dir: &Path) -> bool {
+    dir.file_name()
+        .and_then(|n| n.to_str())
+        .is_some_and(|n| n.ends_with(RECORDING_SUFFIX))
+        && RECORDING_VIDEOS
+            .iter()
+            .any(|v| open_regular(&dir.join(v)).is_some())
 }
 
 /// Non-blocking and no-follow, so a FIFO or link swapped in after `canonicalize` cannot hang us.
