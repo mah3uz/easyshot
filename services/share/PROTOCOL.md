@@ -143,7 +143,9 @@ including mid-upload. Deleting a gone share is `404 not_found`; the app treats t
 
 ## Storage layout (service)
 
-`s/{d}d/{id}/media.{png|jpg|webp|gif|mp4}` and `s/{d}d/{id}/poster.jpg`, `{d}` in 1, 3, 7, each
+`s/{d}d/{id}/media.{png|jpg|webp|gif|mp4}` and `s/{d}d/{id}/poster.jpg`, `{d}` in 1, 3, 7. The media
+is stored with `Content-Disposition: inline; filename="easyshot-{id}.{ext}"` (browsers ignore the
+page's `download` name for another origin) and `Cache-Control: public, max-age=3600`. Each
 prefix with an R2 lifecycle rule deleting after `d` days. A share counts toward the live-bytes stop
 until a day after `expires_at` (R2 deletes up to a day late). The share page answers `410` from
 `expires_at` on.
@@ -163,8 +165,10 @@ Worker fills it for Free shares; the app embeds the same file and fills it for o
 
 Filling, identical on both sides (`contract/viewer.json` holds the cases):
 
-1. Blocks: each `<!--if:NAME-->…<!--end:NAME-->` (NAME `[a-z]+`, not nested) keeps its content,
-   without the markers, when NAME is in the given set; otherwise the whole block goes.
+1. Blocks: each `<!--if:NAME-->…<!--end:NAME-->` (NAME `[a-z]+`) keeps its content, without the
+   markers, when NAME is in the given set; otherwise the whole block goes. Blocks of different
+   names may nest (`video` inside `ready`); a block never contains another of its own name. Repeat
+   until no block marker is left.
 2. Then each `{{name}}` (`[a-z_]+`) is replaced by its value, HTML-escaped: `&` `&amp;`, `<` `&lt;`,
    `>` `&gt;`, `"` `&quot;`, `'` `&#39;`. One pass: a value is never expanded again.
 3. A placeholder left in the output with no value is the error `missing_value`. A value whose name

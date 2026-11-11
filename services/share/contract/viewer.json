@@ -66,6 +66,45 @@
       },
       "blocks": [],
       "error": "not_https"
+    },
+    {
+      "name": "nested_kept",
+      "template": "<!--if:ready--><h1>{{title}}</h1><!--if:video--><video src=\"{{media_url}}\"></video><!--end:video--><!--if:image--><img src=\"{{media_url}}\"><!--end:image--><!--end:ready--><!--if:gone--><p>gone</p><!--end:gone-->",
+      "values": {
+        "title": "Demo",
+        "media_url": "https://m.easyshot.site/s/3d/3abc/media.mp4"
+      },
+      "blocks": [
+        "ready",
+        "video"
+      ],
+      "output": "<h1>Demo</h1><video src=\"https://m.easyshot.site/s/3d/3abc/media.mp4\"></video>"
+    },
+    {
+      "name": "nested_inner_dropped",
+      "template": "<!--if:ready--><h1>{{title}}</h1><!--if:video--><video src=\"{{media_url}}\"></video><!--end:video--><!--if:image--><img src=\"{{media_url}}\"><!--end:image--><!--end:ready--><!--if:gone--><p>gone</p><!--end:gone-->",
+      "values": {
+        "title": "Demo",
+        "media_url": "https://m.easyshot.site/s/3d/3abc/media.mp4"
+      },
+      "blocks": [
+        "ready",
+        "image"
+      ],
+      "output": "<h1>Demo</h1><img src=\"https://m.easyshot.site/s/3d/3abc/media.mp4\">"
+    },
+    {
+      "name": "nested_outer_dropped",
+      "template": "<!--if:ready--><h1>{{title}}</h1><!--if:video--><video src=\"{{media_url}}\"></video><!--end:video--><!--if:image--><img src=\"{{media_url}}\"><!--end:image--><!--end:ready--><!--if:gone--><p>gone</p><!--end:gone-->",
+      "values": {
+        "title": "Demo",
+        "media_url": "https://m.easyshot.site/s/3d/3abc/media.mp4"
+      },
+      "blocks": [
+        "gone",
+        "video"
+      ],
+      "output": "<p>gone</p>"
     }
   ]
 }
