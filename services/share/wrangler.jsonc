@@ -2,6 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "easyshot-share",
   "main": "src/index.ts",
+  "rules": [{ "type": "Text", "globs": ["**/*.html"], "fallthrough": false }],
   "compatibility_date": "2026-08-15",
   "workers_dev": false,
   "routes": [{ "pattern": "share.easyshot.site", "custom_domain": true }],

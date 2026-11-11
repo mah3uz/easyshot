@@ -49,7 +49,7 @@ function parseCreate(b: unknown): CreateBody | string {
   };
 }
 
-function urls(env: Env, s: { id: string; days: number; mime: string; kind: string }) {
+export function urls(env: Env, s: { id: string; days: number; mime: string; kind: string }) {
   return {
     page_url: `${env.PAGE_ORIGIN}/${s.id}`,
     media_url: `${env.MEDIA_ORIGIN}/${mediaKey(s.id, s.days, s.mime)}`,

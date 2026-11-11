@@ -17,7 +17,7 @@ What it does:
   starts, further parts, posters and completes for the share are refused with 409.
 - Deletes a share at any point, aborting an unfinished upload and giving its byte-days back.
 - Refuses any request with an `Origin` header and sends no CORS headers, so no web page can use it.
-- `GET /{id}` (the share page) answers 404.
+- Serves the share page at `GET /{id}` from the template in `viewer/`: ready, "uploading" or "gone" (404 for an id the Ledger does not know, 410 once expired), from one Ledger call, with a CSP that allows only the template's own script and style, by hash.
 
 The `Ledger` Durable Object (SQLite) holds every counter: used challenges, installs per hashed
 address (an HMAC of the address and the UTC date; raw addresses are never stored), shares and
