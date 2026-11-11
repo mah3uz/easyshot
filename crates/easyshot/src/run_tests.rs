@@ -87,7 +87,6 @@ pub(crate) fn env(bus: &PrivateBus, dir: &Path) -> Env {
         bundle_dir: dir.to_owned(),
         now: 1_700_000_000,
         styled: false,
-        share_ready: Box::new(|| true),
         progress: false,
     }
 }
@@ -549,20 +548,7 @@ fn share_refuses_a_lifetime_that_is_not_offered_and_files_it_cannot_send() {
 }
 
 #[test]
-fn share_before_sharing_is_set_up_says_where_to_set_it_up_and_asks_nothing_of_the_daemon() {
-    let bus = PrivateBus::start();
-    let dir = tempfile::tempdir().unwrap();
-    let png = dir.path().join("a.png");
-    std::fs::write(&png, [0x89, b'P', b'N', b'G', 0]).unwrap();
-    let mut env = env(&bus, dir.path());
-    env.share_ready = Box::new(|| false);
-    let (code, out, err) = run_cli(&["share", png.to_str().unwrap()], &env);
-    assert_eq!((code, out.as_str()), (EXIT_ERROR, ""));
-    assert!(err.contains("Settings › Sharing"), "{err}");
-}
-
-#[test]
-fn share_prints_the_link_and_sends_the_route() {
+fn share_needs_no_setup_first_and_prints_the_link_and_sends_the_route() {
     let bus = PrivateBus::start();
     let dir = tempfile::tempdir().unwrap();
     let png = dir.path().join("a.png");

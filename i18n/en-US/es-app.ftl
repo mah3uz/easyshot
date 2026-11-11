@@ -112,7 +112,6 @@ picker-open-title = Open an image or video
 picker-open-filter = Images and videos
 
 ## Sharing
-share-failed-no-consent = Choose where your shares go before sharing.
 share-failed-not-configured = Set up your bucket in Settings before sharing to it.
 share-failed-keyring = { -app-name } couldn’t read your bucket keys from the keyring.
 share-failed-network = { -app-name } couldn’t reach the share service. Check your connection and try again.

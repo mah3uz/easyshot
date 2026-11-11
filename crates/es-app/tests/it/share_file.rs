@@ -1,5 +1,5 @@
 #![allow(clippy::unwrap_used)]
-use super::share::{Fake, Rig, consent, finished, kinds, made, rig, wait_until};
+use super::share::{Fake, Rig, finished, kinds, made, rig, wait_until};
 use es_app::share::{FileShare, ShareFailure, ShareJobKind};
 use es_model::ShareSource;
 use es_share::Code;
@@ -25,7 +25,6 @@ fn a_file_is_shared_as_it_is_when_it_fits_with_the_setting_days(cx: &mut TestApp
         Ok(made(r))
     }));
     let rig = rig(cx, &fake, |_| {});
-    consent(&rig, cx);
     let png = tiny_png(rig._dir.path());
     let file = FileShare {
         path: png.clone(),
@@ -50,7 +49,6 @@ fn a_file_is_shared_as_it_is_when_it_fits_with_the_setting_days(cx: &mut TestApp
 fn a_lifetime_the_service_does_not_offer_is_refused_before_any_work(cx: &mut TestAppContext) {
     let fake = Fake::new(Box::new(|r| Ok(made(r))));
     let rig = rig(cx, &fake, |_| {});
-    consent(&rig, cx);
     let file = FileShare {
         path: tiny_png(rig._dir.path()),
         days: Some(2),
@@ -93,23 +91,10 @@ fn run_for_a_command(
 fn a_shared_file_answers_its_command_with_the_page_link(cx: &mut TestAppContext) {
     let fake = Fake::new(Box::new(|r| Ok(made(r))));
     let rig = rig(cx, &fake, |_| {});
-    consent(&rig, cx);
     let done = run_for_a_command(&rig, cx, tiny_png(rig._dir.path()));
     assert_eq!(done.status, es_protocol::JobStatus::Ok);
     assert_eq!(
         done.detail.as_deref(),
         Some("https://share.example/s/abc123")
-    );
-}
-
-#[gpui::test]
-fn a_refused_share_answers_its_command_with_the_reason_in_words(cx: &mut TestAppContext) {
-    let fake = Fake::new(Box::new(|r| Ok(made(r))));
-    let rig = rig(cx, &fake, |_| {});
-    let done = run_for_a_command(&rig, cx, tiny_png(rig._dir.path()));
-    assert_eq!(done.status, es_protocol::JobStatus::Error);
-    assert_eq!(
-        done.detail.as_deref(),
-        Some("Choose where your shares go before sharing.")
     );
 }

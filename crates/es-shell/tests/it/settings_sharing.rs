@@ -240,39 +240,47 @@ const BUCKET: [&str; 7] = [
 ];
 
 #[test]
-fn choosing_where_shares_go_writes_the_target_and_counts_as_agreeing() {
+fn the_page_says_which_destination_shares_use_and_the_days_show_only_for_free() {
     let mut fx = fixture(Ring(None), |_| {});
-    assert!(
-        !fx.share().consented,
-        "nothing is chosen before the user acts"
+    assert_eq!(
+        fx.read(|v, cx| v.share_destination_line(cx)),
+        text("sharing-using-free"),
+        "nothing configured shares to Free, with no choice to make"
     );
-    fx.shots("free");
     assert!(fx.read(|v, cx| v.shows_share_days(cx)));
+    fx.shots("free");
     fx.update(|v, cx| v.set_share_days(3, cx));
     assert_eq!(fx.share().days, 3);
 
-    fx.update(|v, cx| v.set_share_target(ShareMode::Bucket, cx));
-    let share = fx.share();
-    assert_eq!(share.target, ShareMode::Bucket);
+    fx.fill(BUCKET);
+    fx.save();
+    fx.until_keys(SavedKeys::Saved(KeyPlace::File));
+    let line = fx.read(|v, cx| v.share_destination_line(cx));
     assert!(
-        share.consented,
-        "choosing here is the same agreement as the first-share step"
+        line.starts_with("Shares use your bucket") && line.contains("shots"),
+        "{line}"
     );
     assert!(
         !fx.read(|v, cx| v.shows_share_days(cx)),
         "a bucket keeps shares by its own rules, so the lifetime is not offered"
     );
 
-    fx.update(|v, cx| v.set_share_target(ShareMode::Free, cx));
-    assert_eq!(fx.share().target, ShareMode::Free);
+    let mut cleared = BUCKET;
+    cleared[0] = "";
+    fx.fill(cleared);
+    fx.save();
+    assert_eq!(
+        fx.read(|v, cx| v.share_destination_line(cx)),
+        text("sharing-using-free"),
+        "removing the bucket details returns to Free"
+    );
+    assert!(fx.read(|v, cx| v.shows_share_days(cx)));
     assert_eq!(fx.share().days, 3);
 }
 
 #[test]
 fn keys_saved_without_a_keyring_go_to_the_key_file_and_the_secret_is_never_shown_again() {
     let mut fx = fixture(Ring(None), |_| {});
-    fx.update(|v, cx| v.set_share_target(ShareMode::Bucket, cx));
-    fx.until_keys(SavedKeys::Missing);
     fx.fill(BUCKET);
     fx.shots("bucket-filled");
     fx.save();
@@ -320,8 +328,6 @@ fn the_connection_test_names_the_step_that_failed() {
     let mut fx = fixture(Ring(None), |p| {
         es_store::shares::write_bucket_keys(p, keys()).unwrap();
     });
-    fx.update(|v, cx| v.set_share_target(ShareMode::Bucket, cx));
-    fx.until_keys(SavedKeys::Saved(KeyPlace::File));
     fx.fill(BUCKET);
     fx.save();
     for (answer, id) in [
@@ -368,8 +374,12 @@ fn remove_keys_clears_the_keyring_and_the_key_file() {
     let ring = Ring(Some(Mutex::new(Some(keys()))));
     let mut fx = fixture(ring, |p| {
         es_store::shares::write_bucket_keys(p, keys()).unwrap();
+        std::fs::write(
+            p.config_file(),
+            "[share]\nbucket_endpoint = \"https://s3.example\"\nbucket_name = \"shots\"\nbucket_public_base_url = \"https://cdn.example\"\n",
+        )
+        .unwrap();
     });
-    fx.update(|v, cx| v.set_share_target(ShareMode::Bucket, cx));
     fx.until_keys(SavedKeys::Saved(KeyPlace::Keyring));
     assert!(
         fx.read(|v, _| v.sharing_status())

@@ -51,8 +51,6 @@ pub use focus_pad::{CENTRE, FOCUS_PAD_HEIGHT, FocusPad};
 pub use menu::{MenuItem, MenuLead, MenuNote, MenuSection};
 pub use popover::{Popover, shadow as popover_shadow};
 pub use preset_bar::PresetBar;
-pub use share_popover::{
-    Destination, SHARE_DAYS, SHARE_POPOVER_WIDTH, ShareEvent, SharePopover, ShareTarget, ShareView,
-};
+pub use share_popover::{SHARE_DAYS, SHARE_POPOVER_WIDTH, ShareEvent, SharePopover, ShareView};
 pub use toast::{Countdown, Toast, ToastClock, ToastStyle};
 pub use tooltip::Tip;

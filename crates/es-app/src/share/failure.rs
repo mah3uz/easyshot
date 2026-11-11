@@ -6,7 +6,6 @@ use es_share::{BucketFault, Code, ShareError};
 /// Why a share or a delete did not happen, in terms the app has its own words for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ShareFailure {
-    NoConsent,
     NotConfigured,
     Keyring,
     Refused {
@@ -66,7 +65,6 @@ impl From<PrepareError> for ShareFailure {
 impl ShareFailure {
     pub fn id(&self) -> &'static str {
         match self {
-            Self::NoConsent => "share-failed-no-consent",
             Self::NotConfigured => "share-failed-not-configured",
             Self::Keyring => "share-failed-keyring",
             Self::Network => "share-failed-network",

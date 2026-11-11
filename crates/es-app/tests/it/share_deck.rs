@@ -1,5 +1,5 @@
 #![allow(clippy::unwrap_used)]
-use super::share::{Fake, Rig, consent, hold, kinds, made, rig, wait_until};
+use super::share::{Fake, Rig, hold, kinds, made, rig, wait_until};
 use es_app::deck::{Deck, DeckItem, DeckPolicy, ItemStatus};
 use es_app::errors::Result;
 use es_app::platform_ui::ClipboardSink;
@@ -9,10 +9,10 @@ use es_app::share::{
 };
 use es_app::toast::{CloseReason, MemorySink, ToastRequest, ToastStyle, install_toasts};
 use es_desktop::RecordingNotifier;
+use es_model::CaptureKind;
 use es_model::platform::ClipItem;
-use es_model::{CaptureKind, ShareMode};
 use es_share::{Code, ShareError};
-use es_ui::components::{ShareEvent, SharePopover, ShareTarget, ShareView};
+use es_ui::components::{ShareEvent, SharePopover, ShareView};
 use gpui::{
     AnyWindowHandle, App, AppContext as _, Context, Entity, IntoElement, Render, Task,
     TestAppContext, Window, WindowOptions,
@@ -182,38 +182,22 @@ fn view(popover: &Entity<SharePopover>, cx: &mut TestAppContext) -> ShareView {
 }
 
 #[gpui::test]
-fn the_first_share_asks_where_and_free_is_the_consent_that_leads_on_to_sharing(
-    cx: &mut TestAppContext,
-) {
+fn the_popover_opens_ready_with_no_first_step_and_no_choice_to_make(cx: &mut TestAppContext) {
     let f = flow(cx, &Fake::new(Box::new(|r| Ok(made(r)))));
     let popover = f.open(cx);
-    assert_eq!(
-        view(&popover, cx),
-        ShareView::FirstShare,
-        "nothing is sent before a choice"
-    );
+    assert_eq!(view(&popover, cx), ShareView::Ready);
     assert!(
         f.deck.read_with(cx, |d, _| d.held()) == Some(f.item.id),
         "the card waits"
     );
-
-    f.press(&popover, ShareEvent::Choose(ShareTarget::Free), cx);
-
-    let cfg = f.rig.shares.read_with(cx, |s, cx| s.config(cx));
-    assert!(
-        cfg.consented,
-        "choosing Free is the consent, written to the settings"
-    );
-    assert_eq!(cfg.target, ShareMode::Free);
-    assert_eq!(view(&popover, cx), ShareView::Ready);
-    assert!(kinds(&f.rig).is_empty(), "choosing is not sharing");
+    assert!(kinds(&f.rig).is_empty(), "opening is not sharing");
 }
 
 #[gpui::test]
-fn the_own_bucket_opens_settings_and_closes_the_popover(cx: &mut TestAppContext) {
+fn setting_up_a_bucket_opens_settings_and_closes_the_popover(cx: &mut TestAppContext) {
     let f = flow(cx, &Fake::new(Box::new(|r| Ok(made(r)))));
     let popover = f.open(cx);
-    f.press(&popover, ShareEvent::Choose(ShareTarget::OwnBucket), cx);
+    f.press(&popover, ShareEvent::SetUpBucket, cx);
     assert_eq!(f.host.settings.get(), 1);
     assert!(!f.flow.read_with(cx, |s, _| s.is_open()));
     assert_eq!(
@@ -221,7 +205,6 @@ fn the_own_bucket_opens_settings_and_closes_the_popover(cx: &mut TestAppContext)
         None,
         "the card is let go"
     );
-    assert!(!f.rig.shares.read_with(cx, |s, cx| s.config(cx)).consented);
 }
 
 #[gpui::test]
@@ -236,7 +219,6 @@ fn share_uploads_the_card_with_its_title_and_the_toast_follows_it_to_shared(
     }));
     let gate = hold(&fake);
     let f = flow(cx, &fake);
-    consent(&f.rig, cx);
     let popover = f.open(cx);
     f.press(&popover, ShareEvent::Days(3), cx);
     assert_eq!(
@@ -290,7 +272,6 @@ fn cancel_removes_the_toast_at_once_and_stops_the_upload(cx: &mut TestAppContext
     let fake = Fake::new(Box::new(|r| Ok(made(r))));
     let gate = hold(&fake);
     let f = flow(cx, &fake);
-    consent(&f.rig, cx);
     let popover = f.open(cx);
     f.press(&popover, ShareEvent::Share { title: None }, cx);
     wait_until(cx, "the upload's progress", || {
@@ -322,7 +303,6 @@ fn a_failure_says_why_and_retry_reopens_the_popover_on_the_error(cx: &mut TestAp
         })
     }));
     let f = flow(cx, &fake);
-    consent(&f.rig, cx);
     let popover = f.open(cx);
     f.press(&popover, ShareEvent::Share { title: None }, cx);
     wait_until(cx, "the failure", || f.toast().style == ToastStyle::Error);
@@ -390,7 +370,6 @@ fn a_surface_that_renders_its_file_sends_that_file_recorded_against_its_capture(
             Ok(made(r))
         })),
     );
-    consent(&f.rig, cx);
     let asked = Rc::new(Cell::new(0));
     let origin = Rc::new(Rendered {
         subject: f.item.file.clone(),

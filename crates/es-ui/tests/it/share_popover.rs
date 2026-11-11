@@ -4,8 +4,7 @@ use crate::support::{self, App, click, key};
 use es_testkit::Headless;
 use es_ui::assets::Assets;
 use es_ui::components::{
-    ButtonKind, Destination, EditorButton, Popover, SHARE_POPOVER_WIDTH, ShareEvent, SharePopover,
-    ShareTarget, ShareView,
+    ButtonKind, EditorButton, Popover, SHARE_POPOVER_WIDTH, ShareEvent, SharePopover, ShareView,
 };
 use es_ui::icons::IconName;
 use es_ui::theme::tokens;
@@ -176,16 +175,15 @@ fn press_key(app: &mut App, keystroke: &str) {
 }
 
 fn video(share: &mut SharePopover, cx: &mut Context<SharePopover>) {
-    share.set_destination(Destination::Bucket("team-captures".into()), cx);
+    share.set_offer_days(false, cx);
     share.set_info(Some("1080p, about 38 MB".into()), cx);
 }
 
-const VIEWS: [&str; 7] = [
+const VIEWS: [&str; 6] = [
     "ready",
     "video-bucket",
     "busy",
     "too-long",
-    "first-share",
     "failed",
     "failed-wait",
 ];
@@ -201,7 +199,6 @@ fn set_up(view: &str, share: &mut SharePopover, cx: &mut Context<SharePopover>) 
             },
             cx,
         ),
-        "first-share" => share.set_view(ShareView::FirstShare, cx),
         "failed" => share.set_view(
             ShareView::Failed {
                 message: "The upload stopped. Check your connection.".into(),
@@ -243,10 +240,6 @@ fn every_view_draws_on_the_popover_surface_in_light_and_dark() {
                     (count(&image, c.accent) as f32) < 50. * 20. * area,
                     "{view} {tag}: the waiting button is drawn disabled, not solid"
                 ),
-                "first-share" => assert!(
-                    count(&image, c.accent) as f32 > 20. * area,
-                    "{tag}: each choice has its accent mark"
-                ),
                 _ => {}
             }
             if view.starts_with("failed") {
@@ -269,9 +262,7 @@ fn every_view_draws_on_the_popover_surface_in_light_and_dark() {
 fn the_days_are_offered_only_where_shares_expire() {
     let mut free = Fixture::open(ThemeMode::Dark, |_, _| {});
     let free = free.app.screenshot("share-days-free");
-    let mut bucket = Fixture::open(ThemeMode::Dark, |share, cx| {
-        share.set_destination(Destination::Bucket("team-captures".into()), cx)
-    });
+    let mut bucket = Fixture::open(ThemeMode::Dark, |share, cx| share.set_offer_days(false, cx));
     let bucket = bucket.app.screenshot("share-days-bucket");
     let rows = |image: &RgbaImage, surface: Rgba| {
         let x = image.width() / 2;
@@ -345,27 +336,16 @@ fn picking_days_emits_the_value_without_adopting_it() {
 }
 
 #[test]
-fn the_first_share_choices_and_terms_emit_their_events() {
-    let mut f = Fixture::open(ThemeMode::Dark, |share, cx| {
-        share.set_view(ShareView::FirstShare, cx)
-    });
-    key(&mut f.app, "enter");
-    assert_eq!(f.take(), [], "no choice is made for you");
-
-    key(&mut f.app, "tab");
-    press_key(&mut f.app, "enter");
-    key(&mut f.app, "tab");
-    press_key(&mut f.app, "space");
-    key(&mut f.app, "tab");
+fn tabbing_from_the_title_reaches_days_then_share_with_nothing_between() {
+    let mut f = Fixture::open(ThemeMode::Dark, |_, _| {});
+    for _ in 0..3 {
+        key(&mut f.app, "tab");
+    }
     press_key(&mut f.app, "enter");
     assert_eq!(
         f.take(),
-        [
-            ShareEvent::Choose(ShareTarget::Free),
-            ShareEvent::Choose(ShareTarget::OwnBucket),
-            ShareEvent::Terms,
-        ],
-        "Free, then My own bucket, then Terms, in reading order"
+        [ShareEvent::Share { title: None }],
+        "no destination row or link sits between the days and Share"
     );
 }
 
@@ -423,7 +403,7 @@ fn retry_and_the_long_video_actions_emit_their_events() {
     let image = f.app.screenshot("share-bucket-probe");
     let (x, y) = centre_of(&image, accent);
     click(&mut f.app, x, y);
-    assert_eq!(f.take(), [ShareEvent::Choose(ShareTarget::OwnBucket)]);
+    assert_eq!(f.take(), [ShareEvent::SetUpBucket]);
 
     f.update(|share, cx| {
         share.set_view(

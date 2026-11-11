@@ -357,19 +357,9 @@ const READERS: &[(&str, &str, &str)] = &[
         "log_limit()",
     ),
     (
-        "share.target",
-        "crates/es-app/src/share/mod.rs",
-        "cfg.target",
-    ),
-    (
         "share.days",
         "crates/es-app/src/share/mod.rs",
         "share.days()",
-    ),
-    (
-        "share.consented",
-        "crates/es-app/src/share/mod.rs",
-        "cfg.consented",
     ),
     (
         "share.bucket_endpoint",

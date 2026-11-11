@@ -218,25 +218,15 @@ impl SettingsWindow {
         out
     }
 
-    /// Choosing here counts as agreeing, as the first-share step does.
-    pub fn set_share_target(&mut self, mode: ShareMode, cx: &mut Context<Self>) {
-        if let Some(shares) = &self.sharing.shares {
-            shares.update(cx, |s, cx| s.consent(mode, cx));
-        }
-        if mode == ShareMode::Bucket {
-            self.check_saved_keys(cx);
-        }
-    }
-
     pub fn set_share_days(&mut self, days: u8, cx: &mut Context<Self>) {
         if let Some(shares) = &self.sharing.shares {
             shares.update(cx, |s, cx| s.set_days(days, cx));
         }
     }
 
-    /// The keyring is asked only once the bucket section shows, so Free users never meet an unlock prompt.
+    /// The keyring is asked only once a bucket is in use, so Free users never meet an unlock prompt.
     pub(super) fn check_saved_keys(&mut self, cx: &mut Context<Self>) {
-        let bucket = self.config(cx).share.target == ShareMode::Bucket;
+        let bucket = self.config(cx).share.mode() == ShareMode::Bucket;
         let Some(shares) = self.sharing.shares.clone().filter(|_| bucket) else {
             return;
         };
@@ -278,6 +268,7 @@ impl SettingsWindow {
                 if let SavedKeys::Replacing(place) = self.sharing.keys {
                     self.sharing.keys = SavedKeys::Saved(place);
                 }
+                self.check_saved_keys(cx);
             }
             (false, false) => {
                 for input in [&self.sharing.key_id, &self.sharing.secret] {
@@ -356,31 +347,24 @@ impl SettingsWindow {
 
     /// A bucket's own rules decide how long its shares stay.
     pub fn shows_share_days(&self, cx: &App) -> bool {
-        self.config(cx).share.target != ShareMode::Bucket
+        self.config(cx).share.mode() == ShareMode::Free
+    }
+
+    /// Which destination shares use now.
+    pub fn share_destination_line(&self, cx: &App) -> String {
+        let share = &self.config(cx).share;
+        match share.mode() {
+            ShareMode::Free => fl!("sharing-using-free"),
+            ShareMode::Bucket => fl!("sharing-using-bucket", name = share.bucket_name.trim()),
+        }
     }
 
     pub(super) fn render_sharing(&mut self, cx: &mut Context<Self>) -> Vec<AnyElement> {
         let c = self.config(cx);
         let share = &c.share;
-        let bucket = !self.shows_share_days(cx);
-        let help = match (share.consented, bucket) {
-            (false, _) => fl!("sharing-target-unchosen-help"),
-            (true, false) => fl!("sharing-target-free-help"),
-            (true, true) => fl!("sharing-target-bucket-help"),
-        };
-        let mut rows = vec![self.pick_row(
-            "share-target",
-            fl!("sharing-target"),
-            Some(help),
-            vec![
-                (ShareMode::Free, fl!("sharing-target-free")),
-                (ShareMode::Bucket, fl!("sharing-target-bucket")),
-            ],
-            &share.target,
-            |this, mode, cx| this.set_share_target(mode, cx),
-            cx,
-        )];
-        if !bucket {
+        let free = self.shows_share_days(cx);
+        let mut rows = vec![row(self.share_destination_line(cx), None, div(), cx)];
+        if free {
             let days = SHARE_DAYS
                 .iter()
                 .map(|&d| {
@@ -402,11 +386,8 @@ impl SettingsWindow {
                 cx,
             ));
         }
-        let mut out =
-            vec![group(Some(fl!("sharing-where").into()), rows, None, cx).into_any_element()];
-        if bucket {
-            out.push(self.render_bucket(share, cx));
-        }
+        let mut out = vec![group(None, rows, None, cx).into_any_element()];
+        out.push(self.render_bucket(share, cx));
         let terms = EditorButton::new("sharing-terms")
             .label(fl!("sharing-terms"))
             .accessible_label(fl!("sharing-terms-a11y"))
@@ -462,7 +443,7 @@ impl SettingsWindow {
                     cx,
                 ));
             }
-            SavedKeys::Unknown | SavedKeys::Checking => {
+            SavedKeys::Checking => {
                 rows.push(row(
                     fl!("sharing-keys"),
                     Some(fl!("sharing-keys-checking").into()),
@@ -470,7 +451,7 @@ impl SettingsWindow {
                     cx,
                 ));
             }
-            SavedKeys::Missing | SavedKeys::Replacing(_) => {
+            SavedKeys::Unknown | SavedKeys::Missing | SavedKeys::Replacing(_) => {
                 for (input, title) in [
                     (&s.key_id, fl!("sharing-access-key-id")),
                     (&s.secret, fl!("sharing-secret-key")),

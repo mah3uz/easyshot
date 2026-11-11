@@ -83,7 +83,6 @@ cli-daemon-not-running = the daemon is not running. Start it with `easyshot daem
 cli-daemon-gone = the daemon went away before it finished.
 cli-session-bus = cannot talk to the session bus: { $error }
 cli-cancelled = cancelled
-cli-share-not-set-up = sharing is not set up yet. Open Settings › Sharing to choose where your shares go, then run this again.
 cli-sharing = preparing and uploading, this can take a while
 cli-probe-failed = the standalone probe failed: { $error }
 cli-wrote = wrote { $path }

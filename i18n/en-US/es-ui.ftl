@@ -106,21 +106,9 @@ share-days = { $days ->
         [one] { $days } day
        *[other] { $days } days
     }
-share-free = easyshot Free
-share-destination-a11y = Shares go to { $destination }
-share-change = Change
-share-change-a11y = Change where shares go
 share-button = Share
 share-preparing-a11y = Share, preparing the file
 share-too-long-title = Video Too Long
-share-use-bucket = Use my own bucket
-share-first-title = Where Shares Go
-share-first-free = easyshot Free
-share-first-free-line = Nothing to set up.
-share-first-bucket = My own bucket
-share-first-bucket-line = Set up once in Settings.
-share-unlisted = Shares are unlisted, not private: anyone with the link can open it.
-share-terms = Terms
-share-terms-a11y = Read the Terms
+share-use-bucket = Set up your own bucket
 share-error-title = Couldn’t Share
 share-retry = Retry

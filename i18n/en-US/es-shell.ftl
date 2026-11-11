@@ -411,13 +411,8 @@ about-onboarding-button = Show Onboarding Again
 about-packaging-footer = Updates come from your distribution’s packages. Your captures never leave this computer unless you share them.
 
 ## Settings: Sharing
-sharing-where = Where shares go
-sharing-target = Share to
-sharing-target-free = { -app-name } Free
-sharing-target-bucket = My own bucket
-sharing-target-unchosen-help = Choose where your shares go. Until you do, { -app-name } asks the first time you share.
-sharing-target-free-help = The free service keeps each link for as long as you choose, then deletes it.
-sharing-target-bucket-help = Shares go to an S3-compatible bucket you own, such as Cloudflare R2. Your bucket’s own rules decide how long they stay.
+sharing-using-free = Shares use { -app-name } Free
+sharing-using-bucket = Shares use your bucket { $name }
 sharing-days = Keep shares for
 sharing-days-1 = 1 day
 sharing-days-3 = 3 days

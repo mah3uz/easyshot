@@ -4,7 +4,7 @@ use crate::canvas_support::{TEXT, opened, rect};
 use es_app::share::{PopoverHost, WindowPopover};
 use es_editor::{EditorSession, EditorWindow};
 use es_testkit::Headless;
-use es_ui::components::{Destination, SharePopover, ShareView};
+use es_ui::components::{SharePopover, ShareView};
 use es_ui::tokens::ThemeMode;
 use gpui::{AppContext, Entity};
 use gpui_component::Root;
@@ -75,7 +75,6 @@ fn pictures_of_share_in_the_footer_and_its_popover() {
                     let mut p = SharePopover::new(window, cx);
                     p.set_view(ShareView::Ready, cx);
                     p.set_days(7, cx);
-                    p.set_destination(Destination::Free, cx);
                     p
                 })
             });

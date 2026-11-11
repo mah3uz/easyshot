@@ -192,11 +192,6 @@ impl Shares {
         self.settings.read(cx).config().share.days()
     }
 
-    pub fn set_target(&mut self, mode: ShareMode, cx: &mut Context<Self>) {
-        self.settings
-            .update(cx, |s, cx| s.update(|c| c.share.target = mode, cx));
-    }
-
     /// A lifetime the service does not offer is refused.
     pub fn set_days(&mut self, days: u8, cx: &mut Context<Self>) -> bool {
         if !SHARE_DAYS.contains(&days) {
@@ -205,18 +200,6 @@ impl Shares {
         self.settings
             .update(cx, |s, cx| s.update(|c| c.share.days = days, cx));
         true
-    }
-
-    pub fn consent(&mut self, mode: ShareMode, cx: &mut Context<Self>) {
-        self.settings.update(cx, |s, cx| {
-            s.update(
-                |c| {
-                    c.share.target = mode;
-                    c.share.consented = true;
-                },
-                cx,
-            )
-        });
     }
 
     pub fn saved_keys(&self, cx: &App) -> Task<Result<Option<KeyPlace>, ShareFailure>> {
@@ -258,12 +241,11 @@ impl Shares {
             .spawn(async move { rx.recv().await.unwrap_or(Err(ShareFailure::Unexpected)) })
     }
 
-    /// Nothing is sent until the user has chosen where shares go.
     pub fn start(&mut self, start: ShareStart, cx: &mut Context<Self>) -> ShareJobId {
         let id = self.next_id();
         let cfg = self.settings.read(cx).config().share.clone();
         self.launch(id, cfg, cx, move |targets, cfg, cancel, send| {
-            let target = targets.open(cfg.target, cfg)?;
+            let target = targets.open(cfg.mode(), cfg)?;
             target
                 .share(&start, &mut |e| send(Msg::Event(e)), cancel)
                 .map_err(|e| ShareFailure::from(&e))
@@ -294,8 +276,8 @@ impl Shares {
             .unwrap_or_else(|| self.source_of(&file.path, cx));
         let paths = self.paths.clone();
         self.launch(id, cfg, cx, move |targets, cfg, cancel, send| {
-            let target = targets.open(cfg.target, cfg)?;
-            let caps = targets.caps(cfg.target, cfg)?;
+            let target = targets.open(cfg.mode(), cfg)?;
+            let caps = targets.caps(cfg.mode(), cfg)?;
             let job = PrepareJob {
                 paths: &paths,
                 caps,
@@ -356,13 +338,6 @@ impl Shares {
         + Send
         + 'static,
     ) -> ShareJobId {
-        if !cfg.consented {
-            cx.emit(ShareJobEvent {
-                id,
-                kind: ShareJobKind::Failed(ShareFailure::NoConsent),
-            });
-            return id;
-        }
         let cancel = Arc::new(AtomicBool::new(false));
         let (tx, rx) = async_channel::unbounded();
         let targets = self.targets.clone();

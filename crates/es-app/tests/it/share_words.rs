@@ -89,7 +89,6 @@ fn every_error_maps_to_a_failure_with_its_own_words() {
         BucketFault::Network,
     ];
     let all = [
-        ShareFailure::NoConsent,
         ShareFailure::NotConfigured,
         ShareFailure::Keyring,
         ShareFailure::Network,
@@ -171,13 +170,34 @@ fn keys_saved_to_an_answering_keyring_leave_no_copy_in_the_key_file() {
 
 fn bucket_cfg() -> ShareCfg {
     ShareCfg {
-        target: ShareMode::Bucket,
-        consented: true,
         bucket_endpoint: "https://s3.example".into(),
         bucket_name: "shots".into(),
         bucket_region: "eu-1".into(),
         bucket_public_base_url: "https://cdn.example".into(),
         ..ShareCfg::default()
+    }
+}
+
+#[test]
+fn filled_bucket_details_without_readable_keys_fail_to_set_up_and_never_fall_back_to_free() {
+    let dir = tempfile::tempdir().unwrap();
+    let paths = Paths::rooted(dir.path());
+    paths.ensure_all().unwrap();
+    for (answer, want) in [
+        (
+            (|| Err(SecretsError::Unavailable)) as fn() -> _,
+            ShareFailure::NotConfigured,
+        ),
+        (|| Err(SecretsError::Locked), ShareFailure::Keyring),
+    ] {
+        let keyring = Arc::new(FakeKeyring {
+            asked: AtomicUsize::new(0),
+            answer,
+        });
+        let targets = LiveTargets::new(paths.clone(), "1.0.0", keyring);
+        let cfg = bucket_cfg();
+        assert_eq!(cfg.mode(), ShareMode::Bucket);
+        assert_eq!(targets.open(cfg.mode(), &cfg).err(), Some(want));
     }
 }
 

@@ -7,7 +7,7 @@ use es_geom::Rect;
 use es_model::platform::{ClipItem, OutputId};
 use es_model::{ShareMode, ShareRecord, ShareTarget};
 use es_record::clip::export::ExportJob;
-use es_ui::components::{Destination, ShareEvent, SharePopover, ShareTarget as Choice, ShareView};
+use es_ui::components::{ShareEvent, SharePopover, ShareView};
 use gpui::{App, AppContext as _, Context, Entity, Subscription, Task, WeakEntity, Window};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -113,18 +113,12 @@ impl ShareFlow {
     }
 
     pub fn open(&mut self, origin: Rc<dyn ShareOrigin>, cx: &mut Context<Self>) {
-        let consented = self.shares.read(cx).config(cx).consented;
-        let view = if consented {
-            ShareView::Ready
-        } else {
-            ShareView::FirstShare
-        };
         self.show(
             Ask {
                 origin,
                 title: None,
             },
-            view,
+            ShareView::Ready,
             cx,
         );
     }
@@ -141,10 +135,7 @@ impl ShareFlow {
         self.close(cx);
         let cfg = self.shares.read(cx).config(cx);
         let days = self.shares.read(cx).days(cx);
-        let destination = match cfg.target {
-            ShareMode::Free => Destination::Free,
-            ShareMode::Bucket => Destination::Bucket(cfg.bucket_name.clone().into()),
-        };
+        let offer_days = cfg.mode() == ShareMode::Free;
         self.generation += 1;
         let generation = self.generation;
         let this = cx.entity().downgrade();
@@ -156,7 +147,7 @@ impl ShareFlow {
                 let mut p = SharePopover::new(window, cx);
                 p.set_view(view, cx);
                 p.set_days(days, cx);
-                p.set_destination(destination, cx);
+                p.set_offer_days(offer_days, cx);
                 p
             });
             let weak = built.clone();
@@ -225,16 +216,10 @@ impl ShareFlow {
                     popover.update(cx, |p, cx| p.set_days(days, cx));
                 }
             }
-            ShareEvent::Choose(Choice::Free) => {
-                self.shares
-                    .update(cx, |s, cx| s.consent(ShareMode::Free, cx));
-                popover.update(cx, |p, cx| p.set_view(ShareView::Ready, cx));
-            }
-            ShareEvent::Choose(Choice::OwnBucket) | ShareEvent::ChangeDestination => {
+            ShareEvent::SetUpBucket => {
                 self.close(cx);
                 (self.hooks.open_settings.clone())(cx);
             }
-            ShareEvent::Terms => (self.hooks.open_url.clone())(super::TERMS_URL, cx),
             ShareEvent::Close => self.close(cx),
         }
     }

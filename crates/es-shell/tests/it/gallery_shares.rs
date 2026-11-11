@@ -218,7 +218,6 @@ fn the_gallery_follows_a_share_that_finishes_after_it_opened() {
     };
     rig.rig.app.cx.update(|cx| {
         shares.update(cx, |s, cx| {
-            s.consent(es_model::ShareMode::Free, cx);
             s.start(start, cx);
         })
     });

@@ -32,6 +32,7 @@ type DeleteOutcome = Box<dyn Fn(&ShareRecord) -> std::result::Result<(), ShareEr
 
 pub(crate) struct Fake {
     pub(crate) opened: AtomicUsize,
+    modes: Mutex<Vec<ShareMode>>,
     pub(crate) video_max_bytes: AtomicU64,
     outcome: Outcome,
     delete: DeleteOutcome,
@@ -43,6 +44,7 @@ impl Fake {
     pub(crate) fn new(outcome: Outcome) -> Arc<Self> {
         Arc::new(Self {
             opened: AtomicUsize::new(0),
+            modes: Mutex::default(),
             video_max_bytes: AtomicU64::new(1 << 26),
             outcome,
             delete: Box::new(|_| Ok(())),
@@ -91,9 +93,10 @@ struct FakeTargets(Arc<Fake>);
 impl Targets for FakeTargets {
     fn open(
         &self,
-        _mode: ShareMode,
+        mode: ShareMode,
         _cfg: &ShareCfg,
     ) -> std::result::Result<Box<dyn Target>, ShareFailure> {
+        self.0.modes.lock().unwrap().push(mode);
         self.0.opened.fetch_add(1, Ordering::SeqCst);
         Ok(Box::new(FakeTarget(self.0.clone())))
     }
@@ -255,11 +258,6 @@ pub(crate) fn rig(cx: &mut TestAppContext, fake: &Arc<Fake>, prepare: impl FnOnc
     }
 }
 
-pub(crate) fn consent(rig: &Rig, cx: &mut TestAppContext) {
-    rig.shares
-        .update(cx, |s, cx| s.consent(ShareMode::Free, cx));
-}
-
 pub(crate) fn kinds(rig: &Rig) -> Vec<ShareJobKind> {
     rig.events.borrow().iter().map(|e| e.kind.clone()).collect()
 }
@@ -288,20 +286,43 @@ fn on_disk(paths: &Paths) -> Vec<String> {
 }
 
 #[gpui::test]
-fn nothing_is_sent_before_the_user_chooses(cx: &mut TestAppContext) {
+fn pressing_share_is_the_only_step_and_the_destination_follows_the_bucket_details(
+    cx: &mut TestAppContext,
+) {
     let fake = Fake::new(Box::new(|r| Ok(made(r))));
     let rig = rig(cx, &fake, |_| {});
     let source = ShareSource::Capture(Uuid::new_v4());
     rig.shares.update(cx, |s, cx| s.start(request(source), cx));
-    cx.run_until_parked();
-    assert_eq!(
-        kinds(&rig),
-        vec![ShareJobKind::Failed(ShareFailure::NoConsent)]
+    wait_until(cx, "the first share", || finished(&rig));
+    assert!(
+        matches!(kinds(&rig).last(), Some(ShareJobKind::Done(_))),
+        "{:?}",
+        kinds(&rig)
     );
+
+    rig.settings.update(cx, |s, cx| {
+        s.update(
+            |c| {
+                c.share.bucket_endpoint = "https://s3.example".into();
+                c.share.bucket_name = "shots".into();
+                c.share.bucket_public_base_url = "https://cdn.example".into();
+            },
+            cx,
+        )
+    });
+    let source = ShareSource::Capture(Uuid::new_v4());
+    rig.shares.update(cx, |s, cx| s.start(request(source), cx));
+    wait_until(cx, "the second share", || {
+        kinds(&rig)
+            .iter()
+            .filter(|k| matches!(k, ShareJobKind::Done(_) | ShareJobKind::Failed(_)))
+            .count()
+            == 2
+    });
     assert_eq!(
-        fake.opened.load(Ordering::SeqCst),
-        0,
-        "no target may be reached without consent"
+        *fake.modes.lock().unwrap(),
+        [ShareMode::Free, ShareMode::Bucket],
+        "nothing configured shares to Free; filled bucket details share to the bucket"
     );
 }
 
@@ -309,7 +330,6 @@ fn nothing_is_sent_before_the_user_chooses(cx: &mut TestAppContext) {
 fn the_link_is_copied_when_reserved_before_the_upload_finishes(cx: &mut TestAppContext) {
     let fake = Fake::new(Box::new(|r| Ok(made(r))));
     let rig = rig(cx, &fake, |_| {});
-    consent(&rig, cx);
     let source = ShareSource::Capture(Uuid::new_v4());
     let id = rig.shares.update(cx, |s, cx| s.start(request(source), cx));
     wait_until(cx, "the share to finish", || finished(&rig));
@@ -332,7 +352,6 @@ fn the_link_is_copied_when_reserved_before_the_upload_finishes(cx: &mut TestAppC
 fn a_finished_share_is_saved_before_done_and_shown_in_history(cx: &mut TestAppContext) {
     let fake = Fake::new(Box::new(|r| Ok(made(r))));
     let rig = rig(cx, &fake, |_| {});
-    consent(&rig, cx);
     let entry = history_entry(None);
     let capture = entry.id;
     rig.history.update(cx, |h, cx| h.add(entry, cx).unwrap());
@@ -375,7 +394,6 @@ fn a_refusal_keeps_its_wait_and_is_told_in_the_apps_words(cx: &mut TestAppContex
         })
     }));
     let rig = rig(cx, &fake, |_| {});
-    consent(&rig, cx);
     rig.shares.update(cx, |s, cx| {
         s.start(request(ShareSource::Capture(Uuid::nil())), cx)
     });
@@ -398,7 +416,6 @@ fn cancel_answers_at_once_and_a_late_finish_is_deleted(cx: &mut TestAppContext) 
     let (open, gate) = mpsc::channel();
     *fake.gate.lock().unwrap() = Some(gate);
     let rig = rig(cx, &fake, |_| {});
-    consent(&rig, cx);
     let id = rig.shares.update(cx, |s, cx| {
         s.start(request(ShareSource::Capture(Uuid::nil())), cx)
     });
@@ -530,21 +547,16 @@ fn the_popover_choices_are_written_to_the_share_section(cx: &mut TestAppContext)
     let fake = Fake::new(Box::new(|r| Ok(made(r))));
     let rig = rig(cx, &fake, |_| {});
     rig.shares.update(cx, |s, cx| {
-        s.consent(ShareMode::Bucket, cx);
         assert!(s.set_days(3, cx));
         assert!(!s.set_days(5, cx), "the service offers 1, 3 and 7 days");
         assert_eq!(s.days(cx), 3);
-        s.set_target(ShareMode::Free, cx);
     });
     let share = cx.update(|cx| rig.settings.read(cx).config().share.clone());
-    assert_eq!(
-        (share.target, share.consented, share.days),
-        (ShareMode::Free, true, 3)
-    );
+    assert_eq!(share.days, 3);
     rig.settings.update(cx, |s, cx| s.flush(cx));
     let text = std::fs::read_to_string(rig.paths.config_file()).unwrap();
     assert!(
-        text.contains("[share]") && text.contains("consented = true"),
+        text.contains("[share]") && text.contains("days = 3") && !text.contains("consented"),
         "{text}"
     );
 }
@@ -553,7 +565,6 @@ fn the_popover_choices_are_written_to_the_share_section(cx: &mut TestAppContext)
 fn a_target_that_dies_still_ends_its_job(cx: &mut TestAppContext) {
     let fake = Fake::new(Box::new(|_| panic!("the target died")));
     let rig = rig(cx, &fake, |_| {});
-    consent(&rig, cx);
     rig.shares.update(cx, |s, cx| {
         s.start(request(ShareSource::Capture(Uuid::nil())), cx)
     });

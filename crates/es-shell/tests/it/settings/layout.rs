@@ -124,10 +124,6 @@ fn choice_rows() -> Vec<(String, Vec<String>)> {
             ],
         ),
         ids(
-            "sharing-target",
-            &["sharing-target-free", "sharing-target-bucket"],
-        ),
-        ids(
             "sharing-days",
             &["sharing-days-1", "sharing-days-3", "sharing-days-7"],
         ),

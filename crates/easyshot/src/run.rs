@@ -25,8 +25,6 @@ pub struct Env {
     pub now: u64,
     /// Colour and glyphs in the doctor summary.
     pub styled: bool,
-    /// Whether the user has chosen where shares go.
-    pub share_ready: Box<dyn Fn() -> bool>,
     /// Whether to say on stderr what a long command is doing.
     pub progress: bool,
 }
@@ -41,14 +39,8 @@ pub fn execute(
     futures::executor::block_on(async {
         match request {
             Request::Route(route) => {
-                if matches!(route, Route::Share { .. }) {
-                    if !(env.share_ready)() {
-                        let _ = writeln!(err, "{}", line(fl!("cli-share-not-set-up")));
-                        return EXIT_ERROR;
-                    }
-                    if env.progress {
-                        let _ = writeln!(err, "{}", line(fl!("cli-sharing")));
-                    }
+                if env.progress && matches!(route, Route::Share { .. }) {
+                    let _ = writeln!(err, "{}", line(fl!("cli-sharing")));
                 }
                 send(&route, env, cancel, out, err).await
             }

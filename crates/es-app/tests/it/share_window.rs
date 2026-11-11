@@ -1,5 +1,5 @@
 #![allow(clippy::unwrap_used)]
-use super::share::{Fake, consent, finished, made, rig, wait_until};
+use super::share::{Fake, finished, made, rig, wait_until};
 use es_app::share::{FileOrigin, ShareFlow, ShareHooks, WindowPopover};
 use es_app::toast::{MemorySink, install_toasts};
 use es_desktop::RecordingNotifier;
@@ -74,7 +74,6 @@ fn viewer(cx: &mut TestAppContext, video_max_bytes: u64) -> Shown {
     fake.video_max_bytes
         .store(video_max_bytes, Ordering::SeqCst);
     let rig = rig(cx, &fake, |_| {});
-    consent(&rig, cx);
     let video = recording(rig._dir.path());
     let host = WindowPopover::default();
     let shares = rig.shares.clone();

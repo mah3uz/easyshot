@@ -129,12 +129,6 @@ fn main() -> ExitCode {
             .map_or(0, |d| d.as_secs()),
         styled: std::io::IsTerminal::is_terminal(&std::io::stdout())
             && std::env::var_os("NO_COLOR").is_none(),
-        share_ready: Box::new(|| {
-            es_store::Paths::from_xdg()
-                .ok()
-                .and_then(|p| es_store::ConfigFile::load(&p.config_file()).ok())
-                .is_some_and(|c| c.config().share.consented)
-        }),
         progress: std::io::IsTerminal::is_terminal(&std::io::stderr()),
     };
     let cancel = async move {

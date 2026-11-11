@@ -6,7 +6,7 @@ use es_app::share::{PopoverHost, WindowPopover};
 use es_overlays::player::{
     ExportOptions, ExportState, PlayerEvent, PlayerWindow, ShareRequested, bind_share,
 };
-use es_ui::components::{Destination, SharePopover, ShareView};
+use es_ui::components::{SharePopover, ShareView};
 use es_ui::tokens::ThemeMode;
 use gpui::AppContext as _;
 use std::rc::Rc;
@@ -146,7 +146,6 @@ fn ready_popover() -> BuildPopover {
             let mut p = SharePopover::new(window, cx);
             p.set_view(ShareView::Ready, cx);
             p.set_days(7, cx);
-            p.set_destination(Destination::Free, cx);
             p
         })
     })

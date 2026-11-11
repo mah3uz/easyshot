@@ -338,10 +338,7 @@ pub const SHARE_DAYS: [u8; 3] = [1, 3, 7];
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ShareCfg {
-    pub target: ShareMode,
     pub days: u8,
-    /// The user has read and accepted what sharing to the free service sends.
-    pub consented: bool,
     pub bucket_endpoint: String,
     pub bucket_name: String,
     pub bucket_region: String,
@@ -352,9 +349,7 @@ pub struct ShareCfg {
 impl Default for ShareCfg {
     fn default() -> Self {
         Self {
-            target: ShareMode::Free,
             days: 7,
-            consented: false,
             bucket_endpoint: String::new(),
             bucket_name: String::new(),
             bucket_region: String::new(),
@@ -365,6 +360,19 @@ impl Default for ShareCfg {
 }
 
 impl ShareCfg {
+    /// The bucket once its details are filled in, else the free service.
+    pub fn mode(&self) -> ShareMode {
+        let filled = |v: &str| !v.trim().is_empty();
+        if filled(&self.bucket_endpoint)
+            && filled(&self.bucket_name)
+            && filled(&self.bucket_public_base_url)
+        {
+            ShareMode::Bucket
+        } else {
+            ShareMode::Free
+        }
+    }
+
     /// A hand-edited lifetime the service does not offer reads as the default.
     pub fn days(&self) -> u8 {
         if SHARE_DAYS.contains(&self.days) {
@@ -380,11 +388,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_config_without_a_share_section_keeps_sharing_off_and_free() {
+    fn a_config_without_a_share_section_shares_to_free() {
         let c: Config = toml::from_str("[general]\ntheme = \"dark\"\n").unwrap();
         assert_eq!(c.share, ShareCfg::default());
-        assert_eq!(c.share.target, ShareMode::Free);
-        assert!(!c.share.consented, "nothing is sent before the user agrees");
+        assert_eq!(c.share.mode(), ShareMode::Free);
         assert_eq!(c.share.days(), 7);
     }
 
@@ -397,13 +404,29 @@ mod tests {
     }
 
     #[test]
-    fn the_share_section_reads_a_bucket_target() {
+    fn the_destination_is_the_bucket_only_once_its_details_are_filled() {
+        let mut c = ShareCfg::default();
+        assert_eq!(c.mode(), ShareMode::Free);
+        c.bucket_endpoint = "https://s3.example".into();
+        c.bucket_name = "b".into();
+        assert_eq!(
+            c.mode(),
+            ShareMode::Free,
+            "a half-filled bucket is not chosen"
+        );
+        c.bucket_public_base_url = "  ".into();
+        assert_eq!(c.mode(), ShareMode::Free, "blanks do not count");
+        c.bucket_public_base_url = "https://cdn.example".into();
+        assert_eq!(c.mode(), ShareMode::Bucket);
+    }
+
+    #[test]
+    fn the_removed_target_and_consent_keys_in_an_old_file_are_ignored() {
         let c: Config =
-            toml::from_str("[share]\ntarget = \"bucket\"\nbucket_name = \"b\"\nconsented = true\n")
+            toml::from_str("[share]\ntarget = \"bucket\"\nconsented = true\nbucket_name = \"b\"\n")
                 .unwrap();
-        assert_eq!(c.share.target, ShareMode::Bucket);
+        assert_eq!(c.share.mode(), ShareMode::Free);
         assert_eq!(c.share.bucket_name, "b");
-        assert!(c.share.consented && c.share.bucket_endpoint.is_empty());
     }
 
     #[test]
