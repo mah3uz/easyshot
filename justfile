@@ -280,7 +280,7 @@ install-test:
     scripts/install-bootstrap-test.sh
 
 # The gate: everything that must pass before a merge
-check: lint layers grep-guard file-size i18n-check wiring-check gpui-guard install-test test
+check: lint layers grep-guard file-size i18n-check wiring-check gpui-guard install-test test share-test
     tests/harness/sway.sh platform
     tests/harness/niri.sh platform
     tests/harness/hypr.sh platform
@@ -310,3 +310,22 @@ site-build:
 site-deploy:
     [ -d node_modules ] || npm ci
     npm run deploy
+
+# Run the share service's tests, locally against Cloudflare's simulator
+[working-directory: 'services/share']
+share-test:
+    [ -d node_modules ] || npm ci
+    npm test
+
+# Run the share service on this machine (arguments go to `wrangler dev`)
+[working-directory: 'services/share']
+share-dev *ARGS:
+    [ -d node_modules ] || npm ci
+    npx wrangler dev {{ ARGS }}
+
+# Test the share service and deploy it to Cloudflare (needs `npx wrangler login` once)
+[working-directory: 'services/share']
+share-deploy:
+    [ -d node_modules ] || npm ci
+    npm test
+    npx wrangler deploy

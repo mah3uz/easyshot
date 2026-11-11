@@ -39,11 +39,10 @@ Files go to the bucket `easyshot-shares` under `s/1d/`, `s/3d/` or `s/7d/` and a
 ## Run the tests
 
 ```sh
-npm install
-npm test
+just share-test
 ```
 
-`npm test` type-checks and runs the tests in a local Workers runtime, with a local R2 bucket and
+`just share-test` (`npm test` in this folder) type-checks and runs the tests in a local Workers runtime, with a local R2 bucket and
 Durable Object. They never reach Cloudflare.
 
 ## Run it locally
@@ -54,7 +53,7 @@ Put five secrets of at least 32 characters each in `.dev.vars` (ignored by git):
 for k in CHALLENGE_KEY INSTALL_KEY UPLOAD_KEY DELETE_KEY IP_KEY; do
   echo "$k=$(openssl rand -base64 33)"
 done > .dev.vars
-npx wrangler dev
+just share-dev
 ```
 
 ## Set it up on Cloudflare (once)
@@ -96,8 +95,11 @@ You need the `easyshot.site` zone in the same account and `npx wrangler login`.
 5. Deploy. This creates the Worker, its route on `share.easyshot.site` and the Ledger:
 
    ```sh
-   npx wrangler deploy
+   just share-deploy
    ```
+
+   `just share-deploy` runs the tests first and deploys only if they pass. Run it again after
+   any change here.
 
 The limits are `vars` in `wrangler.jsonc`; change them there and deploy again. The burst limit
 (five creates a minute per install) is the `BURST` rate limit binding; its `namespace_id` must be

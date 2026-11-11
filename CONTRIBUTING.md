@@ -64,7 +64,7 @@ and build without incremental output so sccache can reuse them across worktrees;
 `just sweep [MAX_GB]` removes `target/debug` when it is over the limit (80 GB by default). Each window test's helper ends the window's own threads before the app, then calls
 `run_until_parked`.
 
-The full gate (`just check`: lint, layers, grep-guard, file-size, i18n-check, wiring-check, gpui-guard, tests, the sway, niri and
+The full gate (`just check`: lint, layers, grep-guard, file-size, i18n-check, wiring-check, gpui-guard, tests, the share service's tests, the sway, niri and
 Hyprland platform harnesses) is run once on the combined branch before merging. The release
 build and `just release-check` run in `just release`, on the tagged commit.
 
