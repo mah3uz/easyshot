@@ -210,10 +210,8 @@ opens the editor. Each capture also appears as a card in a floating preview deck
 - hover actions in slots you can configure; on a card that auto-save has already saved, Save
   becomes Show in Folder, which opens your file manager on the saved file;
 - Settings › Overlay › Card Actions chooses which actions a card shows: Copy, Save / Show in
-  Folder, Edit, Pin, Cloud Share, Preview and Delete. Cloud Share opens a small Cloud sharing panel
-  that says it is coming soon, as cloud sharing is not built yet; its close button, Esc or a
-  click outside the panel closes it. Dismiss is always there, and at least one
-  other action stays on. Preview and Delete are off at first; with them on, Preview sits at
+  Folder, Edit, Pin, Cloud Share, Preview and Delete. Cloud Share opens the share popover (see
+  Sharing). Dismiss is always there, and at least one other action stays on. Preview and Delete are off at first; with them on, Preview sits at
   the top middle of the card and Delete at the bottom middle. In `config.toml` they are the
   `[overlay.actions]` table (`copy`, `save`, `edit`, `pin`, `share`, `preview`, `delete`);
   a table with every action off reads as the defaults;
@@ -617,22 +615,104 @@ the switch off there is no bar, and a notice says to stop from the tray or the s
 tray's Stop Recording works in every case. Your compositor has no rule that hides the bar
 from a recording.
 
+## Sharing
+
+Sharing uploads one file and gives you a link to it. You can share from a card in the deck, from
+the editor, from the trim viewer and from a terminal, and you manage your links in the gallery.
+Nothing is uploaded unless you press Share or run `easyshot share`.
+
+Share links are unlisted, not private: the address is long and random and is listed nowhere, but
+anyone who has it can open the page and download the file.
+
+### Where shares go
+
+The first time you share, easyshot asks where shares go. You can change it at any time in
+Settings › Sharing. Choosing either destination counts as agreeing to it.
+
+- **easyshot Free** needs no account and no setup. Its files are kept for the 1, 3 or 7 days you
+  pick for each share, and the free service has its own Terms (Settings › Sharing › Terms).
+- **My own bucket** sends the file straight to S3-compatible storage you own, such as
+  Cloudflare R2. Your bucket's own rules decide how long files stay, and easyshot does not
+  delete them at any date; Delete Cloud Share does.
+
+### easyshot Free
+
+- An image can be up to 10 MB, a GIF up to 20 MB and a video up to 200 MB. A video over the
+  limit is re-encoded to fit, down to 720p; a clip that still does not fit reopens the popover
+  saying how long a clip fits, and you can trim it and try again. An image over the limit is
+  saved as a JPEG, scaled down only as far as it takes, never as WebP.
+- A share lasts 1, 3 or 7 days from the moment it is made. At expiry the service deletes its
+  files. After that, anyone opening the link sees a plain "Page not found", the same as for a
+  link that never existed. Only you can tell it expired: the gallery marks it **Expired**. A
+  page held in a browser's or network's cache can still show for up to a minute after expiry.
+- Each copy of easyshot may make 30 shares a day, and a day's total of file size times days
+  is capped: a 200 MB video kept 7 days uses all of it. A service that is full, or too busy,
+  asks you to try again later.
+- The link is copied as soon as the upload starts and works at once, showing "uploading" until
+  the file arrives. The page shows the image or video, with **Download** and **Copy link**.
+
+### Your own bucket
+
+In Settings › Sharing choose **My own bucket** and fill in the endpoint, bucket, region (`auto`
+for Cloudflare R2), public URL, an optional folder prefix, and the access key ID and secret
+access key, then press **Save**. The bucket details go to `config.toml`. The keys go to your
+keyring or, when no keyring is running, to a private file, `bucket-keys.json`, in
+`$XDG_DATA_HOME/easyshot` (normally `~/.local/share/easyshot`), which only you can read. It is
+kept out of the config folder because config folders are often synced as dotfiles. The page says
+which one holds your keys and shows the real folder. A saved secret is never shown again:
+**Replace** lets you enter new keys, and **Remove Keys** clears them from the keyring and the
+file.
+
+**Test Connection** uploads a small file and reads it back from the public URL, then says
+**Works** or names the step that failed: the keys, the bucket, the public URL or the network.
+
+A share to your bucket puts the file, a poster for a video and a share page next to it in the
+bucket. The link opens that page. Delete Cloud Share removes all three.
+
+### Sharing from a capture card
+
+Press **Cloud Share** on a card in the deck. A popover opens at the button: give the link a title if you like, pick how long a free link lasts (1, 3 or 7 days) and press **Share**. The first time, the popover asks where shares go (see Where shares go); your own bucket opens Settings.
+
+A toast follows the upload. The link is copied as soon as the upload starts (**Link copied · Uploading 42 %**); **Cancel** stops it and removes the toast. When it is done the toast says **Shared** with when the link expires, or the bucket it went to, and offers **Open** and **Copy Link**. If it fails, the toast says why and **Retry** opens the popover again. A card whose capture has a live link shows a small cloud mark.
+
+### Sharing from the editor
+
+Press **Share** in the editor's footer, beside **Copy**, or the key you bound to **Share Image** in Settings › Shortcuts. The same popover opens above the button. When you press **Share** in it, the image is sent as you see it, with your annotations and background, rendered the way **Export** renders it; the button turns while the image is made. The link belongs to the capture you opened, so its card shows the cloud mark. The same toast follows the upload.
+
+### Sharing from the trim viewer
+
+Press **Share** in the trim viewer's title bar, between **Open in Studio** and **Export**, or the key you bound to **Share Video** in Settings › Shortcuts. The same popover opens below the button. The recording is sent whole, as recorded: the trim and the export choices apply only to **Export**. The link belongs to the recording, so its card shows the cloud mark. A recording too long for the destination reopens the popover saying how long fits.
+
+An expired free link stays in your list of shares; it is never offered again as a live link.
+
+### Your shares in the gallery
+
+An item you have shared shows a small cloud mark on its preview: how long a free link has left (**3 days left**, **5 hours left**), the name of the bucket it went to, or **Expired**. Previews smaller than 96 pixels show the mark alone. The list view says the same after the name (**Expires in 3 days**), and so does the status bar when the item is selected.
+
+Right-click the item, or use its actions button, for the link:
+
+- **Copy Link** copies the share page's address, and **Copy File Link** the address of the file itself.
+- **Open Link** opens the share page in your browser.
+- **Delete Cloud Share…** asks first, then deletes the shared copy, so the link stops working. Your file stays on your computer. While it is being deleted the mark says **Deleting…**; if it fails, a banner says why.
+
+An expired link offers only **Remove Expired Link**, which drops it from the list without contacting the service. Anyone else opening an expired or deleted link sees a plain "Page not found".
+
+**Cloud Shares** in the sidebar lists every link you have made, live and expired, newest first, under All Media, Screenshots and Videos. It keeps a link even when its file has been moved or deleted: the item shows a plain placeholder with the link's title, and Open, Edit and Show in Folder are greyed out. Delete in the Cloud Shares view deletes the selected link (asking first) or removes an expired one. The gallery updates on its own when a share finishes, expires or is deleted.
+
+### From the command line
+
+`easyshot share FILE [--days 1|3|7] [--title TEXT]` shares a PNG, JPEG, video or recording folder
+the same way and prints the link; see Command line. It needs a destination chosen in Settings ›
+Sharing first.
+
 ## Settings
 
 Pages: Home, General, Capture, Overlay, Recording, Shortcuts, Agents, Sharing, About. Agents is
 described under Agent use.
 
-Sharing, Share to, chooses where shares go: easyshot Free or My own bucket. Choosing either
-here counts as agreeing, the same as the step shown the first time you share. With Free, Keep
-shares for is 1, 3 or 7 days. With My own bucket, fill in the endpoint, bucket, region (`auto`
-for Cloudflare R2), public URL, an optional folder prefix, and the access key ID and secret
-access key, then press Save. The bucket details go to `config.toml`; the keys go to your keyring,
-or, when no keyring is running, to a private file in `~/.local/share/easyshot`, and the page says
-which. A saved secret is never shown again: Replace lets you enter new keys, and Remove Keys
-clears them from the keyring and the file. Test Connection uploads a small file and reads it
-back from the public URL, then says Works or names the step that failed: the keys, the bucket,
-the public URL or the network. Share links are unlisted, not private: anyone who has a link can
-open it. Terms opens the free service's terms.
+Sharing, Share to, chooses where shares go: easyshot Free or My own bucket, and Keep shares
+for, 1, 3 or 7 days, for free links. Everything on that page, and the Terms link, is described
+under Sharing.
 
 General, Appearance, Theme is System, Light or Dark. System follows your desktop's light or dark
 choice, as the settings portal reports it, and changes when you change it. A desktop that reports
@@ -1131,6 +1211,9 @@ The server runs for as long as the agent session does.
 | Recordings | `$XDG_DATA_HOME/easyshot/recordings/` |
 | Logs and crash reports | `$XDG_STATE_HOME/easyshot/log/`, `crash/` |
 | Agent grant and log | `$XDG_STATE_HOME/easyshot/agent.json` |
+| Your shares and their delete rights | `$XDG_DATA_HOME/easyshot/shares.json` |
+| Free-service install token | `$XDG_STATE_HOME/easyshot/share-install-token` |
+| Bucket keys, only when no keyring runs | `$XDG_DATA_HOME/easyshot/bucket-keys.json` |
 | Default save folder | `Screenshots` inside your Pictures folder |
 | Saved recordings and video exports | `easyshot` inside your Videos folder |
 
@@ -1167,8 +1250,19 @@ as the desktop entry, and easyshot's other windows use `dev.easyshot.app.editor`
 ## Limits in version 1
 
 KDE and GNOME, the video Studio (timeline, zooms, cursor effects, captions, camera
-layouts), camera recording, the teleprompter, cloud sharing (the Cloud Share action says coming soon), a built-in updater and
-Flatpak are not part of version 1.
+layouts), camera recording, the teleprompter, a built-in updater and Flatpak are not part of
+version 1.
+
+Sharing has these limits:
+
+- Free links last at most 7 days; own-bucket links have no expiry set by easyshot.
+- Free shares are capped at 10 MB for an image, 20 MB for a GIF and 200 MB for a video, and each
+  copy of easyshot has a daily allowance.
+- An image too big for the free limit becomes a JPEG; easyshot does not send it as WebP.
+- A free share page held in a cache can still show for up to a minute after the link expires.
+- Links are unlisted, not private, and there is no password or per-viewer access.
+- Sharing starts from a deck card, the editor, the trim viewer and `easyshot share`; the gallery
+  lists and deletes links but does not start a share.
 
 ## Troubleshooting
 
@@ -1180,30 +1274,26 @@ the mouse, your compositor is hiding it because you pressed a key. On Hyprland t
 `cursor:hide_on_key_press`; on sway it is `seat * hide_cursor when-typing enable`. Turn it
 off to see the hand while you pan.
 
-### Sharing from a capture card
+### Sharing fails
 
-Press **Share** on a card in the deck. A popover opens at the button: give the link a title if you like, pick how long a free link lasts (1, 3 or 7 days) and press **Share**. The first time, the popover asks where shares go: **easyshot Free**, or your own bucket, which opens Settings.
+A failed share shows a toast, or a notice in the popover, in these words. Each is what to do:
 
-A toast follows the upload. The link is copied as soon as the upload starts (**Link copied · Uploading 42 %**); **Cancel** stops it and removes the toast. When it is done the toast says **Shared** with when the link expires, or the bucket it went to, and offers **Open** and **Copy Link**. If it fails, the toast says why and **Retry** opens the popover again. A card whose capture has a live link shows a small cloud mark.
+| Message | What to do |
+|---|---|
+| Choose where your shares go before sharing. | Pick easyshot Free or My own bucket in Settings › Sharing. |
+| Set up your bucket in Settings before sharing to it. | Fill in the bucket's details and keys and press Save. |
+| easyshot couldn't read your bucket keys from the keyring. | Unlock or start your keyring, or Replace the keys in Settings › Sharing. |
+| easyshot couldn't reach the share service. | Check your connection and try again. |
+| Your bucket refused your keys. | Check the access key ID and secret in Settings › Sharing. |
+| Your bucket wasn't found or refused the upload. | Check the bucket's name, endpoint and region. |
+| Your bucket's public URL doesn't serve the shared files. | Check the public URL; Test Connection names this step. |
+| easyshot couldn't reach your bucket. | Check the endpoint and your connection. |
+| This clip is too long to share. | Trim it to the length the message gives and try again. |
+| This file is larger than the share service accepts. | Free shares take up to 10 MB for an image, 20 MB for a GIF and 200 MB for a video. |
+| Too many shares in a short time. / You have shared as much as the service allows today. / The share service is full right now. | Wait for the time the message gives, or share to your own bucket. |
+| This version of easyshot can no longer share. | Update easyshot. |
+| The upload took too long. / The share service didn't accept this copy of easyshot. / The share changed while it was uploading. | Try again. |
+| Sharing was cancelled. | You pressed Cancel; nothing is kept. |
 
-### Sharing from the editor
-
-Press **Share** in the editor's footer, beside **Copy**, or the key you bound to **Share Image** in Settings › Shortcuts. The same popover opens above the button. When you press **Share** in it, the image is sent as you see it, with your annotations and background, rendered the way **Export** renders it; the button turns while the image is made. The link belongs to the capture you opened, so its card shows the cloud mark. The same toast follows the upload.
-
-Press **Share** in the trim viewer's title bar, between **Open in Studio** and **Export**, or the key you bound to **Share Video** in Settings › Shortcuts. The same popover opens below the button. The recording is sent whole, as recorded: the trim and the export choices apply only to **Export**. The link belongs to the recording, so its card shows the cloud mark. A recording too long for the destination reopens the popover saying how long fits.
-
-An expired free link stays in your list of shares; it is never offered again as a live link.
-
-### Your shares in the gallery
-
-An item you have shared shows a small cloud mark on its preview: how long a free link has left (**3 days left**, **5 hours left**), the name of the bucket it went to, or **Expired**. Previews smaller than 96 pixels show the mark alone. The list view says the same after the name (**Expires in 3 days**), and so does the status bar when the item is selected.
-
-Right-click the item, or use its actions button, for the link:
-
-- **Copy Link** copies the share page's address, and **Copy File Link** the address of the file itself.
-- **Open Link** opens the share page in your browser.
-- **Delete Cloud Share…** asks first, then deletes the shared copy, so the link stops working. Your file stays on your computer. While it is being deleted the mark says **Deleting…**; if it fails, a banner says why.
-
-An expired link offers only **Remove Expired Link**, which drops it from the list without contacting the service. Anyone else opening an expired or deleted link sees a plain "Page not found".
-
-**Cloud Shares** in the sidebar lists every link you have made, live and expired, newest first, under All Media, Screenshots and Videos. It keeps a link even when its file has been moved or deleted: the item shows a plain placeholder with the link's title, and Open, Edit and Show in Folder are greyed out. Delete in the Cloud Shares view deletes the selected link (asking first) or removes an expired one. The gallery updates on its own when a share finishes, expires or is deleted.
+**Retry** on the toast reopens the popover. Failures to delete a share show a banner in the
+gallery with the reason.
