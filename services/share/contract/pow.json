@@ -1,0 +1,10 @@
+{
+  "format": "easyshot.share-contract.pow",
+  "version": 1,
+  "cases": [
+    { "challenge": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8", "difficulty": 8, "nonce": "402", "sha256": "005f1a2d2ef074c71e8824244c5619e2b0adbc3720a5022610dbbf8de5c70e80" },
+    { "challenge": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8", "difficulty": 12, "nonce": "904", "sha256": "000685e416dc4ec2da03619fce0b9764dab7767a7ab2b384afaa0e23226bfb01" },
+    { "challenge": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8", "difficulty": 16, "nonce": "30262", "sha256": "00006c63ddc6319a0d393d8c78d13f0206b1e5be43c1bd1a497c4745544fe13b" }
+  ],
+  "note": "nonce is the smallest decimal value meeting the difficulty"
+}

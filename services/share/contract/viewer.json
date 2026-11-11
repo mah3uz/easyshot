@@ -1,0 +1,71 @@
+{
+  "format": "easyshot.share-contract.viewer",
+  "version": 1,
+  "cases": [
+    {
+      "name": "escapes_text",
+      "template": "<title>{{title}}</title>",
+      "values": {
+        "title": "Tom & Jerry's <b>\"bug\"</b>"
+      },
+      "blocks": [],
+      "output": "<title>Tom &amp; Jerry&#39;s &lt;b&gt;&quot;bug&quot;&lt;/b&gt;</title>"
+    },
+    {
+      "name": "one_pass",
+      "template": "<p>{{title}}</p>",
+      "values": {
+        "title": "{{page_url}}",
+        "page_url": "https://x.example"
+      },
+      "blocks": [],
+      "output": "<p>{{page_url}}</p>"
+    },
+    {
+      "name": "keeps_named_block",
+      "template": "<!--if:image--><img src=\"{{media_url}}\"><!--end:image--><!--if:video--><video src=\"{{media_url}}\"></video><!--end:video-->",
+      "values": {
+        "media_url": "https://m.easyshot.site/s/7d/7Kp2mX9qR4tY8wZ1aB3cD5/media.png"
+      },
+      "blocks": [
+        "image"
+      ],
+      "output": "<img src=\"https://m.easyshot.site/s/7d/7Kp2mX9qR4tY8wZ1aB3cD5/media.png\">"
+    },
+    {
+      "name": "drops_block_with_its_placeholders",
+      "template": "<h1>Gone</h1><!--if:expires--><time>{{expires_at}}</time><!--end:expires-->",
+      "values": {},
+      "blocks": [],
+      "output": "<h1>Gone</h1>"
+    },
+    {
+      "name": "multiline_block",
+      "template": "<!--if:ready-->\n<a href=\"{{media_url}}\" download=\"{{download_name}}\">Download</a>\n<!--end:ready--><!--if:gone--><p>gone</p><!--end:gone-->",
+      "values": {
+        "media_url": "https://m.easyshot.site/s/1d/1abc/media.gif",
+        "download_name": "easyshot-1abc.gif"
+      },
+      "blocks": [
+        "ready"
+      ],
+      "output": "\n<a href=\"https://m.easyshot.site/s/1d/1abc/media.gif\" download=\"easyshot-1abc.gif\">Download</a>\n"
+    },
+    {
+      "name": "missing_value_is_an_error",
+      "template": "<p>{{title}}</p>",
+      "values": {},
+      "blocks": [],
+      "error": "missing_value"
+    },
+    {
+      "name": "url_must_be_https",
+      "template": "<a href=\"{{page_url}}\">x</a>",
+      "values": {
+        "page_url": "javascript:alert(1)"
+      },
+      "blocks": [],
+      "error": "not_https"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>{{title}}</title>
+<!--if:ready-->
+<meta property="og:title" content="{{title}}">
+<meta property="og:url" content="{{page_url}}">
+<meta property="og:image" content="{{poster_url}}">
+<meta name="twitter:card" content="summary_large_image">
+<!--if:video--><meta property="og:type" content="video.other"><meta property="og:video" content="{{media_url}}"><meta property="og:video:type" content="{{mime}}"><!--end:video-->
+<!--end:ready-->
+</head>
+<body>
+<main>
+<!--if:ready-->
+<h1>{{title}}</h1>
+<!--if:image--><img src="{{media_url}}" width="{{width}}" height="{{height}}" alt="{{title}}"><!--end:image-->
+<!--if:video--><video src="{{media_url}}" poster="{{poster_url}}" width="{{width}}" height="{{height}}" controls preload="metadata"></video><!--end:video-->
+<!--if:expires--><p>Expires <time datetime="{{expires_at}}">{{expires_at}}</time></p><!--end:expires-->
+<p><a href="{{media_url}}" download="{{download_name}}">Download</a></p>
+<!--end:ready-->
+<!--if:uploading--><h1>{{title}}</h1><p>Still uploading. This page shows it when it is done.</p><!--end:uploading-->
+<!--if:gone--><h1>This share is gone</h1><p>It expired or was deleted.</p><!--end:gone-->
+<p><a href="{{home_url}}">Made with easyshot</a></p>
+</main>
+</body>
+</html>
