@@ -1,7 +1,4 @@
-use super::{
-    FileShare, ShareFailure, ShareJobEvent, ShareJobId, ShareJobKind, Shares, SharesChanged,
-};
-use crate::deck::{Deck, DeckItem};
+use super::{FileShare, ShareFailure, ShareJobEvent, ShareJobId, ShareJobKind, Shares};
 use crate::errors::Result;
 use crate::platform_ui::ClipboardSink;
 use crate::services::Strings;
@@ -10,11 +7,11 @@ use es_geom::Rect;
 use es_model::platform::{ClipItem, OutputId};
 use es_model::{ShareMode, ShareRecord, ShareTarget};
 use es_ui::components::{Destination, ShareEvent, SharePopover, ShareTarget as Choice, ShareView};
-use gpui::{App, AppContext as _, Context, Entity, Subscription, WeakEntity, Window};
+use gpui::{App, AppContext as _, Context, Entity, Subscription, Task, WeakEntity, Window};
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use uuid::Uuid;
 
 /// The control a popover points at, in logical pixels from its output's top-left.
 #[derive(Debug, Clone, PartialEq)]
@@ -38,6 +35,23 @@ pub trait PopoverHost {
     fn close(&self, cx: &mut App);
 }
 
+/// Where a share is asked from: a deck card, the editor or the trim viewer.
+pub trait ShareOrigin {
+    /// The capture or recording the link is recorded against.
+    fn subject(&self) -> &Path;
+    fn host(&self) -> Rc<dyn PopoverHost>;
+    /// `None` leaves the place to the host: a window's own host points at its button.
+    fn anchor(&self, _cx: &App) -> Option<Anchor> {
+        None
+    }
+    /// The surface keeps still while its popover is open.
+    fn hold(&self, _held: bool, _cx: &mut App) {}
+    /// The file sent, made when Share is pressed; an error is shown in the popover.
+    fn file(&self, _cx: &mut App) -> Task<std::result::Result<PathBuf, String>> {
+        Task::ready(Ok(self.subject().to_owned()))
+    }
+}
+
 pub type OpenUrl = Rc<dyn Fn(&str, &mut App)>;
 
 pub struct ShareHooks {
@@ -47,65 +61,53 @@ pub struct ShareHooks {
 
 type PopoverSlot = Rc<RefCell<Option<WeakEntity<SharePopover>>>>;
 
+#[derive(Clone)]
+struct Ask {
+    origin: Rc<dyn ShareOrigin>,
+    title: Option<String>,
+}
+
 struct Shown {
     ask: Ask,
     generation: u64,
     popover: PopoverSlot,
+    _making: Option<Task<()>>,
 }
 
-struct Ask {
-    item: DeckItem,
-    anchor: Option<Anchor>,
-    title: Option<String>,
-}
-
-/// Share on a deck card: the popover, one toast per upload, and the card's shared mark.
-pub struct DeckShare {
+/// The share popover for any surface, one toast per upload, and the way back after a failure.
+pub struct ShareFlow {
     shares: Entity<Shares>,
-    deck: Entity<Deck>,
-    host: Rc<dyn PopoverHost>,
     hooks: ShareHooks,
     clipboard: Rc<dyn ClipboardSink>,
     open: Option<Shown>,
     generation: u64,
     jobs: HashMap<ShareJobId, Ask>,
-    marked: HashSet<Uuid>,
     weak: WeakEntity<Self>,
-    _subscriptions: [Subscription; 3],
+    _subscription: Subscription,
 }
 
-impl DeckShare {
+impl ShareFlow {
     pub fn new(
         shares: Entity<Shares>,
-        deck: Entity<Deck>,
-        host: Rc<dyn PopoverHost>,
         hooks: ShareHooks,
         clipboard: Rc<dyn ClipboardSink>,
         cx: &mut Context<Self>,
     ) -> Self {
-        let subscriptions = [
-            cx.subscribe(&shares, |this, _, e: &ShareJobEvent, cx| this.on_job(e, cx)),
-            cx.subscribe(&shares, |this, _, _: &SharesChanged, cx| {
-                this.mark(true, cx)
-            }),
-            cx.observe(&deck, |this, _, cx| this.mark(false, cx)),
-        ];
+        let subscription =
+            cx.subscribe(&shares, |this, _, e: &ShareJobEvent, cx| this.on_job(e, cx));
         Self {
             shares,
-            deck,
-            host,
             hooks,
             clipboard,
             open: None,
             generation: 0,
             jobs: HashMap::new(),
-            marked: HashSet::new(),
             weak: cx.entity().downgrade(),
-            _subscriptions: subscriptions,
+            _subscription: subscription,
         }
     }
 
-    pub fn open(&mut self, item: DeckItem, anchor: Option<Anchor>, cx: &mut Context<Self>) {
+    pub fn open(&mut self, origin: Rc<dyn ShareOrigin>, cx: &mut Context<Self>) {
         let consented = self.shares.read(cx).config(cx).consented;
         let view = if consented {
             ShareView::Ready
@@ -114,8 +116,7 @@ impl DeckShare {
         };
         self.show(
             Ask {
-                item,
-                anchor,
+                origin,
                 title: None,
             },
             view,
@@ -132,8 +133,7 @@ impl DeckShare {
     }
 
     fn show(&mut self, ask: Ask, view: ShareView, cx: &mut Context<Self>) {
-        self.host.close(cx);
-        let id = ask.item.id;
+        self.close(cx);
         let cfg = self.shares.read(cx).config(cx);
         let days = self.shares.read(cx).days(cx);
         let destination = match cfg.target {
@@ -170,14 +170,15 @@ impl DeckShare {
                 let _ = this.update(cx, |s, cx| s.closed(generation, cx));
             });
         });
-        let anchor = ask.anchor.clone();
+        let (host, anchor) = (ask.origin.host(), ask.origin.anchor(cx));
+        ask.origin.hold(true, cx);
         self.open = Some(Shown {
             ask,
             generation,
             popover: slot,
+            _making: None,
         });
-        self.deck.update(cx, |d, cx| d.hold(Some(id), cx));
-        if let Err(e) = self.host.open(anchor.as_ref(), build, closed, cx) {
+        if let Err(e) = host.open(anchor.as_ref(), build, closed, cx) {
             tracing::warn!(error = %e, "share popover not shown");
             self.closed(generation, cx);
         }
@@ -189,16 +190,16 @@ impl DeckShare {
             .open
             .as_ref()
             .is_some_and(|o| o.generation == generation)
+            && let Some(shown) = self.open.take()
         {
-            self.open = None;
-            self.deck.update(cx, |d, cx| d.hold(None, cx));
+            shown.ask.origin.hold(false, cx);
         }
     }
 
     fn close(&mut self, cx: &mut Context<Self>) {
-        self.host.close(cx);
-        if self.open.take().is_some() {
-            self.deck.update(cx, |d, cx| d.hold(None, cx));
+        if let Some(shown) = self.open.take() {
+            shown.ask.origin.host().close(cx);
+            shown.ask.origin.hold(false, cx);
         }
     }
 
@@ -209,10 +210,10 @@ impl DeckShare {
         cx: &mut Context<Self>,
     ) {
         match e {
-            ShareEvent::Share { title } => self.start(title, cx),
+            ShareEvent::Share { title } => self.make(popover, title, cx),
             ShareEvent::Retry => {
                 let title = self.open.as_ref().and_then(|o| o.ask.title.clone());
-                self.start(title, cx);
+                self.make(popover, title, cx);
             }
             ShareEvent::Days(days) => {
                 if self.shares.update(cx, |s, cx| s.set_days(days, cx)) {
@@ -233,16 +234,57 @@ impl DeckShare {
         }
     }
 
-    fn start(&mut self, title: Option<String>, cx: &mut Context<Self>) {
+    /// Share waits with a spinner while the surface makes the file, then the popover goes.
+    fn make(
+        &mut self,
+        popover: &Entity<SharePopover>,
+        title: Option<String>,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(shown) = self.open.as_mut() else {
+            return;
+        };
+        let file = shown.ask.origin.file(cx);
+        let generation = shown.generation;
+        popover.update(cx, |p, cx| p.set_busy(true, cx));
+        let popover = popover.downgrade();
+        shown._making = Some(cx.spawn(async move |this, cx| {
+            let made = file.await;
+            let _ = this.update(cx, |s, cx| {
+                if s.open.as_ref().map(|o| o.generation) != Some(generation) {
+                    return;
+                }
+                match made {
+                    Ok(path) => s.start(path, title, cx),
+                    Err(message) => {
+                        let _ = popover.update(cx, |p, cx| {
+                            p.set_busy(false, cx);
+                            p.set_view(
+                                ShareView::Failed {
+                                    message: message.into(),
+                                    wait: None,
+                                },
+                                cx,
+                            );
+                        });
+                    }
+                }
+            });
+        }));
+    }
+
+    fn start(&mut self, path: PathBuf, title: Option<String>, cx: &mut Context<Self>) {
         let Some(Shown { ask, .. }) = self.open.take() else {
             return;
         };
-        self.host.close(cx);
-        self.deck.update(cx, |d, cx| d.hold(None, cx));
+        ask.origin.host().close(cx);
+        ask.origin.hold(false, cx);
+        let source = self.shares.read(cx).source_of(ask.origin.subject(), cx);
         let file = FileShare {
-            path: ask.item.file.clone(),
+            path,
             days: None,
             title: title.clone(),
+            source: Some(source),
         };
         let ask = Ask { title, ..ask };
         let id = self.shares.update(cx, |s, cx| s.start_file(file, cx));
@@ -273,7 +315,13 @@ impl DeckShare {
             ShareJobKind::Done(record) => {
                 self.jobs.remove(&id);
                 show_toast(self.shared(id, record), cx);
-                self.mark(true, cx);
+            }
+            ShareJobKind::Failed(failure @ ShareFailure::TooLong { .. }) => {
+                dismiss_toast(id.0, cx);
+                if let Some(ask) = self.jobs.remove(&id) {
+                    let message = failure.message(&Strings).into();
+                    self.show(ask, ShareView::TooLong { message }, cx);
+                }
             }
             ShareJobKind::Failed(failure) => {
                 let ask = self.jobs.remove(&id);
@@ -316,13 +364,7 @@ impl DeckShare {
         t.keyed(id.0)
             .action("share-toast-open", move |cx| open(&url, cx))
             .action("share-toast-copy-link", move |cx| {
-                let copied = copy.copy(vec![ClipItem::Text(link.clone())], cx);
-                cx.spawn(async move |_| {
-                    if let Err(e) = copied.await {
-                        tracing::warn!(error = %e, "copying the share link");
-                    }
-                })
-                .detach();
+                copy_link(&*copy, &link, cx)
             })
     }
 
@@ -340,45 +382,21 @@ impl DeckShare {
                 message: message.clone().into(),
                 wait: None,
             };
-            let ask = Ask {
-                item: ask.item.clone(),
-                anchor: ask.anchor.clone(),
-                title: ask.title.clone(),
-            };
-            let _ = flow.update(cx, |s, cx| s.retry(ask, view, cx));
+            let ask = ask.clone();
+            let _ = flow.update(cx, |s, cx| s.show(ask, view, cx));
         })
     }
+}
 
-    fn retry(&mut self, ask: Ask, view: ShareView, cx: &mut Context<Self>) {
-        let anchor = self
-            .deck
-            .read(cx)
-            .get(ask.item.id)
-            .is_some()
-            .then_some(ask.anchor)
-            .flatten();
-        self.show(Ask { anchor, ..ask }, view, cx);
-    }
-
-    /// Only a change to which cards are here, or to the shares, asks the engine again.
-    fn mark(&mut self, shares_changed: bool, cx: &mut Context<Self>) {
-        let items: Vec<DeckItem> = self.deck.read(cx).items().cloned().collect();
-        let ids: HashSet<Uuid> = items.iter().map(|i| i.id).collect();
-        if !shares_changed && ids == self.marked {
-            return;
+/// Copies a share link through `clipboard`; a failure is only logged.
+pub fn copy_link(clipboard: &dyn ClipboardSink, link: &str, cx: &mut App) {
+    let copied = clipboard.copy(vec![ClipItem::Text(link.to_owned())], cx);
+    cx.spawn(async move |_| {
+        if let Err(e) = copied.await {
+            tracing::warn!(error = %e, "copying the share link");
         }
-        self.marked = ids;
-        let shares = self.shares.read(cx);
-        let marks: Vec<(Uuid, bool)> = items
-            .iter()
-            .map(|i| (i.id, shares.for_file(&i.file, cx).is_some()))
-            .collect();
-        self.deck.update(cx, |d, cx| {
-            for (id, shared) in marks {
-                d.set_shared(id, shared, cx);
-            }
-        });
-    }
+    })
+    .detach();
 }
 
 fn uploading(sent: u64, total: u64) -> Toast {

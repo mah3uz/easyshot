@@ -384,6 +384,7 @@ fn open_editor(w: &Rc<Wiring>, key: &WindowKey, cx: &mut App) -> Result<Rc<dyn W
     };
     w.editors.borrow_mut().retain(|e| e.upgrade().is_some());
     w.editors.borrow_mut().push(editor.downgrade());
+    super::share::editor(&editor, file, cx);
     let settings = w.settings.clone();
     let wallpaper = w.wallpaper.borrow().clone();
     let config = IoConfig {

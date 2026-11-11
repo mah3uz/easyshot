@@ -1,9 +1,11 @@
 mod crop_bar;
 mod preview;
 pub mod redact;
+mod share;
 mod states;
 mod title_bar;
 
+pub use share::ShareRequested;
 pub(crate) use states::{busy, done, flashed};
 
 use std::time::Duration;
@@ -117,6 +119,7 @@ pub struct EditorWindow {
     pub(crate) held: Option<crate::keyboard::Command>,
     guard_hooked: bool,
     shown_title: SharedString,
+    pub(crate) share: Option<es_app::share::WindowPopover>,
     _loading: Option<Task<()>>,
     _subscriptions: Vec<Subscription>,
 }
@@ -148,6 +151,7 @@ impl EditorWindow {
             held: None,
             guard_hooked: false,
             shown_title: SharedString::default(),
+            share: None,
             _loading: None,
             _subscriptions: Vec::new(),
         }

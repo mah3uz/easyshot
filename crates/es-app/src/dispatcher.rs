@@ -111,7 +111,12 @@ fn target(route: Route) -> Target {
         Route::Quit => Target::Action(Action::Quit),
         Route::AgentRevoke => Target::Action(Action::RevokeAgent),
         Route::Agent(route) => Target::Agent(route),
-        Route::Share { path, days, title } => Target::Share(FileShare { path, days, title }),
+        Route::Share { path, days, title } => Target::Share(FileShare {
+            path,
+            days,
+            title,
+            source: None,
+        }),
     }
 }
 

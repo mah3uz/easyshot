@@ -1185,3 +1185,9 @@ off to see the hand while you pan.
 Press **Share** on a card in the deck. A popover opens at the button: give the link a title if you like, pick how long a free link lasts (1, 3 or 7 days) and press **Share**. The first time, the popover asks where shares go: **easyshot Free**, or your own bucket, which opens Settings.
 
 A toast follows the upload. The link is copied as soon as the upload starts (**Link copied · Uploading 42 %**); **Cancel** stops it and removes the toast. When it is done the toast says **Shared** with when the link expires, or the bucket it went to, and offers **Open** and **Copy Link**. If it fails, the toast says why and **Retry** opens the popover again. A card whose capture has a live link shows a small cloud mark.
+
+### Sharing from the editor
+
+Press **Share** in the editor's footer, beside **Copy**, or the key you bound to **Share Image** in Settings › Shortcuts. The same popover opens above the button. When you press **Share** in it, the image is sent as you see it, with your annotations and background, rendered the way **Export** renders it; the button turns while the image is made. The link belongs to the capture you opened, so its card shows the cloud mark. The same toast follows the upload.
+
+An expired free link stays in your list of shares; it is never offered again as a live link.

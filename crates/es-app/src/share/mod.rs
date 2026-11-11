@@ -1,14 +1,18 @@
+mod deck;
 mod failure;
 pub mod flow;
 mod job;
 mod prepare;
 mod target;
+mod window_host;
 
+pub use deck::{DeckMarks, DeckOrigin};
 pub use failure::ShareFailure;
-pub use flow::{Anchor, DeckShare, PopoverHost, ShareHooks};
+pub use flow::{Anchor, PopoverHost, ShareFlow, ShareHooks, ShareOrigin, copy_link};
 pub use job::run_route;
 pub use prepare::{Caps, Job as PrepareJob, PrepareError, Prepared, Tools, prepare, prepare_with};
 pub use target::{FREE_BASE_URL, KeyPlace, Keyring, LiveTargets, SystemKeyring, Target, Targets};
+pub use window_host::{WindowPopover, popover_from};
 
 use crate::history::History;
 use crate::platform_ui::ClipboardSink;
@@ -75,12 +79,14 @@ pub struct ShareDeleted {
     pub result: Result<(), ShareFailure>,
 }
 
-/// A local file to share: an image, a video or a recording folder. `days` of `None` is the setting.
+/// A local file to share: an image, a video or a recording folder. `days` of `None` is the setting;
+/// `source` of `None` records the link against `path` itself.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileShare {
     pub path: PathBuf,
     pub days: Option<u8>,
     pub title: Option<String>,
+    pub source: Option<ShareSource>,
 }
 
 enum Msg {
@@ -105,6 +111,7 @@ pub struct Shares {
     targets: Arc<dyn Targets>,
     jobs: HashMap<ShareJobId, Job>,
     next: u64,
+    swept: OffsetDateTime,
     _sweep: Task<()>,
 }
 
@@ -135,7 +142,7 @@ impl Shares {
         let sweep = cx.spawn(async move |this, cx| {
             loop {
                 cx.background_executor().timer(SWEEP_EVERY).await;
-                if this.update(cx, |s, cx| s.drop_expired(cx)).is_err() {
+                if this.update(cx, |s, cx| s.expire(cx)).is_err() {
                     break;
                 }
             }
@@ -150,9 +157,10 @@ impl Shares {
             targets,
             jobs: HashMap::new(),
             next: 1,
+            swept: OffsetDateTime::UNIX_EPOCH,
             _sweep: sweep,
         };
-        shares.drop_expired(cx);
+        shares.expire(cx);
         shares
     }
 
@@ -277,7 +285,10 @@ impl Shares {
             });
             return id;
         }
-        let source = self.source_of(&file.path, cx);
+        let source = file
+            .source
+            .clone()
+            .unwrap_or_else(|| self.source_of(&file.path, cx));
         let paths = self.paths.clone();
         self.launch(id, cfg, cx, move |targets, cfg, cancel, send| {
             let target = targets.open(cfg.target, cfg)?;
@@ -311,7 +322,7 @@ impl Shares {
     }
 
     /// An image in the history is shared as that capture; any other file by its path.
-    fn source_of(&self, path: &Path, cx: &App) -> ShareSource {
+    pub fn source_of(&self, path: &Path, cx: &App) -> ShareSource {
         if path.is_dir() || es_store::media::is_video(path) {
             return ShareSource::Recording(path.to_owned());
         }
@@ -503,24 +514,27 @@ impl Shares {
         cx.emit(ShareDeleted { record, result });
     }
 
-    /// The service deletes a free share when it expires; a bucket's own rules expire its shares.
-    fn drop_expired(&mut self, cx: &mut Context<Self>) {
+    /// Drops a link from the list without asking its target, as for one the service already deleted.
+    pub fn forget(&mut self, id: &str, cx: &mut Context<Self>) {
+        if let Some(record) = self.file.value.remove(id) {
+            self.changed(&[record.source], cx);
+        }
+    }
+
+    /// An expired link is kept, so its uploader can see it expired; its source loses the link.
+    fn expire(&mut self, cx: &mut Context<Self>) {
         let now = OffsetDateTime::now_utc();
-        let gone: Vec<ShareRecord> = self
+        let since = std::mem::replace(&mut self.swept, now);
+        let lapsed: Vec<ShareSource> = self
             .file
             .value
             .expired(now)
-            .filter(|r| r.target == ShareTarget::Free)
-            .cloned()
+            .filter(|r| r.expires_at.is_some_and(|at| at > since))
+            .map(|r| r.source.clone())
             .collect();
-        if gone.is_empty() {
-            return;
+        if !lapsed.is_empty() {
+            self.changed(&lapsed, cx);
         }
-        for record in &gone {
-            self.file.value.remove(&record.id);
-        }
-        let sources: Vec<ShareSource> = gone.into_iter().map(|r| r.source).collect();
-        self.changed(&sources, cx);
     }
 
     fn changed(&mut self, sources: &[ShareSource], cx: &mut Context<Self>) {

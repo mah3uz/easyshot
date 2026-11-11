@@ -1,14 +1,13 @@
 use super::surfaces::{LayerShellSurfaces, LayerSurfaceHandle};
 use super::{SurfaceHandle as _, SurfaceRole};
 use crate::errors::{Error, Result};
-use crate::fl;
 use crate::share::flow::BuildPopover;
-use crate::share::{Anchor, PopoverHost};
+use crate::share::{Anchor, PopoverHost, popover_from};
 use es_geom::{Point, Rect, Size};
-use es_ui::components::{Popover, SHARE_POPOVER_WIDTH, SharePopover};
+use es_ui::components::SharePopover;
 use gpui::{
-    App, AppContext as _, Context, Entity, Focusable as _, IntoElement, ParentElement as _, Render,
-    Styled as _, Window, div, px,
+    App, AppContext as _, Context, Entity, IntoElement, ParentElement as _, Render, Styled as _,
+    Window, div, px,
 };
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -52,7 +51,6 @@ impl Render for SharePopoverPanel {
         let Some(popover) = self.popover.clone() else {
             return div().size_full();
         };
-        let focus = popover.read(cx).focus_handle(cx);
         let close = self.close.clone();
         let anchor = if self.opens_left {
             gpui::Anchor::BottomRight
@@ -68,20 +66,7 @@ impl Render for SharePopoverPanel {
                 .top(px(r.y0 as f32))
                 .w(w)
                 .h(h)
-                .child(
-                    Popover::new("share-popover", fl!("share-popover-a11y"))
-                        .width(SHARE_POPOVER_WIDTH)
-                        .anchor(anchor)
-                        .open(true)
-                        .focus(&focus)
-                        .on_open_change(move |open, _, cx| {
-                            if !open {
-                                close(cx);
-                            }
-                        })
-                        .trigger(div().w(w).h(h))
-                        .content(move |_, _| popover.clone()),
-                ),
+                .child(popover_from(div().w(w).h(h), popover, anchor, close, cx)),
         )
     }
 }

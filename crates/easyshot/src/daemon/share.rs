@@ -3,11 +3,17 @@ use es_app::deck::{Deck, DeckItem};
 use es_app::history::History;
 use es_app::platform_ui::{ClipboardSink, LayerShellSurfaces, SharePopoverSurface};
 use es_app::settings_model::SettingsModel;
-use es_app::share::{DeckShare, LiveTargets, PopoverHost, ShareHooks, Shares, SystemKeyring};
+use es_app::share::WindowPopover;
+use es_app::share::{
+    DeckMarks, DeckOrigin, LiveTargets, PopoverHost, ShareFlow, ShareHooks, ShareOrigin, Shares,
+    SystemKeyring,
+};
+use es_editor::{EditorWindow, ShareRequested};
 use es_overlays::deck::view::DeckSurface;
 use es_protocol::{Route, SettingsPage};
 use es_store::Paths;
-use gpui::{App, AppContext as _, Entity, Global};
+use gpui::{App, AppContext as _, Entity, Global, Task, WeakEntity};
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -33,6 +39,60 @@ struct DeckShares(Open);
 
 impl Global for DeckShares {}
 
+struct Flow {
+    flow: Entity<ShareFlow>,
+    _marks: Entity<DeckMarks>,
+}
+
+impl Global for Flow {}
+
+/// Opens the share popover for a surface; nothing happens before sharing is installed.
+pub(super) fn open(origin: Rc<dyn ShareOrigin>, cx: &mut App) {
+    match cx.try_global::<Flow>().map(|f| f.flow.clone()) {
+        Some(flow) => flow.update(cx, |f, cx| f.open(origin, cx)),
+        None => tracing::warn!("share dropped: none installed"),
+    }
+}
+
+/// Share in the editor sends the image as edited, recorded against the capture it opened.
+struct EditorOrigin {
+    file: PathBuf,
+    editor: WeakEntity<EditorWindow>,
+    host: WindowPopover,
+}
+
+impl ShareOrigin for EditorOrigin {
+    fn subject(&self) -> &Path {
+        &self.file
+    }
+
+    fn host(&self) -> Rc<dyn PopoverHost> {
+        Rc::new(self.host.clone())
+    }
+
+    fn file(&self, cx: &mut App) -> Task<Result<PathBuf, String>> {
+        match self.editor.upgrade() {
+            Some(editor) => editor.update(cx, |e, cx| e.share_file(cx)),
+            None => Task::ready(Err(String::new())),
+        }
+    }
+}
+
+pub(super) fn editor(editor: &Entity<EditorWindow>, file: &Path, cx: &mut App) {
+    let host = WindowPopover::default();
+    editor.update(cx, |e, cx| e.set_share(host.clone(), cx));
+    let file = file.to_owned();
+    cx.subscribe(editor, move |editor, _: &ShareRequested, cx| {
+        let origin = EditorOrigin {
+            file: file.clone(),
+            editor: editor.downgrade(),
+            host: host.clone(),
+        };
+        open(Rc::new(origin), cx);
+    })
+    .detach();
+}
+
 /// Share on a deck card opens the popover at that card's Share button.
 pub(super) fn install(
     shares: Entity<Shares>,
@@ -51,11 +111,20 @@ pub(super) fn install(
         open_url: Rc::new(|url, cx| cx.open_url(url)),
     };
     let deck = deck.clone();
-    let flow = cx.new(|cx| DeckShare::new(shares, deck, host, hooks, clipboard, cx));
+    let marks = cx.new(|cx| DeckMarks::new(shares.clone(), deck.clone(), cx));
+    let flow = cx.new(|cx| ShareFlow::new(shares, hooks, clipboard, cx));
+    cx.set_global(Flow {
+        flow: flow.clone(),
+        _marks: marks,
+    });
     cx.set_global(DeckShares(Rc::new(move |item, cx| {
-        let anchor = deck_surface.share_anchor(item.id, cx);
-        let item = item.clone();
-        flow.update(cx, |f, cx| f.open(item, anchor, cx));
+        let origin = DeckOrigin {
+            item: item.clone(),
+            deck: deck.clone(),
+            host: host.clone(),
+            anchor: deck_surface.share_anchor(item.id, cx),
+        };
+        flow.update(cx, |f, cx| f.open(Rc::new(origin), cx));
     })));
 }
 

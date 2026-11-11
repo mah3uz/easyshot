@@ -332,6 +332,7 @@ editor-swatch-mercury = Mercury
 editor-crop-size = { $width } × { $height } px
 editor-lowres-help = Why is this preview low resolution?
 editor-lowres-text = Low-res preview to save memory - exports stay full quality
+editor-share = Share
 editor-share-help = Upload and copy a share link
 editor-error-load = Unable to load screenshot.
 editor-copy = Copy

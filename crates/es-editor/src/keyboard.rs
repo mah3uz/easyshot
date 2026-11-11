@@ -25,6 +25,7 @@ pub enum Command {
     Save,
     Export,
     Copy,
+    Share,
     Undo,
     Redo,
     SelectAll,
@@ -71,7 +72,7 @@ impl Command {
 #[action(namespace = easyshot_editor, no_json)]
 pub struct Run(pub Command);
 
-/// The command a catalogue id stands for; ids without one (share, background) do nothing here.
+/// The command a catalogue id stands for; ids without one do nothing here.
 pub fn command_for(id: &str) -> Option<Command> {
     Some(match id {
         "image-select" => Command::Tool(Tool::Select),
@@ -92,6 +93,7 @@ pub fn command_for(id: &str) -> Option<Command> {
         "image-save" => Command::Save,
         "image-export" => Command::Export,
         "image-copy" => Command::Copy,
+        "image-share" => Command::Share,
         "image-undo" => Command::Undo,
         "image-redo" => Command::Redo,
         "image-select-all" => Command::SelectAll,
@@ -315,6 +317,7 @@ impl EditorWindow {
             Command::Copy => {
                 self.request(Job::Copy, cx);
             }
+            Command::Share => self.share(cx),
             Command::Undo => self.undo(cx),
             Command::Redo => self.redo(cx),
             Command::SelectAll => {

@@ -475,7 +475,9 @@ fn delete_forgets_the_share_when_done_or_already_gone(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
-fn expired_free_links_are_dropped_on_load(cx: &mut TestAppContext) {
+fn expired_free_links_stay_listed_on_load_so_the_uploader_sees_them_expired(
+    cx: &mut TestAppContext,
+) {
     let fake = Fake::new(Box::new(|r| Ok(made(r))));
     let past = OffsetDateTime::now_utc() - time::Duration::hours(1);
     let future = OffsetDateTime::now_utc() + time::Duration::days(1);
@@ -501,10 +503,24 @@ fn expired_free_links_are_dropped_on_load(cx: &mut TestAppContext) {
         .shares
         .read_with(cx, |s, _| s.all().iter().map(|r| r.id.clone()).collect());
     kept.sort();
-    assert_eq!(kept, ["alive", "bucket"]);
+    assert_eq!(kept, ["alive", "bucket", "dead"]);
+    let live = rig.shares.read_with(cx, |s, _| {
+        s.for_source(&ShareSource::Capture(Uuid::nil()))
+            .map(|r| r.id.clone())
+    });
+    assert_ne!(
+        live.as_deref(),
+        Some("dead"),
+        "an expired link is never offered"
+    );
+    rig.shares.update(cx, |s, cx| s.forget("dead", cx));
     let mut stored = on_disk(&rig.paths);
     stored.sort();
-    assert_eq!(stored, ["alive", "bucket"]);
+    assert_eq!(stored, ["alive", "bucket"], "Remove drops it locally");
+    assert!(
+        fake.deleted.lock().unwrap().is_empty(),
+        "the service already deleted an expired share"
+    );
 }
 
 #[gpui::test]

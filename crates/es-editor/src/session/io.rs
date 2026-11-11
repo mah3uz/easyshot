@@ -437,6 +437,22 @@ impl EditorIo {
         })
     }
 
+    /// The image as edited, through the export renderer, to a PNG in the share folder.
+    pub fn render_for_share(&mut self, cx: &mut Context<Self>) -> Task<Result<PathBuf, String>> {
+        let Some(paths) = self.paths(cx) else {
+            return Task::ready(Err(fl!("editor-error-unavailable")));
+        };
+        let frame = Frame::of(self.doc.read(cx));
+        let file = paths
+            .share_dir()
+            .join(format!("edited-{}.png", self.session));
+        cx.background_executor().spawn(async move {
+            let png = frame.encode(ExportFormat::Png, Purpose::Keep, 1.0)?;
+            write_file(&file, &png)?;
+            Ok(file)
+        })
+    }
+
     /// Opens the close prompt; the receiver resolves with the user's choice.
     pub fn open_prompt(&mut self, cx: &mut Context<Self>) -> oneshot::Receiver<Choice> {
         let (tx, rx) = oneshot::channel();

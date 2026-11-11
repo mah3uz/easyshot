@@ -4,6 +4,7 @@
 
 ### New
 - Share from a capture card: a share popover at the card's Share button, a toast with upload progress and Cancel, then Open and Copy Link; shared cards carry a cloud mark.
+- Share from the editor: Share in its footer (or the Share Image key) sends the image as edited.
 - `easyshot share FILE [--days 1|3|7] [--title TEXT]` uploads an image, a video or a recording and prints its link.
 - Settings › Sharing chooses where shares go (easyshot Free or your own bucket), how long free links last, and holds your bucket's details and keys, with a connection test.
 

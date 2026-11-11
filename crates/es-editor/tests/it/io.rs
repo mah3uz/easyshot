@@ -375,3 +375,39 @@ fn a_saved_background_and_annotation_close_without_asking() {
     assert!(!f.dirty());
     assert!(f.should_close());
 }
+
+#[test]
+fn share_asks_only_once_wired_and_sends_the_image_as_export_renders_it() {
+    let mut f = launch();
+    let asked = std::rc::Rc::new(std::cell::Cell::new(0));
+    let count = asked.clone();
+    let editor = f.editor.clone();
+    f.app.cx.update(|cx| {
+        cx.subscribe(&editor, move |_, _: &es_editor::ShareRequested, _| {
+            count.set(count.get() + 1)
+        })
+        .detach();
+        editor.update(cx, |w, cx| w.share(cx));
+    });
+    assert_eq!(asked.get(), 0, "a window nobody shares from has no Share");
+
+    f.app.cx.update(|cx| {
+        editor.update(cx, |w, cx| {
+            w.set_share(es_app::share::WindowPopover::default(), cx);
+            w.share(cx);
+        })
+    });
+    assert_eq!(asked.get(), 1);
+
+    let made = f
+        .app
+        .cx
+        .update(|cx| editor.update(cx, |w, cx| w.share_file(cx)));
+    let file = f.app.cx.foreground_executor().block_on(made).unwrap();
+    let shared = image::open(&file).unwrap();
+    assert_eq!((shared.width(), shared.height()), (1200, 640));
+    assert!(
+        file.starts_with(f.dir.path()),
+        "kept in the app's own folders"
+    );
+}

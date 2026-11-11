@@ -70,10 +70,25 @@ impl EditorWindow {
                 })
             })
             .child(div().flex_1())
+            .when(ready && self.crop_badge(cx).is_none(), |d| {
+                d.children(self.share_control(window, cx))
+            })
             .child(
                 self.crop_badge(cx)
                     .unwrap_or_else(|| self.copy_control(window, cx)),
             )
+    }
+
+    fn share_control(&self, window: &mut Window, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let host = self.share.clone()?;
+        let button = EditorButton::new("share")
+            .icon(IconName::CloudUpload)
+            .accessible_label(fl!("editor-share"))
+            .tip(fl!("editor-share-help"))
+            .selected(host.is_open())
+            .disabled(self.is_busy())
+            .on_click(cx.listener(|w, _, _, cx| w.share(cx)));
+        Some(host.around(button, gpui::Anchor::BottomRight, window, cx))
     }
 
     fn copy_control(&self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {

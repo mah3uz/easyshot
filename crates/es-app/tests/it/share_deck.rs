@@ -4,7 +4,9 @@ use es_app::deck::{Deck, DeckItem, DeckPolicy, ItemStatus};
 use es_app::errors::Result;
 use es_app::platform_ui::ClipboardSink;
 use es_app::share::flow::BuildPopover;
-use es_app::share::{Anchor, DeckShare, PopoverHost, ShareHooks, ShareJobKind};
+use es_app::share::{
+    Anchor, DeckMarks, DeckOrigin, PopoverHost, ShareFlow, ShareHooks, ShareJobKind,
+};
 use es_app::toast::{CloseReason, MemorySink, ToastRequest, ToastStyle, install_toasts};
 use es_desktop::RecordingNotifier;
 use es_model::platform::ClipItem;
@@ -80,7 +82,9 @@ impl ClipboardSink for Clip {
 struct Flow {
     rig: Rig,
     deck: Entity<Deck>,
-    flow: Entity<DeckShare>,
+    flow: Entity<ShareFlow>,
+    _marks: Entity<DeckMarks>,
+    popovers: Rc<dyn PopoverHost>,
     host: Rc<Host>,
     sink: Arc<MemorySink>,
     item: DeckItem,
@@ -106,7 +110,7 @@ fn flow(cx: &mut TestAppContext, fake: &Arc<Fake>) -> Flow {
     };
     let host = Rc::new(Host::default());
     let sink = MemorySink::new();
-    let (deck, flow) = cx.update(|cx| {
+    let (deck, flow, _marks, popovers) = cx.update(|cx| {
         es_ui::init(cx);
         install_toasts(sink.clone(), Arc::new(RecordingNotifier::default()), cx);
         let deck = cx.new(|_| Deck::new(DeckPolicy::default()));
@@ -118,14 +122,16 @@ fn flow(cx: &mut TestAppContext, fake: &Arc<Fake>) -> Flow {
         };
         let popovers: Rc<dyn PopoverHost> = host.clone();
         let (shares, d) = (rig.shares.clone(), deck.clone());
-        let flow =
-            cx.new(|cx| DeckShare::new(shares, d, popovers, hooks, Rc::new(Clip::default()), cx));
-        (deck, flow)
+        let marks = cx.new(|cx| DeckMarks::new(shares.clone(), d, cx));
+        let flow = cx.new(|cx| ShareFlow::new(shares, hooks, Rc::new(Clip::default()), cx));
+        (deck, flow, marks, popovers)
     });
     Flow {
         rig,
         deck,
         flow,
+        _marks,
+        popovers,
         host,
         sink,
         item,
@@ -134,8 +140,13 @@ fn flow(cx: &mut TestAppContext, fake: &Arc<Fake>) -> Flow {
 
 impl Flow {
     fn open(&self, cx: &mut TestAppContext) -> Entity<SharePopover> {
-        let item = self.item.clone();
-        self.flow.update(cx, |f, cx| f.open(item, None, cx));
+        let origin = Rc::new(DeckOrigin {
+            item: self.item.clone(),
+            deck: self.deck.clone(),
+            host: self.popovers.clone(),
+            anchor: None,
+        });
+        self.flow.update(cx, |f, cx| f.open(origin, cx));
         cx.run_until_parked();
         self.flow.read_with(cx, |f, _| f.popover()).unwrap()
     }
@@ -338,4 +349,75 @@ fn a_failure_says_why_and_retry_reopens_the_popover_on_the_error(cx: &mut TestAp
         }
     );
     assert_eq!(f.host.opened.get(), 2);
+}
+
+/// A surface that renders its own file when Share is pressed, as the editor does.
+struct Rendered {
+    subject: std::path::PathBuf,
+    made: std::path::PathBuf,
+    host: Rc<dyn PopoverHost>,
+    asked: Rc<Cell<usize>>,
+}
+
+impl es_app::share::ShareOrigin for Rendered {
+    fn subject(&self) -> &std::path::Path {
+        &self.subject
+    }
+
+    fn host(&self) -> Rc<dyn PopoverHost> {
+        self.host.clone()
+    }
+
+    fn file(&self, _: &mut App) -> Task<std::result::Result<std::path::PathBuf, String>> {
+        self.asked.set(self.asked.get() + 1);
+        image::RgbaImage::from_pixel(5, 4, image::Rgba([200, 0, 0, 255]))
+            .save(&self.made)
+            .unwrap();
+        Task::ready(Ok(self.made.clone()))
+    }
+}
+
+#[gpui::test]
+fn a_surface_that_renders_its_file_sends_that_file_recorded_against_its_capture(
+    cx: &mut TestAppContext,
+) {
+    let seen: Arc<std::sync::Mutex<Vec<es_share::ShareRequest>>> = Arc::default();
+    let into = seen.clone();
+    let f = flow(
+        cx,
+        &Fake::new(Box::new(move |r| {
+            into.lock().unwrap().push(r.clone());
+            Ok(made(r))
+        })),
+    );
+    consent(&f.rig, cx);
+    let asked = Rc::new(Cell::new(0));
+    let origin = Rc::new(Rendered {
+        subject: f.item.file.clone(),
+        made: f.rig._dir.path().join("edited.png"),
+        host: f.popovers.clone(),
+        asked: asked.clone(),
+    });
+    f.flow.update(cx, |s, cx| s.open(origin, cx));
+    cx.run_until_parked();
+    assert_eq!(asked.get(), 0, "nothing is rendered before Share");
+    let popover = f.flow.read_with(cx, |s, _| s.popover()).unwrap();
+    f.press(&popover, ShareEvent::Share { title: None }, cx);
+    wait_until(cx, "the upload", || super::share::finished(&f.rig));
+
+    assert_eq!(asked.get(), 1);
+    let sent = seen.lock().unwrap().pop().unwrap();
+    let subject = f
+        .rig
+        .shares
+        .read_with(cx, |s, cx| s.source_of(&f.item.file, cx));
+    assert_eq!(
+        sent.source, subject,
+        "the link belongs to the capture, not to the rendered copy"
+    );
+    assert_eq!(
+        (sent.media.width, sent.media.height),
+        (5, 4),
+        "the rendered file is what was sent"
+    );
 }

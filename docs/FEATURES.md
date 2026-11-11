@@ -74,6 +74,7 @@ More in the manual: [Capturing](MANUAL.md#capturing).
 - Offers hover actions on a card, in slots you can set up.
 - Lets you choose which actions a card shows in Settings › Overlay › Card Actions; Cloud Share is there, and opens a panel saying cloud sharing is coming soon.
 - Share a capture straight from its card: a link is copied as the upload starts, with progress, Cancel, Open and Copy Link in a toast.
+- Share an image from the editor as you edited it, from Share in its footer or the Share Image key.
 - Opens a card's Preview in a plain window with the image fitted; click or Z toggles 100%, Space or Esc closes it.
 - On Hyprland, opens a card's Preview as a floating window in the middle of the screen, through a rule in the binds file.
 - Moves a card's capture to the Trash with Delete, and a toast's Undo puts it back and returns the card.
