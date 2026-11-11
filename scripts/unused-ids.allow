@@ -2,8 +2,6 @@
 # An icon is written icon:<Variant>.
 shortcut-video-*            catalogue rows for the video editor
 shortcut-image-share        catalogue row for cloud sharing
-sharing-*                   cloud sharing settings
-settings-nav-sharing        cloud sharing settings page
 transfer-*                  share upload progress and result panel
 deck-share-*                deck share button states
 gallery-section-cloud       Gallery Cloud section
@@ -24,7 +22,6 @@ alert-recording-inputs-title  Keystrokes input access
 perm-input-monitoring*      Keystrokes input access
 recording-keystrokes-*      Keystrokes
 toast-recording-*           recording toasts, Keystrokes input access
-icon:Cloud                  cloud sharing
 icon:CloudCheck             cloud sharing
 icon:CloudOff               cloud sharing
 icon:Link                   cloud sharing

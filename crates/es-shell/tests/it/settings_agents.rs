@@ -57,6 +57,7 @@ fn fixture() -> Fixture {
             outputs: Vec::new(),
             version: "v9.9.9".to_owned(),
             input_access: Rc::new(|| InputAccess::Granted),
+            shares: None,
         };
         let v = cx.new(|cx| SettingsWindow::new(deps, window, cx));
         view = Some(v.clone());

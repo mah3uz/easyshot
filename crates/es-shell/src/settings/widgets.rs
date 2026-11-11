@@ -173,13 +173,18 @@ pub fn stacked_row(
 
 /// A row of explanation beside a control, set as help text since it is not a setting's name.
 pub fn note_row(note: impl Into<SharedString>, control: impl IntoElement, cx: &App) -> AnyElement {
+    status_row(caption(note, cx), control)
+}
+
+/// A row of state, such as a result or an error, beside a control.
+pub fn status_row(status: impl IntoElement, control: impl IntoElement) -> AnyElement {
     h_flex()
         .min_h(px(ROW_MIN_HEIGHT))
         .px(px(ROW_PAD))
         .py(px(11.))
         .gap(px(ROW_GAP))
         .justify_between()
-        .child(caption(note, cx).flex_1().min_w_0())
+        .child(div().flex_1().min_w_0().child(status))
         .child(div().flex_none().child(control))
         .into_any_element()
 }

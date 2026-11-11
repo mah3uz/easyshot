@@ -23,6 +23,7 @@ impl SettingsWindow {
             Page::Recording => self.render_recording(cx),
             Page::Shortcuts => self.render_shortcuts(window, cx),
             Page::Agents => self.render_agents(cx),
+            Page::Sharing => self.render_sharing(cx),
             Page::About => self.render_about(cx),
         });
         widgets::page(page.title().into(), children, cx).into_any_element()

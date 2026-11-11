@@ -33,6 +33,7 @@ fn main() {
                 outputs: Vec::new(),
                 version: env!("CARGO_PKG_VERSION").to_owned(),
                 input_access: Rc::new(|| es_model::recording::InputAccess::Denied),
+                shares: None,
             };
             if let Err(error) = settings::open(deps, cx) {
                 eprintln!("{error}");

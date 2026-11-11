@@ -6,14 +6,16 @@ mod target;
 pub use failure::ShareFailure;
 pub use job::run_route;
 pub use prepare::{Caps, Job as PrepareJob, PrepareError, Prepared, Tools, prepare, prepare_with};
-pub use target::{FREE_BASE_URL, Keyring, LiveTargets, SystemKeyring, Target, Targets};
+pub use target::{FREE_BASE_URL, KeyPlace, Keyring, LiveTargets, SystemKeyring, Target, Targets};
 
 use crate::history::History;
 use crate::platform_ui::ClipboardSink;
 use crate::settings_model::SettingsModel;
 use es_model::config::SHARE_DAYS;
 use es_model::platform::ClipItem;
-use es_model::{FormatKind, ShareCfg, ShareMode, ShareRecord, ShareSource, ShareTarget};
+use es_model::{
+    BucketKeys, FormatKind, ShareCfg, ShareMode, ShareRecord, ShareSource, ShareTarget,
+};
 use es_record::clip::options::ExportOptions;
 use es_share::{Code, Event, ShareError};
 use es_store::shares::SharesFile;
@@ -191,6 +193,45 @@ impl Shares {
                 cx,
             )
         });
+    }
+
+    pub fn saved_keys(&self, cx: &App) -> Task<Result<Option<KeyPlace>, ShareFailure>> {
+        self.off_thread(|targets| Ok(targets.saved_keys()), cx)
+    }
+
+    pub fn save_keys(&self, keys: BucketKeys, cx: &App) -> Task<Result<KeyPlace, ShareFailure>> {
+        self.off_thread(move |targets| targets.save_keys(&keys), cx)
+    }
+
+    /// Clears the keyring and the key file both.
+    pub fn remove_keys(&self, cx: &App) -> Task<Result<(), ShareFailure>> {
+        self.off_thread(|targets| targets.remove_keys(), cx)
+    }
+
+    /// Tests the saved bucket settings and keys.
+    pub fn test_bucket(&self, cx: &App) -> Task<Result<(), ShareFailure>> {
+        let cfg = self.settings.read(cx).config().share.clone();
+        self.off_thread(move |targets| targets.test_bucket(&cfg), cx)
+    }
+
+    fn off_thread<T: Send + 'static>(
+        &self,
+        work: impl FnOnce(&dyn Targets) -> Result<T, ShareFailure> + Send + 'static,
+        cx: &App,
+    ) -> Task<Result<T, ShareFailure>> {
+        let targets = self.targets.clone();
+        let (tx, rx) = async_channel::bounded(1);
+        let spawned = std::thread::Builder::new()
+            .name("share-setup".into())
+            .spawn(move || {
+                let _ = tx.send_blocking(work(&*targets));
+            });
+        if let Err(e) = spawned {
+            tracing::warn!(error = %e, "share setup thread");
+            return Task::ready(Err(ShareFailure::Unexpected));
+        }
+        cx.background_executor()
+            .spawn(async move { rx.recv().await.unwrap_or(Err(ShareFailure::Unexpected)) })
     }
 
     /// Nothing is sent until the user has chosen where shares go.

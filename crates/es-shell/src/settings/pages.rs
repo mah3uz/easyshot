@@ -70,6 +70,22 @@ impl SettingsWindow {
         set: fn(&mut Config, T),
         cx: &mut Context<Self>,
     ) -> AnyElement {
+        let pick =
+            move |this: &mut Self, v: T, cx: &mut Context<Self>| this.edit(move |c| set(c, v), cx);
+        self.pick_row(id, title, help, options, current, pick, cx)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn pick_row<T: PartialEq + Clone + 'static>(
+        &self,
+        id: &'static str,
+        title: String,
+        help: Option<String>,
+        options: Vec<(T, String)>,
+        current: &T,
+        pick: impl Fn(&mut Self, T, &mut Context<Self>) + 'static,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
         let selected = options.iter().position(|(v, _)| v == current).unwrap_or(0);
         let values: Vec<T> = options.iter().map(|(v, _)| v.clone()).collect();
         let width = segmented_width(options.iter().map(|(_, l)| l.as_str()));
@@ -89,8 +105,7 @@ impl SettingsWindow {
         .selected(selected)
         .on_select(move |i, _, cx| {
             if let Some(v) = values.get(i).cloned() {
-                this.update(cx, |this, cx| this.edit(move |c| set(c, v), cx))
-                    .ok();
+                this.update(cx, |this, cx| pick(this, v, cx)).ok();
             }
         });
         if beside(width) {

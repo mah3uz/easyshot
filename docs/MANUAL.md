@@ -619,8 +619,20 @@ from a recording.
 
 ## Settings
 
-Pages: Home, General, Capture, Overlay, Recording, Shortcuts, Agents, About. Agents is
-described under Agent use. There is no Sharing page, as cloud sharing is coming soon.
+Pages: Home, General, Capture, Overlay, Recording, Shortcuts, Agents, Sharing, About. Agents is
+described under Agent use.
+
+Sharing, Share to, chooses where shares go: easyshot Free or My own bucket. Choosing either
+here counts as agreeing, the same as the step shown the first time you share. With Free, Keep
+shares for is 1, 3 or 7 days. With My own bucket, fill in the endpoint, bucket, region (`auto`
+for Cloudflare R2), public URL, an optional folder prefix, and the access key ID and secret
+access key, then press Save. The bucket details go to `config.toml`; the keys go to your keyring,
+or, when no keyring is running, to a private file in `~/.local/share/easyshot`, and the page says
+which. A saved secret is never shown again: Replace lets you enter new keys, and Remove Keys
+clears them from the keyring and the file. Test Connection uploads a small file and reads it
+back from the public URL, then says Works or names the step that failed: the keys, the bucket,
+the public URL or the network. Share links are unlisted, not private: anyone who has a link can
+open it. Terms opens the free service's terms.
 
 General, Appearance, Theme is System, Light or Dark. System follows your desktop's light or dark
 choice, as the settings portal reports it, and changes when you change it. A desktop that reports

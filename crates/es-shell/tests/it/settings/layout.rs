@@ -123,6 +123,14 @@ fn choice_rows() -> Vec<(String, Vec<String>)> {
                 "agents-consent-never-ask",
             ],
         ),
+        ids(
+            "sharing-target",
+            &["sharing-target-free", "sharing-target-bucket"],
+        ),
+        ids(
+            "sharing-days",
+            &["sharing-days-1", "sharing-days-3", "sharing-days-7"],
+        ),
     ]
 }
 
@@ -138,6 +146,13 @@ fn field_titles() -> Vec<String> {
         "overlay-hide-after",
         "agents-scope-outputs",
         "agents-scope-windows",
+        "sharing-endpoint",
+        "sharing-bucket",
+        "sharing-region",
+        "sharing-public-url",
+        "sharing-prefix",
+        "sharing-access-key-id",
+        "sharing-secret-key",
     ]
     .into_iter()
     .map(text)

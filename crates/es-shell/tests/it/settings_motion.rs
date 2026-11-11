@@ -41,6 +41,7 @@ fn open(dir: &std::path::Path, mode: ThemeMode) -> (Headless<Root>, Entity<Setti
             outputs: vec!["DP-1".into()],
             version: "v9.9.9".to_owned(),
             input_access: Rc::new(|| es_model::recording::InputAccess::Granted),
+            shares: None,
         };
         let v = cx.new(|cx| SettingsWindow::new(deps, window, cx));
         view = Some(v.clone());

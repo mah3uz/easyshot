@@ -278,6 +278,7 @@ More in the manual: [Recording](MANUAL.md#recording).
 - Shows the version, the website, the source and the issue tracker on About, and Show Onboarding Again.
 - Sets the editor's arrow-key steps and its zoom anchor in `config.toml`.
 - Controls agent access, consent, scope and secret hiding on Agents.
+- Chooses where shares go (easyshot Free for 1, 3 or 7 days, or your own S3-compatible bucket) on Sharing, keeps bucket keys in your keyring and tests the bucket connection.
 
 More in the manual: [Settings](MANUAL.md#settings).
 

@@ -4,6 +4,7 @@
 
 ### New
 - `easyshot share FILE [--days 1|3|7] [--title TEXT]` uploads an image, a video or a recording and prints its link.
+- Settings › Sharing chooses where shares go (easyshot Free or your own bucket), how long free links last, and holds your bucket's details and keys, with a connection test.
 
 ## 0.1.0 - 2026-11-11T05:25:23+06:00
 

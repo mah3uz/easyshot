@@ -2324,6 +2324,7 @@ dependencies = [
  "es-model",
  "es-protocol",
  "es-record",
+ "es-share",
  "es-store",
  "es-testkit",
  "es-ui",

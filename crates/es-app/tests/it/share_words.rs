@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used)]
 use es_app::services::Strings;
-use es_app::share::{Keyring, LiveTargets, ShareFailure};
+use es_app::share::{KeyPlace, Keyring, LiveTargets, ShareFailure, Targets};
 use es_desktop::SecretsError;
 use es_model::{BucketKeys, ShareCfg, ShareMode};
 use es_share::{BucketFault, Code, ShareError};
@@ -128,6 +128,45 @@ impl Keyring for FakeKeyring {
         self.asked.fetch_add(1, Ordering::SeqCst);
         (self.answer)()
     }
+
+    fn store(&self, _: &BucketKeys) -> std::result::Result<(), SecretsError> {
+        (self.answer)().map(|_| ())
+    }
+
+    fn clear(&self) -> std::result::Result<(), SecretsError> {
+        (self.answer)().map(|_| ())
+    }
+}
+
+#[test]
+fn keys_saved_to_an_answering_keyring_leave_no_copy_in_the_key_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let paths = Paths::rooted(dir.path());
+    paths.ensure_all().unwrap();
+    let old = BucketKeys {
+        access_key_id: "AKIA-old".into(),
+        secret_access_key: "old-secret".into(),
+    };
+    es_store::shares::write_bucket_keys(&paths, old.clone()).unwrap();
+    let keyring = Arc::new(FakeKeyring {
+        asked: AtomicUsize::new(0),
+        answer: || Ok(None),
+    });
+    let targets = LiveTargets::new(paths.clone(), "1.0.0", keyring);
+    assert_eq!(targets.save_keys(&old), Ok(KeyPlace::Keyring));
+    assert_eq!(es_store::shares::read_bucket_keys(&paths).unwrap(), None);
+
+    let locked = Arc::new(FakeKeyring {
+        asked: AtomicUsize::new(0),
+        answer: || Err(SecretsError::Locked),
+    });
+    let targets = LiveTargets::new(paths.clone(), "1.0.0", locked);
+    assert_eq!(
+        targets.save_keys(&old),
+        Err(ShareFailure::Keyring),
+        "a keyring that stays locked must not send the keys to a file"
+    );
+    assert_eq!(es_store::shares::read_bucket_keys(&paths).unwrap(), None);
 }
 
 fn bucket_cfg() -> ShareCfg {

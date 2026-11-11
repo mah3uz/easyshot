@@ -11,6 +11,7 @@ pub(super) fn page_of(page: SettingsPage) -> settings::Page {
         SettingsPage::Recording => Page::Recording,
         SettingsPage::Shortcuts => Page::Shortcuts,
         SettingsPage::Agents => Page::Agents,
+        SettingsPage::Sharing => Page::Sharing,
         SettingsPage::About => Page::About,
     }
 }

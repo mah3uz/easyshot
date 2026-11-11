@@ -75,6 +75,7 @@ fn fixture_sized(
             outputs: vec!["DP-1".into(), "HDMI-A-1".into()],
             version: "v9.9.9".to_owned(),
             input_access: Rc::new(move || seen.get()),
+            shares: None,
         };
         let v = cx.new(|cx| SettingsWindow::new(deps, window, cx));
         view = Some(v.clone());

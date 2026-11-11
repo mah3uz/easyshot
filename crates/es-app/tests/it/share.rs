@@ -5,13 +5,13 @@ use es_app::platform_ui::ClipboardSink;
 use es_app::services::Strings;
 use es_app::settings_model::SettingsModel;
 use es_app::share::{
-    Caps, ShareDeleted, ShareFailure, ShareJobEvent, ShareJobKind, ShareStart, Shares, Target,
-    Targets,
+    Caps, KeyPlace, ShareDeleted, ShareFailure, ShareJobEvent, ShareJobKind, ShareStart, Shares,
+    Target, Targets,
 };
 use es_model::platform::ClipItem;
 use es_model::{
-    CaptureKind, HistoryEntry, ShareCfg, ShareDelete, ShareKind, ShareMode, ShareRecord,
-    ShareSource, ShareState, ShareTarget,
+    BucketKeys, CaptureKind, HistoryEntry, ShareCfg, ShareDelete, ShareKind, ShareMode,
+    ShareRecord, ShareSource, ShareState, ShareTarget,
 };
 use es_share::{Code, Event, Media, ShareError, ShareRequest};
 use es_store::{ConfigFile, Paths};
@@ -101,6 +101,22 @@ impl Targets for FakeTargets {
             image_max_bytes: 1 << 20,
             video_max_bytes: 1 << 26,
         })
+    }
+
+    fn test_bucket(&self, _: &ShareCfg) -> std::result::Result<(), ShareFailure> {
+        Ok(())
+    }
+
+    fn saved_keys(&self) -> Option<KeyPlace> {
+        None
+    }
+
+    fn save_keys(&self, _: &BucketKeys) -> std::result::Result<KeyPlace, ShareFailure> {
+        Ok(KeyPlace::File)
+    }
+
+    fn remove_keys(&self) -> std::result::Result<(), ShareFailure> {
+        Ok(())
     }
 }
 

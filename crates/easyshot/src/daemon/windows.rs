@@ -256,6 +256,9 @@ fn open_home(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>> {
             outputs: (w.outputs)().into_iter().map(|o| o.id.0).collect(),
             version: env!("EASYSHOT_VERSION").to_owned(),
             input_access: Rc::new(es_record::input::system_access),
+            shares: cx
+                .try_global::<es_app::services::Services>()
+                .map(|s| s.shares.clone()),
         },
         open_picker: super::pickers::for_home(w),
     };

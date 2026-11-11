@@ -110,6 +110,7 @@ pub enum SettingsPage {
     Recording,
     Shortcuts,
     Agents,
+    Sharing,
     About,
 }
 

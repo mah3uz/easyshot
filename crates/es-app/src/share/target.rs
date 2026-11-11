@@ -52,16 +52,30 @@ impl Target for Bucket {
     }
 }
 
-/// Builds a target on the share's thread: reading the keyring may wait on an unlock prompt.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KeyPlace {
+    Keyring,
+    File,
+}
+
+/// Every call blocks and runs off the UI thread: reading the keyring may wait on an unlock prompt.
 pub trait Targets: Send + Sync {
     fn open(&self, mode: ShareMode, cfg: &ShareCfg) -> Result<Box<dyn Target>, ShareFailure>;
     /// The most a target takes of one file; may ask the service, so it blocks.
     fn caps(&self, mode: ShareMode, cfg: &ShareCfg) -> Result<Caps, ShareFailure>;
+    /// Writes a small object to the bucket and reads it back through the public URL.
+    fn test_bucket(&self, cfg: &ShareCfg) -> Result<(), ShareFailure>;
+    fn saved_keys(&self) -> Option<KeyPlace>;
+    /// In the keyring when one answers, else in the key file.
+    fn save_keys(&self, keys: &BucketKeys) -> Result<KeyPlace, ShareFailure>;
+    fn remove_keys(&self) -> Result<(), ShareFailure>;
 }
 
+/// Each call returns `Err(SecretsError::Unavailable)` when no Secret Service answers.
 pub trait Keyring: Send + Sync {
-    /// `Err(SecretsError::Unavailable)` when no Secret Service answers.
     fn load(&self) -> Result<Option<BucketKeys>, SecretsError>;
+    fn store(&self, keys: &BucketKeys) -> Result<(), SecretsError>;
+    fn clear(&self) -> Result<(), SecretsError>;
 }
 
 pub struct SystemKeyring;
@@ -69,6 +83,14 @@ pub struct SystemKeyring;
 impl Keyring for SystemKeyring {
     fn load(&self) -> Result<Option<BucketKeys>, SecretsError> {
         futures::executor::block_on(es_desktop::load_bucket_keys())
+    }
+
+    fn store(&self, keys: &BucketKeys) -> Result<(), SecretsError> {
+        futures::executor::block_on(es_desktop::store_bucket_keys(keys))
+    }
+
+    fn clear(&self) -> Result<(), SecretsError> {
+        futures::executor::block_on(es_desktop::clear_bucket_keys())
     }
 }
 
@@ -141,22 +163,32 @@ impl LiveTargets {
             }
         }
     }
+
+    fn bucket(&self, cfg: &ShareCfg) -> Result<Bucket, ShareFailure> {
+        let config = self.bucket_config(cfg)?;
+        Bucket::new(&config, &self.app_version).map_err(|e| {
+            tracing::info!(error = %e, "bucket settings");
+            ShareFailure::NotConfigured
+        })
+    }
+}
+
+/// The error goes unlogged: reading an existing key file can fail with a parse error that quotes the secret.
+fn key_file_failed<E>(_: E) -> ShareFailure {
+    tracing::warn!("bucket keys: the key file could not be written or removed");
+    ShareFailure::File
+}
+
+fn keyring_failed(e: &SecretsError) -> ShareFailure {
+    tracing::warn!(error = %e, "bucket keys: keyring");
+    ShareFailure::Keyring
 }
 
 impl Targets for LiveTargets {
     fn open(&self, mode: ShareMode, cfg: &ShareCfg) -> Result<Box<dyn Target>, ShareFailure> {
         match mode {
             ShareMode::Free => Ok(Box::new(self.free())),
-            ShareMode::Bucket => {
-                let config = self.bucket_config(cfg)?;
-                match Bucket::new(&config, &self.app_version) {
-                    Ok(bucket) => Ok(Box::new(bucket)),
-                    Err(e) => {
-                        tracing::info!(error = %e, "bucket settings");
-                        Err(ShareFailure::NotConfigured)
-                    }
-                }
-            }
+            ShareMode::Bucket => Ok(Box::new(self.bucket(cfg)?)),
         }
     }
 
@@ -177,6 +209,45 @@ impl Targets for LiveTargets {
         };
         *cached = Some((Instant::now(), caps));
         Ok(caps)
+    }
+
+    fn test_bucket(&self, cfg: &ShareCfg) -> Result<(), ShareFailure> {
+        self.bucket(cfg)?
+            .test_connection()
+            .map_err(|e| ShareFailure::from(&e))
+    }
+
+    fn saved_keys(&self) -> Option<KeyPlace> {
+        if let Ok(Some(_)) = self.keyring.load() {
+            return Some(KeyPlace::Keyring);
+        }
+        match shares::read_bucket_keys(&self.paths) {
+            Ok(Some(_)) => Some(KeyPlace::File),
+            _ => None,
+        }
+    }
+
+    fn save_keys(&self, keys: &BucketKeys) -> Result<KeyPlace, ShareFailure> {
+        match self.keyring.store(keys) {
+            Ok(()) => {
+                // A key file from a time without a keyring would keep the old secret on disk.
+                shares::clear_bucket_keys(&self.paths).map_err(key_file_failed)?;
+                Ok(KeyPlace::Keyring)
+            }
+            Err(SecretsError::Unavailable) => shares::write_bucket_keys(&self.paths, keys.clone())
+                .map(|()| KeyPlace::File)
+                .map_err(key_file_failed),
+            Err(e) => Err(keyring_failed(&e)),
+        }
+    }
+
+    fn remove_keys(&self) -> Result<(), ShareFailure> {
+        let keyring = match self.keyring.clear() {
+            Ok(()) | Err(SecretsError::Unavailable) => Ok(()),
+            Err(e) => Err(keyring_failed(&e)),
+        };
+        shares::clear_bucket_keys(&self.paths).map_err(key_file_failed)?;
+        keyring
     }
 }
 

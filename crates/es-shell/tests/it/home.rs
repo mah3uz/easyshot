@@ -74,6 +74,7 @@ fn rig_with(mode: ThemeMode, tab: Tab, open_picker: Option<OpenPicker>) -> Rig {
                     outputs: vec!["DP-1".into()],
                     version: "v9.9.9".to_owned(),
                     input_access: Rc::new(|| es_model::recording::InputAccess::Granted),
+                    shares: None,
                 },
                 open_picker,
             };

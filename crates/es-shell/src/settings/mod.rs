@@ -4,12 +4,14 @@ mod general;
 mod home;
 mod pages;
 pub mod setup;
+mod sharing;
 mod shortcuts;
 mod toggle;
 mod view;
 mod widgets;
 
 pub use binds::{BindStatus, compositor_trigger, from_backend, trigger_string};
+pub use sharing::{ConnectionTest, SavedKeys, TERMS_URL, key_folder};
 pub use shortcuts::ShortcutRow;
 pub use toggle::Toggle;
 pub(crate) use widgets::status_mark;
@@ -20,6 +22,7 @@ pub use widgets::{
 use crate::strings::fl;
 use es_app::history::History;
 use es_app::settings_model::{SettingsEvent, SettingsModel};
+use es_app::share::Shares;
 use es_backend::{BindHelper, Caps};
 use es_model::Config;
 use es_model::recording::InputAccess;
@@ -62,11 +65,12 @@ pub enum Page {
     Recording,
     Shortcuts,
     Agents,
+    Sharing,
     About,
 }
 
 impl Page {
-    pub const ALL: [Page; 8] = [
+    pub const ALL: [Page; 9] = [
         Page::Home,
         Page::General,
         Page::Capture,
@@ -74,6 +78,7 @@ impl Page {
         Page::Recording,
         Page::Shortcuts,
         Page::Agents,
+        Page::Sharing,
         Page::About,
     ];
 
@@ -86,6 +91,7 @@ impl Page {
             Page::Recording => fl!("settings-nav-recording"),
             Page::Shortcuts => fl!("settings-nav-shortcuts"),
             Page::Agents => fl!("settings-nav-agents"),
+            Page::Sharing => fl!("settings-nav-sharing"),
             Page::About => fl!("settings-nav-about"),
         }
     }
@@ -99,6 +105,7 @@ impl Page {
             Page::Recording => IconName::Video,
             Page::Shortcuts => IconName::Keyboard,
             Page::Agents => IconName::KeyRound,
+            Page::Sharing => IconName::Cloud,
             Page::About => IconName::Info,
         }
     }
@@ -150,6 +157,7 @@ pub struct SettingsDeps {
     pub outputs: Vec<String>,
     pub version: String,
     pub input_access: Rc<dyn Fn() -> InputAccess>,
+    pub shares: Option<Entity<Shares>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -184,6 +192,7 @@ pub struct SettingsWindow {
     file_name: Entity<InputState>,
     shortcuts: shortcuts::Shortcuts,
     agents: agents::Agents,
+    sharing: sharing::Sharing,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -301,9 +310,11 @@ impl SettingsWindow {
                 }
             }),
         );
+        let key_folder = sharing::key_folder(&deps.paths);
         let shortcuts =
             shortcuts::Shortcuts::new(&config, deps.binds, deps.paths, deps.clipboard, window, cx);
         let agents = agents::Agents::new(&config, window, cx);
+        let sharing = sharing::Sharing::new(&config.share, deps.shares, key_folder, window, cx);
         Self {
             settings: deps.settings,
             history: deps.history,
@@ -320,6 +331,7 @@ impl SettingsWindow {
             file_name,
             shortcuts,
             agents,
+            sharing,
             _subscriptions: subs,
         }
     }
@@ -336,6 +348,9 @@ impl SettingsWindow {
         self.confirm_restore = None;
         if page == Page::Shortcuts {
             self.check_include(cx);
+        }
+        if page == Page::Sharing {
+            self.check_saved_keys(cx);
         }
         cx.notify();
     }

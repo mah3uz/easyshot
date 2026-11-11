@@ -7,5 +7,6 @@ mod preview;
 mod settings;
 mod settings_agents;
 mod settings_motion;
+mod settings_sharing;
 mod strings;
 mod tray;

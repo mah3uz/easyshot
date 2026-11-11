@@ -70,7 +70,7 @@ const MATROSKA_MAGIC: &[u8] = &[0x1A, 0x45, 0xDF, 0xA3];
 const ISO_BASE_BRAND_AT: usize = 4;
 
 impl SettingsPage {
-    pub const ALL: [SettingsPage; 8] = [
+    pub const ALL: [SettingsPage; 9] = [
         SettingsPage::Home,
         SettingsPage::General,
         SettingsPage::Capture,
@@ -78,6 +78,7 @@ impl SettingsPage {
         SettingsPage::Recording,
         SettingsPage::Shortcuts,
         SettingsPage::Agents,
+        SettingsPage::Sharing,
         SettingsPage::About,
     ];
 
@@ -90,6 +91,7 @@ impl SettingsPage {
             SettingsPage::Recording => "recording",
             SettingsPage::Shortcuts => "shortcuts",
             SettingsPage::Agents => "agents",
+            SettingsPage::Sharing => "sharing",
             SettingsPage::About => "about",
         }
     }
