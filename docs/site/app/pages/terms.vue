@@ -143,7 +143,7 @@ useHead({
           <h2>Reporting a share</h2>
           <p>
             If you find a share that breaks these terms, email
-            <a href="mailto:mah3uz@gmail.com" class="text-accent underline">mah3uz@gmail.com</a> with the link and what is
+            <a href="mailto:contact@easyshot.site" class="text-accent underline">contact@easyshot.site</a> with the link and what is
             wrong with it. We read every report and act on it.
           </p>
         </section>
