@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.0 - 2026-11-12T02:13:11+06:00
+
 ### New
 - Share a link to a capture from its card, the editor (Share in its title bar or the Share Image key) or the trim viewer (Share in its title bar or the Share Video key, sending the clip as trimmed, with your export choices): a popover asks for a title and, on easyshot Free, 1, 3 or 7 days (Enter shares), with no first-share step, the link is copied as the upload starts, and a toast shows progress and Cancel, then Open and Copy Link.
 - easyshot Free needs no account: images up to 10 MB, GIFs up to 20 MB and videos up to 200 MB (a bigger video is re-encoded to fit); the file is deleted when the days end and the link then shows only "Page not found".
