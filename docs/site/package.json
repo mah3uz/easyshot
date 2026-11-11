@@ -10,6 +10,7 @@
     "og": "node scripts/og.mjs"
   },
   "dependencies": {
+    "@plausible-analytics/tracker": "0.4.7",
     "nuxt": "4.6.4"
   },
   "devDependencies": {

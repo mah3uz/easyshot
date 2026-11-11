@@ -17,6 +17,10 @@ export default defineNuxtConfig({
       siteUrl,
       siteName: 'easyshot',
       repo: 'https://github.com/mah3uz/easyshot',
+      plausible: {
+        domain: new URL(siteUrl).hostname,
+        endpoint: 'https://plus.testtlc.com/api/event',
+      },
     },
   },
 

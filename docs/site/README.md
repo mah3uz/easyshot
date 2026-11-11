@@ -65,6 +65,15 @@ canonical links, Open Graph tags and the sitemap with `NUXT_PUBLIC_SITE_URL` at 
 NUXT_PUBLIC_SITE_URL=https://example.com npm run deploy
 ```
 
+## Analytics
+
+Page views and clicks on links to other sites go to the self-hosted Plausible at `https://plus.testtlc.com`, through the
+`@plausible-analytics/tracker` package (`app/plugins/plausible.client.ts`). The site is
+registered there under the hostname of `NUXT_PUBLIC_SITE_URL` (`easyshot.site`), and the
+endpoint is `runtimeConfig.public.plausible` in `nuxt.config.ts`. Nothing is sent from
+localhost. To leave your own visits out, run `localStorage.plausible_ignore = "true"` in the
+browser console on the live site.
+
 ## Open Graph image
 
 `public/og.png` (1200×630) is rendered from HTML by `scripts/og.mjs` with Playwright. Run
