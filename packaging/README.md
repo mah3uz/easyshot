@@ -46,13 +46,21 @@ run `just release X.Y.Z`. It is the whole release.
    `## X.Y.Z - <local time with its UTC offset, to the second>`, sets the same time on the
    metainfo's `<release version="X.Y.Z">` (adding it first when missing), and commits that as
    "easyshot X.Y.Z".
-3. It asks before anything public. On no, the commit stays local and it prints how to undo it.
-   On yes, it tags `vX.Y.Z` (annotated), pushes `main` and the tag, and runs `just publish X.Y.Z`.
+3. It tags `vX.Y.Z` (annotated) locally and builds it with `scripts/release-build.sh`, so a
+   release that fails to build stops before anything is public.
+4. It asks before anything public. On no, or when a step before it fails, it removes the local
+   tag and prints how to undo the commit. On yes, it pushes `main` and the tag together and runs
+   `just publish X.Y.Z`.
 
-`just publish X.Y.Z` can be run again when a step fails. It builds the tag with
-`scripts/release-build.sh` from a `git archive` export into `dist/`: the binary tarball (which
-must hold `install.sh`), the vendored source tarball, `SHA256SUMS` and `SHA256SUMS.minisig`
-(checked against `release.pub`), and runs `scripts/release-check.sh` on that binary. It creates
+`scripts/release-build.sh` builds the tag from a `git archive` export into `dist/`: the binary
+tarball (which must hold `install.sh`), the vendored source tarball, `SHA256SUMS` and
+`SHA256SUMS.minisig` (checked against `release.pub`), and runs `scripts/release-check.sh` on that
+binary. It builds in `target/release-build` from the export at the fixed path
+`target/release-src`, so the dependencies stay built from one release to the next, and writes
+the commit it built to `dist/.built`.
+
+`just publish X.Y.Z` can be run again when a step fails. It uses `dist/` when `dist/.built` names
+the tag's commit, and builds the tag first otherwise. It creates
 the GitHub release with the notes from `just release-notes X.Y.Z` and everything in `dist/`, or
 updates the notes and assets of one that exists. The release is created as not latest and marked
 latest only after its assets are up, because the one-line installer downloads `releases/latest`.

@@ -1,8 +1,7 @@
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
-# The features the package is built with, and the crates that gate code behind them
+# The features the package is built with
 shipped_features := "easyshot/sound,easyshot/player,easyshot/evdev-input"
-shipped_crates := "-p easyshot -p es-overlays -p es-record -p es-desktop"
 
 # The released version: the easyshot binary crate's, as the internal crates keep their own
 version := `sed -n 's/^version = "\(.*\)"/\1/p' crates/easyshot/Cargo.toml | head -1`
@@ -35,7 +34,7 @@ package profile="release":
 release-notes v:
     scripts/release-notes.sh {{ v }}
 
-# The whole release, e.g. `just release 0.2.0`: checks, the gate, version bump and stamps, then on your yes the tag and `just publish`
+# The whole release, e.g. `just release 0.2.0`: checks, the gate, version bump and stamps, the tag built locally, then on your yes the push and `just publish`
 release ver:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -86,16 +85,19 @@ release ver:
     fi
     git commit -qam "easyshot $v"
 
+    # The tag stays local until the yes, and the release is built from it now, so a build that fails stops before anything is public.
+    git tag -a "$tag" -m "easyshot $v"
+    trap 'git tag -d "$tag" >/dev/null; echo "release: removed the local tag $tag. To undo the version commit: git reset --hard HEAD~1" >&2' EXIT
+    echo "==> build $tag"
+    scripts/release-build.sh "$v"
+
     # Everything after this is public and can't be taken back.
     read -rp "Push $tag, publish the GitHub release and AUR packages, and deploy the website? [y/N] " answer
-    if [[ $answer != [yY] ]]; then
-        echo "Stopped before pushing. To undo the version commit: git reset --hard HEAD~1"
-        exit 1
-    fi
+    [[ $answer == [yY] ]] || exit 1
 
-    echo "==> tag and push"
-    git tag -a "$tag" -m "easyshot $v"
-    git push -q origin main "$tag"
+    echo "==> push"
+    git push -q --atomic origin main "$tag"
+    trap - EXIT
     just publish "$v"
 
 # After v<VER> is pushed: build the tag into dist/, publish the GitHub release with its notes, push the AUR packages and deploy the website; safe to run again
@@ -113,8 +115,12 @@ publish ver:
     done
     notes=$(scripts/release-notes.sh "$v")
 
-    echo "==> build $tag"
-    scripts/release-build.sh "$v"
+    if [[ $(cat dist/.built 2>/dev/null) == "$(git rev-parse "$tag^{commit}")" ]]; then
+        echo "==> $tag: dist/ is already built"
+    else
+        echo "==> build $tag"
+        scripts/release-build.sh "$v"
+    fi
 
     echo "==> GitHub release"
     if gh release view "$tag" >/dev/null 2>&1; then
@@ -209,12 +215,10 @@ run *ARGS: build
 dev *ARGS:
     cargo run -p easyshot -- {{ ARGS }}
 
-# Run every test in the workspace
+# Run every test in the workspace, built once with the shipped features and the test hooks
 test:
-    cargo nextest run --workspace
-    cargo nextest run {{ shipped_crates }} --features {{ shipped_features }}
-    cargo nextest run -p easyshot -p es-backend --features easyshot/test-hooks,es-backend/test-hooks -E 'not test(/(^|::)platform_/)'
-    cargo test --workspace --doc
+    scripts/test.sh
+    scripts/test.sh --doc
 
 # Run the tests of the packages changed against main
 test-changed:
@@ -236,8 +240,7 @@ sweep MAX_GB="80":
 # Check formatting and run clippy with warnings as errors
 lint:
     cargo fmt --check
-    cargo clippy --workspace --all-targets -- -D warnings
-    cargo clippy {{ shipped_crates }} --all-targets --features {{ shipped_features }} -- -D warnings
+    cargo clippy --workspace --all-targets --features {{ shipped_features }} -- -D warnings
 
 # Fail if a crate depends upward across the layers, or on a forbidden crate
 layers:
@@ -281,8 +284,6 @@ check: lint layers grep-guard file-size i18n-check wiring-check gpui-guard insta
     tests/harness/sway.sh platform
     tests/harness/niri.sh platform
     tests/harness/hypr.sh platform
-    cargo build -p easyshot --release --features {{ shipped_features }}
-    just release-check
 
 # Regenerate every icon from the logo masters in branding/
 logo:

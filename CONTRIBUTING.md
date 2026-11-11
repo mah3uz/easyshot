@@ -47,9 +47,10 @@ just test-changed
 ```
 
 `just test-changed` runs the packages changed against `main`; `just test` runs everything
-(nextest plus doc tests). `just lint`, `just test` and `just check` build and test both the
-default features and the shipped set (`sound`, `player`, kept in the
-justfile), so code behind a feature is gated like the rest.
+(nextest plus doc tests). `just test`, the doc tests and the platform harnesses build once, with
+the shipped features (`shipped_features` in the justfile) plus `test-hooks`, through
+`scripts/test.sh`; `just lint` runs clippy once with the shipped features. Code that only builds
+without a shipped feature is checked by the default-feature dev build, not by the gate.
 
 A crate's integration tests live in `tests/it/` as modules of one test binary; add a test file
 there and declare it in `tests/it/main.rs`.
@@ -64,8 +65,8 @@ and build without incremental output so sccache can reuse them across worktrees;
 `run_until_parked`.
 
 The full gate (`just check`: lint, layers, grep-guard, file-size, i18n-check, wiring-check, gpui-guard, tests, the sway, niri and
-Hyprland platform harnesses, a release build and `just release-check`) is run
-once on the combined branch before merging.
+Hyprland platform harnesses) is run once on the combined branch before merging. The release
+build and `just release-check` run in `just release`, on the tagged commit.
 
 ## Wiring checks
 

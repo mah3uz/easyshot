@@ -17,35 +17,37 @@ name=easyshot-$ver-x86_64-unknown-linux-gnu
 vendored=easyshot-$ver-vendored.tar.zst
 dist=$root/dist
 build=$root/target/release-build
-work=$(mktemp -d)
+# A fixed source path keeps RUSTFLAGS the same between releases, so the dependencies stay built.
+src=$root/target/release-src
+mkdir -p "$root/target"
+work=$(mktemp -d -p "$root/target")
 trap 'rm -rf "$work"' EXIT
 epoch=$(git log -1 --format=%ct "$tag")
 export SOURCE_DATE_EPOCH=$epoch
 pack() { tar -C "$work" --sort=name --mtime="@$epoch" --owner=0 --group=0 --numeric-owner -cf - "$1"; }
 
 echo "==> $tag: exporting"
-mkdir -p "$work/src" "$build"
-rm -rf "$dist" && mkdir -p "$dist"
-git archive "$tag" | tar -x -C "$work/src"
+rm -rf "$src" "$dist" && mkdir -p "$src" "$build" "$dist"
+git archive "$tag" | tar -x -C "$src"
 
 echo "==> $tag: building"
 (
-  cd "$work/src"
+  cd "$src"
   EASYSHOT_RELEASE=1 CARGO_TARGET_DIR=$build \
-    RUSTFLAGS="--remap-path-prefix=$work/src=/build/easyshot --remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}=/cargo" \
+    RUSTFLAGS="--remap-path-prefix=$src=/build/easyshot --remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}=/cargo" \
     cargo build --release --locked -p easyshot --features sound,player,evdev-input
 )
-"$work/src/scripts/release-check.sh" "$build/release/easyshot"
+"$src/scripts/release-check.sh" "$build/release/easyshot"
 
 echo "==> $name.tar.gz"
-"$work/src/packaging/stage.sh" "$build/release" "$work/src" "$work/$name"
+"$src/packaging/stage.sh" "$build/release" "$src" "$work/$name"
 pack "$name" | gzip -n -9 > "$dist/$name.tar.gz"
 tar -tzf "$dist/$name.tar.gz" | grep -x "$name/install.sh" >/dev/null || fail "$name.tar.gz has no install.sh"
 
 echo "==> $vendored"
-mkdir "$work/src/.cargo"
-(cd "$work/src" && cargo vendor --locked vendor-crates > .cargo/config.toml)
-mv "$work/src" "$work/easyshot-$ver"
+mkdir "$src/.cargo"
+(cd "$src" && cargo vendor --locked vendor-crates > .cargo/config.toml)
+mv "$src" "$work/easyshot-$ver"
 pack "easyshot-$ver" | zstd -19 -T0 -q > "$dist/$vendored"
 
 echo "==> SHA256SUMS"
@@ -54,3 +56,5 @@ minisign -S -s "$key" -m "$dist/SHA256SUMS" -x "$dist/SHA256SUMS.minisig"
 # The one-line installer checks the signature against this key, so a release signed with any other fails for everyone.
 minisign -Vq -p packaging/release.pub -m "$dist/SHA256SUMS" -x "$dist/SHA256SUMS.minisig" ||
   fail "SHA256SUMS.minisig does not verify against packaging/release.pub; $key is not the release key"
+# Names the commit this dist/ was built from, so `just publish` uses it instead of building again.
+git rev-parse "$tag^{commit}" > "$dist/.built"
