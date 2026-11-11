@@ -6,7 +6,7 @@ import { ledger, type Env } from "../src/env";
 import { fill, FillFailure } from "../src/fill";
 import type { Ledger } from "../src/ledger";
 import { sharePage } from "../src/page";
-import { bytes, call, createOk, expire, image, installToken, liveImage, liveVideo, PNG, putPart, testEnv } from "./helpers";
+import { bytes, call, createOk, expire, image, installToken, liveImage, liveVideo, PNG, putPart, testEnv, worker } from "./helpers";
 
 const page = (id: string) => call("GET", `/${id}`);
 
@@ -165,5 +165,21 @@ describe("share page", () => {
     expect(csp).not.toMatch(/script-src[^;]*unsafe-inline/);
     expect(csp).not.toMatch(/(^|; )style-src [^;]*unsafe-inline/);
     expect(template).toContain("<script>");
+  });
+});
+
+describe("the bare domain", () => {
+  it("sends a visitor to the website instead of a not-found page", async () => {
+    for (const method of ["GET", "HEAD"]) {
+      const r = await worker.fetch("https://share.easyshot.site/", { method, redirect: "manual" });
+      expect(r.status, method).toBe(302);
+      expect(r.headers.get("Location"), method).toBe("https://easyshot.site/");
+    }
+  });
+
+  it("leaves share links to the share page", async () => {
+    const r = await page("7AAAAAAAAAAAAAAAAAAAAA");
+    expect(r.status).toBe(404);
+    expect(await r.text()).toContain(MISSING);
   });
 });

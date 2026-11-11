@@ -24,6 +24,7 @@ What it does:
   plain "Page not found", from one Ledger call, with a CSP that allows only the template's own
   script and style, by hash. An expired, deleted, unknown or malformed id all get the same 404, so
   a visitor cannot tell a share was ever there.
+- Sends a visit to the bare domain (`GET /`) to `https://easyshot.site` with a temporary redirect.
 
 The `Ledger` Durable Object (SQLite) holds every counter: used challenges, installs per hashed
 address (an HMAC of the address and the UTC date; raw addresses are never stored), shares and
