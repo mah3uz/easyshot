@@ -190,6 +190,8 @@ pub const HANDOFF_IN: Transition = SNAPPY_SPRING;
 pub const HANDOFF_SCALE: f32 = 0.94;
 /// The recording bar changing in place: long enough to follow, and the old state is already gone.
 pub const BAR_SWAP: Transition = fades(220, Easing::EaseOut);
+/// One turn of a busy spinner, repeated until the work is done.
+pub const SPIN: Transition = moves(800, Easing::Linear);
 
 const REDUCED_FADE_LIMIT: Duration = Duration::from_millis(120);
 

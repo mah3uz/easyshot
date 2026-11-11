@@ -93,7 +93,34 @@ panels-presets-delete = Delete { $name }
 coming-soon-badge = Coming soon
 coming-soon-close = Close
 coming-soon-a11y = { $feature }, coming soon
-coming-soon-cloud-share = Cloud sharing
-coming-soon-cloud-share-line = Share a capture as a link, hosted for you or in your own storage.
 coming-soon-video-studio = Video Studio
 coming-soon-video-studio-line = Edit recordings: cut, zoom, captions and backgrounds, then export.
+
+## Share popover
+share-a11y = Share
+share-title = Share Link
+share-title-field = Title
+share-title-placeholder = Title (optional)
+share-expiry = Expires after
+share-days = { $days ->
+        [one] { $days } day
+       *[other] { $days } days
+    }
+share-free = easyshot Free
+share-destination-a11y = Shares go to { $destination }
+share-change = Change
+share-change-a11y = Change where shares go
+share-button = Share
+share-preparing-a11y = Share, preparing the file
+share-too-long-title = Video Too Long
+share-use-bucket = Use my own bucket
+share-first-title = Where Shares Go
+share-first-free = easyshot Free
+share-first-free-line = Nothing to set up.
+share-first-bucket = My own bucket
+share-first-bucket-line = Set up once in Settings.
+share-unlisted = Shares are unlisted, not private: anyone with the link can open it.
+share-terms = Terms
+share-terms-a11y = Read the Terms
+share-error-title = Couldn’t Share
+share-retry = Retry

@@ -40,6 +40,7 @@ pub mod gallery_panels;
 pub mod menu;
 pub mod popover;
 pub mod preset_bar;
+pub mod share_popover;
 pub mod toast;
 pub mod tooltip;
 
@@ -50,5 +51,8 @@ pub use focus_pad::{CENTRE, FOCUS_PAD_HEIGHT, FocusPad};
 pub use menu::{MenuItem, MenuLead, MenuNote, MenuSection};
 pub use popover::{Popover, shadow as popover_shadow};
 pub use preset_bar::PresetBar;
+pub use share_popover::{
+    Destination, SHARE_DAYS, SHARE_POPOVER_WIDTH, ShareEvent, SharePopover, ShareTarget, ShareView,
+};
 pub use toast::{Countdown, Toast, ToastClock, ToastStyle};
 pub use tooltip::Tip;

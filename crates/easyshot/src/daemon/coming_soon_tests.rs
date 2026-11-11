@@ -6,9 +6,12 @@ fn every_ask_reaches_the_one_panel_with_its_feature(cx: &mut TestAppContext) {
     let asked = cx.update(record);
     cx.update(|cx| {
         coming_soon(Feature::VideoStudio, cx);
-        coming_soon(Feature::CloudShare, cx);
+        coming_soon(Feature::VideoStudio, cx);
     });
-    assert_eq!(*asked.borrow(), [Feature::VideoStudio, Feature::CloudShare]);
+    assert_eq!(
+        *asked.borrow(),
+        [Feature::VideoStudio, Feature::VideoStudio]
+    );
 }
 
 #[cfg(feature = "player")]

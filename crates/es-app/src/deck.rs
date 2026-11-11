@@ -1,6 +1,7 @@
 use es_model::config::{CaptureCfg, Overlay};
 use es_model::{CaptureKind, DeckManifest};
 use gpui::{Context, EventEmitter};
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::time::Duration;
 use uuid::Uuid;
@@ -173,6 +174,8 @@ pub struct Deck {
     hovered: bool,
     hidden: bool,
     focused: Option<Uuid>,
+    held: Option<Uuid>,
+    shared: HashSet<Uuid>,
     ticking: bool,
 }
 
@@ -247,6 +250,10 @@ impl Deck {
             if self.focused == Some(id) {
                 self.focused = None;
             }
+            if self.held == Some(id) {
+                self.held = None;
+            }
+            self.shared.remove(&id);
             cx.emit(DeckEvent::Removed { item, why });
             cx.notify();
         }
@@ -353,9 +360,38 @@ impl Deck {
         self.hovered
     }
 
+    /// A popover opened from this card: the deck stays spread out and the card waits for it.
+    pub fn hold(&mut self, id: Option<Uuid>, cx: &mut Context<Self>) {
+        if self.held != id {
+            self.held = id;
+            self.start_ticking(cx);
+            cx.notify();
+        }
+    }
+
+    pub fn held(&self) -> Option<Uuid> {
+        self.held
+    }
+
+    /// The capture has a live share link.
+    pub fn set_shared(&mut self, id: Uuid, shared: bool, cx: &mut Context<Self>) {
+        let changed = if shared {
+            self.position(id).is_some() && self.shared.insert(id)
+        } else {
+            self.shared.remove(&id)
+        };
+        if changed {
+            cx.notify();
+        }
+    }
+
+    pub fn is_shared(&self, id: Uuid) -> bool {
+        self.shared.contains(&id)
+    }
+
     /// The cards fold into a stack and spread out while the pointer or the keyboard is on them.
     pub fn fanned(&self) -> bool {
-        self.hovered || self.focused.is_some()
+        self.hovered || self.focused.is_some() || self.held.is_some()
     }
 
     /// The cards stay but are not shown, and their timers wait; a new capture shows the deck again.
@@ -399,7 +435,8 @@ impl Deck {
                 continue;
             }
             let entry = &mut self.entries[i];
-            if self.hovered || self.hidden || self.focused == Some(entry.item.id) {
+            let id = Some(entry.item.id);
+            if self.hovered || self.hidden || self.focused == id || self.held == id {
                 entry.idle = Duration::ZERO;
                 continue;
             }

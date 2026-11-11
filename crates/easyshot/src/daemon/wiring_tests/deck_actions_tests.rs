@@ -309,18 +309,15 @@ fn z_and_a_click_toggle_actual_size(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
-fn cloud_share_says_coming_soon_and_leaves_the_card_alone(cx: &mut TestAppContext) {
+fn share_on_a_card_opens_the_share_popover_for_it_and_leaves_the_card(cx: &mut TestAppContext) {
     let f = fixture(cx);
     let (item, image, sidecar) = library_card(&f, cx);
-    let asked = cx.update(crate::daemon::coming_soon::record);
+    let asked = cx.update(crate::daemon::share::record);
 
     act(&f, &item, DeckAction::Share, cx);
 
-    assert_eq!(
-        *asked.borrow(),
-        [crate::daemon::coming_soon::Feature::CloudShare]
-    );
-    assert!(f.sink.shown().is_empty(), "the panel, not a toast");
+    assert_eq!(*asked.borrow(), [item.id], "the popover, for this card");
+    assert!(f.sink.shown().is_empty(), "no toast before a share starts");
     assert_eq!(on_deck(&f, cx), 1, "the card stays");
     assert!(image.exists() && sidecar.exists());
     assert!(f.trash.trashed().is_empty());

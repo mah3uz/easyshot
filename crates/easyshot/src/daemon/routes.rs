@@ -1,4 +1,3 @@
-use super::coming_soon::{Feature, coming_soon};
 use super::deck_delete::{Deletion, delete_card};
 use super::recording::Recordings;
 use super::windows::Wiring;
@@ -186,6 +185,10 @@ pub fn deck_events(
                     .detach();
             }
         }
+        DeckEvent::Requested {
+            item,
+            action: DeckAction::Share,
+        } => super::share::open_from_deck(item, cx),
         DeckEvent::Requested { item, .. } if item.video => {}
         DeckEvent::Requested { item, action } => match action {
             DeckAction::Copy => copy_card(&item.file, &clipboard, cx),
@@ -228,7 +231,7 @@ pub fn deck_events(
                 }
             }
             DeckAction::Delete => delete_card(&deletion, item.clone(), cx),
-            DeckAction::Share => coming_soon(Feature::CloudShare, cx),
+            DeckAction::Share => {}
             DeckAction::Dismiss => {}
         },
     })

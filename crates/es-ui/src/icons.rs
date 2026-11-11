@@ -82,6 +82,7 @@ icons! {
         Keyboard = "keyboard",
         Link = "link",
         List = "list",
+        LoaderCircle = "loader-circle",
         Lock = "lock",
         Mic = "mic",
         MicOff = "mic-off",

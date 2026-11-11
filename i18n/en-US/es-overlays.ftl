@@ -236,3 +236,4 @@ consent-change-scope = asked to widen what agents may capture.
 consent-change-note = Nothing changes unless you allow it.
 consent-allow = Allow
 consent-cancel = Cancel
+deck-card-shared-a11y = Shared

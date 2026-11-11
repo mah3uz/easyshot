@@ -1,9 +1,11 @@
 mod failure;
+pub mod flow;
 mod job;
 mod prepare;
 mod target;
 
 pub use failure::ShareFailure;
+pub use flow::{Anchor, DeckShare, PopoverHost, ShareHooks};
 pub use job::run_route;
 pub use prepare::{Caps, Job as PrepareJob, PrepareError, Prepared, Tools, prepare, prepare_with};
 pub use target::{FREE_BASE_URL, KeyPlace, Keyring, LiveTargets, SystemKeyring, Target, Targets};
@@ -29,6 +31,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use time::OffsetDateTime;
 use uuid::Uuid;
+
+pub const TERMS_URL: &str = "https://easyshot.site/terms";
 
 pub const SWEEP_EVERY: Duration = Duration::from_secs(60 * 60);
 
@@ -162,6 +166,15 @@ impl Shares {
         self.file
             .value
             .for_source(source, OffsetDateTime::now_utc())
+    }
+
+    /// The live link of a file, found as [`Shares::start_file`] would record it.
+    pub fn for_file(&self, path: &Path, cx: &App) -> Option<&ShareRecord> {
+        self.for_source(&self.source_of(path, cx))
+    }
+
+    pub fn config(&self, cx: &App) -> ShareCfg {
+        self.settings.read(cx).config().share.clone()
     }
 
     pub fn days(&self, cx: &App) -> u8 {

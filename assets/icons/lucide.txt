@@ -42,6 +42,7 @@ key-round
 keyboard
 link
 list
+loader-circle
 lock
 mic
 mic-off

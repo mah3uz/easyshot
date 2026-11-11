@@ -282,7 +282,7 @@ fn start(
         backend.clone(),
         settings.clone(),
         history.clone(),
-        shares,
+        shares.clone(),
         deck.clone(),
         windows.clone(),
         paths.clone(),
@@ -380,6 +380,15 @@ fn start(
         windows.clone(),
     );
     wiring.register();
+    share::install(
+        shares,
+        &deck,
+        deck_surface.clone(),
+        surfaces.clone(),
+        wiring.clone(),
+        clipboard.clone(),
+        cx,
+    );
     if test_mode {
         wiring.set_wallpaper_chooser(Rc::new(pickers::Declining));
     } else {

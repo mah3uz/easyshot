@@ -1,9 +1,9 @@
 use std::rc::Rc;
 
 use gpui::{
-    Anchor, AnyElement, App, BoxShadow, ElementId, InteractiveElement, IntoElement, ParentElement,
-    Pixels, RenderOnce, SharedString, StatefulInteractiveElement, Styled, Window, div, hsla,
-    prelude::FluentBuilder, px,
+    Anchor, AnyElement, App, BoxShadow, ElementId, FocusHandle, InteractiveElement, IntoElement,
+    ParentElement, Pixels, RenderOnce, SharedString, StatefulInteractiveElement, Styled, Window,
+    div, hsla, prelude::FluentBuilder, px,
 };
 use gpui_component::{Selectable, popover::Popover as KitPopover};
 
@@ -70,6 +70,7 @@ pub struct Popover {
     trigger: Option<AnyElement>,
     content: Option<ContentBuilder>,
     on_open_change: Option<OpenHandler>,
+    focus: Option<FocusHandle>,
     settled: bool,
 }
 
@@ -85,6 +86,7 @@ impl Popover {
             trigger: None,
             content: None,
             on_open_change: None,
+            focus: None,
             settled: false,
         }
     }
@@ -126,6 +128,12 @@ impl Popover {
         self
     }
 
+    /// Takes focus as it opens, so the content's own keys work without a click first.
+    pub fn focus(mut self, handle: &FocusHandle) -> Self {
+        self.focus = Some(handle.clone());
+        self
+    }
+
     /// Opens at rest with no growth, for previews that are not being opened.
     pub fn settled(mut self) -> Self {
         self.settled = true;
@@ -157,6 +165,7 @@ impl RenderOnce for Popover {
             .when_some(self.on_open_change, |p, handler| {
                 p.on_open_change(move |open, window, cx| handler(*open, window, cx))
             })
+            .when_some(self.focus, |p, handle| p.track_focus(&handle))
             .when_some(self.trigger, |p, child| {
                 p.trigger(Trigger { child, open: false })
             })

@@ -18,7 +18,7 @@ use gpui_component::{
 };
 use std::path::PathBuf;
 
-pub const TERMS_URL: &str = "https://easyshot.site/terms";
+pub use es_app::share::TERMS_URL;
 const FIELD_COUNT: usize = 5;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

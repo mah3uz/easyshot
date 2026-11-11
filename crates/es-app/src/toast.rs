@@ -40,6 +40,8 @@ pub enum CloseReason {
     Expired,
     Undone,
     Replaced,
+    /// One of the toast's other buttons was pressed.
+    Acted,
 }
 
 pub type OnClose = Rc<dyn Fn(CloseReason, &mut App)>;
@@ -86,6 +88,13 @@ pub struct Toast {
     /// The notification also offers to open `file` in the editor.
     pub edit: bool,
     pub undo: Option<ToastUndo>,
+    /// Buttons after Undo, by their Fluent ids; pressing one closes the toast.
+    pub actions: Vec<(&'static str, ToastUndo)>,
+    pub progress: Option<f32>,
+    /// No countdown: the toast stays until it is replaced, dismissed or acted on.
+    pub sticky: bool,
+    /// A toast shown with the key of the one on screen updates it in place.
+    pub key: Option<u64>,
     /// Runs once when the toast's life ends, however it ends.
     pub on_close: Option<OnClose>,
 }
@@ -102,6 +111,10 @@ impl Toast {
             file: None,
             edit: false,
             undo: None,
+            actions: Vec::new(),
+            progress: None,
+            sticky: false,
+            key: None,
             on_close: None,
         }
     }
@@ -139,6 +152,27 @@ impl Toast {
         self
     }
 
+    pub fn action(mut self, label_id: &'static str, act: impl Fn(&mut App) + 'static) -> Self {
+        self.actions.push((label_id, ToastUndo::new(act)));
+        self
+    }
+
+    /// From 0 to 1.
+    pub fn progress(mut self, done: f32) -> Self {
+        self.progress = Some(done);
+        self
+    }
+
+    pub fn sticky(mut self) -> Self {
+        self.sticky = true;
+        self
+    }
+
+    pub fn keyed(mut self, key: u64) -> Self {
+        self.key = Some(key);
+        self
+    }
+
     /// Adds an Undo button, and keeps the toast up for [`UNDO_DURATION`].
     pub fn undoable(mut self, undo: impl Fn(&mut App) + 'static) -> Self {
         self.undo = Some(ToastUndo::new(undo));
@@ -158,6 +192,10 @@ pub struct ToastRequest {
     pub output: Option<OutputId>,
     /// The label of the Undo button and what it does.
     pub undo: Option<(String, ToastUndo)>,
+    pub actions: Vec<(String, ToastUndo)>,
+    pub progress: Option<f32>,
+    pub sticky: bool,
+    pub key: Option<u64>,
     pub on_close: Option<OnClose>,
     /// Shared by clones, so a request closes once.
     pub closed: Rc<Cell<bool>>,
@@ -199,6 +237,14 @@ impl ToastRequest {
             duration: toast.duration,
             output: toast.output.clone(),
             undo: toast.undo.clone().map(|undo| (l.get("toast-undo"), undo)),
+            actions: toast
+                .actions
+                .iter()
+                .map(|(id, act)| (l.get(id), act.clone()))
+                .collect(),
+            progress: toast.progress,
+            sticky: toast.sticky,
+            key: toast.key,
             on_close: toast.on_close.clone(),
             closed: Rc::default(),
         }
@@ -208,6 +254,13 @@ impl ToastRequest {
 /// Returns false when no surface is visible to draw on.
 pub trait ToastSink {
     fn show(&self, request: &ToastRequest, cx: &mut App) -> bool;
+
+    /// Redraws the toast on screen with the request's key; false when that toast is gone.
+    fn update(&self, _request: &ToastRequest, _cx: &mut App) -> bool {
+        false
+    }
+
+    fn dismiss(&self, _key: u64, _cx: &mut App) {}
 }
 
 #[derive(Default)]
@@ -255,6 +308,33 @@ impl ToastSink for Arc<MemorySink> {
             .unwrap_or_else(PoisonError::into_inner)
             .push(request.clone());
         true
+    }
+
+    fn update(&self, request: &ToastRequest, _cx: &mut App) -> bool {
+        let mut shown = self.shown.lock().unwrap_or_else(PoisonError::into_inner);
+        let Some(last) = shown
+            .iter_mut()
+            .rev()
+            .find(|r| r.key.is_some() && r.key == request.key && !r.closed.get())
+        else {
+            return false;
+        };
+        *last = ToastRequest {
+            closed: last.closed.clone(),
+            ..request.clone()
+        };
+        true
+    }
+
+    fn dismiss(&self, key: u64, cx: &mut App) {
+        let open: Vec<ToastRequest> = self
+            .shown()
+            .into_iter()
+            .filter(|r| r.key == Some(key))
+            .collect();
+        for request in open {
+            request.close(CloseReason::Replaced, cx);
+        }
     }
 }
 
@@ -326,6 +406,22 @@ pub fn install_toasts(sink: impl ToastSink + 'static, notifier: Arc<dyn Notifier
     });
 }
 
+/// Never falls back to a notification: a toast that is not on screen stays gone.
+#[allow(clippy::needless_pass_by_value)]
+pub fn update_toast(t: Toast, cx: &mut App) -> bool {
+    let request = ToastRequest::resolve(&t);
+    if cx.try_global::<ToastRouter>().is_none() {
+        return false;
+    }
+    cx.update_global(|router: &mut ToastRouter, cx| router.sink.update(&request, cx))
+}
+
+pub fn dismiss_toast(key: u64, cx: &mut App) {
+    if cx.try_global::<ToastRouter>().is_some() {
+        cx.update_global(|router: &mut ToastRouter, cx| router.sink.dismiss(key, cx));
+    }
+}
+
 #[allow(clippy::needless_pass_by_value)]
 pub fn show_toast(t: Toast, cx: &mut App) {
     let request = ToastRequest::resolve(&t);
@@ -335,7 +431,8 @@ pub fn show_toast(t: Toast, cx: &mut App) {
     };
     let notifier = router.notifier.clone();
     let shown = cx.update_global(|router: &mut ToastRouter, cx| router.sink.show(&request, cx));
-    if shown {
+    // A toast that waits on work, such as an upload, would never end as a notification.
+    if shown || request.sticky {
         return;
     }
     let urgency = match request.style {

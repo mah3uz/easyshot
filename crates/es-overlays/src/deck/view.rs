@@ -6,6 +6,7 @@ use es_app::errors::{Error, Result};
 use es_app::platform_ui::{
     LayerShellSurfaces, LayerSurfaceHandle, SurfaceHandle as _, SurfaceRole,
 };
+use es_app::share::Anchor;
 use es_geom::{Point, Rect};
 use es_model::config::{CardActions, Overlay};
 use es_ui::a11y::{Accessible as _, Role};
@@ -240,6 +241,8 @@ impl Render for DeckView {
         let deck = self.deck.read(cx);
         let items: Vec<_> = deck.items().cloned().collect();
         let can_save_all = deck.can_save_all();
+        let held = deck.held();
+        let shared: Vec<bool> = items.iter().map(|i| deck.is_shared(i.id)).collect();
         let geometry = self.settings.geometry(items.len());
         for item in &items {
             self.focus
@@ -263,7 +266,7 @@ impl Render for DeckView {
             let deck = self.deck.clone();
             cx.defer(move |cx| deck.update(cx, |d, cx| d.set_focused(focused, cx)));
         }
-        let fanned = self.fanned();
+        let fanned = self.fanned() || held.is_some();
         let fan = tween(
             "deck-fan",
             if fanned { 1. } else { 0. },
@@ -362,7 +365,8 @@ impl Render for DeckView {
                 .unwrap_or_else(|| cx.focus_handle());
             let show = (self.settings.always_show_actions
                 || self.hovered == Some(id)
-                || self.focused == Some(id))
+                || self.focused == Some(id)
+                || held == Some(id))
                 && (depth == 0 || fanned);
             let deck = self.deck.clone();
             let on_action = Rc::new(move |action: DeckAction, _: &mut Window, cx: &mut App| {
@@ -389,6 +393,7 @@ impl Render for DeckView {
                     )
                     .tools(show)
                     .share(self.settings.share)
+                    .shared(shared[i])
                     .actions(self.settings.actions),
                 )
                 .when(dim > 0., |card| {
@@ -488,6 +493,35 @@ impl DeckSurface {
 
     pub fn is_shown(&self) -> bool {
         self.shown.borrow().is_some()
+    }
+
+    /// Above the card, in line with its Share button: a popover opened there leaves the capture in view.
+    pub fn share_anchor(&self, id: Uuid, cx: &App) -> Option<Anchor> {
+        let shown = self.shown.borrow();
+        let shown = shown.as_ref()?;
+        let deck = self.deck.read(cx);
+        let index = deck.items().position(|i| i.id == id)?;
+        let settings = self.settings.get();
+        let geometry = settings.geometry(deck.len());
+        let output = shown.handle.output_info().logical;
+        let origin = geometry.origin(output);
+        let card = geometry.card(index);
+        let at = Point::new(
+            origin.x - output.x0 + card.x0,
+            origin.y - output.y0 + card.y0,
+        );
+        let button = super::card::button_rect(
+            settings.layout.slot_of(DeckAction::Share),
+            card.size(),
+            settings.size.control_scale(),
+        );
+        Some(Anchor {
+            output: shown.handle.output(),
+            rect: Rect::from_origin_size(
+                Point::new(at.x + button.x0, at.y),
+                es_geom::Size::new(button.width(), 1.),
+            ),
+        })
     }
 
     fn sync(&self, cx: &mut App) -> Result<()> {

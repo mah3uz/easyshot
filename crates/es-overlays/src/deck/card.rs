@@ -77,6 +77,24 @@ fn action_icon(action: DeckAction) -> IconName {
     }
 }
 
+/// A slot's button within a card of `size`; a centre slot gives the card's middle.
+pub fn button_rect(slot: Option<Slot>, size: Size, scale: f32) -> es_geom::Rect {
+    let side = f64::from(CORNER_BUTTON * scale);
+    let inset = f64::from(INSET * scale);
+    let (w, h) = (size.width, size.height);
+    let x = match slot {
+        Some(Slot::TopLeft | Slot::BottomLeft) => inset,
+        Some(Slot::TopRight | Slot::BottomRight) => w - inset - side,
+        _ => (w - side) / 2.,
+    };
+    let y = match slot {
+        Some(Slot::TopLeft | Slot::TopRight | Slot::TopCenter) => inset,
+        Some(Slot::BottomLeft | Slot::BottomRight | Slot::BottomCenter) => h - inset - side,
+        _ => (h - side) / 2.,
+    };
+    es_geom::Rect::from_origin_size(es_geom::Point::new(x, y), Size::new(side, side))
+}
+
 pub type ActionHandler = Rc<dyn Fn(DeckAction, &mut Window, &mut App)>;
 
 /// What a drag out of the deck carries: the file, named after the capture.
@@ -110,6 +128,7 @@ pub struct Card {
     scale: f32,
     tools: bool,
     share: bool,
+    shared: bool,
     actions: CardActions,
     focus: FocusHandle,
     on_action: ActionHandler,
@@ -134,6 +153,7 @@ impl Card {
             scale,
             tools: false,
             share: false,
+            shared: false,
             actions: CardActions::default(),
             focus,
             on_action,
@@ -147,6 +167,12 @@ impl Card {
 
     pub fn share(mut self, available: bool) -> Self {
         self.share = available;
+        self
+    }
+
+    /// The capture has a live share link.
+    pub fn shared(mut self, shared: bool) -> Self {
+        self.shared = shared;
         self
     }
 
@@ -295,6 +321,29 @@ impl RenderOnce for Card {
         let target = if self.tools && !saving { 1. } else { 0. };
         let tools_in = tween(self.id("tools"), target, DECK_HOVER, window, cx);
         let tools = (target > 0. || tools_in > 0.).then(|| self.tool_layer().opacity(tools_in));
+        let s = self.scale;
+        let mark = (self.shared && tools_in < 1.).then(|| {
+            div()
+                .id(self.id("shared"))
+                .accessible(Role::Image, fl!("deck-card-shared-a11y"))
+                .absolute()
+                .left(px(INSET * s))
+                .bottom(px(INSET * s))
+                .size(px(CORNER_BUTTON * s * 0.8))
+                .flex()
+                .items_center()
+                .justify_center()
+                .rounded_full()
+                .bg(black(CORNER_FILL))
+                .border(STROKE)
+                .border_color(white(CORNER_RING))
+                .opacity(1. - tools_in)
+                .child(
+                    Icon::new(IconName::CloudCheck)
+                        .size(px(GLYPH * s))
+                        .text_color(white(1.)),
+                )
+        });
         let open = self.on_action.clone();
         let keyed = self.on_action.clone();
         let dragged = DraggedCapture {
@@ -335,6 +384,7 @@ impl RenderOnce for Card {
             })
             .child(thumbnail)
             .children(loading_out)
+            .children(mark)
             .children(tools)
             .when(saving_shown > 0., |card| {
                 card.child(

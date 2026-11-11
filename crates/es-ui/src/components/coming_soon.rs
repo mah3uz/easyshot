@@ -38,28 +38,24 @@ const SHADOW: f32 = 2.;
 /// A feature that is planned but not built yet.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Feature {
-    CloudShare,
     VideoStudio,
 }
 
 impl Feature {
     pub fn icon(self) -> IconName {
         match self {
-            Self::CloudShare => IconName::CloudUpload,
             Self::VideoStudio => IconName::Film,
         }
     }
 
     pub fn name(self) -> String {
         match self {
-            Self::CloudShare => fl!("coming-soon-cloud-share"),
             Self::VideoStudio => fl!("coming-soon-video-studio"),
         }
     }
 
     pub fn line(self) -> String {
         match self {
-            Self::CloudShare => fl!("coming-soon-cloud-share-line"),
             Self::VideoStudio => fl!("coming-soon-video-studio-line"),
         }
     }

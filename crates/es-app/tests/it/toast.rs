@@ -58,6 +58,10 @@ impl Shown {
             duration: ERROR_DURATION,
             output: None,
             undo: None,
+            actions: Vec::new(),
+            progress: None,
+            sticky: false,
+            key: None,
             on_close: None,
             closed: Default::default(),
         })
@@ -72,6 +76,10 @@ impl Shown {
             duration: UNDO_DURATION,
             output: None,
             undo: Some(("Undo".into(), ToastUndo::new(move |_| undone.set(true)))),
+            actions: Vec::new(),
+            progress: None,
+            sticky: false,
+            key: None,
             on_close: None,
             closed: Default::default(),
         })

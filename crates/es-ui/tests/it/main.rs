@@ -9,6 +9,7 @@ mod panels;
 mod picks;
 mod pointer_leave;
 mod segmented_motion;
+mod share_popover;
 mod shortcut_field;
 mod support;
 mod toast;

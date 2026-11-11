@@ -130,6 +130,13 @@ impl ClipboardSink for Clip {
     }
 }
 
+/// The upload waits after its first progress until the sender sends or is dropped.
+pub(crate) fn hold(fake: &Fake) -> mpsc::Sender<()> {
+    let (open, gate) = mpsc::channel();
+    *fake.gate.lock().unwrap() = Some(gate);
+    open
+}
+
 pub(crate) fn made(req: &ShareRequest) -> ShareRecord {
     let now = OffsetDateTime::now_utc();
     record(

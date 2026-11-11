@@ -23,7 +23,7 @@ pub struct ToastHost {
     toast: ToastRequest,
     leaving: bool,
     region: Rc<Cell<Option<Bounds<Pixels>>>>,
-    clock: ToastClock,
+    clock: Option<ToastClock>,
     close: Rc<dyn Fn(&mut App)>,
 }
 
@@ -35,17 +35,7 @@ impl ToastHost {
         cx: &mut App,
     ) -> Entity<Self> {
         cx.new(|cx| {
-            let label = format!("{} {}", cx.entity_id().as_u64(), toast.title);
-            let clock = ToastClock::start(label, toast.duration, cx, |host: &mut ToastHost, cx| {
-                host.toast.close(CloseReason::Expired, cx);
-                host.leaving = true;
-                cx.notify();
-                cx.spawn(async move |this, cx| {
-                    cx.background_executor().timer(TOAST_OUT.duration).await;
-                    let _ = this.update(cx, |host, cx| (host.close.clone())(cx));
-                })
-                .detach();
-            });
+            let clock = Self::clock(&toast, cx);
             ToastHost {
                 toast,
                 leaving: false,
@@ -54,6 +44,47 @@ impl ToastHost {
                 close: Rc::new(close),
             }
         })
+    }
+
+    fn clock(toast: &ToastRequest, cx: &mut Context<Self>) -> Option<ToastClock> {
+        if toast.sticky {
+            return None;
+        }
+        let label = format!("{} {}", cx.entity_id().as_u64(), toast.title);
+        Some(ToastClock::start(
+            label,
+            toast.duration,
+            cx,
+            |host: &mut ToastHost, cx| {
+                host.toast.close(CloseReason::Expired, cx);
+                host.leave(cx);
+            },
+        ))
+    }
+
+    fn leave(&mut self, cx: &mut Context<Self>) {
+        self.leaving = true;
+        cx.notify();
+        cx.spawn(async move |this, cx| {
+            cx.background_executor().timer(TOAST_OUT.duration).await;
+            let _ = this.update(cx, |host, cx| (host.close.clone())(cx));
+        })
+        .detach();
+    }
+
+    /// Keeps the card where it is; the countdown starts again only when the request has one.
+    pub fn update(&mut self, toast: &ToastRequest, cx: &mut Context<Self>) {
+        let restart = !toast.sticky && (self.toast.sticky || self.toast.duration != toast.duration);
+        self.toast = ToastRequest {
+            closed: self.toast.closed.clone(),
+            ..toast.clone()
+        };
+        if toast.sticky {
+            self.clock = None;
+        } else if restart {
+            self.clock = Self::clock(toast, cx);
+        }
+        cx.notify();
     }
 
     pub fn leaving(&self) -> bool {
@@ -70,21 +101,34 @@ impl Render for ToastHost {
             ToastStyle::Error => CardStyle::Error,
         };
         let mut card = Toast::new(("toast", id), t.title.clone())
-            .clock(&self.clock)
             .style(style)
             .leaving(self.leaving);
+        if let Some(clock) = &self.clock {
+            card = card.clock(clock);
+        }
         if let Some(message) = &t.message {
             card = card.message(message.clone());
         }
         if let Some(icon) = card_icon(t.icon.clone()) {
             card = card.icon(icon);
         }
-        if let Some((label, undo)) = t.undo.clone() {
+        if let Some(done) = t.progress {
+            card = card.progress(done);
+        }
+        let undo = t
+            .undo
+            .clone()
+            .map(|(label, act)| (label, act, CloseReason::Undone));
+        let others = t
+            .actions
+            .iter()
+            .map(|(label, act)| (label.clone(), act.clone(), CloseReason::Acted));
+        for (label, act, reason) in undo.into_iter().chain(others) {
             let close = self.close.clone();
             let request = t.clone();
             card = card.action(label, move |_, cx| {
-                undo.run(cx);
-                request.close(CloseReason::Undone, cx);
+                act.run(cx);
+                request.close(reason, cx);
                 let close = close.clone();
                 cx.defer(move |cx| close(cx));
             });
@@ -114,6 +158,7 @@ pub fn card_icon(icon: gpui_component::IconName) -> Option<IconName> {
 struct Shown {
     id: u64,
     request: ToastRequest,
+    host: Entity<ToastHost>,
     handle: LayerSurfaceHandle,
 }
 
@@ -134,6 +179,9 @@ impl ToastSurface {
     }
 
     pub fn try_show(&self, toast: &ToastRequest, cx: &mut App) -> Result<OutputId> {
+        if let Some(output) = self.update_shown(toast, cx) {
+            return Ok(output);
+        }
         let output = match toast.output.clone() {
             Some(output) => output,
             None => self
@@ -151,13 +199,33 @@ impl ToastSurface {
             .open_surface(SurfaceRole::Toast, &output, SURFACE, cx)?;
         let shown = self.shown.clone();
         let host = ToastHost::start(toast.clone(), move |cx| close(&shown, id, cx), cx);
-        handle.set_content(host.into(), cx);
+        handle.set_content(host.clone().into(), cx);
         *self.shown.borrow_mut() = Some(Shown {
             id,
             request: toast.clone(),
+            host,
             handle,
         });
         Ok(output)
+    }
+
+    fn update_shown(&self, toast: &ToastRequest, cx: &mut App) -> Option<OutputId> {
+        let (host, output) = {
+            let mut slot = self.shown.borrow_mut();
+            let shown = slot
+                .as_mut()
+                .filter(|s| toast.key.is_some() && s.request.key == toast.key)?;
+            if shown.host.read(cx).leaving() {
+                return None;
+            }
+            shown.request = ToastRequest {
+                closed: shown.request.closed.clone(),
+                ..toast.clone()
+            };
+            (shown.host.clone(), shown.handle.output())
+        };
+        host.update(cx, |host, cx| host.update(toast, cx));
+        Some(output)
     }
 
     pub fn dismiss(&self, cx: &mut App) {
@@ -187,6 +255,21 @@ impl ToastSink for ToastSurface {
                 tracing::warn!(%error, "toast not shown");
                 false
             }
+        }
+    }
+
+    fn update(&self, request: &ToastRequest, cx: &mut App) -> bool {
+        self.update_shown(request, cx).is_some()
+    }
+
+    fn dismiss(&self, key: u64, cx: &mut App) {
+        let ours = self
+            .shown
+            .borrow()
+            .as_ref()
+            .is_some_and(|s| s.request.key == Some(key));
+        if ours {
+            ToastSurface::dismiss(self, cx);
         }
     }
 }

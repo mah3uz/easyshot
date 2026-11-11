@@ -2,15 +2,17 @@ use std::rc::Rc;
 
 use crate::components::Tip;
 use gpui::{
-    App, ClickEvent, Div, ElementId, FocusHandle, Hsla, InteractiveElement, IntoElement,
-    ParentElement, Pixels, RenderOnce, SharedString, StatefulInteractiveElement, Styled, Window,
-    div, prelude::FluentBuilder, px, transparent_black,
+    AnimationExt, AnyElement, App, ClickEvent, Div, ElementId, FocusHandle, Hsla,
+    InteractiveElement, IntoElement, ParentElement, Pixels, RenderOnce, SharedString,
+    StatefulInteractiveElement, Styled, Transformation, Window, div, percentage,
+    prelude::FluentBuilder, px, transparent_black,
 };
 use gpui_component::Icon;
 
 use crate::{
     a11y::{Accessible, Role},
     icons::IconName,
+    motion::{SPIN, reduce_motion},
     theme::tokens,
     tokens::{Tokens, Typeset},
 };
@@ -128,6 +130,17 @@ pub(crate) fn shows_focus(focus: &FocusHandle, preview: Interaction, window: &Wi
         || (focus.is_focused(window) && window.last_input_was_keyboard())
 }
 
+fn spinner(cx: &App) -> AnyElement {
+    let icon = Icon::new(IconName::LoaderCircle).size(px(16.)).flex_none();
+    if reduce_motion(cx) {
+        return icon.into_any_element();
+    }
+    icon.with_animation("spin", SPIN.animation().repeat(), |icon, turn| {
+        icon.transform(Transformation::rotate(percentage(turn)))
+    })
+    .into_any_element()
+}
+
 #[derive(IntoElement)]
 pub struct EditorButton {
     id: ElementId,
@@ -139,6 +152,7 @@ pub struct EditorButton {
     selected: bool,
     toggle: bool,
     disabled: bool,
+    busy: bool,
     padding_x: Option<Pixels>,
     preview: Interaction,
     on_click: Option<ClickHandler>,
@@ -156,6 +170,7 @@ impl EditorButton {
             selected: false,
             toggle: false,
             disabled: false,
+            busy: false,
             padding_x: None,
             preview: Interaction::Rest,
             on_click: None,
@@ -200,6 +215,12 @@ impl EditorButton {
 
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
+        self
+    }
+
+    /// A turning spinner in place of the icon; pair it with `disabled`.
+    pub fn busy(mut self, busy: bool) -> Self {
+        self.busy = busy;
         self
     }
 
@@ -263,7 +284,8 @@ impl RenderOnce for EditorButton {
                     .active(move |s| s.bg(pressed.fill).border_color(pressed.border))
             })
             .when_some(self.tooltip, |d, tip| d.tip(tip))
-            .when_some(self.icon, |d, icon| {
+            .when(self.busy, |d| d.child(spinner(cx)))
+            .when_some(self.icon.filter(|_| !self.busy), |d, icon| {
                 d.child(Icon::new(icon).size(px(16.)).flex_none())
             })
             .when_some(self.label, |d, label| d.child(label))

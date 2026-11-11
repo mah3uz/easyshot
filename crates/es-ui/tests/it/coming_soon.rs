@@ -46,12 +46,6 @@ fn count(image: &RgbaImage, colour: Rgba) -> usize {
 
 #[test]
 fn each_feature_names_itself_and_says_what_it_will_do() {
-    assert_eq!(Feature::CloudShare.name(), "Cloud sharing");
-    assert_eq!(
-        Feature::CloudShare.line(),
-        "Share a capture as a link, hosted for you or in your own storage."
-    );
-    assert_eq!(Feature::CloudShare.icon(), IconName::CloudUpload);
     assert_eq!(Feature::VideoStudio.name(), "Video Studio");
     assert_eq!(
         Feature::VideoStudio.line(),
@@ -69,11 +63,8 @@ fn each_feature_names_itself_and_says_what_it_will_do() {
 #[test]
 fn the_panel_draws_its_badge_on_its_card_in_light_and_dark() {
     for (mode, tag) in [(ThemeMode::Light, "light"), (ThemeMode::Dark, "dark")] {
-        let mut drawn = Vec::new();
-        for (feature, name) in [
-            (Feature::CloudShare, "cloud-share"),
-            (Feature::VideoStudio, "video-studio"),
-        ] {
+        {
+            let (feature, name) = (Feature::VideoStudio, "video-studio");
             let (image, accent, panel) =
                 picture(feature, mode, &format!("coming-soon-{name}-{tag}"));
             let scale = image.width() as f32 / W;
@@ -85,11 +76,6 @@ fn the_panel_draws_its_badge_on_its_card_in_light_and_dark() {
                 count(&image, accent) as f32 > 60. * 14. * scale * scale,
                 "{name} {tag}: the Coming soon badge is a solid accent pill"
             );
-            drawn.push(image);
         }
-        assert_ne!(
-            drawn[0], drawn[1],
-            "{tag}: each feature draws its own icon and words"
-        );
     }
 }

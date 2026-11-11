@@ -150,3 +150,19 @@ share-retry-hours = Try again in { $hours ->
         [one] an hour
        *[other] { $hours } hours
     }.
+
+share-toast-preparing = Preparing…
+share-toast-link-copied = Link copied
+share-toast-link-copied-message = Uploading { $percent } %
+share-toast-shared = Shared
+share-toast-shared-message = Expires in { $days ->
+    [one] 1 day
+   *[other] { $days } days
+}
+share-toast-shared-bucket = Shared to { $bucket }
+share-toast-failed = Couldn’t share
+share-toast-cancel = Cancel
+share-toast-open = Open
+share-toast-copy-link = Copy Link
+share-toast-retry = Retry
+share-popover-a11y = Share

@@ -2,12 +2,14 @@ mod clipboard;
 mod coming_soon_surface;
 pub mod layer;
 mod pinned;
+mod share_popover_surface;
 mod surfaces;
 mod toast_surface;
 
 pub use clipboard::{BackendClipboardSink, with_file_items};
 pub use coming_soon_surface::{ComingSoonHost, ComingSoonSurface};
 pub use pinned::{PinnedOutput, PinnedOutputSource};
+pub use share_popover_surface::{SharePopoverPanel, SharePopoverSurface};
 pub use surfaces::{Gate, LayerShellSurfaces, LayerSurfaceHandle, OutputSource};
 pub use toast_surface::{ToastHost, ToastSurface, card_icon};
 

@@ -8,7 +8,7 @@ use gpui::{
 use gpui_component::Icon;
 
 use crate::{
-    a11y::{Accessible, Role},
+    a11y::{Accessible, Range, Role},
     icons::IconName,
     motion::{
         Clocked, TOAST_IN, TOAST_IN_SCALE, TOAST_OUT, TOAST_OUT_SCALE, TOAST_REDUCED, TOAST_RISE,
@@ -28,8 +28,10 @@ const GAP: Pixels = px(10.);
 const ACTION_GAP: Pixels = px(16.);
 const ICON_BOX: Pixels = px(32.);
 const GLYPH: Pixels = px(18.);
-const MAX_WIDTH: Pixels = px(380.);
+const MAX_WIDTH: Pixels = px(400.);
 const SHADOW_INK: f32 = 0.18;
+const BAR: Pixels = px(4.);
+const BAR_WIDTH: Pixels = px(140.);
 const TICK: Duration = Duration::from_millis(50);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -122,7 +124,8 @@ pub struct Toast {
     style: ToastStyle,
     leaving: bool,
     settled: bool,
-    action: Option<(SharedString, ActionHandler)>,
+    actions: Vec<(SharedString, ActionHandler)>,
+    progress: Option<f32>,
     hovered: Option<Rc<Cell<bool>>>,
 }
 
@@ -136,7 +139,8 @@ impl Toast {
             style: ToastStyle::Normal,
             leaving: false,
             settled: false,
-            action: None,
+            actions: Vec::new(),
+            progress: None,
             hovered: None,
         }
     }
@@ -147,13 +151,19 @@ impl Toast {
         self
     }
 
-    /// A button on the card, such as Undo.
+    /// A button on the card, such as Undo; each call adds one after the last.
     pub fn action(
         mut self,
         label: impl Into<SharedString>,
         on_click: impl Fn(&mut Window, &mut App) + 'static,
     ) -> Self {
-        self.action = Some((label.into(), Rc::new(on_click)));
+        self.actions.push((label.into(), Rc::new(on_click)));
+        self
+    }
+
+    /// A bar under the text, filled `done` of the way, from 0 to 1.
+    pub fn progress(mut self, done: f32) -> Self {
+        self.progress = Some(done.clamp(0., 1.));
         self
     }
 
@@ -239,6 +249,7 @@ impl RenderOnce for Toast {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let t = tokens(cx).clone();
         let error = self.style == ToastStyle::Error;
+        let title = self.title.clone();
         let (scale, rise, alpha) = if self.settled && !self.leaving {
             (1., px(0.), 1.)
         } else {
@@ -314,19 +325,46 @@ impl RenderOnce for Toast {
                             div()
                                 .typeset(t.type_scale.label)
                                 .text_color(t.text_secondary)
-                                .line_clamp(2)
                                 .child(message),
+                        )
+                    })
+                    .when_some(self.progress, |d, done| {
+                        d.child(
+                            div()
+                                .id("toast-progress")
+                                .accessible(Role::ProgressIndicator, title)
+                                .range(Range {
+                                    value: f64::from(done) * 100.,
+                                    min: 0.,
+                                    max: 100.,
+                                    step: 1.,
+                                })
+                                .mt(px(4.))
+                                .w(BAR_WIDTH)
+                                .h(BAR)
+                                .rounded_full()
+                                .bg(t.track)
+                                .child(
+                                    div().h_full().w(relative(done)).rounded_full().bg(t.accent),
+                                ),
                         )
                     }),
             )
-            .when_some(self.action, |d, (label, on_click)| {
+            .when(!self.actions.is_empty(), |d| {
                 d.child(
-                    div().flex_none().ml(ACTION_GAP - GAP).child(
-                        EditorButton::new("toast-action")
-                            .label(label)
-                            .kind(ButtonKind::Bordered)
-                            .on_click(move |_, window, cx| on_click(window, cx)),
-                    ),
+                    div()
+                        .flex()
+                        .flex_none()
+                        .gap(px(8.))
+                        .ml(ACTION_GAP - GAP)
+                        .children(self.actions.into_iter().enumerate().map(
+                            |(i, (label, on_click))| {
+                                EditorButton::new(("toast-action", i))
+                                    .label(label)
+                                    .kind(ButtonKind::Bordered)
+                                    .on_click(move |_, window, cx| on_click(window, cx))
+                            },
+                        )),
                 )
             })
     }

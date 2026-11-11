@@ -1179,3 +1179,9 @@ If the pointer disappears when you press Space in the editor and comes back when
 the mouse, your compositor is hiding it because you pressed a key. On Hyprland that is
 `cursor:hide_on_key_press`; on sway it is `seat * hide_cursor when-typing enable`. Turn it
 off to see the hand while you pan.
+
+### Sharing from a capture card
+
+Press **Share** on a card in the deck. A popover opens at the button: give the link a title if you like, pick how long a free link lasts (1, 3 or 7 days) and press **Share**. The first time, the popover asks where shares go: **easyshot Free**, or your own bucket, which opens Settings.
+
+A toast follows the upload. The link is copied as soon as the upload starts (**Link copied · Uploading 42 %**); **Cancel** stops it and removes the toast. When it is done the toast says **Shared** with when the link expires, or the bucket it went to, and offers **Open** and **Copy Link**. If it fails, the toast says why and **Retry** opens the popover again. A card whose capture has a live link shows a small cloud mark.

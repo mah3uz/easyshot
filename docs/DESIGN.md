@@ -120,6 +120,7 @@ as other page changes: at the faster pace the eye lost the page it was following
 | Introduction: the next step slides in from the side you are heading to as the last one slides out the other way, both fading | `STEP_CHANGE` | 200 ms, ease-out |
 | Home window: the new tab slides in from its side (Media Gallery left, Settings right) as the old one slides out the other way, both fading, settling softly | `TAB_SLIDE` | 570 ms, calm spring (the gentle spring, half again as long) |
 | The tab switcher's selection glides to the new tab, swinging just past and back | `THUMB_GLIDE` | 360 ms, snappy spring |
+| Share: while the file is prepared, the spinner on Share turns, once each 800 ms; with Reduce Motion it stands still | `SPIN` | 800 ms a turn, linear, repeating |
 | Countdown: the dial, or the recording badge, grows from 82 % and fades in, swinging just past full size and back | `COUNTDOWN_IN` | 600 ms, bouncy spring |
 | Countdown: each new second drops in from above as the last one falls away, both fading | `DIGIT_ROLL` | 300 ms, snappy |
 | Countdown: after the last second the dial shrinks to 82 % and fades out | `COUNTDOWN_OUT` | 300 ms, snappy |

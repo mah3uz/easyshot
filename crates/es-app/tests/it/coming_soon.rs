@@ -102,7 +102,7 @@ impl Shown {
 
 #[test]
 fn the_close_button_closes_the_panel() {
-    let mut s = Shown::open(Feature::CloudShare);
+    let mut s = Shown::open(Feature::VideoStudio);
     s.click(ON_CLOSE);
     s.closes_after_its_exit();
 }

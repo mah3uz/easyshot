@@ -14,6 +14,7 @@ mod platform_ui;
 mod settings;
 mod settle;
 mod share;
+mod share_deck;
 mod share_file;
 mod share_prepare;
 mod share_words;
