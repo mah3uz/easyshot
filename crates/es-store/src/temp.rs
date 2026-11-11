@@ -13,6 +13,7 @@ pub enum TempKind {
     Drag,
     Unstaged,
     Share,
+    VideoCopy,
 }
 
 fn root(paths: &Paths, kind: TempKind) -> PathBuf {
@@ -21,6 +22,7 @@ fn root(paths: &Paths, kind: TempKind) -> PathBuf {
         TempKind::Drag => paths.drag_dir(),
         TempKind::Unstaged => paths.unstaged_dir(),
         TempKind::Share => paths.share_dir(),
+        TempKind::VideoCopy => paths.video_copies_dir(),
     }
 }
 
@@ -51,6 +53,7 @@ pub fn purge(paths: &Paths, now: SystemTime) -> Result<usize> {
         TempKind::Drag,
         TempKind::Unstaged,
         TempKind::Share,
+        TempKind::VideoCopy,
     ] {
         let dir = root(paths, kind);
         let read = match std::fs::read_dir(&dir) {

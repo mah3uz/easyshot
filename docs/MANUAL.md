@@ -222,6 +222,8 @@ opens the editor. Each capture also appears as a card in a floating preview deck
   an Undo button, which works for as long as the toast is shown; Undo puts the files back and the card returns to the deck.
   A capture that was never saved is discarded the same way and Undo returns the card. Neither
   action appears on a recording's card;
+- Copy on a recording's card puts an MP4 of it on the clipboard as a file, so it pastes into a file
+  manager or chat app; a recording not yet saved is converted first, and the card goes once it is copied;
 - drag a card out into another app or a file manager, which gets a copy of the file;
 - cards disappear on their own, each on its own clock, and all of them wait while the pointer
   is on the deck; when the front card goes, the next one comes forward;

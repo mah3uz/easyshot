@@ -85,6 +85,7 @@ More in the manual: [Capturing](MANUAL.md#capturing).
 - Moves a card's capture to the Trash with Delete, and a toast's Undo puts it back and returns the card.
 - Turns Save into Show in Folder on a card that was already saved automatically.
 - Lets you drag a card into another app or a file manager as a copy.
+- Copies a recording from its card to the clipboard as an MP4 file for pasting into a file manager or chat app.
 - Removes cards on their own, each on its own clock, pausing while you hover over the deck.
 - Saves or clears every card at once with Save All and Clear All.
 - Keeps cards through a restart for 24 hours.

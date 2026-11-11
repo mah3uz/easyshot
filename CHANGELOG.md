@@ -9,6 +9,9 @@
 - Shared links in the gallery: a cloud mark with the time left, the bucket or Expired; Copy Link, Open Link, Copy File Link and Delete Cloud Share in the item menu; Remove for an expired link; and a Cloud Shares section that keeps every link, even when its file is gone. Cards with a live link carry the mark too.
 - `easyshot share FILE [--days 1|3|7] [--title TEXT]` uploads an image, a video or a recording and prints its link.
 
+### Bug fixes
+- Copy on a recording's card now puts the video on the clipboard as an MP4 file, ready to paste into a file manager or chat app; before, it did nothing.
+
 ## 0.1.0 - 2026-11-11T05:25:23+06:00
 
 ### New

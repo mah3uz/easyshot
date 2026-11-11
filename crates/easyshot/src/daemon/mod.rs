@@ -503,8 +503,8 @@ fn start(
         recordings: recordings.clone(),
     };
     let mut subscriptions = vec![
+        routes::video_cards(&action_deps, clipboard.clone(), cx),
         routes::deck_events(&deck, &history, &wiring, &pins, paths, clipboard, cx),
-        routes::video_cards(&action_deps, cx),
         live_settings::install(&settings, &deck, &deck_surface, &history, cx),
         tray_feed.follow_access(cx),
     ];

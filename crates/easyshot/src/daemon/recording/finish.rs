@@ -188,6 +188,11 @@ pub fn save_mp4(
     runner: &dyn CommandRunner,
 ) -> Result<PathBuf, String> {
     let target = video_target(paths, &config.general.file_name_template, "mp4", now)?;
+    remux(video, target, runner)
+}
+
+/// Remuxes into `target`; returns it once ffmpeg has written it.
+pub fn remux(video: &Path, target: PathBuf, runner: &dyn CommandRunner) -> Result<PathBuf, String> {
     let out = runner
         .run("ffmpeg", &remux_args(video, &target))
         .map_err(|e| format!("ffmpeg: {e}"))?;

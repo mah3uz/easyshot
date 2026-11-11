@@ -274,8 +274,8 @@ fn save_card(
     .detach();
 }
 
-/// Save and Edit on a recording's card; the other card actions do not apply to a video.
-pub fn video_cards(d: &ActionDeps, cx: &mut App) -> Subscription {
+/// Copy, Save and Edit on a recording's card; the other card actions do not apply to a video.
+pub fn video_cards(d: &ActionDeps, clipboard: Rc<dyn ClipboardSink>, cx: &mut App) -> Subscription {
     let recordings = d.recordings.clone();
     cx.subscribe(&d.deck, move |_, event: &DeckEvent, cx| {
         let DeckEvent::Requested { item, action } = event else {
@@ -285,6 +285,7 @@ pub fn video_cards(d: &ActionDeps, cx: &mut App) -> Subscription {
             return;
         }
         match action {
+            DeckAction::Copy => recordings.copy_card(item.id, clipboard.clone(), cx),
             DeckAction::Save => recordings.save_card(item.id, cx),
             DeckAction::Edit => {
                 #[cfg(feature = "player")]

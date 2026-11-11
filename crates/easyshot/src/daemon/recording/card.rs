@@ -1,7 +1,11 @@
 use super::{Recordings, agent::Ended, finish, saved_toast};
 use es_app::deck::DeckItem;
+use es_app::platform_ui::ClipboardSink;
 use es_app::toast::{Toast, show_toast};
+use es_model::platform::ClipItem;
+use es_store::temp::{self, TempKind};
 use gpui::App;
+use std::rc::Rc;
 use time::OffsetDateTime;
 
 impl Recordings {
@@ -51,6 +55,47 @@ impl Recordings {
         .detach();
     }
 
+    /// Puts the card's recording on the clipboard as an mp4 file; the card goes when that works.
+    pub fn copy_card(&self, id: uuid::Uuid, clipboard: Rc<dyn ClipboardSink>, cx: &mut App) {
+        let deps = &self.0.deps;
+        let Some(item) = deps.deck.read(cx).get(id).cloned() else {
+            return;
+        };
+        let (runner, paths) = (deps.runner.clone(), deps.paths.clone());
+        let deck = deps.deck.clone();
+        cx.spawn(async move |cx| {
+            let file = cx
+                .background_executor()
+                .spawn(async move { copy_source(&item, &paths, runner.as_ref()) })
+                .await;
+            let copied = match file {
+                Ok(file) => cx.update(|cx| {
+                    clipboard.copy(
+                        vec![
+                            ClipItem::UriList(vec![file.clone()]),
+                            ClipItem::GnomeCopiedFiles(vec![file]),
+                        ],
+                        cx,
+                    )
+                }),
+                Err(e) => {
+                    tracing::warn!(error = %e, "recording not prepared for the clipboard");
+                    cx.update(|cx| show_toast(Toast::error("toast-copy-failed"), cx));
+                    return;
+                }
+            };
+            let result = copied.await;
+            cx.update(|cx| match result {
+                Ok(()) => deck.update(cx, |d, cx| d.copied(id, cx)),
+                Err(e) => {
+                    tracing::warn!(error = %e, "copy of a recording");
+                    show_toast(Toast::error("toast-copy-failed"), cx);
+                }
+            });
+        })
+        .detach();
+    }
+
     /// Cards for recordings that recovery finished at start-up.
     pub fn show_recovered(&self, found: &[es_record::recovery::Recovered], cx: &mut App) {
         self.0.deps.deck.update(cx, |deck, cx| {
@@ -59,4 +104,17 @@ impl Recordings {
             }
         });
     }
+}
+
+/// The saved mp4, or a fresh one in a temporary folder when the card was never saved.
+fn copy_source(
+    item: &DeckItem,
+    paths: &es_store::Paths,
+    runner: &dyn es_record::project::CommandRunner,
+) -> Result<std::path::PathBuf, String> {
+    if let Some(saved) = item.saved.as_ref().filter(|f| f.is_file()) {
+        return Ok(saved.clone());
+    }
+    let dir = temp::make_dir(paths, TempKind::VideoCopy).map_err(|e| e.to_string())?;
+    finish::remux(&item.file, dir.join(format!("{}.mp4", item.name)), runner)
 }

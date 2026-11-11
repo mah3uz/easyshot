@@ -152,6 +152,10 @@ impl Paths {
         self.cache.join("share")
     }
 
+    pub fn video_copies_dir(&self) -> PathBuf {
+        self.cache.join("video-copies")
+    }
+
     pub fn ensure_all(&self) -> Result<()> {
         [
             self.config_dir().to_path_buf(),
@@ -166,6 +170,7 @@ impl Paths {
             self.drag_dir(),
             self.unstaged_dir(),
             self.share_dir(),
+            self.video_copies_dir(),
         ]
         .iter()
         .try_for_each(|d| ensure_private_dir(d))

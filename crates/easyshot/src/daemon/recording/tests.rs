@@ -105,20 +105,6 @@ struct FakeInput {
     queue: Arc<Mutex<Vec<es_record::RawEvent>>>,
 }
 
-struct UsKeymap;
-
-impl es_model::platform::KeymapSource for UsKeymap {
-    fn keymap(&self) -> Option<es_model::platform::KeymapText> {
-        use xkbcommon::xkb;
-        let ctx = xkb::Context::new(xkb::CONTEXT_NO_FLAGS);
-        let map = xkb::Keymap::new_from_names(&ctx, "", "", "us", "", None, 0)?;
-        Some(es_model::platform::KeymapText {
-            serial: 1,
-            text: map.get_as_string(xkb::KEYMAP_FORMAT_TEXT_V1).into(),
-        })
-    }
-}
-
 struct Queued(Arc<Mutex<Vec<es_record::RawEvent>>>);
 
 impl es_record::input::EventSource for Queued {
@@ -154,9 +140,19 @@ fn rig_with_tools(cx: &mut TestAppContext, recorder: FakeRecorder, missing: bool
 
 fn rig_full(
     cx: &mut TestAppContext,
+    recorder: FakeRecorder,
+    window_recorder: Option<FakeRecorder>,
+    missing: bool,
+) -> Rig {
+    rig_runner(cx, recorder, window_recorder, missing, Arc::new(NoTools))
+}
+
+fn rig_runner(
+    cx: &mut TestAppContext,
     mut recorder: FakeRecorder,
     mut window_recorder: Option<FakeRecorder>,
     missing: bool,
+    runner: Arc<dyn CommandRunner>,
 ) -> Rig {
     let dir = tempfile::tempdir().unwrap();
     let paths = Paths::rooted(dir.path());
@@ -191,7 +187,7 @@ fn rig_full(
             outputs: Rc::new(Vec::new),
             ui: Rc::new(FakeUi(log.clone())),
             clock: clock.clone(),
-            runner: Arc::new(NoTools),
+            runner,
             countdown: Rc::new(move |_, cx| {
                 let wait = countdown_wait.clone();
                 cx.spawn(async move |_| wait.recv().await.map_err(|_| Error::Cancelled))
@@ -221,7 +217,7 @@ fn rig_full(
                 }),
                 sources: es_record::input::Sources {
                     cursor: None,
-                    keymap: Some(Arc::new(UsKeymap)),
+                    keymap: Some(Arc::new(keystrokes::UsKeymap)),
                     session_open: Arc::new(std::sync::atomic::AtomicBool::new(true)),
                 },
             },
@@ -590,6 +586,7 @@ fn an_area_reaches_the_recorder_in_global_logical_points_on_an_offset_output() {
     );
 }
 
+mod copy;
 mod focus;
 mod tracks;
 mod window;

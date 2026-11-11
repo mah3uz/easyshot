@@ -269,6 +269,7 @@ impl Deck {
         let action = item.offered(action);
         let gone = match action {
             DeckAction::Dismiss => Some(Removal::Dismissed),
+            DeckAction::Copy if item.video => None,
             DeckAction::Copy => Some(Removal::Copied),
             DeckAction::Edit => Some(Removal::Edited),
             DeckAction::Pin => Some(Removal::Pinned),
@@ -290,6 +291,11 @@ impl Deck {
         if let Some(why) = gone {
             self.remove(id, why, cx);
         }
+    }
+
+    /// A recording's Copy goes once the file is on the clipboard.
+    pub fn copied(&mut self, id: Uuid, cx: &mut Context<Self>) {
+        self.remove(id, Removal::Copied, cx);
     }
 
     pub fn saved(&mut self, id: Uuid, cx: &mut Context<Self>) {

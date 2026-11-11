@@ -469,3 +469,25 @@ fn delete_hands_an_auto_saved_card_to_the_app_and_keeps_its_staging_for_undo(
         "Undo brings the card back, so its staging stays until then"
     );
 }
+
+#[gpui::test]
+fn copy_on_a_recording_keeps_the_card_until_the_app_reports_the_copy(cx: &mut TestAppContext) {
+    let (deck, log) = deck(
+        cx,
+        DeckPolicy {
+            delay: None,
+            keep_until_saved: false,
+        },
+    );
+    let mut video = item(1);
+    video.video = true;
+    deck.update(cx, |d, cx| {
+        d.show(video.clone(), cx);
+        d.act(video.id, DeckAction::Copy, cx);
+    });
+    assert!(removed(&log).is_empty(), "the copy may still fail");
+    assert_eq!(deck.read_with(cx, |d, _| d.len()), 1);
+
+    deck.update(cx, |d, cx| d.copied(video.id, cx));
+    assert_eq!(removed(&log), [("shot1".into(), Removal::Copied)]);
+}

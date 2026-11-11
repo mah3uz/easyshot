@@ -8,6 +8,20 @@ const KEY_C: u16 = 46;
 const ENTER: u16 = 28;
 const ESC: u16 = 1;
 
+pub(super) struct UsKeymap;
+
+impl es_model::platform::KeymapSource for UsKeymap {
+    fn keymap(&self) -> Option<es_model::platform::KeymapText> {
+        use xkbcommon::xkb;
+        let ctx = xkb::Context::new(xkb::CONTEXT_NO_FLAGS);
+        let map = xkb::Keymap::new_from_names(&ctx, "", "", "us", "", None, 0)?;
+        Some(es_model::platform::KeymapText {
+            serial: 1,
+            text: map.get_as_string(xkb::KEYMAP_FORMAT_TEXT_V1).into(),
+        })
+    }
+}
+
 impl Rig {
     fn keystrokes(&self, on: bool, cx: &mut TestAppContext) {
         let settings = cx.update(|_| self.recordings.0.deps.settings.clone());

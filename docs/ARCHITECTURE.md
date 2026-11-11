@@ -274,7 +274,7 @@ es-record calls). Videos, posters and exports are written by GStreamer and ffmpe
 | Logs, crash reports | `$XDG_STATE_HOME/easyshot/{log,crash}/` |
 | Thumbnails | `$XDG_CACHE_HOME/easyshot/thumbs/` |
 | Built-in wallpapers, written on first use | `$XDG_DATA_HOME/easyshot/wallpapers/wall-<n>.jpg` |
-| Temp | `$XDG_CACHE_HOME/easyshot/{clipboard,drag,unstaged}/`; sockets in `$XDG_RUNTIME_DIR/easyshot/` |
+| Temp | `$XDG_CACHE_HOME/easyshot/{clipboard,drag,unstaged,share,video-copies}/`; sockets in `$XDG_RUNTIME_DIR/easyshot/` |
 
 Format rules:
 
