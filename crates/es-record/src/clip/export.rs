@@ -1,5 +1,7 @@
+use super::filters::{codec_args, gif_filter, picture_filters};
 use super::mix::{audio_codec_args, mix_filter, mixes};
-use super::options::{ExportOptions, Format, Quality};
+use super::options::{ExportOptions, Format};
+use super::share::SharePlan;
 use super::trim::Trim;
 use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
@@ -87,102 +89,6 @@ fn secs(t: f64) -> String {
     format!("{t:.3}")
 }
 
-pub(super) fn num(v: f64) -> String {
-    format!("{v:.3}")
-}
-
-fn picture_filters(o: &ExportOptions) -> Vec<String> {
-    let mut filters = Vec::new();
-    if let Some(h) = o.size.height() {
-        filters.push(format!("scale=-2:'min({h},ih)'"));
-    }
-    let (contrast, saturation) = o.look.tone();
-    let mut eq = Vec::new();
-    if o.brightness != 0. {
-        eq.push(format!("brightness={}", num(o.brightness)));
-    }
-    if contrast != 1. {
-        eq.push(format!("contrast={}", num(contrast)));
-    }
-    if saturation != 1. {
-        eq.push(format!("saturation={}", num(saturation)));
-    }
-    if !eq.is_empty() {
-        filters.push(format!("eq={}", eq.join(":")));
-    }
-    filters
-}
-
-fn gif_filter(o: &ExportOptions) -> String {
-    let (fps, colours) = match o.quality {
-        Quality::High => (15, 256),
-        Quality::Balanced => (12, 192),
-        Quality::Small => (10, 128),
-    };
-    let mut chain = picture_filters(o);
-    chain.push(format!("fps={fps}"));
-    chain.push("split[a][b]".into());
-    format!(
-        "{};[a]palettegen=max_colors={colours}:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle",
-        chain.join(",")
-    )
-}
-
-pub(super) fn codec_args(o: &ExportOptions) -> Vec<String> {
-    let (crf, audio) = match (o.format, o.quality) {
-        (Format::Mp4, Quality::High) => ("18", "192k"),
-        (Format::Mp4, Quality::Balanced) => ("23", "160k"),
-        (Format::Mp4, Quality::Small) => ("28", "128k"),
-        (_, Quality::High) => ("28", "160k"),
-        (_, Quality::Balanced) => ("33", "112k"),
-        (_, Quality::Small) => ("40", "80k"),
-    };
-    let args: Vec<&str> = match o.format {
-        Format::Mp4 => vec![
-            "-c:v",
-            "libx264",
-            "-preset",
-            "veryfast",
-            "-crf",
-            crf,
-            "-pix_fmt",
-            "yuv420p",
-            "-c:a",
-            "aac",
-            "-b:a",
-            audio,
-            "-movflags",
-            "+faststart",
-            "-f",
-            "mp4",
-        ],
-        Format::WebM => vec![
-            "-c:v",
-            "libvpx-vp9",
-            "-crf",
-            crf,
-            "-b:v",
-            "0",
-            "-row-mt",
-            "1",
-            "-deadline",
-            "good",
-            "-cpu-used",
-            "4",
-            "-pix_fmt",
-            "yuv420p",
-            "-c:a",
-            "libopus",
-            "-b:a",
-            audio,
-            "-f",
-            "webm",
-        ],
-        Format::Gif => vec!["-loop", "0", "-f", "gif"],
-    };
-    args.into_iter().map(String::from).collect()
-}
-
 /// A stream copy only keeps the picture as it is, so any size, tone or format change re-encodes.
 fn copies_picture(job: &ExportJob) -> bool {
     job.mode == ExportMode::Fast
@@ -191,6 +97,10 @@ fn copies_picture(job: &ExportJob) -> bool {
 }
 
 pub fn export_args(job: &ExportJob, target: &Path) -> Vec<String> {
+    build_args(job, target, None)
+}
+
+pub(super) fn build_args(job: &ExportJob, target: &Path, share: Option<&SharePlan>) -> Vec<String> {
     let o = &job.options;
     let mut args: Vec<String> = ["-y", "-v", "error", "-nostats", "-progress", "pipe:1"]
         .map(String::from)
@@ -205,7 +115,7 @@ pub fn export_args(job: &ExportJob, target: &Path) -> Vec<String> {
         "-map".into(),
         "0:v:0".into(),
     ]);
-    if o.format == Format::Gif || job.remove_audio {
+    if o.format == Format::Gif || job.remove_audio || share.is_some_and(|p| p.audio_kbps == 0) {
         args.push("-an".into());
     } else if mixes(job) {
         args.extend(["-filter_complex".into(), mix_filter(o)]);
@@ -213,7 +123,10 @@ pub fn export_args(job: &ExportJob, target: &Path) -> Vec<String> {
     } else {
         args.extend(["-map", "0:a?"].map(String::from));
     }
-    if copies_picture(job) {
+    if let Some(plan) = share {
+        args.extend(["-vf".into(), plan.filter(o)]);
+        args.extend(plan.codec_args());
+    } else if copies_picture(job) {
         if mixes(job) {
             args.extend(["-c:v", "copy"].map(String::from));
             args.extend(audio_codec_args(o));
@@ -255,9 +168,18 @@ pub fn export(
     job: &ExportJob,
     progress: &mut dyn FnMut(f64),
 ) -> Result<PathBuf, ExportError> {
+    run_export(runner, job, None, progress)
+}
+
+pub(super) fn run_export(
+    runner: &dyn FfmpegRunner,
+    job: &ExportJob,
+    share: Option<&SharePlan>,
+    progress: &mut dyn FnMut(f64),
+) -> Result<PathBuf, ExportError> {
     let target = partial(&job.output);
     let kept = job.trim.kept().max(f64::EPSILON);
-    let outcome = runner.run(&export_args(job, &target), &mut |line| {
+    let outcome = runner.run(&build_args(job, &target, share), &mut |line| {
         if let Some(t) = progress_secs(line) {
             progress((t / kept).min(1.));
         }
@@ -287,7 +209,7 @@ pub fn export(
 
 #[cfg(test)]
 mod tests {
-    use super::super::options::{Look, Size};
+    use super::super::options::{Look, Quality, Size};
     use super::*;
 
     fn job(mode: ExportMode, remove_audio: bool) -> ExportJob {
