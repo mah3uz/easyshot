@@ -146,7 +146,7 @@ including mid-upload. Deleting a gone share is `404 not_found`; the app treats t
 `s/{d}d/{id}/media.{png|jpg|webp|gif|mp4}` and `s/{d}d/{id}/poster.jpg`, `{d}` in 1, 3, 7. The media
 is stored with `Content-Disposition: inline; filename="easyshot-{id}.{ext}"` (browsers ignore the
 page's `download` name for another origin) and `Cache-Control: public, max-age=3600`. Each
-prefix with an R2 lifecycle rule deleting after `d` days. A share counts toward the live-bytes stop
+prefix has an R2 lifecycle rule that deletes after `d` days. A share counts toward the live-bytes stop
 until a day after `expires_at` (R2 deletes up to a day late). The share page answers `410` from
 `expires_at` on.
 A poster is uploaded to `s/{d}d/{id}/poster.upload` and only `complete` copies it, once checked, to
