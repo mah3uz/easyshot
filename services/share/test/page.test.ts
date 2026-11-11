@@ -6,32 +6,11 @@ import { ledger, type Env } from "../src/env";
 import { fill, FillFailure } from "../src/fill";
 import type { Ledger } from "../src/ledger";
 import { sharePage } from "../src/page";
-import { bytes, call, createOk, image, installToken, JPEG, MP4, PNG, putPart, testEnv, video } from "./helpers";
+import { bytes, call, createOk, expire, image, installToken, liveImage, liveVideo, PNG, putPart, testEnv } from "./helpers";
 
 const page = (id: string) => call("GET", `/${id}`);
 
-async function liveImage(extra: Record<string, unknown> = {}) {
-  const s = await createOk(await installToken(), image(16, extra));
-  await putPart(s, 1, bytes(16, PNG));
-  await call("POST", `/v1/shares/${s.id}/complete`, { token: s.upload_token });
-  return s;
-}
-
-async function liveVideo() {
-  const s = await createOk(await installToken(), video(16, 4, { title: "Demo", days: 3 }));
-  await putPart(s, 1, bytes(16, MP4));
-  await call("PUT", `/v1/shares/${s.id}/poster`, { token: s.upload_token, body: Uint8Array.of(...JPEG.slice(0, 3), 1), headers: { "Content-Type": "image/jpeg" } });
-  await call("POST", `/v1/shares/${s.id}/complete`, { token: s.upload_token });
-  return s;
-}
-
-function expire(id: string) {
-  return runInDurableObject(ledger(testEnv), (l: Ledger) => {
-    (l as unknown as { sql: SqlStorage }).sql.exec("UPDATE shares SET expires = ? WHERE id = ?", Date.now() - 1000, id);
-  });
-}
-
-const GONE = "This share is gone";
+const MISSING = "Page not found";
 const UPLOADING = "Still uploading";
 
 function expectHeaders(r: Response) {
@@ -77,7 +56,7 @@ describe("share page", () => {
     expect(h).toMatch(/data-expires="\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z"/);
     expect(h).not.toContain("<video");
     expect(h).not.toContain(UPLOADING);
-    expect(h).not.toContain(GONE);
+    expect(h).not.toContain(MISSING);
     expect(h).not.toMatch(/<!--(if|end):|\{\{/);
     expect(r.headers.get("Content-Security-Policy")).toContain(`img-src data: ${testEnv.MEDIA_ORIGIN}`);
     expect(r.headers.get("Content-Security-Policy")).toContain(`media-src ${testEnv.MEDIA_ORIGIN}`);
@@ -107,7 +86,7 @@ describe("share page", () => {
     expect(r.headers.get("Cache-Control")).toBe("no-store");
     const h = await r.text();
     expect(h).toContain(UPLOADING);
-    expect(h).not.toContain(GONE);
+    expect(h).not.toContain(MISSING);
     expect(h).not.toContain('class="media"');
   });
 
@@ -120,26 +99,31 @@ describe("share page", () => {
     expect(await r.text()).toContain(UPLOADING);
   });
 
-  it("answers 410 once the share has expired", async () => {
-    const s = await liveImage();
-    await expire(s.id);
-    const r = await page(s.id);
-    expect(r.status).toBe(410);
-    expectHeaders(r);
-    const h = await r.text();
-    expect(h).toContain(GONE);
-    expect(h).not.toContain('class="media"');
-  });
-
-  it("answers 404 with the gone page for an unknown id, a deleted share and ids of the wrong shape", async () => {
-    const s = await liveImage();
-    expect((await call("DELETE", `/v1/shares/${s.id}`, { token: s.delete_token })).status).toBe(204);
-    for (const id of [s.id, "7" + "a".repeat(21), "x".repeat(22), "7short", "7" + "a".repeat(22), "favicon.ico"]) {
+  it("answers expired, deleted, unknown and malformed ids with the same 404, so no share can be told to have existed", async () => {
+    const expired = await liveImage({ title: "Expired one" });
+    await expire(expired.id);
+    const expiredUpload = await createOk(await installToken(), image(16));
+    await expire(expiredUpload.id);
+    const deleted = await liveImage({ title: "Deleted one" });
+    expect((await call("DELETE", `/v1/shares/${deleted.id}`, { token: deleted.delete_token })).status).toBe(204);
+    const ids = [expired.id, expiredUpload.id, deleted.id, "7" + "a".repeat(21), "x".repeat(22), "7short", "7" + "a".repeat(22), "favicon.ico"];
+    const answers = [];
+    for (const id of ids) {
       const r = await page(id);
-      expect(r.status, id).toBe(404);
-      expectHeaders(r);
-      expect(await r.text()).toContain(GONE);
+      answers.push({ status: r.status, headers: [...r.headers], body: new Uint8Array(await r.arrayBuffer()) });
     }
+    const unknown = await page("7" + "a".repeat(21));
+    expect(unknown.status).toBe(404);
+    expectHeaders(unknown);
+    expect(unknown.headers.get("Cache-Control")).toBe("no-store");
+    const h = await unknown.text();
+    expect(h).toContain(`<title>${MISSING}</title>`);
+    expect(h).toContain(`<h1>${MISSING}</h1>`);
+    expect(h).toContain("There's nothing at this link.");
+    expect(h.slice(h.indexOf("<main"), h.indexOf("</main>"))).not.toMatch(/expire|delete|gone|class="media"/i);
+    expect(h).not.toMatch(/Expired one|Deleted one/);
+    expect(h).not.toMatch(/<!--(if|end):|\{\{/);
+    for (const [i, a] of answers.entries()) expect(a, ids[i]).toEqual(answers[3]);
   });
 
   it("never asks the Ledger about an id of the wrong shape", async () => {

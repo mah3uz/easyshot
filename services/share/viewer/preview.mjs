@@ -47,7 +47,7 @@ const states = {
     ['ready', 'image', 'expires'],
   ],
   uploading: [{ ...base, title: 'Login form, wrong error colour' }, ['uploading']],
-  gone: [{ ...base, title: 'This share is gone' }, ['gone']],
+  missing: [{ ...base, title: 'Page not found' }, ['missing']],
 }
 if (args.video) {
   states['ready-video'] = [

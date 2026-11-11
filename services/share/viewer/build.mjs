@@ -59,7 +59,7 @@ let page = read('src/page.html').replace(/@@([a-z]+)@@/g, (_, name) => {
 for (const inner of page.matchAll(/<(script|style)\b[^>]*>([\s\S]*?)<\/\1>/g)) {
   if (/\{\{|<!--(if|end):/.test(inner[2])) throw new Error(`a placeholder or block marker is inside <${inner[1]}>`)
 }
-for (const name of ['ready', 'uploading', 'gone', 'image', 'video', 'expires']) {
+for (const name of ['ready', 'uploading', 'missing', 'image', 'video', 'expires']) {
   if (!page.includes(`<!--if:${name}-->`)) throw new Error(`block ${name} is missing`)
 }
 for (const name of ['title', 'page_url', 'media_url', 'poster_url', 'mime', 'width', 'height', 'expires_at', 'download_name', 'home_url']) {

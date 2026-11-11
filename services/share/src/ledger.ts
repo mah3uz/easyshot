@@ -1,7 +1,11 @@
 import { DurableObject } from "cloudflare:workers";
 import type { Env } from "./env";
+import { shareKeys } from "./media";
 
 const DAY_MS = 86_400_000;
+// R2 deletes at most 1000 keys in one call, and each share has three.
+export const EXPIRE_BATCH = 300;
+export const EXPIRE_RETRY_MS = 60_000;
 
 export type State = "pending" | "completing" | "live";
 
@@ -49,7 +53,7 @@ export function costOf(s: { size: number; poster_size: number; days: number }): 
   return bytesOf(s) * s.days;
 }
 
-// Methods stay synchronous: with no await, each call runs whole, so check-then-write is atomic.
+// Every check-then-write runs before the method's first await, so it runs whole and is atomic.
 export class Ledger extends DurableObject<Env> {
   private sql: SqlStorage;
 
@@ -70,6 +74,9 @@ export class Ledger extends DurableObject<Env> {
         created INTEGER NOT NULL, expires INTEGER NOT NULL, hold_until INTEGER NOT NULL, upload_id TEXT,
         state TEXT NOT NULL, poster INTEGER NOT NULL DEFAULT 0);
       CREATE INDEX IF NOT EXISTS shares_hold ON shares (hold_until);
+      CREATE INDEX IF NOT EXISTS shares_due ON shares (expires) WHERE state = 'live';
+      CREATE TABLE IF NOT EXISTS held (until INTEGER NOT NULL, bytes INTEGER NOT NULL);
+      CREATE INDEX IF NOT EXISTS held_until ON held (until);
       CREATE TABLE IF NOT EXISTS parts (id TEXT NOT NULL, n INTEGER NOT NULL, etag TEXT NOT NULL, PRIMARY KEY (id, n));
       CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v INTEGER NOT NULL);
       INSERT OR IGNORE INTO meta (k, v) VALUES ('live_bytes', 0);
@@ -80,12 +87,22 @@ export class Ledger extends DurableObject<Env> {
     this.sql.exec("DELETE FROM used_challenges WHERE exp <= ?", now);
     this.sql.exec("DELETE FROM ip_installs WHERE day < ?", day);
     this.sql.exec("DELETE FROM install_days WHERE day < ?", day);
-    const gone = this.sql.exec<{ b: number | null }>("SELECT SUM(size + poster_size) AS b FROM shares WHERE hold_until <= ?", now).one().b;
+    // A live share leaves only through the alarm, once its objects are deleted.
+    const gone = this.sql.exec<{ b: number | null }>("SELECT SUM(size + poster_size) AS b FROM shares WHERE hold_until <= ? AND state != 'live'", now).one().b;
     if (gone) {
-      this.sql.exec("DELETE FROM parts WHERE id IN (SELECT id FROM shares WHERE hold_until <= ?)", now);
-      this.sql.exec("DELETE FROM shares WHERE hold_until <= ?", now);
+      this.sql.exec("DELETE FROM parts WHERE id IN (SELECT id FROM shares WHERE hold_until <= ? AND state != 'live')", now);
+      this.sql.exec("DELETE FROM shares WHERE hold_until <= ? AND state != 'live'", now);
       this.addLive(-gone);
     }
+    const held = this.sql.exec<{ b: number | null }>("SELECT SUM(bytes) AS b FROM held WHERE until <= ?", now).one().b;
+    if (held) {
+      this.sql.exec("DELETE FROM held WHERE until <= ?", now);
+      this.addLive(-held);
+    }
+  }
+
+  private nextExpiry(): number | null {
+    return this.sql.exec<{ e: number | null }>("SELECT MIN(expires) AS e FROM shares WHERE state = 'live'").one().e;
   }
 
   private live(): number {
@@ -128,7 +145,7 @@ export class Ledger extends DurableObject<Env> {
     const cost = costOf(s);
     if (spent.shares + 1 > q.dailyShares || spent.byteDays + cost > q.dailyByteDays) return { ok: false, error: "quota_daily" };
     if (this.live() + bytesOf(s) > q.storageStop) {
-      const next = this.sql.exec<{ h: number | null }>("SELECT MIN(hold_until) AS h FROM shares").one().h;
+      const next = this.sql.exec<{ h: number | null }>("SELECT MIN(h) AS h FROM (SELECT MIN(hold_until) AS h FROM shares UNION ALL SELECT MIN(until) FROM held)").one().h;
       return { ok: false, error: "full", retryAfterS: next ? (next - s.created) / 1000 : 3600 };
     }
     this.sql.exec(
@@ -186,8 +203,12 @@ export class Ledger extends DurableObject<Env> {
     this.sql.exec("UPDATE shares SET state = 'pending' WHERE id = ? AND state = 'completing'", id);
   }
 
-  finishComplete(id: string): boolean {
-    return this.sql.exec("UPDATE shares SET state = 'live' WHERE id = ? AND state = 'completing'", id).rowsWritten > 0;
+  async finishComplete(id: string): Promise<boolean> {
+    if (this.sql.exec("UPDATE shares SET state = 'live' WHERE id = ? AND state = 'completing'", id).rowsWritten === 0) return false;
+    const next = this.nextExpiry();
+    const armed = await this.ctx.storage.getAlarm();
+    if (next !== null && (armed === null || next < armed)) await this.ctx.storage.setAlarm(next);
+    return true;
   }
 
   remove(id: string): Share | null {
@@ -200,5 +221,33 @@ export class Ledger extends DurableObject<Env> {
     this.sql.exec("DELETE FROM shares WHERE id = ?", id);
     this.addLive(-bytesOf(s));
     return s;
+  }
+
+  async alarm(): Promise<void> {
+    const now = Date.now();
+    const due = this.sql
+      .exec<{ id: string; days: number; mime: string; size: number; poster_size: number; hold_until: number }>(
+        "SELECT id, days, mime, size, poster_size, hold_until FROM shares WHERE state = 'live' AND expires <= ? ORDER BY expires LIMIT ?",
+        now,
+        EXPIRE_BATCH,
+      )
+      .toArray();
+    if (due.length > 0) {
+      try {
+        await this.env.BUCKET.delete(due.flatMap((s) => shareKeys(s.id, s.days, s.mime)));
+      } catch (e) {
+        console.error("deleting expired shares failed", e);
+        await this.ctx.storage.setAlarm(now + EXPIRE_RETRY_MS);
+        return;
+      }
+      for (const s of due) {
+        // The owner may have deleted it while R2 answered; its bytes are then already given back.
+        if (this.sql.exec("DELETE FROM shares WHERE id = ? AND state = 'live'", s.id).rowsWritten === 0) continue;
+        this.sql.exec("DELETE FROM parts WHERE id = ?", s.id);
+        this.sql.exec("INSERT INTO held (until, bytes) VALUES (?, ?)", s.hold_until, bytesOf(s));
+      }
+    }
+    const next = this.nextExpiry();
+    if (next !== null) await this.ctx.storage.setAlarm(next);
   }
 }

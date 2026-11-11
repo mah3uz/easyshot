@@ -57,13 +57,13 @@ async function html(env: Env, status: number, blocks: string[], values: Record<s
   });
 }
 
+// Expired, deleted and never-issued ids answer alike, so a visitor cannot learn a share existed.
+const missing = (env: Env) => html(env, 404, ["missing"], { title: "Page not found" }, "no-store");
+
 export async function sharePage(env: Env, id: string): Promise<Response> {
-  const gone = (status: number) => html(env, status, ["gone"], {}, "no-store");
-  if (!SHARE_ID.test(id)) return gone(404);
+  if (!SHARE_ID.test(id)) return missing(env);
   const s = await ledger(env).share(id);
-  if (!s) return gone(404);
-  if (s.expires <= Date.now()) return gone(410);
-  
+  if (!s || s.expires <= Date.now()) return missing(env);
   const title: Record<string, string> = s.title ? { title: s.title } : {};
   if (s.state !== "live") return html(env, 200, ["uploading"], title, "no-store");
   const u = urls(env, s);

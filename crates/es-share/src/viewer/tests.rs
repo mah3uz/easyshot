@@ -87,7 +87,7 @@ fn the_shipped_page_fills_for_every_state_with_nothing_left_over() {
         &["ready", "image"],
         &["ready", "video"],
         &["uploading"],
-        &["gone"],
+        &["missing"],
     ];
     for blocks in states {
         let page = fill(PAGE, &page_values(), blocks).expect("fills");

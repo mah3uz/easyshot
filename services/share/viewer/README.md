@@ -8,7 +8,7 @@
   and fails if a placeholder or block marker lands inside `<script>` or `<style>`, or if a block or
   placeholder of `PROTOCOL.md` is missing. Rebuild after the site's tokens change.
 - `node preview.mjs --out DIR [--video FILE --poster FILE] [--tall FILE --tall-size WxH]` fills
-  the page for each state (`ready-image`, `ready-video`, `uploading`, `gone`, `ready-tall`) with
+  the page for each state (`ready-image`, `ready-video`, `uploading`, `missing`, `ready-tall`) with
   sample values. It follows the filling rules of `PROTOCOL.md`, except that media may be `file://`
   or `http://localhost`. `--help` lists every option.
 

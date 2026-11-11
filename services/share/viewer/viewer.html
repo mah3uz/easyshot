@@ -675,7 +675,7 @@ to {
 transform: rotate(360deg);
 }
 }
-.gone {
+.missing {
 margin: auto 0;
 padding: 24px 0 8px;
 display: grid;
@@ -684,62 +684,12 @@ gap: 14px;
 max-width: 520px;
 text-align: center;
 }
-.gone > p {
+.missing > p {
 color: var(--fg-2);
 font-size: 17px;
 }
-.gone .btn {
+.missing .btn {
 margin-top: 14px;
-}
-.gone-mark {
-position: relative;
-display: grid;
-place-items: center;
-width: 112px;
-height: 112px;
-margin-bottom: 10px;
-border-radius: 28px;
-background: var(--accent-soft);
-color: var(--accent);
-}
-.gone-mark::before {
-content: '';
-position: absolute;
-inset: -40%;
-z-index: -1;
-border-radius: 50%;
-background: radial-gradient(closest-side, var(--glow), transparent);
-}
-.gone-mark i {
-position: absolute;
-width: 24px;
-height: 24px;
-border: 0 solid currentColor;
-opacity: 0.55;
-}
-.gone-mark i:nth-child(1) {
-top: 18px;
-left: 18px;
-border-width: 3px 0 0 3px;
-border-top-left-radius: 8px;
-}
-.gone-mark i:nth-child(2) {
-top: 18px;
-right: 18px;
-border-width: 3px 3px 0 0;
-border-top-right-radius: 8px;
-}
-.gone-mark i:nth-child(3) {
-bottom: 18px;
-left: 18px;
-border-width: 0 0 3px 3px;
-border-bottom-left-radius: 8px;
-}
-.gone-mark i:nth-child(4) {
-right: 18px;
-bottom: 18px;
-border-width: 0 3px 3px 0;
-border-bottom-right-radius: 8px;
 }
 .made {
 padding: 8px 16px 32px;
@@ -877,14 +827,13 @@ display: none;
 </div>
 </div>
 <!--end:uploading-->
-<!--if:gone-->
-<div class="gone rise">
-<div class="gone-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
-<h1>This share is gone</h1>
-<p>It expired or was deleted.</p>
+<!--if:missing-->
+<div class="missing rise">
+<h1>Page not found</h1>
+<p>There's nothing at this link.</p>
 <a class="btn btn-ghost" href="{{home_url}}">Visit easyshot</a>
 </div>
-<!--end:gone-->
+<!--end:missing-->
 </main>
 <footer class="made">
 <a href="{{home_url}}">Made with <svg viewBox="0 0 512 512" width="16" height="16" aria-hidden="true" focusable="false"><use href="#logo"/></svg> easyshot</a>

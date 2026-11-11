@@ -1,7 +1,9 @@
+import { runInDurableObject } from "cloudflare:test";
 import { env, exports } from "cloudflare:workers";
+import { type Env, ledger } from "../src/env";
+import type { Ledger } from "../src/ledger";
 import { leadingZeroBits, powDigest } from "../src/pow";
 import { mintInstall } from "../src/tokens";
-import type { Env } from "../src/env";
 
 export const testEnv = env as unknown as Env;
 export const worker = (exports as unknown as { default: Fetcher }).default;
@@ -93,4 +95,29 @@ export async function errorOf(r: Response): Promise<{ status: number; code: stri
 
 export async function left(token: string): Promise<{ shares_left: number; byte_days_left: number; accepting: boolean }> {
   return (await call("GET", "/v1/limits", { token })).json();
+}
+
+export async function liveImage(extra: Record<string, unknown> = {}): Promise<Created> {
+  const s = await createOk(await installToken(), image(16, extra));
+  await putPart(s, 1, bytes(16, PNG));
+  await call("POST", `/v1/shares/${s.id}/complete`, { token: s.upload_token });
+  return s;
+}
+
+export async function liveVideo(extra: Record<string, unknown> = {}): Promise<Created> {
+  const s = await createOk(await installToken(), video(16, 4, { title: "Demo", days: 3, ...extra }));
+  await putPart(s, 1, bytes(16, MP4));
+  await call("PUT", `/v1/shares/${s.id}/poster`, { token: s.upload_token, body: Uint8Array.of(...JPEG.slice(0, 3), 1), headers: { "Content-Type": "image/jpeg" } });
+  await call("POST", `/v1/shares/${s.id}/complete`, { token: s.upload_token });
+  return s;
+}
+
+export function inLedger<R>(f: (l: Ledger, sql: SqlStorage, state: DurableObjectState) => R | Promise<R>): Promise<R> {
+  return runInDurableObject(ledger(testEnv), (l: Ledger, state) => f(l, (l as unknown as { sql: SqlStorage }).sql, state));
+}
+
+export function expire(id: string, at = Date.now() - 1000): Promise<void> {
+  return inLedger((_, sql) => {
+    sql.exec("UPDATE shares SET expires = ?, hold_until = ? WHERE id = ?", at, at + 86_400_000, id);
+  });
 }

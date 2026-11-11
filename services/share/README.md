@@ -17,14 +17,21 @@ What it does:
   starts, further parts, posters and completes for the share are refused with 409.
 - Deletes a share at any point, aborting an unfinished upload and giving its byte-days back.
 - Refuses any request with an `Origin` header and sends no CORS headers, so no web page can use it.
-- Serves the share page at `GET /{id}` from the template in `viewer/`: ready, "uploading" or "gone" (404 for an id the Ledger does not know, 410 once expired), from one Ledger call, with a CSP that allows only the template's own script and style, by hash.
+- Deletes a finished share's files at its expiry: the Ledger's alarm is set to the earliest expiry,
+  deletes the media, poster and staged poster of every share that is due (300 at a time), and sets
+  itself again for the next. A failed delete keeps the share and tries again a minute later.
+- Serves the share page at `GET /{id}` from the template in `viewer/`: ready, "uploading" or a
+  plain "Page not found", from one Ledger call, with a CSP that allows only the template's own
+  script and style, by hash. An expired, deleted, unknown or malformed id all get the same 404, so
+  a visitor cannot tell a share was ever there.
 
 The `Ledger` Durable Object (SQLite) holds every counter: used challenges, installs per hashed
 address (an HMAC of the address and the UTC date; raw addresses are never stored), shares and
 byte-days per install per day, pending uploads with their R2 upload id and parts, and the live
-bytes behind the storage stop. A share counts toward the stop until a day after it expires. There
-is one Ledger, and its methods never wait on anything, so two requests cannot both pass a check
-that only one of them fits.
+bytes behind the storage stop. A share counts toward the stop until a day after it expires, even
+once its files are deleted. There is one Ledger, and each of its checks and the writes that follow
+run before it waits on anything, so two requests cannot both pass a check that only one of them
+fits.
 
 Files go to the bucket `easyshot-shares` under `s/1d/`, `s/3d/` or `s/7d/` and are served from
 `m.easyshot.site`, not through the Worker.
@@ -66,8 +73,9 @@ You need the `easyshot.site` zone in the same account and `npx wrangler login`.
    npx wrangler r2 bucket domain add easyshot-shares --domain m.easyshot.site --zone-id <zone id> --min-tls 1.2
    ```
 
-3. Add the three lifecycle rules. Each deletes its files after its days and aborts an unfinished
-   upload after a day (an upload token lasts six hours):
+3. Add the three lifecycle rules. They are a backstop for the Ledger's own deletes: each deletes
+   its files after its days and aborts an unfinished upload after a day (an upload token lasts six
+   hours):
 
    ```sh
    npx wrangler r2 bucket lifecycle add easyshot-shares expire-1d s/1d/ --expire-days 1 --abort-multipart-days 1

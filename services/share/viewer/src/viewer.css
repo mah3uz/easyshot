@@ -436,7 +436,7 @@ video.media {
   }
 }
 
-.gone {
+.missing {
   margin: auto 0;
   padding: 24px 0 8px;
   display: grid;
@@ -446,70 +446,13 @@ video.media {
   text-align: center;
 }
 
-.gone > p {
+.missing > p {
   color: var(--fg-2);
   font-size: 17px;
 }
 
-.gone .btn {
+.missing .btn {
   margin-top: 14px;
-}
-
-.gone-mark {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 112px;
-  height: 112px;
-  margin-bottom: 10px;
-  border-radius: 28px;
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-
-.gone-mark::before {
-  content: '';
-  position: absolute;
-  inset: -40%;
-  z-index: -1;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, var(--glow), transparent);
-}
-
-.gone-mark i {
-  position: absolute;
-  width: 24px;
-  height: 24px;
-  border: 0 solid currentColor;
-  opacity: 0.55;
-}
-
-.gone-mark i:nth-child(1) {
-  top: 18px;
-  left: 18px;
-  border-width: 3px 0 0 3px;
-  border-top-left-radius: 8px;
-}
-
-.gone-mark i:nth-child(2) {
-  top: 18px;
-  right: 18px;
-  border-width: 3px 3px 0 0;
-  border-top-right-radius: 8px;
-}
-
-.gone-mark i:nth-child(3) {
-  bottom: 18px;
-  left: 18px;
-  border-width: 0 0 3px 3px;
-  border-bottom-left-radius: 8px;
-}
-
-.gone-mark i:nth-child(4) {
-  right: 18px;
-  bottom: 18px;
-  border-width: 0 3px 3px 0;
-  border-bottom-right-radius: 8px;
 }
 
 .made {

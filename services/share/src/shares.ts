@@ -1,7 +1,7 @@
 import { BURST_PERIOD_S, DAYS, type Env, ledger, limits, UPLOAD_TTL_S } from "./env";
 import { bearer, fail, json, readJson, rfc3339, secondsToMidnight, utcDay, versionOk } from "./http";
 import type { Share } from "./ledger";
-import { type Kind, MAGIC_LEN, MIMES, mediaHttp, POSTER_HTTP, magicOk, mediaKey, posterKey, posterUploadKey } from "./media";
+import { type Kind, MAGIC_LEN, MIMES, mediaHttp, POSTER_HTTP, magicOk, mediaKey, posterKey, posterUploadKey, shareKeys } from "./media";
 import { b64url, deleteOk, mintDelete, mintUpload, openInstall, openUpload, random } from "./tokens";
 
 const DAY_MS = 86_400_000;
@@ -62,7 +62,7 @@ function done(env: Env, s: Share) {
 }
 
 async function purge(env: Env, s: Share): Promise<void> {
-  await env.BUCKET.delete([mediaKey(s.id, s.days, s.mime), posterKey(s.id, s.days), posterUploadKey(s.id, s.days)]);
+  await env.BUCKET.delete(shareKeys(s.id, s.days, s.mime));
 }
 
 function exactBody(req: Request, len: number): ReadableStream | null {

@@ -49,6 +49,10 @@ export function posterUploadKey(id: string, days: number): string {
   return `${shareDir(id, days)}/poster.upload`;
 }
 
+export function shareKeys(id: string, days: number, mime: string): string[] {
+  return [mediaKey(id, days, mime), posterKey(id, days), posterUploadKey(id, days)];
+}
+
 const CACHE = "public, max-age=3600";
 
 export function mediaHttp(id: string, mime: string): R2HTTPMetadata {
