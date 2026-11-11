@@ -114,26 +114,26 @@ impl Rig {
     }
 
     /// Window x of a time on the strip, and the strip's middle row.
-    fn at(&mut self, secs: f64) -> (f32, f32) {
+    pub(crate) fn at(&mut self, secs: f64) -> (f32, f32) {
         let (b, d) = self.read(|p| (p.track(), p.trim().duration()));
         let x = f32::from(b.left()) + (secs / d) as f32 * f32::from(b.size.width);
         (x, f32::from(b.center().y))
     }
 
-    fn drag(&mut self, from: (f32, f32), to_x: f32) {
+    pub(crate) fn drag(&mut self, from: (f32, f32), to_x: f32) {
         self.s.hover(from.0, from.1, false);
         self.s.down(from.0, from.1);
         self.s.hover(to_x, from.1, true);
         self.s.up(to_x, from.1);
     }
 
-    fn start_handle(&mut self) -> (f32, f32) {
+    pub(crate) fn start_handle(&mut self) -> (f32, f32) {
         let start = self.read(|p| p.trim().start());
         let (x, y) = self.at(start);
         (x - f32::from(HANDLE_WIDTH) / 2., y)
     }
 
-    fn end_handle(&mut self) -> (f32, f32) {
+    pub(crate) fn end_handle(&mut self) -> (f32, f32) {
         let end = self.read(|p| p.trim().end());
         let (x, y) = self.at(end);
         (x + f32::from(HANDLE_WIDTH) / 2., y)

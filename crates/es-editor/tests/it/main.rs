@@ -25,6 +25,7 @@ mod low_res;
 mod parity;
 mod redaction;
 mod session;
+mod share_pictures;
 mod shell;
 mod smart_redaction;
 mod space_drag;

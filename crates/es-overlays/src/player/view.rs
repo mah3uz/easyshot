@@ -10,7 +10,7 @@ use es_record::CommandRunner;
 use es_store::Paths;
 use es_ui::a11y::{Accessible, Role};
 use es_ui::components::{InspectorSlider, SliderEvent, ValueFormat};
-use es_ui::theme::tokens;
+use es_ui::theme::{UI_FONT, tokens};
 use gpui::{
     App, AppContext as _, Bounds, Context, Corners, Entity, EventEmitter, FocusHandle, Focusable,
     InteractiveElement, IntoElement, KeyDownEvent, ObjectFit, ParentElement, Pixels, Render,
@@ -397,15 +397,7 @@ impl PlayerWindow {
             return;
         }
         self.pause();
-        let job = ExportJob {
-            input: self.config.video.clone(),
-            output: (self.config.output)(self.options.format.id()),
-            trim: self.trim,
-            mode: self.mode,
-            remove_audio: self.remove_audio,
-            audio_tracks: self.engine.as_ref().map_or(0, Engine::audio_tracks),
-            options: self.options,
-        };
+        let job = self.export_job((self.config.output)(self.options.format.id()));
         cx.emit(PlayerEvent::Chosen(self.options));
         let runner = self.config.ffmpeg.clone();
         let (tx, rx) = async_channel::unbounded();
@@ -436,6 +428,18 @@ impl PlayerWindow {
             });
         })
         .detach();
+    }
+
+    pub(super) fn export_job(&self, output: PathBuf) -> ExportJob {
+        ExportJob {
+            input: self.config.video.clone(),
+            output,
+            trim: self.trim,
+            mode: self.mode,
+            remove_audio: self.remove_audio,
+            audio_tracks: self.engine.as_ref().map_or(0, Engine::audio_tracks),
+            options: self.options,
+        }
     }
 
     /// Frames are decoded no larger than the stage shows them.
@@ -501,6 +505,7 @@ impl Render for PlayerWindow {
             .flex()
             .flex_col()
             .bg(t.window)
+            .font_family(UI_FONT)
             .child(self.title_bar(window, cx))
             .child(
                 div()

@@ -681,7 +681,7 @@ Press **Share** in the editor's footer, beside **Copy**, or the key you bound to
 
 ### Sharing from the trim viewer
 
-Press **Share** in the trim viewer's title bar, between **Open in Studio** and **Export**, or the key you bound to **Share Video** in Settings › Shortcuts. The same popover opens below the button. The recording is sent whole, as recorded: the trim and the export choices apply only to **Export**. The link belongs to the recording, so its card shows the cloud mark. A recording too long for the destination reopens the popover saying how long fits.
+Press **Share** in the trim viewer's title bar, between **Open in Studio** and **Export**, or the key you bound to **Share Video** in Settings › Shortcuts. The same popover opens below the button. When you press **Share** in it, the clip is sent as you see it: only the part you kept, with your look, brightness, volumes and **Remove Audio**, made the way **Export** would make it, as an MP4 sized to fit the destination. The link belongs to the recording, so its card shows the cloud mark. A clip too long for the destination reopens the popover saying how long fits.
 
 An expired free link stays in your list of shares; it is never offered again as a live link.
 

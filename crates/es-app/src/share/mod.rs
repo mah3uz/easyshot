@@ -22,6 +22,7 @@ use es_model::platform::ClipItem;
 use es_model::{
     BucketKeys, FormatKind, ShareCfg, ShareMode, ShareRecord, ShareSource, ShareTarget,
 };
+use es_record::clip::export::ExportJob;
 use es_record::clip::options::ExportOptions;
 use es_share::{Code, Event, ShareError};
 use es_store::shares::SharesFile;
@@ -81,12 +82,14 @@ pub struct ShareDeleted {
 
 /// A local file to share: an image, a video or a recording folder. `days` of `None` is the setting;
 /// `source` of `None` records the link against `path` itself.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct FileShare {
     pub path: PathBuf,
     pub days: Option<u8>,
     pub title: Option<String>,
     pub source: Option<ShareSource>,
+    /// A video trimmed and toned as this job would export it; its output is ignored.
+    pub export: Option<ExportJob>,
 }
 
 enum Msg {
@@ -297,6 +300,7 @@ impl Shares {
                 paths: &paths,
                 caps,
                 video,
+                export: file.export.as_ref(),
                 cancel,
             };
             let prepared = prepare(&file.path, &job, &mut |f| {

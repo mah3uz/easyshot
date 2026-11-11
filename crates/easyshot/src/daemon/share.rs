@@ -93,7 +93,28 @@ pub(super) fn editor(editor: &Entity<EditorWindow>, file: &Path, cx: &mut App) {
     .detach();
 }
 
-/// Share in the trim viewer sends the recording as it is, with the popover in the viewer.
+/// Share in the trim viewer sends the clip as trimmed and toned there, recorded against the recording.
+#[cfg(feature = "player")]
+struct PlayerOrigin {
+    file: FileOrigin,
+    player: WeakEntity<es_overlays::player::PlayerWindow>,
+}
+
+#[cfg(feature = "player")]
+impl ShareOrigin for PlayerOrigin {
+    fn subject(&self) -> &Path {
+        self.file.subject()
+    }
+
+    fn host(&self) -> Rc<dyn PopoverHost> {
+        self.file.host()
+    }
+
+    fn export(&self, cx: &App) -> Option<es_record::clip::export::ExportJob> {
+        Some(self.player.upgrade()?.read(cx).share_job())
+    }
+}
+
 #[cfg(feature = "player")]
 pub(super) fn player(
     player: &Entity<es_overlays::player::PlayerWindow>,
@@ -105,10 +126,13 @@ pub(super) fn player(
     let file = video.to_owned();
     cx.subscribe(
         player,
-        move |_, _: &es_overlays::player::ShareRequested, cx| {
-            let origin = FileOrigin {
-                file: file.clone(),
-                host: host.clone(),
+        move |player, _: &es_overlays::player::ShareRequested, cx| {
+            let origin = PlayerOrigin {
+                file: FileOrigin {
+                    file: file.clone(),
+                    host: host.clone(),
+                },
+                player: player.downgrade(),
             };
             open(Rc::new(origin), cx);
         },

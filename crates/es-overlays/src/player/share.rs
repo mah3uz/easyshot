@@ -1,3 +1,4 @@
+use super::export::ExportJob;
 use super::view::PlayerWindow;
 use crate::capture::strings::fl;
 use es_app::share::WindowPopover;
@@ -6,6 +7,7 @@ use es_ui::icons::IconName;
 use gpui::{
     Action, AnyElement, App, Context, EventEmitter, KeyBinding, KeyBindingContextPredicate, Window,
 };
+use std::path::PathBuf;
 use std::rc::Rc;
 
 pub const CONTEXT: &str = "PlayerWindow";
@@ -47,6 +49,11 @@ impl PlayerWindow {
         if self.share.is_some() {
             cx.emit(ShareRequested);
         }
+    }
+
+    /// The clip as Export would make it now; sharing chooses its own output.
+    pub fn share_job(&self) -> ExportJob {
+        self.export_job(PathBuf::new())
     }
 
     pub(super) fn share_control(

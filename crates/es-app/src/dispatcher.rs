@@ -116,6 +116,7 @@ fn target(route: Route) -> Target {
             days,
             title,
             source: None,
+            export: None,
         }),
     }
 }

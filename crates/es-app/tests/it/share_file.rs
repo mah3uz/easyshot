@@ -32,6 +32,7 @@ fn a_file_is_shared_as_it_is_when_it_fits_with_the_setting_days(cx: &mut TestApp
         days: None,
         title: Some("Login bug".into()),
         source: None,
+        export: None,
     };
     rig.shares.update(cx, |s, cx| s.start_file(file, cx));
     wait_until(cx, "the share to finish", || finished(&rig));
@@ -55,6 +56,7 @@ fn a_lifetime_the_service_does_not_offer_is_refused_before_any_work(cx: &mut Tes
         days: Some(2),
         title: None,
         source: None,
+        export: None,
     };
     rig.shares.update(cx, |s, cx| s.start_file(file, cx));
     cx.run_until_parked();
@@ -80,6 +82,7 @@ fn run_for_a_command(
         days: None,
         title: None,
         source: None,
+        export: None,
     };
     cx.update(|cx| es_app::share::run_route(&rig.shares, &jobs, job, file, cx));
     wait_until(cx, "the command to be answered", || !finished.is_empty());

@@ -6,6 +6,7 @@ use crate::toast::{IconName, Toast, dismiss_toast, show_toast, update_toast};
 use es_geom::Rect;
 use es_model::platform::{ClipItem, OutputId};
 use es_model::{ShareMode, ShareRecord, ShareTarget};
+use es_record::clip::export::ExportJob;
 use es_ui::components::{Destination, ShareEvent, SharePopover, ShareTarget as Choice, ShareView};
 use gpui::{App, AppContext as _, Context, Entity, Subscription, Task, WeakEntity, Window};
 use std::cell::RefCell;
@@ -49,6 +50,10 @@ pub trait ShareOrigin {
     /// The file sent, made when Share is pressed; an error is shown in the popover.
     fn file(&self, _cx: &mut App) -> Task<std::result::Result<PathBuf, String>> {
         Task::ready(Ok(self.subject().to_owned()))
+    }
+    /// A video as the surface would export it now; `None` sends it whole.
+    fn export(&self, _cx: &App) -> Option<ExportJob> {
+        None
     }
 }
 
@@ -245,6 +250,7 @@ impl ShareFlow {
             return;
         };
         let file = shown.ask.origin.file(cx);
+        let export = shown.ask.origin.export(cx);
         let generation = shown.generation;
         popover.update(cx, |p, cx| p.set_busy(true, cx));
         let popover = popover.downgrade();
@@ -255,7 +261,7 @@ impl ShareFlow {
                     return;
                 }
                 match made {
-                    Ok(path) => s.start(path, title, cx),
+                    Ok(path) => s.start(path, export, title, cx),
                     Err(message) => {
                         let _ = popover.update(cx, |p, cx| {
                             p.set_busy(false, cx);
@@ -273,7 +279,13 @@ impl ShareFlow {
         }));
     }
 
-    fn start(&mut self, path: PathBuf, title: Option<String>, cx: &mut Context<Self>) {
+    fn start(
+        &mut self,
+        path: PathBuf,
+        export: Option<ExportJob>,
+        title: Option<String>,
+        cx: &mut Context<Self>,
+    ) {
         let Some(Shown { ask, .. }) = self.open.take() else {
             return;
         };
@@ -285,6 +297,7 @@ impl ShareFlow {
             days: None,
             title: title.clone(),
             source: Some(source),
+            export,
         };
         let ask = Ask { title, ..ask };
         let id = self.shares.update(cx, |s, cx| s.start_file(file, cx));

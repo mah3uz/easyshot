@@ -1,13 +1,15 @@
 #![allow(clippy::unwrap_used)]
 use es_app::share::{Caps, PrepareError, PrepareJob, Tools, prepare_with};
 use es_model::ShareKind;
-use es_record::clip::export::{FfmpegRunner, RunOutcome};
+use es_record::clip::export::{ExportJob, ExportMode, FfmpegRunner, RunOutcome};
 use es_record::clip::options::ExportOptions;
+use es_record::clip::trim::Trim;
 use es_record::project::CommandRunner;
 use es_store::Paths;
 use std::os::unix::process::ExitStatusExt;
 use std::path::{Path, PathBuf};
 use std::process::{ExitStatus, Output};
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 const KB: u64 = 1024;
@@ -69,6 +71,7 @@ fn job(rig: &Rig, image_max_bytes: u64, video_max_bytes: u64) -> PrepareJob<'_> 
             video_max_bytes,
         },
         video: ExportOptions::default(),
+        export: None,
         cancel: &rig.cancel,
     }
 }
@@ -197,4 +200,93 @@ fn a_cancelled_job_makes_nothing() {
     .unwrap_err();
     assert_eq!(err, PrepareError::Cancelled);
     assert_eq!(std::fs::read_dir(rig.paths.share_dir()).unwrap().count(), 0);
+}
+
+#[derive(Default)]
+struct RecordedFfmpeg(Mutex<Vec<Vec<String>>>);
+
+impl FfmpegRunner for RecordedFfmpeg {
+    fn run(&self, args: &[String], _: &mut dyn FnMut(&str)) -> std::io::Result<RunOutcome> {
+        self.0.lock().unwrap().push(args.to_vec());
+        Err(std::io::Error::other("not run in tests"))
+    }
+}
+
+fn after(args: &[String], flag: &str) -> String {
+    let i = args.iter().position(|a| a == flag).unwrap();
+    args[i + 1].clone()
+}
+
+#[test]
+fn a_clip_trimmed_in_the_viewer_is_encoded_once_as_trimmed_with_its_look() {
+    let rig = rig();
+    let video = rig._dir.path().join("clip.mp4");
+    std::fs::write(&video, b"x").unwrap();
+    let mut trim = Trim::new(60.);
+    trim.set_start(12.);
+    trim.set_end(20.5);
+    let export = ExportJob {
+        input: video.clone(),
+        output: PathBuf::new(),
+        trim,
+        mode: ExportMode::Fast,
+        remove_audio: false,
+        audio_tracks: 1,
+        options: ExportOptions {
+            brightness: 0.2,
+            ..ExportOptions::default()
+        },
+    };
+    let ffmpeg = RecordedFfmpeg::default();
+    let probe = Probe { duration: 60. };
+    let mut job = job(&rig, 0, 1024 * 1024 * 1024);
+    job.export = Some(&export);
+    let tools = Tools {
+        probe: &probe,
+        ffmpeg: &ffmpeg,
+    };
+    let _ = prepare_with(&video, &job, &tools, &mut |_| {});
+    let runs = ffmpeg.0.lock().unwrap();
+    assert_eq!(runs.len(), 1, "one encode, no export first: {runs:?}");
+    let args = &runs[0];
+    assert_eq!(after(args, "-ss"), "12.000");
+    assert_eq!(after(args, "-to"), "20.500");
+    assert!(
+        after(args, "-vf").starts_with("eq=brightness=0.200,"),
+        "{args:?}"
+    );
+    assert!(after(args, "-maxrate").ends_with('k'), "{args:?}");
+}
+
+#[test]
+fn a_clip_trimmed_to_fit_is_not_too_long_though_the_recording_is() {
+    let rig = rig();
+    let video = rig._dir.path().join("long.mp4");
+    std::fs::write(&video, b"x").unwrap();
+    let mut trim = Trim::new(3600.);
+    trim.set_end(30.);
+    let export = ExportJob {
+        input: video.clone(),
+        output: PathBuf::new(),
+        trim,
+        mode: ExportMode::Precise,
+        remove_audio: false,
+        audio_tracks: 1,
+        options: ExportOptions::default(),
+    };
+    let ffmpeg = RecordedFfmpeg::default();
+    let probe = Probe { duration: 3600. };
+    let mut job = job(&rig, 0, 50 * 1024 * 1024);
+    job.export = Some(&export);
+    let tools = Tools {
+        probe: &probe,
+        ffmpeg: &ffmpeg,
+    };
+    let err = prepare_with(&video, &job, &tools, &mut |_| {}).unwrap_err();
+    assert!(!matches!(err, PrepareError::TooLong { .. }), "{err:?}");
+    assert_eq!(
+        ffmpeg.0.lock().unwrap().len(),
+        1,
+        "the 30 s kept is encoded"
+    );
 }

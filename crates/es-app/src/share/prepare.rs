@@ -80,6 +80,8 @@ pub struct Job<'a> {
     pub caps: Caps,
     /// How the trim viewer would export this recording.
     pub video: ExportOptions,
+    /// The trim viewer's own export of this video, sent as trimmed; `None` sends it whole with `video`.
+    pub export: Option<&'a ExportJob>,
     pub cancel: &'a AtomicBool,
 }
 
@@ -146,12 +148,21 @@ fn video_share(
 ) -> Result<Prepared, PrepareError> {
     let probe = probe_video(tools.probe, video).ok_or_else(|| file_err("ffprobe"))?;
     let tracks = audio_track_count(tools.probe, video);
-    let duration_ms = (probe.duration_secs * 1000.) as u64;
+    let chosen = job.export.cloned().unwrap_or_else(|| ExportJob {
+        input: video.to_owned(),
+        output: PathBuf::new(),
+        trim: Trim::new(probe.duration_secs),
+        mode: ExportMode::Precise,
+        remove_audio: false,
+        audio_tracks: tracks,
+        options: job.video,
+    });
+    let duration_ms = (chosen.trim.kept() * 1000.) as u64;
     let plan = share_plan(
         duration_ms,
         probe.width,
         probe.height,
-        tracks > 0,
+        tracks > 0 && !chosen.remove_audio,
         job.caps.video_max_bytes,
     )
     .map_err(
@@ -177,13 +188,9 @@ fn video_share(
         dir: Some(dir),
     };
     let export = ExportJob {
-        input: video.to_owned(),
         output: prepared.media.path.clone(),
-        trim: Trim::new(probe.duration_secs),
-        mode: ExportMode::Precise,
-        remove_audio: false,
         audio_tracks: tracks,
-        options: job.video,
+        ..chosen
     };
     let from_clip = |e: ClipError| {
         if job.cancel.load(Ordering::Relaxed) {
