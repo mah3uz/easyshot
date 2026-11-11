@@ -147,8 +147,11 @@ including mid-upload. Deleting a gone share is `404 not_found`; the app treats t
 is stored with `Content-Disposition: inline; filename="easyshot-{id}.{ext}"` (browsers ignore the
 page's `download` name for another origin) and `Cache-Control: public, max-age=3600`. Each
 prefix has an R2 lifecycle rule that deletes after `d` days. A share counts toward the live-bytes stop
-until a day after `expires_at` (R2 deletes up to a day late). The share page answers `410` from
-`expires_at` on.
+until a day after `expires_at`. At `expires_at` the service deletes the share's objects itself (a
+Durable Object alarm); the lifecycle rules are only a backstop, since R2 runs them up to a day late.
+An expired or deleted share is answered exactly like a link that never existed: the share page
+returns `404` with the `missing` block, so a visitor cannot tell a share was ever there. Only the
+uploader's app shows that a share expired.
 A poster is uploaded to `s/{d}d/{id}/poster.upload` and only `complete` copies it, once checked, to
 `poster.jpg`, so the served poster is always the bytes that were checked.
 
@@ -179,7 +182,7 @@ Filling, identical on both sides (`contract/viewer.json` holds the cases):
    `<style>` (HTML escaping does not make a value safe there). The page's script reads what it
    needs from `data-` attributes.
 
-Blocks: `ready`, `uploading`, `gone`, `image`, `video`, `expires`.
+Blocks: `ready`, `uploading`, `missing`, `image`, `video`, `expires`.
 
 | Placeholder | Value |
 |---|---|
