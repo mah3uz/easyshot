@@ -11,9 +11,13 @@ workspace = true
 
 [dependencies]
 es-protocol.workspace = true
+es-model.workspace = true
 zbus.workspace = true
 ashpd.workspace = true
 ksni.workspace = true
+oo7.workspace = true
+async-io.workspace = true
+serde_json.workspace = true
 notify-rust.workspace = true
 trash.workspace = true
 tokio.workspace = true

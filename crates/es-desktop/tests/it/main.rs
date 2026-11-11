@@ -8,4 +8,5 @@ mod files_noop;
 mod login;
 mod notify;
 mod portal;
+mod secrets;
 mod tray;

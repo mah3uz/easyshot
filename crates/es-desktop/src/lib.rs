@@ -7,6 +7,7 @@ mod login;
 mod noop;
 mod notify;
 mod portal;
+mod secrets;
 mod sound;
 mod tray;
 mod tray_icon;
@@ -21,6 +22,9 @@ pub use login::{follow_login_session, watch_login_session};
 pub use noop::{RecordingNotifier, RecordingShortcuts, RecordingSound, RecordingTray};
 pub use notify::{DEFAULT_ACTION, DesktopNotifier};
 pub use portal::{PortalAppearance, PortalFilePicker, PortalShortcuts, portal_trigger};
+pub use secrets::{
+    SecretsError, available, clear_bucket_keys, load_bucket_keys, store_bucket_keys,
+};
 #[cfg(feature = "sound")]
 pub use sound::RodioSound;
 pub use sound::Sound;

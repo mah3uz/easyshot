@@ -63,6 +63,8 @@ rustix = { version = "1", features = ["fs", "mm", "shm"] }
 # gpui-pre-linux and gpui-component turn on ashpd/zbus "async-io"; ashpd rejects async-io + tokio together, so the whole graph uses async-io.
 zbus = "5"
 ashpd = { version = "0.13", default-features = false, features = ["async-io", "file_chooser", "global_shortcuts", "screencast", "screenshot", "settings"] }
+oo7 = { version = "0.6", default-features = false, features = ["async-std", "native_crypto"] }
+async-io = "2"
 ksni = { version = "0.3.7", default-features = false, features = ["async-io"] }
 notify-rust = "4.18"
 trash = "5.2"
