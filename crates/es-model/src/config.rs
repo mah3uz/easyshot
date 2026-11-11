@@ -17,6 +17,7 @@ pub struct Config {
     pub ocr: Ocr,
     pub gallery: GalleryCfg,
     pub agent: AgentCfg,
+    pub share: ShareCfg,
     /// Editor-scope overrides: catalogue id to trigger.
     pub shortcuts: BTreeMap<String, String>,
     /// Global shortcuts the compositor binds to `easyshot <command>`: catalogue id to trigger.
@@ -37,6 +38,7 @@ impl Default for Config {
             ocr: Ocr::default(),
             gallery: GalleryCfg::default(),
             agent: AgentCfg::default(),
+            share: ShareCfg::default(),
             shortcuts: BTreeMap::new(),
             global_shortcuts: BTreeMap::new(),
         }
@@ -323,9 +325,86 @@ impl Default for GalleryCfg {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ShareMode {
+    #[default]
+    Free,
+    Bucket,
+}
+
+pub const SHARE_DAYS: [u8; 3] = [1, 3, 7];
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ShareCfg {
+    pub target: ShareMode,
+    pub days: u8,
+    /// The user has read and accepted what sharing to the free service sends.
+    pub consented: bool,
+    pub bucket_endpoint: String,
+    pub bucket_name: String,
+    pub bucket_region: String,
+    pub bucket_public_base_url: String,
+    pub bucket_prefix: String,
+}
+
+impl Default for ShareCfg {
+    fn default() -> Self {
+        Self {
+            target: ShareMode::Free,
+            days: 7,
+            consented: false,
+            bucket_endpoint: String::new(),
+            bucket_name: String::new(),
+            bucket_region: String::new(),
+            bucket_public_base_url: String::new(),
+            bucket_prefix: String::new(),
+        }
+    }
+}
+
+impl ShareCfg {
+    /// A hand-edited lifetime the service does not offer reads as the default.
+    pub fn days(&self) -> u8 {
+        if SHARE_DAYS.contains(&self.days) {
+            self.days
+        } else {
+            7
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_config_without_a_share_section_keeps_sharing_off_and_free() {
+        let c: Config = toml::from_str("[general]\ntheme = \"dark\"\n").unwrap();
+        assert_eq!(c.share, ShareCfg::default());
+        assert_eq!(c.share.target, ShareMode::Free);
+        assert!(!c.share.consented, "nothing is sent before the user agrees");
+        assert_eq!(c.share.days(), 7);
+    }
+
+    #[test]
+    fn a_share_lifetime_the_service_does_not_offer_falls_back_to_seven_days() {
+        for (days, want) in [(1, 1), (3, 3), (7, 7), (0, 7), (2, 7), (30, 7)] {
+            let c: Config = toml::from_str(&format!("[share]\ndays = {days}\n")).unwrap();
+            assert_eq!(c.share.days(), want, "days = {days}");
+        }
+    }
+
+    #[test]
+    fn the_share_section_reads_a_bucket_target() {
+        let c: Config =
+            toml::from_str("[share]\ntarget = \"bucket\"\nbucket_name = \"b\"\nconsented = true\n")
+                .unwrap();
+        assert_eq!(c.share.target, ShareMode::Bucket);
+        assert_eq!(c.share.bucket_name, "b");
+        assert!(c.share.consented && c.share.bucket_endpoint.is_empty());
+    }
 
     #[test]
     fn empty_toml_gives_the_documented_defaults() {

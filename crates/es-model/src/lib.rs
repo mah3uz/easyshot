@@ -8,6 +8,7 @@ pub mod format;
 pub mod platform;
 pub mod recording;
 pub mod shape;
+pub mod share;
 pub mod state;
 pub mod style;
 pub mod swatch;
@@ -25,7 +26,7 @@ pub use capture::{
     CaptureKind, CaptureVariant, DeckManifest, HistoryEntry, HistoryIndex, Step,
     after_capture_plan, resolve_new_capture_look,
 };
-pub use config::Config;
+pub use config::{Config, ShareCfg, ShareMode};
 pub use document::AnnotationDocument;
 pub use error::{Error, Result};
 pub use format::{Envelope, FormatKind, Header, Migrated, migrate};
@@ -35,6 +36,9 @@ pub use shape::{
     DrawProps, FillStyle, FontFamily, GeoKind, GeoProps, HIGHLIGHTER_WIDTH_FACTOR, HighlightProps,
     HighlighterProps, NormalizedAnchor, NumberedProps, RedactionKind, RedactionProps, ShapeKind,
     TextAlign, TextBorder, TextProps, Tool,
+};
+pub use share::{
+    BucketKeys, ShareDelete, ShareKind, ShareRecord, ShareSource, ShareState, ShareTarget, Shares,
 };
 pub use state::{LastRegion, LastTarget, Recovery, State};
 pub use style::StylePreset;

@@ -66,6 +66,18 @@ impl Paths {
         self.config.join("background-presets.json.recovery")
     }
 
+    pub fn bucket_keys_file(&self) -> PathBuf {
+        self.config.join("bucket-keys.json")
+    }
+
+    pub fn shares_file(&self) -> PathBuf {
+        self.data.join("shares.json")
+    }
+
+    pub fn share_install_token_file(&self) -> PathBuf {
+        self.state.join("share-install-token")
+    }
+
     pub fn gradients_file(&self) -> PathBuf {
         self.config.join("gradients.json")
     }

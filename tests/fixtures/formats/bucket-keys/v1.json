@@ -1,0 +1,6 @@
+{
+  "format": "easyshot.bucket-keys",
+  "version": 1,
+  "access_key_id": "AKIAEXAMPLEKEY",
+  "secret_access_key": "example-secret-not-real"
+}

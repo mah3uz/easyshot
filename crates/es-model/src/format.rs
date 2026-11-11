@@ -40,10 +40,12 @@ pub enum FormatKind {
     State,
     Agent,
     Gradients,
+    Shares,
+    BucketKeys,
 }
 
 impl FormatKind {
-    pub const ALL: [FormatKind; 12] = [
+    pub const ALL: [FormatKind; 14] = [
         FormatKind::Style,
         FormatKind::BgPresets,
         FormatKind::Document,
@@ -56,6 +58,8 @@ impl FormatKind {
         FormatKind::State,
         FormatKind::Agent,
         FormatKind::Gradients,
+        FormatKind::Shares,
+        FormatKind::BucketKeys,
     ];
 
     pub fn from_name(name: &str) -> Option<FormatKind> {
@@ -85,6 +89,8 @@ impl FormatKind {
             FormatKind::State => "easyshot.state",
             FormatKind::Agent => "easyshot.agent",
             FormatKind::Gradients => "easyshot.gradients",
+            FormatKind::Shares => "easyshot.shares",
+            FormatKind::BucketKeys => "easyshot.bucket-keys",
         }
     }
 }

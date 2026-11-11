@@ -1,7 +1,8 @@
 use es_model::{
-    AgentRecord, AnnotationDocument, AudioTrack, Envelope, FontFamily, FormatKind, GradientLibrary,
-    Header, LastRegion, LastTarget, Migrated, PresetLibrary, RecordingCapture, RecordingInput,
-    RecordingProject, Recovery, ShapeKind, State, StylePreset, Tool, migrate,
+    AgentRecord, AnnotationDocument, AudioTrack, BucketKeys, Envelope, FontFamily, FormatKind,
+    GradientLibrary, Header, LastRegion, LastTarget, Migrated, PresetLibrary, RecordingCapture,
+    RecordingInput, RecordingProject, Recovery, ShapeKind, ShareDelete, ShareKind, ShareSource,
+    ShareState, ShareTarget, Shares, State, StylePreset, Tool, migrate,
 };
 use serde::{Serialize, de::DeserializeOwned};
 use std::path::PathBuf;
@@ -308,6 +309,34 @@ fn agent_v1() {
     assert_eq!(a.log.len(), 2);
     assert_eq!(a.log[0].comm.as_deref(), Some("claude"));
     assert_eq!(a.log[1].result, "access_denied");
+}
+
+#[test]
+fn shares_v1_keeps_both_targets_sources_and_delete_rights() {
+    let s: Shares = load_v1(FormatKind::Shares);
+    assert_eq!(s.entries.len(), 2);
+    let video = &s.entries[0];
+    assert_eq!(video.kind, ShareKind::Video);
+    assert_eq!(video.days, Some(3));
+    assert_eq!(video.delete, ShareDelete::FreeToken("tok-abc".into()));
+    assert!(matches!(video.source, ShareSource::Recording(_)));
+    let image = &s.entries[1];
+    assert_eq!(
+        image.target,
+        ShareTarget::Bucket {
+            label: "my-bucket".into()
+        }
+    );
+    assert_eq!((image.days, image.expires_at), (None, None));
+    assert_eq!(image.delete, ShareDelete::Bucket);
+    assert_eq!(image.state, ShareState::Uploading);
+}
+
+#[test]
+fn bucket_keys_v1() {
+    let k: BucketKeys = load_v1(FormatKind::BucketKeys);
+    assert_eq!(k.access_key_id, "AKIAEXAMPLEKEY");
+    assert_eq!(k.secret_access_key, "example-secret-not-real");
 }
 
 #[test]
