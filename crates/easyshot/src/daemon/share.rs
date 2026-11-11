@@ -17,6 +17,9 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
 
+/// The share service compares this with its minimum, so it must be the bare `x.y.z`, not the shown `v0.1.0+hash`.
+const SHARE_VERSION: &str = env!("CARGO_PKG_VERSION");
+
 pub fn engine(
     paths: &Paths,
     settings: &Entity<SettingsModel>,
@@ -24,11 +27,7 @@ pub fn engine(
     clipboard: Rc<dyn ClipboardSink>,
     cx: &mut App,
 ) -> Entity<Shares> {
-    let targets = LiveTargets::new(
-        paths.clone(),
-        env!("EASYSHOT_VERSION"),
-        Arc::new(SystemKeyring),
-    );
+    let targets = LiveTargets::new(paths.clone(), SHARE_VERSION, Arc::new(SystemKeyring));
     let (settings, history) = (settings.clone(), history.clone());
     cx.new(|cx| Shares::new(paths, settings, history, clipboard, Arc::new(targets), cx))
 }
@@ -192,4 +191,20 @@ pub(super) fn record(cx: &mut App) -> Rc<std::cell::RefCell<Vec<uuid::Uuid>>> {
         into.borrow_mut().push(item.id)
     })));
     asked
+}
+
+#[cfg(test)]
+mod version_tests {
+    #[test]
+    fn the_share_service_gets_a_bare_version_it_can_compare() {
+        let parts: Vec<&str> = super::SHARE_VERSION.split('.').collect();
+        assert_eq!(parts.len(), 3, "{}", super::SHARE_VERSION);
+        assert!(
+            parts
+                .iter()
+                .all(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit())),
+            "the service refuses anything but x.y.z as too old: {}",
+            super::SHARE_VERSION
+        );
+    }
 }
