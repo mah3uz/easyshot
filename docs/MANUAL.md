@@ -626,14 +626,22 @@ anyone who has it can open the page and download the file.
 
 ### Where shares go
 
-The first time you share, easyshot asks where shares go. You can change it at any time in
-Settings › Sharing. Choosing either destination counts as agreeing to it.
+Pressing **Share** is all the setup there is: you are not asked where shares go. easyshot picks
+the destination itself. Once the endpoint, bucket and public URL are filled in under Settings ›
+Sharing, shares go to your own bucket. Until then, they go to easyshot Free. Settings › Sharing
+says which one is in use at the top: **Shares use easyshot Free** or **Shares use your bucket**
+and its name.
 
 - **easyshot Free** needs no account and no setup. Its files are kept for the 1, 3 or 7 days you
   pick for each share, and the free service has its own Terms (Settings › Sharing › Terms).
-- **My own bucket** sends the file straight to S3-compatible storage you own, such as
+- **Your own bucket** sends the file straight to S3-compatible storage you own, such as
   Cloudflare R2. Your bucket's own rules decide how long files stay, and easyshot does not
   delete them at any date; Delete Cloud Share does.
+
+If the bucket's details are filled in but its keys cannot be read, the share fails with **Set up
+your bucket in Settings before sharing to it**; it never falls back to easyshot Free. **Remove Keys** keeps the bucket
+in use, so shares fail until you add keys again. Clear the bucket's details to return to
+easyshot Free.
 
 ### easyshot Free
 
@@ -653,9 +661,9 @@ Settings › Sharing. Choosing either destination counts as agreeing to it.
 
 ### Your own bucket
 
-In Settings › Sharing choose **My own bucket** and fill in the endpoint, bucket, region (`auto`
+In Settings › Sharing, in the bucket section, fill in the endpoint, bucket, region (`auto`
 for Cloudflare R2), public URL, an optional folder prefix, and the access key ID and secret
-access key, then press **Save**. The bucket details go to `config.toml`. The keys go to your
+access key, then press **Save**. Shares then go to your bucket. The bucket details go to `config.toml`. The keys go to your
 keyring or, when no keyring is running, to a private file, `bucket-keys.json`, in
 `$XDG_DATA_HOME/easyshot` (normally `~/.local/share/easyshot`), which only you can read. It is
 kept out of the config folder because config folders are often synced as dotfiles. The page says
@@ -671,7 +679,7 @@ bucket. The link opens that page. Delete Cloud Share removes all three.
 
 ### Sharing from a capture card
 
-Press **Cloud Share** on a card in the deck. A popover opens at the button: give the link a title if you like, pick how long a free link lasts (1, 3 or 7 days) and press **Share**. The first time, the popover asks where shares go (see Where shares go); your own bucket opens Settings.
+Press **Cloud Share** on a card in the deck. A popover opens at the button: give the link a title if you like and press **Share**, or press Enter. While easyshot Free is in use the popover also asks how long the link lasts (1, 3 or 7 days); with your own bucket there is no such choice. Pressing **Share** is your agreement; there is no first-share step.
 
 A toast follows the upload. The link is copied as soon as the upload starts (**Link copied · Uploading 42 %**); **Cancel** stops it and removes the toast. When it is done the toast says **Shared** with when the link expires, or the bucket it went to, and offers **Open** and **Copy Link**. If it fails, the toast says why and **Retry** opens the popover again. A card whose capture has a live link shows a small cloud mark.
 
@@ -702,17 +710,18 @@ An expired link offers only **Remove Expired Link**, which drops it from the lis
 ### From the command line
 
 `easyshot share FILE [--days 1|3|7] [--title TEXT]` shares a PNG, JPEG, video or recording folder
-the same way and prints the link; see Command line. It needs a destination chosen in Settings ›
-Sharing first.
+the same way and prints the link; see Command line. It needs no setup: it uses easyshot Free, or
+your bucket once it is filled in.
 
 ## Settings
 
 Pages: Home, General, Capture, Overlay, Recording, Shortcuts, Agents, Sharing, About. Agents is
 described under Agent use.
 
-Sharing, Share to, chooses where shares go: easyshot Free or My own bucket, and Keep shares
-for, 1, 3 or 7 days, for free links. Everything on that page, and the Terms link, is described
-under Sharing.
+Sharing opens with a line saying where shares go (**Shares use easyshot Free** or **Shares use
+your bucket**), shows Keep shares for, 1, 3 or 7 days, only while easyshot Free is in use, and
+always has the bucket section. Everything on that page, and the Terms link, is described under
+Sharing.
 
 General, Appearance, Theme is System, Light or Dark. System follows your desktop's light or dark
 choice, as the settings portal reports it, and changes when you change it. A desktop that reports
@@ -1280,8 +1289,7 @@ A failed share shows a toast, or a notice in the popover, in these words. Each i
 
 | Message | What to do |
 |---|---|
-| Choose where your shares go before sharing. | Pick easyshot Free or My own bucket in Settings › Sharing. |
-| Set up your bucket in Settings before sharing to it. | Fill in the bucket's details and keys and press Save. |
+| Set up your bucket in Settings before sharing to it. | The bucket's details are filled in but its keys are missing: add the keys in Settings › Sharing, or clear the bucket's details to use easyshot Free. |
 | easyshot couldn't read your bucket keys from the keyring. | Unlock or start your keyring, or Replace the keys in Settings › Sharing. |
 | easyshot couldn't reach the share service. | Check your connection and try again. |
 | Your bucket refused your keys. | Check the access key ID and secret in Settings › Sharing. |

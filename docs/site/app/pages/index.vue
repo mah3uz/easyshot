@@ -33,7 +33,7 @@ const faq = [
   },
   {
     q: 'Does it upload my screenshots?',
-    a: 'Only the ones you share. Captures, recordings, logs and crash reports stay on your machine. When you press Share, that one file goes to easyshot Free or to your own bucket. See <a class="text-accent underline" href="/#share">Share</a>.',
+    a: 'Only the ones you share. Captures, recordings, logs and crash reports stay on your machine. When you press Share, that one file goes to easyshot Free, or to your own bucket once you have set it up. See <a class="text-accent underline" href="/#share">Share</a>.',
   },
   {
     q: 'Are shared links private?',
@@ -45,7 +45,7 @@ const faq = [
   },
   {
     q: 'Can I use my own storage?',
-    a: 'Yes. In Settings › Sharing, choose My own bucket and fill in any S3-compatible storage, such as Cloudflare R2, AWS S3, Backblaze B2 or MinIO. easyshot uploads straight to it. Your keys stay in your keyring, or in a private file when no keyring is running.',
+    a: 'Yes. In Settings › Sharing, fill in the endpoint, bucket and public URL of any S3-compatible storage, such as Cloudflare R2, AWS S3, Backblaze B2 or MinIO. From then on easyshot uploads straight to it; until then it uses easyshot Free. Your keys stay in your keyring, or in a private file when no keyring is running.',
   },
   {
     q: 'What are the limits on free sharing?',
@@ -113,7 +113,7 @@ const shareTargets = [
   {
     icon: 'cloud-upload',
     title: 'easyshot Free',
-    text: 'No account and no setup.',
+    text: 'The default: no account and no setup.',
     points: [
       'Images up to 10 MB, GIFs up to 20 MB',
       'Videos up to 200 MB, re-encoded to fit: roughly 13 to 27 minutes of 1080p screen recording',
@@ -124,7 +124,7 @@ const shareTargets = [
   {
     icon: 'hard-drive',
     title: 'Your own bucket',
-    text: 'Any S3-compatible storage: Cloudflare R2, AWS S3, Backblaze B2 or MinIO.',
+    text: 'Used once you set it up in Settings: any S3-compatible storage, such as Cloudflare R2, AWS S3, Backblaze B2 or MinIO.',
     points: [
       'easyshot uploads straight to your storage',
       'Keys in your keyring, or in a private file when no keyring runs',
@@ -361,7 +361,7 @@ useHead({
             <span class="eyebrow"><Icon name="cloud-upload" :size="15" />Share</span>
             <h2 class="text-[clamp(32px,4.4vw,50px)] leading-[1.05]">Send it as a link.</h2>
             <p class="text-lg text-fg-2">
-              Press Share on a capture card, in the editor or in the trim viewer, and pick 1, 3 or 7 days. The link
+              Press Share on a capture card, in the editor or in the trim viewer, and pick 1, 3 or 7 days for easyshot Free. The link
               is on your clipboard at once, so you can paste it while the file uploads.
             </p>
             <ul class="grid gap-2.5 pt-2">

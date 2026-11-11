@@ -47,8 +47,8 @@ const captures = [
 ]
 
 const shareTargets = [
-  { icon: 'cloud-upload', title: 'easyshot Free', text: 'No account and no setup. Images up to 10 MB, GIFs up to 20 MB, and videos up to 200 MB, re-encoded to fit (roughly 13 to 27 minutes of 1080p screen recording), with a daily allowance for each install. After the days you pick, the file is deleted.' },
-  { icon: 'hard-drive', title: 'Your own bucket', text: 'Any S3-compatible storage, such as Cloudflare R2, AWS S3, Backblaze B2 or MinIO. Fill in its details and keys, and press Test Connection. Keys go to your keyring, or a private file. Links last as long as you keep the files.' },
+  { icon: 'cloud-upload', title: 'easyshot Free', text: 'The default: no account and no setup. Images up to 10 MB, GIFs up to 20 MB, and videos up to 200 MB, re-encoded to fit (roughly 13 to 27 minutes of 1080p screen recording), with a daily allowance for each install. After the days you pick, the file is deleted.' },
+  { icon: 'hard-drive', title: 'Your own bucket', text: 'Used once you set it up in Settings › Sharing: any S3-compatible storage, such as Cloudflare R2, AWS S3, Backblaze B2 or MinIO. Fill in its endpoint, bucket, public URL and keys, and press Test Connection. Keys go to your keyring, or a private file. Links last as long as you keep the files.' },
 ]
 
 const editorKeys = [
@@ -277,8 +277,8 @@ easyshot record stop     # stop; the recording lands as a deck card" />
 
         <!-- 8 -->
         <HowStep :n="8" id="share" title="Share a link">
-          <p>Press <strong>Share</strong> on a capture's card, in the editor or in the trim viewer. Give the link a title if you like, pick how long it lasts, 1, 3 or 7 days, and press <strong>Share</strong>. The link is copied at once, and a toast shows the upload with <strong>Cancel</strong>, then <strong>Open</strong> and <strong>Copy Link</strong>. A card with a live link carries a small cloud mark.</p>
-          <p>The first time, easyshot asks where shares go. You can change it later in <strong>Settings › Sharing</strong>.</p>
+          <p>Press <strong>Share</strong> on a capture's card, in the editor or in the trim viewer. Give the link a title if you like, press <strong>Share</strong> (Enter works too); with easyshot Free you also pick how long it lasts, 1, 3 or 7 days. The link is copied at once, and a toast shows the upload with <strong>Cancel</strong>, then <strong>Open</strong> and <strong>Copy Link</strong>. A card with a live link carries a small cloud mark.</p>
+          <p>There is no destination to choose and no first-share step: pressing <strong>Share</strong> is the consent. Shares go to easyshot Free by default, and to your own bucket once you set it up in <strong>Settings › Sharing</strong>. The days choice shows only for easyshot Free.</p>
           <div class="grid gap-4 sm:grid-cols-2">
             <div v-for="t in shareTargets" :key="t.title" class="card grid content-start gap-3 p-5">
               <span class="icon-tile"><Icon :name="t.icon" :size="20" /></span>

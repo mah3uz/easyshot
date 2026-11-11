@@ -67,8 +67,8 @@ useHead({
         <section id="free">
           <h2>easyshot Free</h2>
           <p>
-            easyshot Free is the free sharing service built into easyshot. When you press Share and choose it, the app
-            uploads the file and gives you a link. It costs nothing and needs no account.
+            easyshot Free is the free sharing service built into easyshot. When you press Share and no bucket of your own is
+            set up, the app uploads the file and gives you a link. It costs nothing and needs no account.
           </p>
           <p>
             Links are unlisted, not private. A link is long and random and is not listed or searchable anywhere, but anyone
@@ -113,7 +113,7 @@ useHead({
         <section id="own-bucket">
           <h2>Your own bucket</h2>
           <p>
-            If you choose your own bucket in Settings › Sharing, easyshot uploads straight from your computer to your
+            Once you fill in your own bucket's details in Settings › Sharing, easyshot uploads straight from your computer to your
             storage. Your keys and your files never reach us. Your storage provider's terms apply, and your links last as
             long as you keep the files there.
           </p>

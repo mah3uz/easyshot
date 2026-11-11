@@ -78,7 +78,7 @@ More in the manual: [Capturing](MANUAL.md#capturing).
 - Shares a recording from the trim viewer, from Share in its title bar or the Share Video key, as trimmed and with your export choices.
 - Marks a card whose capture has a live link with a small cloud.
 - Keeps easyshot Free shares for the 1, 3 or 7 days you pick (images up to 10 MB, GIFs up to 20 MB, videos up to 200 MB, a longer video re-encoded to fit), then deletes them; visitors to an expired or deleted link see only "Page not found".
-- Sends shares to your own S3-compatible bucket instead, with no expiry of its own.
+- Sends shares to your own S3-compatible bucket once its endpoint, bucket and public URL are filled in, with no expiry of its own; otherwise to easyshot Free, with no destination to choose and no first-share step.
 - Opens a share link on a page with the image or video, Download and Copy link; links are unlisted, not private.
 - Opens a card's Preview in a plain window with the image fitted; click or Z toggles 100%, Space or Esc closes it.
 - On Hyprland, opens a card's Preview as a floating window in the middle of the screen, through a rule in the binds file.
@@ -287,7 +287,7 @@ More in the manual: [Recording](MANUAL.md#recording).
 - Shows the version, the website, the source and the issue tracker on About, and Show Onboarding Again.
 - Sets the editor's arrow-key steps and its zoom anchor in `config.toml`.
 - Controls agent access, consent, scope and secret hiding on Agents.
-- Chooses where shares go (easyshot Free or your own S3-compatible bucket) and how long free links last on Sharing, keeps bucket keys in your keyring or a private file, and tests the bucket connection.
+- Says on Sharing where shares go (easyshot Free, or your bucket once it is filled in), sets how long free links last while Free is in use, keeps bucket keys in your keyring or a private file, and tests the bucket connection.
 
 More in the manual: [Settings](MANUAL.md#settings).
 

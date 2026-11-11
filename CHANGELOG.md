@@ -3,9 +3,9 @@
 ## Unreleased
 
 ### New
-- Share a link to a capture from its card, the editor (Share in its title bar or the Share Image key) or the trim viewer (Share in its title bar or the Share Video key, sending the clip as trimmed, with your export choices): a popover asks for a title and 1, 3 or 7 days, the link is copied as the upload starts, and a toast shows progress and Cancel, then Open and Copy Link.
+- Share a link to a capture from its card, the editor (Share in its title bar or the Share Image key) or the trim viewer (Share in its title bar or the Share Video key, sending the clip as trimmed, with your export choices): a popover asks for a title and, on easyshot Free, 1, 3 or 7 days (Enter shares), with no first-share step, the link is copied as the upload starts, and a toast shows progress and Cancel, then Open and Copy Link.
 - easyshot Free needs no account: images up to 10 MB, GIFs up to 20 MB and videos up to 200 MB (a bigger video is re-encoded to fit); the file is deleted when the days end and the link then shows only "Page not found".
-- Share to your own S3-compatible bucket instead; Settings › Sharing holds its details and keys (in your keyring, or a private file), with a connection test.
+- Shares go to your own S3-compatible bucket once its endpoint, bucket and public URL are filled in under Settings › Sharing, otherwise to easyshot Free; the page says which, holds the bucket's keys (in your keyring, or a private file) and tests the connection. A bucket whose keys are missing fails the share instead of using Free.
 - Shared links in the gallery: a cloud mark with the time left, the bucket or Expired; Copy Link, Open Link, Copy File Link and Delete Cloud Share in the item menu; Remove for an expired link; and a Cloud Shares section that keeps every link, even when its file is gone. Cards with a live link carry the mark too.
 - `easyshot share FILE [--days 1|3|7] [--title TEXT]` uploads an image, a video or a recording and prints its link.
 

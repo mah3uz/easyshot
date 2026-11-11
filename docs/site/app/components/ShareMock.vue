@@ -46,12 +46,7 @@ onBeforeUnmount(() => clearInterval(timer))
             {{ d }} {{ d === 1 ? 'day' : 'days' }}
           </button>
         </div>
-        <div class="mt-3 flex items-center gap-2 rounded-card-sm border border-line px-3 py-2 text-[13px]">
-          <Icon name="cloud-upload" :size="15" class="shrink-0 text-accent" />
-          <span class="flex-1">easyshot Free</span>
-          <span class="text-[12px] text-fg-3">Unlisted link</span>
-        </div>
-        <button type="button" class="mt-4 grid h-9 w-full place-items-center rounded-full text-[13.5px] font-semibold text-[#032830] hover-motion hover:brightness-105" style="background: var(--grad)" @click="share">Share</button>
+        <button type="button" class="mt-5 grid h-9 w-full place-items-center rounded-full text-[13.5px] font-semibold text-[#032830] hover-motion hover:brightness-105" style="background: var(--grad)" @click="share">Share</button>
       </div>
 
       <div class="flex w-full max-w-[400px] items-center gap-3 rounded-card border border-line bg-surface p-2.5 pr-3.5 text-fg shadow-2xl backdrop-blur-xl" aria-hidden="true">

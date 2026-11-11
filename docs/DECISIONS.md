@@ -205,11 +205,20 @@ Bucket keys live in the Secret Service keyring; with no keyring they go to `buck
 (0600) in `$XDG_DATA_HOME/easyshot`, never in `config.toml`. Why: config folders are often
 synced as dotfiles, and a secret in one is committed or copied to other machines.
 
+### The share destination is automatic; there is no consent step
+Shares go to the user's bucket once its endpoint, bucket and public URL are filled in, else to
+easyshot Free. Pressing Share is the consent. Why: a choice before the first share, or on every
+share, is a step between a person and a link, and the bucket details already say what they
+want. Rejected: asking where shares go on first share; a Free/bucket switch in Settings, which
+can disagree with the details filled in below it; silently falling back to Free when the
+bucket's keys cannot be read, which would send a file somewhere the user did not mean it to go
+(the share fails and says to set the bucket up).
+
 ### The share popover is a new surface
-The share popover (title, 1, 3 or 7 days, destination, first-share choice, too-long and error
-views) is a panel the reference design does not have, which `DESIGN.md` section 2 rules out
-for additions (maintainer's decision, 2026-11-11). Why: sharing needs a choice of duration and
-destination at the moment of sharing, and a toast cannot hold it. Rejected: a Settings-only
+The share popover (title, 1, 3 or 7 days while easyshot Free is in use, Share, too-long and
+error views) is a panel the reference design does not have, which `DESIGN.md` section 2 rules out
+for additions (maintainer's decision, 2026-11-11). Why: sharing needs a choice of duration at
+the moment of sharing, and a toast cannot hold it. Rejected: a Settings-only
 choice, which hides the duration and cannot warn about a clip that is too long.
 
 ## Deliberate behaviour choices
