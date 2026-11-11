@@ -3,6 +3,7 @@ use crate::history::History;
 use crate::image_budget::ImageStores;
 use crate::jobs::{JobFinished, Jobs};
 use crate::settings_model::SettingsModel;
+use crate::share::Shares;
 use crate::strings::loader;
 use crate::toast::FluentArgs;
 use crate::windows::Windows;
@@ -35,6 +36,7 @@ pub struct Services {
     pub backend: Arc<Backend>,
     pub settings: Entity<SettingsModel>,
     pub history: Entity<History>,
+    pub shares: Entity<Shares>,
     pub deck: Entity<Deck>,
     pub jobs: Jobs,
     pub windows: Windows,
@@ -51,6 +53,7 @@ impl Services {
         backend: Arc<Backend>,
         settings: Entity<SettingsModel>,
         history: Entity<History>,
+        shares: Entity<Shares>,
         deck: Entity<Deck>,
         windows: Windows,
         paths: Paths,
@@ -60,6 +63,7 @@ impl Services {
             backend,
             settings,
             history,
+            shares,
             deck,
             jobs,
             windows,

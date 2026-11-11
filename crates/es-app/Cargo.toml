@@ -23,6 +23,7 @@ tiny-skia.workspace = true
 es-store.workspace = true
 es-wayland.workspace = true
 es-desktop.workspace = true
+es-share.workspace = true
 es-record.workspace = true
 es-backend.workspace = true
 es-ui.workspace = true

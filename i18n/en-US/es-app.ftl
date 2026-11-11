@@ -110,3 +110,38 @@ toast-settings-save-failed-message = { $error }
 picker-folder-title = Choose a folder
 picker-open-title = Open an image or video
 picker-open-filter = Images and videos
+
+## Sharing
+share-failed-no-consent = Choose where your shares go before sharing.
+share-failed-not-configured = Set up your bucket in Settings before sharing to it.
+share-failed-keyring = { -app-name } couldn’t read your bucket keys from the keyring.
+share-failed-network = { -app-name } couldn’t reach the share service. Check your connection and try again.
+share-failed-file = { -app-name } couldn’t read the file to share.
+share-failed-unexpected = Sharing didn’t work. Try again.
+share-failed-cancelled = Sharing was cancelled.
+share-failed-bad-request = The share service couldn’t accept this file.
+share-failed-unauthorized = The share service didn’t accept this copy of { -app-name }. Try again.
+share-failed-token-expired = The upload took too long. Try again.
+share-failed-challenge-failed = The share service couldn’t check this copy of { -app-name }. Try again.
+share-failed-origin-refused = The share service refused the request.
+share-failed-not-found = This share is no longer on the share service.
+share-failed-conflict = The share changed while it was uploading. Try again.
+share-failed-too-large = This file is larger than the share service accepts.
+share-failed-unsupported-type = The share service doesn’t accept this kind of file.
+share-failed-version-unsupported = This version of { -app-name } can no longer share. Update { -app-name } to share again.
+share-failed-rate-limited = Too many shares in a short time.
+share-failed-quota-daily = You have shared as much as the service allows today.
+share-failed-full = The share service is full right now.
+share-failed-bucket-credentials = Your bucket refused your keys. Check them in Settings.
+share-failed-bucket-bucket = Your bucket wasn’t found or refused the upload. Check its name and region in Settings.
+share-failed-bucket-public-url = Your bucket’s public URL doesn’t serve the shared files. Check it in Settings.
+share-failed-bucket-network = { -app-name } couldn’t reach your bucket. Check the endpoint and your connection.
+share-retry-later = Try again later.
+share-retry-minutes = Try again in { $minutes ->
+        [one] a minute
+       *[other] { $minutes } minutes
+    }.
+share-retry-hours = Try again in { $hours ->
+        [one] an hour
+       *[other] { $hours } hours
+    }.

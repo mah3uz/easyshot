@@ -121,6 +121,18 @@ impl History {
         Ok(true)
     }
 
+    pub fn set_share_url(&mut self, id: Uuid, url: Option<String>) -> Result<bool> {
+        let Some(entry) = self.file.value.entries.iter_mut().find(|e| e.id == id) else {
+            return Ok(false);
+        };
+        if entry.share_url == url {
+            return Ok(false);
+        }
+        entry.share_url = url;
+        self.persist()?;
+        Ok(true)
+    }
+
     pub fn set_limit(&mut self, limit: usize) -> Result<Vec<HistoryEntry>> {
         self.limit = limit;
         let gone = self.evict();

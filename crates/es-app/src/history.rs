@@ -10,6 +10,7 @@ pub enum HistoryEvent {
     Added(Uuid),
     Removed(Vec<Uuid>),
     Renamed(Uuid),
+    ShareChanged(Uuid),
     Annotated(PathBuf),
     LimitChanged,
     VideosChanged,
@@ -67,6 +68,20 @@ impl History {
             cx.notify();
         }
         Ok(renamed)
+    }
+
+    pub fn set_share_url(
+        &mut self,
+        id: Uuid,
+        url: Option<String>,
+        cx: &mut Context<Self>,
+    ) -> Result<bool> {
+        let changed = self.inner.set_share_url(id, url)?;
+        if changed {
+            cx.emit(HistoryEvent::ShareChanged(id));
+            cx.notify();
+        }
+        Ok(changed)
     }
 
     pub fn set_limit(&mut self, limit: usize, cx: &mut Context<Self>) -> Result<()> {

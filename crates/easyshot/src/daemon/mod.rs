@@ -20,6 +20,7 @@ mod recorder;
 mod recording;
 mod recovery;
 mod routes;
+mod share;
 mod shutter;
 mod tray;
 mod windows;
@@ -275,10 +276,13 @@ fn start(
     let history = cx.new(|_| history);
     let deck = cx.new(|_| Deck::new(DeckPolicy::from_settings(&cfg.overlay, &cfg.capture)));
     let windows = Windows::default();
+    let clipboard = Rc::new(BackendClipboardSink::new(backend.clone(), paths.clone()));
+    let shares = share::engine(paths, &settings, &history, clipboard.clone(), cx);
     let (services, finished) = Services::new(
         backend.clone(),
         settings.clone(),
         history.clone(),
+        shares,
         deck.clone(),
         windows.clone(),
         paths.clone(),
@@ -316,7 +320,6 @@ fn start(
         DeckSettings::from_settings(&cfg.overlay),
         cx,
     );
-    let clipboard = Rc::new(BackendClipboardSink::new(backend.clone(), paths.clone()));
     let pins = Rc::new(Pins::new(
         surfaces.clone(),
         capture::copy_file(clipboard.clone()),
@@ -452,7 +455,7 @@ fn start(
         ui: Rc::new(recording::LayerUi {
             surfaces: surfaces.clone(),
             tray: tray_update(tray_feed.clone()),
-            notify: notice(backend.clone()),
+            notify: notices::recording(backend.clone()),
             paths: paths.clone(),
         }),
         clock: Arc::new(es_record::SystemClock::default()),
@@ -580,21 +583,4 @@ fn first_launch_pending(paths: &Paths) -> bool {
 
 fn tray_update(feed: Rc<tray::TrayFeed>) -> recording::ui::TrayUpdate {
     Rc::new(move |state, cx| feed.set_recording(state, cx))
-}
-
-fn notice(backend: Arc<Backend>) -> recording::ui::Notify {
-    Rc::new(move |title| {
-        let sent = backend.notifier.notify(Notification {
-            title,
-            body: String::new(),
-            icon: None,
-            image: None,
-            actions: Vec::new(),
-            urgency: es_desktop::Urgency::Normal,
-            timeout: Some(std::time::Duration::from_secs(3)),
-        });
-        if let Err(e) = sent {
-            tracing::warn!(error = %e, "recording notice");
-        }
-    })
 }

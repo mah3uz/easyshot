@@ -14,6 +14,7 @@ pub mod pipeline;
 pub mod platform_ui;
 pub mod services;
 pub mod settings_model;
+pub mod share;
 pub mod strings;
 pub mod toast;
 pub mod windows;

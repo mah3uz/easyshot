@@ -338,6 +338,17 @@ as a missing wallpaper. `es_store::wallpapers::read` reads only a regular file o
   `pipeline.rs` only executes the steps.
 - `SettingsModel::update` emits `SettingsChanged(SectionMask)`; a 300 ms debounced writer
   goes through `es-store`.
+- The `Shares` entity (in `Services`) is the share engine. `start` refuses with `NoConsent`
+  until `share.consented` is set; otherwise it runs the upload on its own std thread, where
+  the target is built (the free service, or the user's bucket with keys from the Secret
+  Service keyring, falling back to `es-store`'s key file), and sends the target's events
+  over a channel to the GPUI thread. There they are emitted as `ShareJobEvent`: `Reserved`
+  (the link is copied), `Progress`, then `Done` once the record is saved to
+  `easyshot.shares` and the capture's history entry carries the link, or `Failed` with a
+  closed `ShareFailure` the app words itself. `cancel` emits `Cancelled` at once and only
+  sets the thread's flag; nothing more is emitted for that job, and an upload that finishes
+  anyway is deleted. `delete` runs on a thread and forgets the record when the share is
+  deleted or already gone. Expired free records are dropped at load and hourly.
 - The editor is an `EditorSession` of small entities (doc, viewport, look, crop, io). The
   toolbar, inspector and footer observe only their own entities, so a stroke never rebuilds
   the inspector.

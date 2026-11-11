@@ -357,6 +357,46 @@ const READERS: &[(&str, &str, &str)] = &[
         "log_limit()",
     ),
     (
+        "share.target",
+        "crates/es-app/src/share/mod.rs",
+        "cfg.target",
+    ),
+    (
+        "share.days",
+        "crates/es-app/src/share/mod.rs",
+        "share.days()",
+    ),
+    (
+        "share.consented",
+        "crates/es-app/src/share/mod.rs",
+        "cfg.consented",
+    ),
+    (
+        "share.bucket_endpoint",
+        "crates/es-app/src/share/target.rs",
+        "cfg.bucket_endpoint",
+    ),
+    (
+        "share.bucket_name",
+        "crates/es-app/src/share/target.rs",
+        "cfg.bucket_name",
+    ),
+    (
+        "share.bucket_region",
+        "crates/es-app/src/share/target.rs",
+        "cfg.bucket_region",
+    ),
+    (
+        "share.bucket_public_base_url",
+        "crates/es-app/src/share/target.rs",
+        "cfg.bucket_public_base_url",
+    ),
+    (
+        "share.bucket_prefix",
+        "crates/es-app/src/share/target.rs",
+        "cfg.bucket_prefix",
+    ),
+    (
         "shortcuts",
         "crates/easyshot/src/daemon/look.rs",
         "config.shortcuts",

@@ -1,8 +1,11 @@
 use es_app::toast::{NoticeAction, notice_action};
+use es_backend::Backend;
 use es_desktop::NotificationId;
 use es_shell::gallery::GalleryFiles;
 use gpui::App;
 use std::path::Path;
+use std::rc::Rc;
+use std::sync::Arc;
 
 pub struct Answers<'a> {
     pub open: &'a dyn Fn(&Path),
@@ -28,6 +31,23 @@ pub fn on_action(id: NotificationId, action: &str, answers: &Answers, cx: &mut A
         Some(NoticeAction::Undo(undo)) => undo.run(cx),
         None => {}
     }
+}
+
+pub fn recording(backend: Arc<Backend>) -> super::recording::ui::Notify {
+    Rc::new(move |title| {
+        let sent = backend.notifier.notify(es_desktop::Notification {
+            title,
+            body: String::new(),
+            icon: None,
+            image: None,
+            actions: Vec::new(),
+            urgency: es_desktop::Urgency::Normal,
+            timeout: Some(std::time::Duration::from_secs(3)),
+        });
+        if let Err(e) = sent {
+            tracing::warn!(error = %e, "recording notice");
+        }
+    })
 }
 
 #[cfg(test)]

@@ -2037,6 +2037,7 @@ dependencies = [
  "es-record",
  "es-render",
  "es-scroll",
+ "es-share",
  "es-store",
  "es-testkit",
  "es-text",
