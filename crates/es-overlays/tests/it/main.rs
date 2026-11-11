@@ -10,6 +10,7 @@ mod deck_timer;
 mod pin;
 mod player;
 mod player_mix;
+mod player_share;
 mod recording_ui;
 mod region_geometry;
 mod region_selector;

@@ -3,11 +3,11 @@ use es_app::deck::{Deck, DeckItem};
 use es_app::history::History;
 use es_app::platform_ui::{ClipboardSink, LayerShellSurfaces, SharePopoverSurface};
 use es_app::settings_model::SettingsModel;
-use es_app::share::WindowPopover;
 use es_app::share::{
     DeckMarks, DeckOrigin, LiveTargets, PopoverHost, ShareFlow, ShareHooks, ShareOrigin, Shares,
     SystemKeyring,
 };
+use es_app::share::{FileOrigin, WindowPopover};
 use es_editor::{EditorWindow, ShareRequested};
 use es_overlays::deck::view::DeckSurface;
 use es_protocol::{Route, SettingsPage};
@@ -90,6 +90,29 @@ pub(super) fn editor(editor: &Entity<EditorWindow>, file: &Path, cx: &mut App) {
         };
         open(Rc::new(origin), cx);
     })
+    .detach();
+}
+
+/// Share in the trim viewer sends the recording as it is, with the popover in the viewer.
+#[cfg(feature = "player")]
+pub(super) fn player(
+    player: &Entity<es_overlays::player::PlayerWindow>,
+    video: &Path,
+    cx: &mut App,
+) {
+    let host = WindowPopover::default();
+    player.update(cx, |p, cx| p.set_share(host.clone(), cx));
+    let file = video.to_owned();
+    cx.subscribe(
+        player,
+        move |_, _: &es_overlays::player::ShareRequested, cx| {
+            let origin = FileOrigin {
+                file: file.clone(),
+                host: host.clone(),
+            };
+            open(Rc::new(origin), cx);
+        },
+    )
     .detach();
 }
 

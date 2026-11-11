@@ -59,11 +59,24 @@ fn apply(settings: &Entity<SettingsModel>, cx: &mut App) {
     }
     if rebind {
         es_editor::keyboard::bind(cx, &config.shortcuts, &config.editor);
+        #[cfg(feature = "player")]
+        es_overlays::player::bind_share(share_video_key(&config.shortcuts).as_deref(), cx);
     }
     let applied = cx.global_mut::<Applied>();
     applied.theme = Some(mode);
     applied.shortcuts = Some(config.shortcuts.clone());
     applied.editor = Some(config.editor.clone());
+}
+
+/// An override of "" clears the default, as in the editor.
+#[cfg(feature = "player")]
+fn share_video_key(shortcuts: &BTreeMap<String, String>) -> Option<String> {
+    let entry = es_protocol::entry_by_id("video-share")?;
+    let trigger = match shortcuts.get(entry.id) {
+        Some(set) => set.as_str(),
+        None => entry.default_trigger?,
+    };
+    es_editor::keyboard::keystroke(&es_protocol::Trigger::parse(trigger).ok()?)
 }
 
 fn theme_mode(setting: &str, system: Option<Appearance>) -> ThemeMode {

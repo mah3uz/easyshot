@@ -219,6 +219,7 @@ pub fn open_player(
     let options = settings.as_ref().map_or_else(ExportOptions::default, |s| {
         ExportOptions::from_config(&s.read(cx).config().recording)
     });
+    let shared = video.clone();
     let config = PlayerConfig {
         video,
         output,
@@ -234,6 +235,7 @@ pub fn open_player(
     };
     cx.open_window(options, |_, cx| {
         let player = cx.new(|cx| PlayerWindow::new(config, cx));
+        crate::daemon::share::player(&player, &shared, cx);
         cx.subscribe(&player, move |_, event: &PlayerEvent, cx| {
             on_player_event(event, settings.as_ref(), cx)
         })

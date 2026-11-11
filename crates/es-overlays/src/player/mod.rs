@@ -4,6 +4,8 @@ mod controls;
 pub mod engine;
 #[cfg(feature = "player")]
 mod scrubber;
+#[cfg(feature = "player")]
+mod share;
 pub mod strip;
 #[cfg(feature = "player")]
 mod view;
@@ -18,6 +20,8 @@ pub use export::{ExportError, ExportJob, ExportMode, FfmpegRunner, SystemFfmpeg}
 pub use options::{BRIGHTNESS_LIMIT, ExportOptions, Format, Look, Quality, Size};
 #[cfg(feature = "player")]
 pub use scrubber::HANDLE_WIDTH;
+#[cfg(feature = "player")]
+pub use share::{CONTEXT, ShareRequested, ShareVideo, bind_share};
 pub use trim::{MIN_TRIM_SECS, Trim};
 #[cfg(feature = "player")]
 pub use view::{ExportState, PlayerConfig, PlayerEvent, PlayerWindow, TITLE_BAR_HEIGHT};

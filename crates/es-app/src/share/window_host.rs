@@ -1,9 +1,10 @@
-use super::flow::{Anchor, BuildPopover, PopoverHost};
+use super::flow::{Anchor, BuildPopover, PopoverHost, ShareOrigin};
 use crate::errors::Result;
 use crate::fl;
 use es_ui::components::{Popover, SHARE_POPOVER_WIDTH, SharePopover};
 use gpui::{AnyElement, App, Context, Entity, EntityId, Focusable as _, IntoElement};
 use std::cell::RefCell;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 type Closed = Rc<dyn Fn(&mut App)>;
@@ -91,6 +92,22 @@ impl PopoverHost for WindowPopover {
             closed(cx);
             self.redraw(cx);
         }
+    }
+}
+
+/// Share from a window's own Share button, sending the file as it is.
+pub struct FileOrigin {
+    pub file: PathBuf,
+    pub host: WindowPopover,
+}
+
+impl ShareOrigin for FileOrigin {
+    fn subject(&self) -> &Path {
+        &self.file
+    }
+
+    fn host(&self) -> Rc<dyn PopoverHost> {
+        Rc::new(self.host.clone())
     }
 }
 

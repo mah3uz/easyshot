@@ -70,7 +70,7 @@ impl PopoverHost for Host {
 }
 
 #[derive(Default)]
-struct Clip(RefCell<Vec<ClipItem>>);
+pub(crate) struct Clip(RefCell<Vec<ClipItem>>);
 
 impl ClipboardSink for Clip {
     fn copy(&self, items: Vec<ClipItem>, _: &mut App) -> Task<Result<()>> {

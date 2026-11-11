@@ -17,6 +17,7 @@ mod share;
 mod share_deck;
 mod share_file;
 mod share_prepare;
+mod share_window;
 mod share_words;
 mod toast;
 mod windows;

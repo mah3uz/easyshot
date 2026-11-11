@@ -80,6 +80,7 @@ pub struct PlayerWindow {
     brightness: Option<(Entity<InspectorSlider>, Subscription)>,
     pub(super) volumes: Option<Volumes>,
     pub(super) export: ExportState,
+    pub(super) share: Option<es_app::share::WindowPopover>,
     frames: u64,
     dropped: u64,
     _signals: Option<Task<()>>,
@@ -152,6 +153,7 @@ impl PlayerWindow {
             brightness: None,
             volumes: None,
             export: ExportState::Idle,
+            share: None,
             frames: 0,
             dropped: 0,
             _signals: signals,
@@ -487,6 +489,8 @@ impl Render for PlayerWindow {
             .id("player")
             .accessible(Role::Application, fl!("player-a11y"))
             .track_focus(&self.focus)
+            .key_context(super::CONTEXT)
+            .on_action(cx.listener(|p, _: &super::ShareVideo, _, cx| p.share(cx)))
             .on_key_down(cx.listener(|p, e: &KeyDownEvent, _, cx| {
                 if e.keystroke.key == "space" {
                     p.toggle_play(cx);
@@ -497,7 +501,7 @@ impl Render for PlayerWindow {
             .flex()
             .flex_col()
             .bg(t.window)
-            .child(self.title_bar(cx))
+            .child(self.title_bar(window, cx))
             .child(
                 div()
                     .id("player-stage")

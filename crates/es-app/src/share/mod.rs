@@ -12,7 +12,7 @@ pub use flow::{Anchor, PopoverHost, ShareFlow, ShareHooks, ShareOrigin, copy_lin
 pub use job::run_route;
 pub use prepare::{Caps, Job as PrepareJob, PrepareError, Prepared, Tools, prepare, prepare_with};
 pub use target::{FREE_BASE_URL, KeyPlace, Keyring, LiveTargets, SystemKeyring, Target, Targets};
-pub use window_host::{WindowPopover, popover_from};
+pub use window_host::{FileOrigin, WindowPopover, popover_from};
 
 use crate::history::History;
 use crate::platform_ui::ClipboardSink;

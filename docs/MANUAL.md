@@ -1190,6 +1190,8 @@ A toast follows the upload. The link is copied as soon as the upload starts (**L
 
 Press **Share** in the editor's footer, beside **Copy**, or the key you bound to **Share Image** in Settings › Shortcuts. The same popover opens above the button. When you press **Share** in it, the image is sent as you see it, with your annotations and background, rendered the way **Export** renders it; the button turns while the image is made. The link belongs to the capture you opened, so its card shows the cloud mark. The same toast follows the upload.
 
+Press **Share** in the trim viewer's title bar, between **Open in Studio** and **Export**, or the key you bound to **Share Video** in Settings › Shortcuts. The same popover opens below the button. The recording is sent whole, as recorded: the trim and the export choices apply only to **Export**. The link belongs to the recording, so its card shows the cloud mark. A recording too long for the destination reopens the popover saying how long fits.
+
 An expired free link stays in your list of shares; it is never offered again as a live link.
 
 ### Your shares in the gallery

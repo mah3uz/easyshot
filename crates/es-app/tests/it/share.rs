@@ -19,7 +19,7 @@ use gpui::{App, AppContext, Entity, Task, TestAppContext};
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, mpsc};
 use time::OffsetDateTime;
 use uuid::Uuid;
@@ -32,6 +32,7 @@ type DeleteOutcome = Box<dyn Fn(&ShareRecord) -> std::result::Result<(), ShareEr
 
 pub(crate) struct Fake {
     pub(crate) opened: AtomicUsize,
+    pub(crate) video_max_bytes: AtomicU64,
     outcome: Outcome,
     delete: DeleteOutcome,
     deleted: Mutex<Vec<String>>,
@@ -42,6 +43,7 @@ impl Fake {
     pub(crate) fn new(outcome: Outcome) -> Arc<Self> {
         Arc::new(Self {
             opened: AtomicUsize::new(0),
+            video_max_bytes: AtomicU64::new(1 << 26),
             outcome,
             delete: Box::new(|_| Ok(())),
             deleted: Mutex::default(),
@@ -99,7 +101,7 @@ impl Targets for FakeTargets {
     fn caps(&self, _mode: ShareMode, _cfg: &ShareCfg) -> std::result::Result<Caps, ShareFailure> {
         Ok(Caps {
             image_max_bytes: 1 << 20,
-            video_max_bytes: 1 << 26,
+            video_max_bytes: self.0.video_max_bytes.load(Ordering::SeqCst),
         })
     }
 

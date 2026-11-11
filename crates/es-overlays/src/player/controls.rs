@@ -11,13 +11,17 @@ use es_ui::icons::IconName;
 use es_ui::theme::tokens;
 use es_ui::tokens::Typeset;
 use gpui::{
-    Context, Entity, InteractiveElement, IntoElement, MouseButton, ParentElement, Styled, div,
-    prelude::FluentBuilder as _, px,
+    Context, Entity, InteractiveElement, IntoElement, MouseButton, ParentElement, Styled, Window,
+    div, prelude::FluentBuilder as _, px,
 };
 use gpui_component::TitleBar;
 
 impl PlayerWindow {
-    pub(super) fn title_bar(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    pub(super) fn title_bar(
+        &self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
         let t = tokens(cx).clone();
         let name = self
             .config
@@ -56,6 +60,9 @@ impl PlayerWindow {
                                 ),
                         ),
                     )
+                    .when_some(self.share_control(window, cx), |d, share| {
+                        d.child(hold("share-hold").child(share))
+                    })
                     .child(
                         hold("export-hold").child(
                             EditorButton::new("export")

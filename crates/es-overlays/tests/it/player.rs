@@ -73,8 +73,8 @@ impl CommandRunner for Counting {
     }
 }
 
-struct Rig {
-    s: Surface<PlayerWindow>,
+pub(crate) struct Rig {
+    pub(crate) s: Surface<PlayerWindow>,
     dir: PathBuf,
 }
 
@@ -103,12 +103,12 @@ fn open(dir: &Path, video: &Path, commands: Arc<dyn CommandRunner>) -> Rig {
 }
 
 impl Rig {
-    fn read<R>(&mut self, f: impl FnOnce(&PlayerWindow) -> R) -> R {
+    pub(crate) fn read<R>(&mut self, f: impl FnOnce(&PlayerWindow) -> R) -> R {
         let view = self.s.view.clone();
         self.s.app.cx.update(|cx| f(view.read(cx)))
     }
 
-    fn wait(&mut self, what: &str, done: impl Fn(&PlayerWindow) -> bool) {
+    pub(crate) fn wait(&mut self, what: &str, done: impl Fn(&PlayerWindow) -> bool) {
         let view = self.s.view.clone();
         self.s.app.until(what, |cx| done(view.read(cx)));
     }
@@ -140,7 +140,7 @@ impl Rig {
     }
 }
 
-fn rig() -> (tempfile::TempDir, Rig) {
+pub(crate) fn rig() -> (tempfile::TempDir, Rig) {
     let dir = tempfile::tempdir().unwrap();
     let video = test_video(dir.path());
     let r = open(dir.path(), &video, Arc::new(SystemRunner));
