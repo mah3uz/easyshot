@@ -5,7 +5,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 declare -A layer
 for c in es-geom es-model es-protocol; do layer[$c]=0; done
 for c in es-text es-anno es-render es-scroll es-ocr; do layer[$c]=1; done
-for c in es-store es-wayland es-desktop es-record es-backend; do layer[$c]=2; done
+for c in es-store es-share es-wayland es-desktop es-record es-backend; do layer[$c]=2; done
 for c in es-ui es-app es-editor es-overlays es-shell es-testkit easyshot; do layer[$c]=3; done
 
 layers_json=$(for c in "${!layer[@]}"; do printf '%s %s\n' "$c" "${layer[$c]}"; done |

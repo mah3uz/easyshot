@@ -118,6 +118,7 @@ Layer 2  IO and system mechanisms — no GPUI
   es-store     the only writer of every file: atomic writes, config (toml_edit), state,
                history index, deck staging, presets, sidecar, retention, naming,
                a recording folder's JSON files                                           → es-model
+  es-share     the share service client (ureq, rustls), proof-of-work, share page filler  → es-model
   es-wayland   our own wayland-client connection: registry probe, outputs, capture
                protocols, foreign-toplevel, data-control clipboard, virtual pointer       → es-geom, es-model
   es-desktop   freedesktop over D-Bus: Command service/client, tray, notifications,

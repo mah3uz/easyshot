@@ -20,6 +20,7 @@ es-render = { path = "crates/es-render" }
 es-scroll = { path = "crates/es-scroll" }
 es-ocr = { path = "crates/es-ocr" }
 es-store = { path = "crates/es-store" }
+es-share = { path = "crates/es-share" }
 es-wayland = { path = "crates/es-wayland" }
 es-desktop = { path = "crates/es-desktop" }
 es-record = { path = "crates/es-record" }
@@ -74,6 +75,7 @@ gstreamer-video = "0.25"
 
 # runtime, data, utilities
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "time", "sync", "process", "fs"] }
+ureq = { version = "3", default-features = false, features = ["rustls"] }
 rmcp = { version = "3.8", default-features = false, features = ["server", "transport-io"] }
 base64 = "0.23"
 serde = { version = "1", features = ["derive"] }
