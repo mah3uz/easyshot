@@ -72,10 +72,14 @@ More in the manual: [Capturing](MANUAL.md#capturing).
 - Shows each capture as a card in a floating preview deck of up to 5 cards.
 - Stacks the cards in the corner, newest in front with a count, and fans them out while you hover; a new card springs in, growing and rising into place as it fades in.
 - Offers hover actions on a card, in slots you can set up.
-- Lets you choose which actions a card shows in Settings › Overlay › Card Actions; Cloud Share is there, and opens a panel saying cloud sharing is coming soon.
-- Share a capture straight from its card: a link is copied as the upload starts, with progress, Cancel, Open and Copy Link in a toast.
-- Share an image from the editor as you edited it, from Share in its footer or the Share Image key.
-- Share a recording from the trim viewer, from Share in its title bar or the Share Video key.
+- Lets you choose which actions a card shows in Settings › Overlay › Card Actions; Cloud Share is there, and opens the share popover.
+- Shares a capture straight from its card: a popover asks for a title and 1, 3 or 7 days, a link is copied as the upload starts, and a toast shows progress, Cancel, then Open and Copy Link.
+- Shares an image from the editor as you edited it, from Share in its footer or the Share Image key.
+- Shares a recording from the trim viewer, from Share in its title bar or the Share Video key.
+- Marks a card whose capture has a live link with a small cloud.
+- Keeps easyshot Free shares for the 1, 3 or 7 days you pick (images up to 10 MB, GIFs up to 20 MB, videos up to 200 MB, a longer video re-encoded to fit), then deletes them; visitors to an expired or deleted link see only "Page not found".
+- Sends shares to your own S3-compatible bucket instead, with no expiry of its own.
+- Opens a share link on a page with the image or video, Download and Copy link; links are unlisted, not private.
 - Opens a card's Preview in a plain window with the image fitted; click or Z toggles 100%, Space or Esc closes it.
 - On Hyprland, opens a card's Preview as a floating window in the middle of the screen, through a rule in the binds file.
 - Moves a card's capture to the Trash with Delete, and a toast's Undo puts it back and returns the card.
@@ -88,7 +92,7 @@ More in the manual: [Capturing](MANUAL.md#capturing).
 - Hides and shows the deck with `easyshot deck toggle`; the next capture shows it again.
 - Drops a pin you never saved when you close it or restart.
 
-More in the manual: [After a capture](MANUAL.md#after-a-capture).
+More in the manual: [After a capture](MANUAL.md#after-a-capture) and [Sharing](MANUAL.md#sharing).
 
 ## Pinned screenshots
 
@@ -283,7 +287,7 @@ More in the manual: [Recording](MANUAL.md#recording).
 - Shows the version, the website, the source and the issue tracker on About, and Show Onboarding Again.
 - Sets the editor's arrow-key steps and its zoom anchor in `config.toml`.
 - Controls agent access, consent, scope and secret hiding on Agents.
-- Chooses where shares go (easyshot Free for 1, 3 or 7 days, or your own S3-compatible bucket) on Sharing, keeps bucket keys in your keyring and tests the bucket connection.
+- Chooses where shares go (easyshot Free or your own S3-compatible bucket) and how long free links last on Sharing, keeps bucket keys in your keyring or a private file, and tests the bucket connection.
 
 More in the manual: [Settings](MANUAL.md#settings).
 

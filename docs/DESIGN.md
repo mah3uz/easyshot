@@ -11,7 +11,7 @@ else that looks different from the reference is a bug. The feature list is `FEAT
 
 ## 2. Add behaviour, never chrome
 
-Additions to the reference design add behaviour only. No new buttons, panels or fields. Each
+Additions to the reference design add behaviour only. No new buttons, panels or fields. The one exception is the share popover, which sharing needs (`DECISIONS.md`, Sharing). Each
 addition has its own catalogue strings. Its keys are fixed and listed in the manual's Editor
 keys table, not in Settings > Shortcuts. "Off" switches are config keys only, not interface.
 

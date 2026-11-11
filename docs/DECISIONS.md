@@ -164,6 +164,54 @@ The recording bar cannot be hidden from the video by a window-sharing flag on KM
 does not rely on `no_screen_share` for it (item 9 below).
 What was rejected beyond that, and why: not recorded.
 
+## Sharing
+
+### A hosted free tier and your own bucket
+Sharing goes to easyshot Free (a Cloudflare Worker and R2 bucket, `services/share`) or to an
+S3-compatible bucket the user owns. Why: most people want a link with no setup, and some will
+not send files to a service they do not run, or want links that never expire. Rejected: own
+bucket only, which makes the first share a storage project; hosted only, which forces every
+file through one service and leaves nowhere to go if it changes its terms or limits.
+
+### Uploads stream through the Worker in parts
+The app uploads a share in parts of up to 25 MiB to the Worker, which streams each into an R2
+multipart upload and refuses any part of the wrong length. Why: the Worker checks every byte
+count, the type and the daily allowance before anything is kept, and one upload token covers
+one share only. Rejected: presigned URLs, which hand the client a write path to the bucket that
+the service cannot size-check, count or revoke per share.
+
+### Proof-of-work install tokens
+A copy of easyshot gets an install token by solving a SHA-256 proof of work (20 zero bits), and
+each hashed address may get five tokens a day. Why: it limits abuse of the free tier without
+asking for an identity. Rejected: accounts, which need a sign-in, email and a password
+store for a screenshot tool; browser challenges, which an app with no web view cannot answer.
+
+### Retention is chosen per share: 1, 3 or 7 days
+A free share keeps its files for 1, 3 or 7 days, chosen when sharing, and the daily allowance
+and the service's storage stop count each share as size times days. Why: a link for a bug
+report needs a day, a link for a review needs a week, and the cost to the service is the
+file's size held for that long. Rejected: one fixed retention, which is too short for some and
+wasteful for others; 30 days, which multiplies the storage the service must carry and the
+shares it has to keep honest.
+
+### An expired link is a plain 404
+After expiry the service deletes the files, and the share page answers an expired, deleted,
+unknown or malformed link with the same "Page not found". Only the uploader's app, from its
+own record, shows Expired. Why: a visitor cannot tell a share was ever there, so a link leaks
+nothing about its past. Rejected: a "this share is gone" page, which confirms the link was real.
+
+### Bucket keys fall back to a file in the data folder
+Bucket keys live in the Secret Service keyring; with no keyring they go to `bucket-keys.json`
+(0600) in `$XDG_DATA_HOME/easyshot`, never in `config.toml`. Why: config folders are often
+synced as dotfiles, and a secret in one is committed or copied to other machines.
+
+### The share popover is a new surface
+The share popover (title, 1, 3 or 7 days, destination, first-share choice, too-long and error
+views) is a panel the reference design does not have, which `DESIGN.md` section 2 rules out
+for additions (maintainer's decision, 2026-11-11). Why: sharing needs a choice of duration and
+destination at the moment of sharing, and a toast cannot hold it. Rejected: a Settings-only
+choice, which hides the duration and cannot warn about a clip that is too long.
+
 ## Deliberate behaviour choices
 
 - **One gate for every recording start.** `Recordings::admit` refuses while a recording runs
