@@ -43,7 +43,8 @@
 <div class="stage rise" style="--d: 0.08s">
 <div class="window">
 <div class="view">
-<!--if:image--><img class="media" data-fit src="{{media_url}}" width="{{width}}" height="{{height}}" alt="{{title}}"><!--end:image-->
+<!--if:image--><img class="media" data-fit src="{{media_url}}" width="{{width}}" height="{{height}}" alt="{{title}}">
+<button type="button" class="icon-btn view-full js-only" data-full-open aria-label="View full size" title="View full size"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6M21 3l-7 7M3 21l7-7M9 21H3v-6"/></svg></button><!--end:image-->
 <!--if:video--><video class="media" data-fit src="{{media_url}}" poster="{{poster_url}}" width="{{width}}" height="{{height}}" controls playsinline preload="metadata" aria-label="{{title}}"></video><!--end:video-->
 </div>
 </div>
@@ -53,6 +54,13 @@
 <button type="button" class="btn btn-ghost" data-copy data-url="{{page_url}}" hidden><svg class="i-link" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><svg class="i-check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span data-copy-label>Copy link</span></button>
 <span class="sr-only" role="status" data-copy-status></span>
 </div>
+<!--if:image-->
+<dialog class="full" data-full aria-label="Full size image">
+<div class="full-bg" aria-hidden="true"></div>
+<div class="full-fit"><img alt=""></div>
+<button type="button" class="icon-btn full-close" autofocus aria-label="Close full size view" title="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+</dialog>
+<!--end:image-->
 <!--end:ready-->
 <!--if:uploading-->
 <div class="intro">

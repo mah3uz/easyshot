@@ -286,7 +286,7 @@ easyshot record stop     # stop; the recording lands as a deck card" />
               <p class="text-[14px] leading-relaxed text-fg-2">{{ t.text }}</p>
             </div>
           </div>
-          <p>The link opens a page with the image or video, and <strong>Download</strong> and <strong>Copy link</strong>. In the gallery, a shared item shows a cloud mark with the time left, <strong>Cloud Shares</strong> in the sidebar lists every link, and <strong>Delete Cloud Share</strong> takes one down while your file stays. After a free link expires, visitors see “page not found” and only you see <strong>Expired</strong>. To share from a terminal, run the command below; it prints the link.</p>
+          <p>The link opens a page with the image or video, sized to your screen, and <strong>Download</strong> and <strong>Copy link</strong>; <strong>View full size</strong>, or a click on the image, shows it across the whole window. In the gallery, a shared item shows a cloud mark with the time left, <strong>Cloud Shares</strong> in the sidebar lists every link, and <strong>Delete Cloud Share</strong> takes one down while your file stays. After a free link expires, visitors see “page not found” and only you see <strong>Expired</strong>. To share from a terminal, run the command below; it prints the link.</p>
           <CodeBlock prompt code="easyshot share shot.png --days 3" />
           <Callout>Share links are unlisted, not private: anyone who has a link can open it. Free shares follow the <NuxtLink to="/terms" class="text-accent underline">Terms of Service</NuxtLink>.</Callout>
         </HowStep>

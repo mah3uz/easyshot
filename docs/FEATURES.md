@@ -79,7 +79,7 @@ More in the manual: [Capturing](MANUAL.md#capturing).
 - Marks a card whose capture has a live link with a small cloud.
 - Keeps easyshot Free shares for the 1, 3 or 7 days you pick (images up to 10 MB, GIFs up to 20 MB, videos up to 200 MB, a longer video re-encoded to fit), then deletes them; visitors to an expired or deleted link see only "Page not found".
 - Sends shares to your own S3-compatible bucket once its endpoint, bucket and public URL are filled in, with no expiry of its own; otherwise to easyshot Free, with no destination to choose and no first-share step.
-- Opens a share link on a page with the image or video, Download and Copy link; links are unlisted, not private.
+- Opens a share link on a page sized to your screen, with the image or video, Download and Copy link, and View full size for an image; links are unlisted, not private.
 - Opens a card's Preview in a plain window with the image fitted; click or Z toggles 100%, Space or Esc closes it.
 - On Hyprland, opens a card's Preview as a floating window in the middle of the screen, through a rule in the binds file.
 - Moves a card's capture to the Trash with Delete, and a toast's Undo puts it back and returns the card.

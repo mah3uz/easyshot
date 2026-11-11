@@ -372,6 +372,32 @@
   }
 }
 
+/* The share page's build copies these rules by selector. Chromium drops ::-webkit-scrollbar once scrollbar-width is set; the base layer lets [scrollbar-width:none] win. */
+@supports not selector(::-webkit-scrollbar) {
+  @layer base {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--scroll-thumb, var(--line-strong)) transparent;
+    }
+  }
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+  background: transparent;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--scroll-thumb, var(--line-strong)) padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scroll-thumb-hover, var(--fg-3));
+}
+
 /* Scroll reveal. Only hidden once the head script has marked the page as running JS. */
 .js [data-reveal] {
   opacity: 0;

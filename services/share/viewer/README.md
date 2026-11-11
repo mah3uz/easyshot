@@ -3,7 +3,7 @@
 `viewer.html` is built; edit `src/` and rebuild. Both scripts are plain Node with no packages.
 
 - `node build.mjs` writes `viewer.html` from `src/page.html`, `src/viewer.css` and `src/viewer.js`.
-  It copies the colour tokens, font stacks and drifting backdrop from
+  It copies the colour tokens, font stacks, drifting backdrop and scrollbar rules from
   `docs/site/app/assets/css/main.css`, inlines `branding/logo.svg` and the fonts in `src/fonts/`,
   and fails if a placeholder or block marker lands inside `<script>` or `<style>`, or if a block or
   placeholder of `PROTOCOL.md` is missing. Rebuild after the site's tokens change.

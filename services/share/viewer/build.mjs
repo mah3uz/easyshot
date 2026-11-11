@@ -29,6 +29,7 @@ const fromSite = [
   block(site, ":root[data-theme='dark']"),
   `:root {\n  ${['font-sans', 'font-display', 'ease-out-soft', 'ease-hover', 'radius-card'].map((n) => declaration(site, n)).join('\n  ')}\n}`,
   ...['.page-bg', '.page-bg i', '.page-bg .b1', '.page-bg .b2', '.page-bg .b3', '@keyframes drift1', '@keyframes drift2'].map((p) => block(site, p)),
+  ...['@supports not selector(::-webkit-scrollbar)', '::-webkit-scrollbar', '::-webkit-scrollbar-corner', '::-webkit-scrollbar-thumb', '::-webkit-scrollbar-thumb:hover'].map((p) => block(site, p)),
 ].join('\n')
 
 const face = (family, weight, file) =>

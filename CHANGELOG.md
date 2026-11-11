@@ -8,6 +8,7 @@
 - Shares go to your own S3-compatible bucket once its endpoint, bucket and public URL are filled in under Settings › Sharing, otherwise to easyshot Free; the page says which, holds the bucket's keys (in your keyring, or a private file) and tests the connection. A bucket whose keys are missing fails the share instead of using Free.
 - Shared links in the gallery: a cloud mark with the time left, the bucket or Expired; Copy Link, Open Link, Copy File Link and Delete Cloud Share in the item menu; Remove for an expired link; and a Cloud Shares section that keeps every link, even when its file is gone. Cards with a live link carry the mark too.
 - `easyshot share FILE [--days 1|3|7] [--title TEXT]` uploads an image, a video or a recording and prints its link.
+- The share page fits your screen, showing a very tall image from its top, and View full size (or a click on the image) opens an image across the whole window.
 
 ### Bug fixes
 - Copy on a recording's card now puts the video on the clipboard as an MP4 file, ready to paste into a file manager or chat app; before, it did nothing.

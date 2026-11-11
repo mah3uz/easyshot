@@ -659,7 +659,9 @@ easyshot Free.
   is capped: a 200 MB video kept 7 days uses all of it. A service that is full, or too busy,
   asks you to try again later.
 - The link is copied as soon as the upload starts and works at once, showing "uploading" until
-  the file arrives. The page shows the image or video, with **Download** and **Copy link**.
+  the file arrives. The page shows the image or video, with **Download** and **Copy link**, sized
+  to fit your screen; a very tall image shows its top. **View full size**, or a click on the
+  image, opens it across the whole window, where a tall image scrolls; Esc closes it.
 
 ### Your own bucket
 

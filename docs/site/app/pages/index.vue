@@ -103,7 +103,7 @@ const trimPoints = [
 
 const sharePoints = [
   'A toast shows the upload with Cancel, then Open and Copy Link',
-  'The link opens a page with the image or video, Download and Copy link',
+  'The link opens a page with the image or video, Download, Copy link and a full-size view',
   'In the gallery, a cloud mark shows the time left, Cloud Shares lists every link, and Delete Cloud Share takes one down',
   'Unlisted, not private: anyone who has the link can open it',
   'From a terminal: <code>easyshot share shot.png</code>',
