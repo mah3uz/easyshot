@@ -35,8 +35,12 @@ Colours are CSS tokens in `app/assets/css/main.css`, mapped to Tailwind with `@t
 default. Dark follows the system unless the visitor picks a theme with the toggle. Dark is
 never black: a gradient of the logo's deep teals (`--page-grad`) under three slowly drifting
 glows (`--blob-1` to `--blob-3`, teal, ocean blue and a little indigo), drawn by the fixed
-`.page-bg` layer in `app.vue`. Cards and panels are translucent with a backdrop blur, so the
-gradient shows through them. The choice is kept in `localStorage` (`es-theme`) and
+`.page-bg` layer in `app.vue`. Each glow is a soft radial gradient, not a `filter: blur()`,
+which the compositor would redo every frame. Cards and panels are translucent, so the gradient
+shows through them. Only the header and panels over pictures (the hero's top bar and play
+button, the recording mock's control bar) keep a backdrop blur: over the drifting glows a blur
+changes nothing you can see and is redone every frame.
+Looping animations move only `transform` and `opacity`. The choice is kept in `localStorage` (`es-theme`) and
 applied by a small script in `<head>` before the first paint.
 
 ## Work on it
@@ -73,6 +77,18 @@ registered there under the hostname of `NUXT_PUBLIC_SITE_URL` (`easyshot.site`),
 endpoint is `runtimeConfig.public.plausible` in `nuxt.config.ts`. Nothing is sent from
 localhost. To leave your own visits out, run `localStorage.plausible_ignore = "true"` in the
 browser console on the live site.
+
+## Tour video
+
+The home page's tour is the narrated film on YouTube, id `E9iNJuJ-Q7g`. It plays inside the
+hero picture (`app/components/HeroShot.vue`, `#tour`): hovering the picture shows a play
+button over it (on touch screens the button is always shown), and a click on it, or on the
+"Watch the intro" button under the picture, puts a `youtube-nocookie.com` player in its place
+while the box eases to 16:9. Nothing is requested from YouTube until then. The embed sets
+`cc_load_policy=0`, so captions start off. The video's ID, title and length live in
+`app/utils/tour.ts`, which also feeds the page's `VideoObject` data; that data's thumbnail,
+the film's end card at 1920 px (`public/img/tour/poster-1920.webp`), is the only use of the
+poster. The first click sends a "Tour played" event to Plausible.
 
 ## Open Graph image
 

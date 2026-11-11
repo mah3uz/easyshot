@@ -1,5 +1,11 @@
 <script setup lang="ts">
 const { repo, siteUrl } = useRuntimeConfig().public
+const { playing, play } = useTour()
+
+function watchIntro() {
+  document.getElementById('tour')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  play()
+}
 
 usePageSeo({
   title: 'easyshot — screenshots, annotation and screen recording for Linux Wayland',
@@ -107,6 +113,17 @@ useHead({
         },
         {
           '@context': 'https://schema.org',
+          '@type': 'VideoObject',
+          name: tour.title,
+          description: tour.description,
+          thumbnailUrl: `${siteUrl}/img/tour/poster-1920.webp`,
+          uploadDate: tour.uploadDate,
+          duration: tour.duration,
+          embedUrl: tourEmbed,
+          url: `https://www.youtube.com/watch?v=${tour.id}`,
+        },
+        {
+          '@context': 'https://schema.org',
           '@type': 'FAQPage',
           mainEntity: faq.map((f) => ({
             '@type': 'Question',
@@ -129,7 +146,7 @@ useHead({
         <div class="hero-mark rise">
           <img src="/logo.svg" alt="easyshot logo" width="112" height="112" class="size-full animate-float drop-shadow-[0_22px_30px_rgba(19,136,166,.35)]" />
         </div>
-        <a :href="repo" rel="noopener" class="rise group inline-flex items-center gap-2.5 rounded-full border border-line bg-surface py-1.5 pr-4 pl-2 text-sm text-fg-2 backdrop-blur-xl hover-motion hover:border-accent max-sm:gap-2 max-sm:pr-3 max-sm:text-[12.5px]" style="--d: 0.08s">
+        <a :href="repo" rel="noopener" class="rise group inline-flex items-center gap-2.5 rounded-full border border-line bg-surface py-1.5 pr-4 pl-2 text-sm text-fg-2 hover-motion hover:border-accent max-sm:gap-2 max-sm:pr-3 max-sm:text-[12.5px]" style="--d: 0.08s">
           <b class="hero-ping inline-flex shrink-0 items-center gap-[7px] rounded-full bg-accent-soft px-2.5 py-[3px] text-[12.5px] font-semibold tracking-[0.02em] whitespace-nowrap text-accent">Open source</b>
           Free, built with Rust
           <Icon name="arrow-up-right" :size="14" class="hover-motion group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
@@ -143,7 +160,7 @@ useHead({
           from a key bind, on Hyprland, sway and niri.
         </p>
         <ul class="rise flex max-w-[660px] flex-wrap justify-center gap-2" style="--d: 0.32s" aria-label="Features">
-          <li v-for="c in chips" :key="c.text" class="hero-chip inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-2 text-sm text-fg-2 backdrop-blur-xl hover:border-accent hover:text-fg">
+          <li v-for="c in chips" :key="c.text" class="hero-chip inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-2 text-sm text-fg-2 hover:border-accent hover:text-fg">
             <Icon :name="c.icon" :size="16" class="text-accent" />{{ c.text }}
           </li>
         </ul>
@@ -151,7 +168,7 @@ useHead({
           <NuxtLink to="/how-to" class="btn btn-primary max-sm:w-full">
             <Icon name="download" :size="18" /> Get started
           </NuxtLink>
-          <a :href="repo" rel="noopener" class="btn btn-ghost backdrop-blur-xl max-sm:w-full">
+          <a :href="repo" rel="noopener" class="btn btn-ghost max-sm:w-full">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z" /></svg>
             View on GitHub
           </a>
@@ -165,6 +182,14 @@ useHead({
 
       <div class="container-x mt-16 sm:mt-20">
         <HeroShot />
+        <div class="mt-10 grid justify-items-center gap-5 text-center sm:mt-12">
+          <p class="max-w-[780px] font-display text-[clamp(20px,2.6vw,26px)] leading-snug font-semibold tracking-[-0.02em] text-balance text-fg">
+            From the first key to the last export: <span class="grad-text">one afternoon with easyshot.</span>
+          </p>
+          <button v-if="!playing" type="button" class="btn btn-ghost max-sm:w-full max-sm:max-w-[340px]" @click="watchIntro">
+            <Icon name="circle-play" :size="18" class="text-accent" /> Watch the intro
+          </button>
+        </div>
       </div>
     </section>
 

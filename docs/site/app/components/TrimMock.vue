@@ -63,7 +63,7 @@ onBeforeUnmount(() => clearInterval(timer))
       </div>
       <div class="pointer-events-none absolute inset-y-0 left-0 w-[14%] rounded-l-card-sm bg-teal-ink/70" />
       <div class="pointer-events-none absolute inset-y-0 right-0 w-[22%] rounded-r-card-sm bg-teal-ink/70" />
-      <div class="trim-range absolute inset-y-0 right-[22%] left-[14%] rounded-[6px] border-y-[3px] border-accent">
+      <div class="trim-range @container absolute inset-y-0 right-[22%] left-[14%] rounded-[6px] border-y-[3px] border-accent">
         <span class="trim-grip left-0 -translate-x-full rounded-l-[6px]"><i /></span>
         <span class="trim-grip right-0 translate-x-full rounded-r-[6px]"><i /></span>
         <span ref="head" class="trim-head absolute -inset-y-2 w-0.5 rounded-full bg-white shadow-[0_0_0_1px_rgba(4,48,64,.35)]" />
@@ -112,6 +112,7 @@ onBeforeUnmount(() => clearInterval(timer))
   background: rgba(3, 40, 48, 0.55);
 }
 .trim-head {
+  left: 0;
   animation: trim-play 7s linear infinite;
 }
 .trim-look {
@@ -131,7 +132,7 @@ onBeforeUnmount(() => clearInterval(timer))
 }
 @media (prefers-reduced-motion: reduce) {
   .trim-head {
-    left: 40%;
+    transform: translateX(40cqw);
     animation: none;
   }
   .trim-progress {
@@ -141,10 +142,10 @@ onBeforeUnmount(() => clearInterval(timer))
 }
 @keyframes trim-play {
   from {
-    left: 0%;
+    transform: translateX(0);
   }
   to {
-    left: 100%;
+    transform: translateX(100cqw);
   }
 }
 </style>

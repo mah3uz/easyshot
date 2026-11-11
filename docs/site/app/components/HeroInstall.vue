@@ -6,7 +6,7 @@ const { copied, copy } = useCopy()
 
 <template>
   <div class="grid w-full max-w-[560px] grid-cols-[minmax(0,1fr)] justify-items-center gap-3">
-    <div class="flex h-11 w-fit max-w-full items-center rounded-full border border-line-strong bg-surface pl-4 font-mono text-[13.5px] shadow-soft backdrop-blur-xl">
+    <div class="flex h-11 w-fit max-w-full items-center rounded-full border border-line-strong bg-surface pl-4 font-mono text-[13.5px] shadow-soft">
       <span class="shrink-0 pr-2.5 text-fg-3 select-none" aria-hidden="true">$</span>
       <code class="min-w-0 overflow-x-auto whitespace-nowrap text-fg [scrollbar-width:none] max-sm:[mask-image:linear-gradient(90deg,#000_calc(100%-20px),transparent)] max-sm:pr-5">{{ command }}</code>
       <button

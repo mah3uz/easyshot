@@ -172,8 +172,8 @@
   --font-display: 'Inter Tight', 'Inter Tight Fallback', 'Inter', 'Inter Fallback', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
-  /* Hover eases in and out gently; a steep start reads as a jump on a 2 px lift. */
-  --ease-hover: cubic-bezier(0.37, 0, 0.63, 1);
+  /* Hover moves on the first frame and settles slowly; an ease-in start reads as a stall, then a rush. */
+  --ease-hover: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Card corners: one radius, stepping down for smaller and nested pieces. */
@@ -209,8 +209,8 @@
 /* The one hover motion. Tailwind's translate-*, scale-* and rotate-* set their own properties, not transform. */
 @utility hover-motion {
   transition-property: transform, translate, scale, rotate, box-shadow, background-color, border-color, color, text-decoration-color, opacity;
-  transition-duration: 260ms;
-  transition-timing-function: var(--ease-hover);
+  transition-duration: 400ms, 400ms, 400ms, 400ms, 400ms, 300ms, 300ms, 300ms, 300ms, 300ms;
+  transition-timing-function: var(--ease-hover), var(--ease-hover), var(--ease-hover), var(--ease-hover), ease, ease, ease, ease, ease, ease;
 }
 
 @layer base {
@@ -288,7 +288,7 @@
     @apply h-[38px] px-4 text-sm;
   }
   .card {
-    @apply hover-motion rounded-card border border-line bg-surface shadow-soft backdrop-blur-xl;
+    @apply hover-motion rounded-card border border-line bg-surface shadow-soft;
   }
   .card-hover {
     backface-visibility: hidden;
@@ -321,34 +321,44 @@
   background: var(--page-grad);
   pointer-events: none;
 }
+/* Each glow is a circle blurred by 90px, drawn as a gradient: a live filter: blur() is redone by the compositor every frame. */
 .page-bg i {
   position: absolute;
-  border-radius: 50%;
-  filter: blur(90px);
+  margin: -270px;
+  background: radial-gradient(
+    closest-side,
+    var(--c) calc(100% - 540px),
+    color-mix(in srgb, var(--c) 97.7%, transparent) calc(100% - 450px),
+    color-mix(in srgb, var(--c) 84.1%, transparent) calc(100% - 360px),
+    color-mix(in srgb, var(--c) 50%, transparent) calc(100% - 270px),
+    color-mix(in srgb, var(--c) 15.9%, transparent) calc(100% - 180px),
+    color-mix(in srgb, var(--c) 2.3%, transparent) calc(100% - 90px),
+    transparent
+  );
   will-change: transform;
 }
 .page-bg .b1 {
-  width: 60vmax;
-  height: 60vmax;
+  --c: var(--blob-1);
+  width: calc(60vmax + 540px);
+  height: calc(60vmax + 540px);
   top: -25vmax;
   left: -15vmax;
-  background: var(--blob-1);
   animation: drift1 38s ease-in-out infinite alternate;
 }
 .page-bg .b2 {
-  width: 55vmax;
-  height: 55vmax;
+  --c: var(--blob-2);
+  width: calc(55vmax + 540px);
+  height: calc(55vmax + 540px);
   top: -10vmax;
   right: -25vmax;
-  background: var(--blob-2);
   animation: drift2 46s ease-in-out infinite alternate;
 }
 .page-bg .b3 {
-  width: 50vmax;
-  height: 50vmax;
+  --c: var(--blob-3);
+  width: calc(50vmax + 540px);
+  height: calc(50vmax + 540px);
   bottom: -30vmax;
   left: 20vmax;
-  background: var(--blob-3);
   animation: drift1 52s ease-in-out infinite alternate-reverse;
 }
 @keyframes drift1 {
@@ -381,12 +391,10 @@ html [data-reveal].is-in {
   from {
     opacity: 0;
     transform: translateY(22px);
-    filter: blur(6px);
   }
   to {
     opacity: 1;
     transform: none;
-    filter: none;
   }
 }
 .rise {
@@ -407,21 +415,33 @@ html [data-reveal].is-in {
   border-radius: 50%;
   background: radial-gradient(closest-side, var(--glow), transparent);
 }
-.hero-ping::before {
+.hero-ping {
+  position: relative;
+  isolation: isolate;
+}
+.hero-ping::before,
+.hero-ping::after {
   content: '';
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: currentColor;
+}
+.hero-ping::after {
+  position: absolute;
+  z-index: -1;
+  opacity: 0;
   animation: hero-ping 2s ease-out infinite;
 }
 /* Not "ping": Tailwind ships a ping keyframe that fades to opacity 0 and wins. */
 @keyframes hero-ping {
   from {
-    box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 60%, transparent);
+    opacity: 0.6;
+    transform: scale(1);
   }
   to {
-    box-shadow: 0 0 0 9px transparent;
+    opacity: 0;
+    transform: scale(3.57);
   }
 }
 .hero-chip {
@@ -519,14 +539,11 @@ html [data-reveal].is-in {
   opacity: 0;
 }
 
-/* Smooth colour change when the theme is switched. */
-.theme-switching *,
-.theme-switching *::before,
-.theme-switching *::after {
-  transition:
-    background-color 0.4s var(--ease-out-soft),
-    border-color 0.4s var(--ease-out-soft),
-    color 0.4s var(--ease-out-soft) !important;
+/* The theme switch paints the new theme in with a widening circle from the button. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
 }
 
 @media (prefers-reduced-motion: reduce) {

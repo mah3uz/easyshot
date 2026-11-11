@@ -9,7 +9,6 @@ export function useTheme() {
     choice.value = value
     if (!import.meta.client) return
     const root = document.documentElement
-    root.classList.add('theme-switching')
     if (value === 'system') delete root.dataset.theme
     else root.dataset.theme = value
     try {
@@ -18,7 +17,6 @@ export function useTheme() {
     } catch {
       // Storage can be blocked; the choice still applies to this page.
     }
-    window.setTimeout(() => root.classList.remove('theme-switching'), 450)
   }
 
   const load = () => {
@@ -32,9 +30,26 @@ export function useTheme() {
     choice.value = saved === 'light' || saved === 'dark' ? saved : 'system'
   }
 
-  const cycle = () => {
+  const cycle = (event: MouseEvent) => {
     const order: ThemeChoice[] = ['system', 'light', 'dark']
-    apply(order[(order.indexOf(choice.value) + 1) % order.length] ?? 'system')
+    const next = order[(order.indexOf(choice.value) + 1) % order.length] ?? 'system'
+    if (!('startViewTransition' in document) || matchMedia('(prefers-reduced-motion: reduce)').matches) return apply(next)
+
+    const x = event.clientX || innerWidth - 40
+    const y = event.clientY || 40
+    const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y))
+    // Fading every element's colour at once stuttered under the backdrop blurs; one clipped snapshot does not.
+    document
+      .startViewTransition(async () => {
+        apply(next)
+        await nextTick()
+      })
+      .ready.then(() => {
+        document.documentElement.animate(
+          { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
+          { duration: 650, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', pseudoElement: '::view-transition-new(root)' },
+        )
+      })
   }
 
   return { choice, apply, load, cycle }

@@ -52,7 +52,7 @@ const wave = Array.from({ length: 64 }, (_, i) => 22 + Math.round(70 * Math.abs(
         <div class="flex h-6 items-center gap-[2px] overflow-hidden">
           <i v-for="(h, i) in wave" :key="i" class="w-full min-w-px rounded-full bg-accent-2/45" :style="{ height: `${h}%` }" />
         </div>
-        <div class="pointer-events-none absolute inset-y-3 right-3.5 left-[44px]">
+        <div class="@container pointer-events-none absolute inset-y-3 right-3.5 left-[44px]">
           <span class="tl-head absolute inset-y-0 w-0.5 rounded-full bg-[#ff4f6d]" />
         </div>
       </div>
@@ -133,6 +133,7 @@ const wave = Array.from({ length: 64 }, (_, i) => 22 + Math.round(70 * Math.abs(
   font-size: 10px;
 }
 .tl-head {
+  left: 0;
   animation: tl-play 9s linear infinite;
 }
 .tl-head::before {
@@ -148,10 +149,10 @@ const wave = Array.from({ length: 64 }, (_, i) => 22 + Math.round(70 * Math.abs(
 }
 @keyframes tl-play {
   from {
-    left: 0%;
+    transform: translateX(0);
   }
   to {
-    left: 100%;
+    transform: translateX(100cqw);
   }
 }
 .share-copy > span {
