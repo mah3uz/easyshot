@@ -100,5 +100,5 @@ You need the `easyshot.site` zone in the same account and `npx wrangler login`.
    ```
 
 The limits are `vars` in `wrangler.jsonc`; change them there and deploy again. The burst limit
-(ten creates a minute per install) is the `BURST` rate limit binding; its `namespace_id` must be
+(five creates a minute per install) is the `BURST` rate limit binding; its `namespace_id` must be
 unique in the account.

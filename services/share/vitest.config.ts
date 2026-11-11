@@ -8,7 +8,9 @@ export default defineConfig({
       miniflare: {
         bindings: {
           POW_DIFFICULTY: "8",
-          DAILY_SHARES: "5",
+          MIN_APP_VERSION: "0.2.0",
+          // Below the BURST rate limit, so the daily quota is what a test reaches first.
+          DAILY_SHARES: "4",
           STORAGE_STOP_BYTES: String(300 * 1024 * 1024),
           CHALLENGE_KEY: "test-challenge-key-0123456789abcdef",
           INSTALL_KEY: "test-install-key-0123456789abcdefgh",

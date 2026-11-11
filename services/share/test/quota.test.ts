@@ -37,11 +37,12 @@ describe("daily quota", () => {
 });
 
 describe("burst limit", () => {
-  it("answers rate_limited with retry_after_s after ten creates a minute from one install", async () => {
+  it("answers rate_limited with retry_after_s after five creates a minute from one install", async () => {
     const t = await installToken();
+    const daily = Number(testEnv.DAILY_SHARES);
     const codes: number[] = [];
-    for (let i = 0; i < 10; i++) codes.push((await post(t, image(10))).status);
-    expect(codes).toEqual([201, 201, 201, 201, 201, 429, 429, 429, 429, 429]);
+    for (let i = 0; i < 5; i++) codes.push((await post(t, image(10))).status);
+    expect(codes).toEqual(Array.from({ length: 5 }, (_, i) => (i < daily ? 201 : 429)));
     const e = await errorOf(await post(t, image(10)));
     expect(e).toMatchObject({ status: 429, code: "rate_limited", retry_after_s: 60 });
   });
