@@ -96,6 +96,10 @@ fn bucket_keys_are_written_private_read_back_and_cleared() {
         0o600,
         "the secret key must not be readable by other users"
     );
+    assert!(
+        !paths.bucket_keys_file().starts_with(paths.config_dir()),
+        "config folders are often synced as dotfiles, so the secret must live elsewhere"
+    );
     let text = std::fs::read_to_string(paths.bucket_keys_file()).unwrap();
     assert!(text.contains("\"format\": \"easyshot.bucket-keys\""));
     shares::clear_bucket_keys(&paths).unwrap();

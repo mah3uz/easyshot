@@ -263,7 +263,7 @@ es-record calls). Videos, posters and exports are written by GStreamer and ffmpe
 | User gradients | `$XDG_CONFIG_HOME/easyshot/gradients.json` |
 | Shares | `$XDG_DATA_HOME/easyshot/shares.json`, the links easyshot made with their delete rights; 0600 |
 | Share install token | `$XDG_STATE_HOME/easyshot/share-install-token`, plain text, 0600 |
-| Bucket keys, the file fallback when no keyring is available | `$XDG_CONFIG_HOME/easyshot/bucket-keys.json`, 0600 |
+| Bucket keys, the file fallback when no keyring is available | `$XDG_DATA_HOME/easyshot/bucket-keys.json`, 0600 (not in config, which is often synced as dotfiles) |
 | Library | `$XDG_DATA_HOME/easyshot/library/` (`<name>.png`, `.png.easyshot` sidecar, `.base.png`) |
 | History index | `library/index.json`, a cache rebuilt by scanning `library/` |
 | Deck staging | `$XDG_DATA_HOME/easyshot/deck/<uuid>/` |

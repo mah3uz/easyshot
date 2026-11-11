@@ -66,8 +66,9 @@ impl Paths {
         self.config.join("background-presets.json.recovery")
     }
 
+    /// In the data folder, not config: config folders are often kept in a shared dotfiles repository.
     pub fn bucket_keys_file(&self) -> PathBuf {
-        self.config.join("bucket-keys.json")
+        self.data.join("bucket-keys.json")
     }
 
     pub fn shares_file(&self) -> PathBuf {
