@@ -4,8 +4,10 @@ Screenshot, annotation and screen-recording app for Linux/Wayland: built with
 Rust. Rust · GPUI · Hyprland, sway and niri first.
 
 Status: the app runs end to end. The daemon (`easyshot daemon`) connects the capture
-overlays, deck, editor, settings, gallery, tray, recording and CLI. It has had five live
-rounds on the maintainer's Hyprland desktop, from 2026-11-02 to 2026-11-11;
+overlays, deck, editor, settings, gallery, tray, recording and CLI. v0.2.0 is released with link
+sharing, to easyshot Free or your own bucket. It has had five live rounds on the
+maintainer's Hyprland desktop, from 2026-11-02 to 2026-11-11, and a live check of sharing on
+2026-11-12;
 `docs/ARCHITECTURE.md` "What has been run where" lists what each verified. The rest is tested
 in headless GPUI windows, on a headless Hyprland output and in headless sway 1.12. The niri
 platform tests start niri nested on the Hyprland test output, but every test skips there, so
@@ -23,6 +25,8 @@ and nowhere else.
   linking to `docs/MANUAL.md`. Updated in the same commit as a change a user would notice.
 - `docs/ARCHITECTURE.md` — the crate graph, threads, the data flow from hotkey to deck
   card, the invariants, what has been run where, how to build and test. Authoritative.
+- `services/share/` — the share service. `PROTOCOL.md` is the contract between the app and
+  the service; `README.md` says how to test and deploy it.
 - `docs/DESIGN.md` — why the interface looks and behaves as it does.
 - `docs/DECISIONS.md` — each choice, and what was rejected.
 - `docs/PRIOR-ART.md` — what this builds on, with sources.

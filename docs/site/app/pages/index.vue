@@ -21,7 +21,7 @@ const faq = [
   },
   {
     q: 'Which desktops does it work on?',
-    a: 'Version 1 targets Hyprland 0.57+, sway 1.12 and niri 26.04; niri support is built but not tested on niri. Other Wayland compositors with layer-shell and a capture protocol should work for basic capture. KDE and GNOME are not supported.',
+    a: 'easyshot targets Hyprland 0.57+, sway 1.12 and niri 26.04; niri support is built but not tested on niri. Other Wayland compositors with layer-shell and a capture protocol should work for basic capture. KDE and GNOME are not supported.',
   },
   {
     q: 'How do I install it?',

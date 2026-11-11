@@ -41,6 +41,12 @@ design that has not been run on that compositor. Rows name the compositor and da
 | Fifth run in a real session, build 6f1d87e: microphone and system sound mixed, muted and exported; error toasts that wait under the pointer; tooltips after 1.5 s; the recording bar's Mute, Stop and Discard fades; a card's Preview window rule written to the binds file | Hyprland (fifth run) | 2026-11-11 |
 | Window recording through easyshot's window recorder on the maintainer's desktop: a covered window, a window on another workspace, a resize letterboxed into the first size, system sound and microphone in step with the picture, the window closing (file kept, notice), the pointer | Hyprland (live) | 2026-11-11 |
 | Scrolling capture of a long web page in Chromium on the maintainer's desktop: manual wheel scrolling and Auto Scroll, region and window modes, the right-edge scrollbar cut off the saved image, the pointer parked on the capture bar between Auto Scroll steps (build 2893cf1) | Hyprland (live) | 2026-11-11 |
+| Sharing a capture from its deck card to easyshot Free, end to end against the deployed share service (`share.easyshot.site`, bucket `easyshot-shares`, media on `m.easyshot.site`; a Cloudflare Worker with the Durable Object ledger): the link copied, the page opened | Hyprland (live) | 2026-11-12 |
+
+Not run live: sharing to your own bucket against a real S3 or R2 bucket; the Secret Service
+keyring path for bucket keys; sharing from the editor, the trim viewer and the CLI; the
+gallery's share actions; Copy on a recording card; the share page's full-size view outside
+headless Chromium (Firefox and Safari have not been checked).
 
 Not run: the niri module on niri (it is tested only against recorded replies and fake
 sockets), any other compositor, the packages installed from the AUR; rotated outputs; 10-bit
@@ -75,6 +81,10 @@ One binary, `easyshot`.
 - `easyshot open <url>` handles `easyshot://`.
 - Global shortcuts on Hyprland and wlroots are the user's own compositor binds calling the
   CLI.
+- Sharing talks to the share service in `services/share/`, a Cloudflare Worker with a Durable
+  Object ledger and an R2 bucket, through `es-share`. The daemon's share job is the only caller;
+  the wire contract is `services/share/PROTOCOL.md`, and how to test and deploy the service is
+  `services/share/README.md`.
 
 `Command` returns a `job_id` at once. The CLI waits on `JobFinished(job_id, status,
 result)` with no timeout; Ctrl+C calls `Cancel(job_id)`. `JobFinished` is sent only to the

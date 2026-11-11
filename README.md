@@ -50,10 +50,10 @@ Website and how-to guide: https://easyshot.site
 easyshot runs end to end: the `easyshot daemon` service connects the capture overlays, the
 deck, the editor, settings, gallery, tray, recording and the command line.
 
-- **Hyprland:** used on the maintainer's desktop in five rounds, 2026-11-02 to 2026-11-11.
+- **Hyprland:** used on the maintainer's desktop in five rounds, 2026-11-02 to 2026-11-11, and sharing checked live on 2026-11-12.
 - **sway 1.12:** tested in a headless session and in headless GPUI windows only.
 - **niri:** not run; the test harness starts niri nested, but no test runs there.
-- Version 1 targets Hyprland 0.57+, sway 1.12 and niri 26.04. Other compositors with
+- easyshot targets Hyprland 0.57+, sway 1.12 and niri 26.04. Other compositors with
   layer-shell and a capture protocol should work for basic capture. KDE and GNOME are not
   supported.
 - Recording needs gpu-screen-recorder or wf-recorder. The screen-cast portal is not used.

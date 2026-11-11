@@ -9,9 +9,9 @@ and keeps a history.
 
 ## What it needs
 
-- A Wayland compositor. Version 1 targets Hyprland 0.57+, sway 1.12 and niri 26.04. Any
+- A Wayland compositor. easyshot targets Hyprland 0.57+, sway 1.12 and niri 26.04. Any
   compositor with layer-shell and a capture protocol should work for basic capture.
-  river, labwc and COSMIC have not been tried; KDE and GNOME are not supported in version 1.
+  river, labwc and COSMIC have not been tried; KDE and GNOME are not supported.
 - ffmpeg for exporting and trimming recordings and for video thumbnails.
 - For a window recording made from the window's own frames: GStreamer's good plugins and an
   H.264 encoder (x264 from the ugly plugins, or NVENC or VA-API from the bad plugins). Without
@@ -1260,11 +1260,11 @@ For compositor window rules, the Home window uses the app ID `dev.easyshot.app`,
 as the desktop entry, and easyshot's other windows use `dev.easyshot.app.editor`,
 `.onboarding`, `.preview` (a card's Preview) and `.player` (the trim viewer).
 
-## Limits in version 1
+## Limits
 
 KDE and GNOME, the video Studio (timeline, zooms, cursor effects, captions, camera
 layouts), camera recording, the teleprompter, a built-in updater and Flatpak are not part of
-version 1.
+easyshot.
 
 Sharing has these limits:
 

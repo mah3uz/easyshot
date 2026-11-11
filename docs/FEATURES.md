@@ -391,7 +391,7 @@ More in the manual: [When your compositor lacks something](MANUAL.md#when-your-c
 
 ## Limits
 
-- Lists what version 1 does not include in [Limits in version 1](MANUAL.md#limits-in-version-1).
+- Lists what easyshot does not include in [Limits](MANUAL.md#limits).
 
 ## Troubleshooting
 
