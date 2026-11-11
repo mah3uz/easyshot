@@ -149,6 +149,8 @@ page's `download` name for another origin) and `Cache-Control: public, max-age=3
 prefix with an R2 lifecycle rule deleting after `d` days. A share counts toward the live-bytes stop
 until a day after `expires_at` (R2 deletes up to a day late). The share page answers `410` from
 `expires_at` on.
+A poster is uploaded to `s/{d}d/{id}/poster.upload` and only `complete` copies it, once checked, to
+`poster.jpg`, so the served poster is always the bytes that were checked.
 
 ## Own bucket (no service)
 
