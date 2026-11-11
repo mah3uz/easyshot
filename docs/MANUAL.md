@@ -677,7 +677,7 @@ A toast follows the upload. The link is copied as soon as the upload starts (**L
 
 ### Sharing from the editor
 
-Press **Share** in the editor's footer, beside **Copy**, or the key you bound to **Share Image** in Settings › Shortcuts. The same popover opens above the button. When you press **Share** in it, the image is sent as you see it, with your annotations and background, rendered the way **Export** renders it; the button turns while the image is made. The link belongs to the capture you opened, so its card shows the cloud mark. The same toast follows the upload.
+Press **Share** in the editor's title bar, between **Save** and **Export**, or the key you bound to **Share Image** in Settings › Shortcuts. The same popover opens below the button. When you press **Share** in it, the image is sent as you see it, with your annotations and background, rendered the way **Export** renders it; the button turns while the image is made. The link belongs to the capture you opened, so its card shows the cloud mark. The same toast follows the upload.
 
 ### Sharing from the trim viewer
 

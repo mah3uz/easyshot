@@ -74,7 +74,7 @@ More in the manual: [Capturing](MANUAL.md#capturing).
 - Offers hover actions on a card, in slots you can set up.
 - Lets you choose which actions a card shows in Settings › Overlay › Card Actions; Cloud Share is there, and opens the share popover.
 - Shares a capture straight from its card: a popover asks for a title and 1, 3 or 7 days, a link is copied as the upload starts, and a toast shows progress, Cancel, then Open and Copy Link.
-- Shares an image from the editor as you edited it, from Share in its footer or the Share Image key.
+- Shares an image from the editor as you edited it, from Share in its title bar or the Share Image key.
 - Shares a recording from the trim viewer, from Share in its title bar or the Share Video key, as trimmed and with your export choices.
 - Marks a card whose capture has a live link with a small cloud.
 - Keeps easyshot Free shares for the 1, 3 or 7 days you pick (images up to 10 MB, GIFs up to 20 MB, videos up to 200 MB, a longer video re-encoded to fit), then deletes them; visitors to an expired or deleted link see only "Page not found".

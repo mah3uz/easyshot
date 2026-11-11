@@ -194,7 +194,7 @@ impl Fixture {
         self.click_at(at);
     }
 
-    fn click_at(&mut self, at: gpui::Point<gpui::Pixels>) {
+    pub fn click_at(&mut self, at: gpui::Point<gpui::Pixels>) {
         for down in [true, false] {
             self.send(if down {
                 PlatformInput::MouseDown(gpui::MouseDownEvent {

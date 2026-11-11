@@ -58,7 +58,7 @@ fn draw(app: &mut App) {
 }
 
 #[test]
-fn pictures_of_share_in_the_footer_and_its_popover() {
+fn pictures_of_share_in_the_title_bar_and_its_popover() {
     for (mode, name) in [(ThemeMode::Light, "light"), (ThemeMode::Dark, "dark")] {
         let (mut app, editor) = launch(mode);
         let host = WindowPopover::default();
