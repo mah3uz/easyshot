@@ -277,7 +277,7 @@ easyshot record stop     # stop; the recording lands as a deck card" />
 
         <!-- 8 -->
         <HowStep :n="8" id="share" title="Share a link">
-          <p>Press <strong>Share</strong> on a capture's card, in the editor, in the trim viewer or in the gallery. Give the link a title if you like, pick how long it lasts, 1, 3 or 7 days, and press <strong>Share</strong>. The link is copied at once, and a toast shows the upload with <strong>Cancel</strong>, then <strong>Open</strong> and <strong>Copy Link</strong>. A card with a live link carries a small cloud mark.</p>
+          <p>Press <strong>Share</strong> on a capture's card, in the editor or in the trim viewer. Give the link a title if you like, pick how long it lasts, 1, 3 or 7 days, and press <strong>Share</strong>. The link is copied at once, and a toast shows the upload with <strong>Cancel</strong>, then <strong>Open</strong> and <strong>Copy Link</strong>. A card with a live link carries a small cloud mark.</p>
           <p>The first time, easyshot asks where shares go. You can change it later in <strong>Settings › Sharing</strong>.</p>
           <div class="grid gap-4 sm:grid-cols-2">
             <div v-for="t in shareTargets" :key="t.title" class="card grid content-start gap-3 p-5">
@@ -286,7 +286,7 @@ easyshot record stop     # stop; the recording lands as a deck card" />
               <p class="text-[14px] leading-relaxed text-fg-2">{{ t.text }}</p>
             </div>
           </div>
-          <p>The link opens a page with the image or video, and <strong>Download</strong> and <strong>Copy link</strong>. To share from a terminal, run the command below; it prints the link.</p>
+          <p>The link opens a page with the image or video, and <strong>Download</strong> and <strong>Copy link</strong>. In the gallery, a shared item shows a cloud mark with the time left, <strong>Cloud Shares</strong> in the sidebar lists every link, and <strong>Delete Cloud Share</strong> takes one down while your file stays. After a free link expires, visitors see “page not found” and only you see <strong>Expired</strong>. To share from a terminal, run the command below; it prints the link.</p>
           <CodeBlock prompt code="easyshot share shot.png --days 3" />
           <Callout>Share links are unlisted, not private: anyone who has a link can open it. Free shares follow the <NuxtLink to="/terms" class="text-accent underline">Terms of Service</NuxtLink>.</Callout>
         </HowStep>

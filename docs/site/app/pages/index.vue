@@ -41,7 +41,7 @@ const faq = [
   },
   {
     q: 'How long do shared links last?',
-    a: 'On easyshot Free, 1, 3 or 7 days: you choose when you share. Then the file is deleted, and anyone opening the link sees a plain “page not found”. Links to your own bucket last as long as you keep the files there.',
+    a: 'On easyshot Free, 1, 3 or 7 days: you choose when you share. Then the file is deleted, and anyone opening the link sees a plain “page not found”; only you see Expired, in the gallery. Links to your own bucket last as long as you keep the files there.',
   },
   {
     q: 'Can I use my own storage?',
@@ -104,6 +104,7 @@ const trimPoints = [
 const sharePoints = [
   'A toast shows the upload with Cancel, then Open and Copy Link',
   'The link opens a page with the image or video, Download and Copy link',
+  'In the gallery, a cloud mark shows the time left, Cloud Shares lists every link, and Delete Cloud Share takes one down',
   'Unlisted, not private: anyone who has the link can open it',
   'From a terminal: <code>easyshot share shot.png</code>',
 ]
@@ -360,7 +361,7 @@ useHead({
             <span class="eyebrow"><Icon name="cloud-upload" :size="15" />Share</span>
             <h2 class="text-[clamp(32px,4.4vw,50px)] leading-[1.05]">Send it as a link.</h2>
             <p class="text-lg text-fg-2">
-              Press Share on a capture card, in the editor, the trim viewer or the gallery, and pick 1, 3 or 7 days. The link
+              Press Share on a capture card, in the editor or in the trim viewer, and pick 1, 3 or 7 days. The link
               is on your clipboard at once, so you can paste it while the file uploads.
             </p>
             <ul class="grid gap-2.5 pt-2">
