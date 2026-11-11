@@ -214,6 +214,8 @@ More in the manual: [The editor](MANUAL.md#the-editor) and [Editor keys](MANUAL.
 - Lists recordings in the gallery under Videos and All Media: unsaved ones, saved ones and trim exports, each with a first-frame thumbnail, a play badge and its length when known.
 - Opens a video from the gallery or the tray in the trim viewer.
 - Shows and trashes a video from the gallery as it does a screenshot.
+- Marks shared items in the gallery with a cloud and when the link expires (or its bucket, or Expired), with Copy Link, Open Link, Copy File Link and Delete Cloud Share in the item's menu, and Remove for an expired link.
+- Lists every link you shared under Cloud Shares in the gallery, newest first, even after its file is gone.
 - Lists the tray's recent recordings from the same videos and updates them after a save, an export or a trash.
 
 More in the manual: [The Home window](MANUAL.md#the-home-window) and [History and gallery](MANUAL.md#history-and-gallery).

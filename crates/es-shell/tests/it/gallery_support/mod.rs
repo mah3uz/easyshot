@@ -1,5 +1,7 @@
 #![allow(dead_code, clippy::unwrap_used, clippy::expect_used)]
 
+pub mod shares;
+
 use es_app::history::History;
 use es_app::settings_model::SettingsModel;
 use es_shell::gallery::{self, FileResult, Gallery, GalleryFiles};
@@ -44,6 +46,18 @@ impl GalleryFiles for FakeFiles {
 }
 
 type Made = Rc<RefCell<Option<(Entity<Gallery>, Entity<History>, Entity<SettingsModel>)>>>;
+
+/// Hands the gallery its shares as the app does; given the window's history and settings.
+pub type Connect = Box<
+    dyn FnOnce(
+        Entity<History>,
+        Entity<SettingsModel>,
+        &mut gpui::App,
+    ) -> (
+        Option<Entity<es_app::share::Shares>>,
+        Rc<dyn es_shell::settings::ClipboardSink>,
+    ),
+>;
 
 pub struct Rig {
     pub app: Headless<Root>,
@@ -156,6 +170,17 @@ pub fn rig_with(screenshots: usize, videos_count: usize, mode: ThemeMode, w: f32
 
 /// Opens a gallery on a library already made, reading the config file there.
 pub fn rig_in(dir: TempDir, paths: Paths, mode: ThemeMode, w: f32, h: f32) -> Rig {
+    rig_connected(dir, paths, mode, w, h, None)
+}
+
+pub fn rig_connected(
+    dir: TempDir,
+    paths: Paths,
+    mode: ThemeMode,
+    w: f32,
+    h: f32,
+    connect: Option<Connect>,
+) -> Rig {
     let config = ConfigFile::load(&paths.config_file()).unwrap();
     let trash_dir = dir.path().join("Trash");
     std::fs::create_dir_all(&trash_dir).unwrap();
@@ -176,14 +201,27 @@ pub fn rig_in(dir: TempDir, paths: Paths, mode: ThemeMode, w: f32, h: f32) -> Ri
         move |window, cx| {
             let history = cx.new(|_| History::open(&root_paths, 0).unwrap());
             let settings = cx.new(|_| SettingsModel::new(config));
-            let (root, gallery) = gallery::root(
-                history.clone(),
-                settings.clone(),
-                root_paths,
-                root_files,
-                window,
-                cx,
-            );
+            let (root, gallery) = match connect {
+                None => gallery::root(
+                    history.clone(),
+                    settings.clone(),
+                    root_paths,
+                    root_files,
+                    window,
+                    cx,
+                ),
+                Some(connect) => {
+                    let (shares, clipboard) = connect(history.clone(), settings.clone(), cx);
+                    let (h, s) = (history.clone(), settings.clone());
+                    let gallery = cx.new(|cx| {
+                        Gallery::new(h, s, root_paths, root_files, window, cx)
+                            .with_shares(shares, clipboard, cx)
+                    });
+                    gpui::Focusable::focus_handle(gallery.read(cx), cx).focus(window, cx);
+                    let root = cx.new(|cx| Root::new(gallery.clone(), window, cx));
+                    (root, gallery)
+                }
+            };
             *sink.borrow_mut() = Some((gallery, history, settings));
             root
         },

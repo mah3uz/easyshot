@@ -1,9 +1,17 @@
-use es_model::HistoryEntry;
+use es_model::{HistoryEntry, ShareRecord};
 use es_store::Paths;
 use es_store::media::{self, MediaFile};
 use std::path::PathBuf;
 use time::OffsetDateTime;
 use uuid::Uuid;
+
+/// The sidebar's two halves: files on this computer, and every link you shared.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum Section {
+    #[default]
+    Local,
+    Cloud,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Category {
@@ -65,6 +73,9 @@ pub struct Item {
     pub duration_secs: Option<f64>,
     /// What moves to the Trash with the item: the recording folder of an unsaved video.
     pub project: Option<PathBuf>,
+    pub share: Option<ShareRecord>,
+    /// False for a shared item whose file is gone.
+    pub local: bool,
 }
 
 impl Item {
@@ -90,6 +101,8 @@ impl From<MediaFile> for Item {
             },
             duration_secs: m.duration_secs,
             project: m.project,
+            share: None,
+            local: true,
         }
     }
 }

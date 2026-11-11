@@ -1,9 +1,12 @@
 use super::files::{FileResult, GalleryFiles, capture_files};
-use super::model::{self, Category, Item, MediaKind, SortOrder, Step, ViewMode};
+use super::model::{self, Category, Item, MediaKind, Section, SortOrder, Step, ViewMode};
+use super::shared;
 use super::thumbs::{self, Thumbs};
+use crate::settings::ClipboardSink;
 use crate::strings::fl;
 use es_app::history::History;
 use es_app::settings_model::SettingsModel;
+use es_app::share::{ShareDeleted, Shares, SharesChanged};
 use es_store::Paths;
 use gpui::{
     App, AppContext, Bounds, Context, Entity, EventEmitter, FocusHandle, Focusable, Pixels,
@@ -15,9 +18,11 @@ use gpui_component::{
     input::{InputEvent, InputState},
 };
 use std::cell::Cell;
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -25,6 +30,7 @@ pub enum GalleryEvent {
     Open(PathBuf),
     Edit(PathBuf),
     OpenStudio,
+    OpenUrl(String),
 }
 
 pub struct Gallery {
@@ -32,9 +38,15 @@ pub struct Gallery {
     pub(super) settings: Entity<SettingsModel>,
     pub(super) paths: Paths,
     pub(super) files: Arc<dyn GalleryFiles>,
+    pub(super) shares: Option<Entity<Shares>>,
+    pub(super) clipboard: Option<Rc<dyn ClipboardSink>>,
     pub(super) items: Vec<Item>,
+    pub(super) cloud: Vec<Item>,
     pub(super) shown: Vec<Item>,
+    pub(super) section: Section,
     pub(super) category: Category,
+    /// Links whose delete has been sent and not yet answered.
+    pub(super) deleting: HashSet<String>,
     pub(super) sort: SortOrder,
     pub(super) view: ViewMode,
     pub(super) query: String,
@@ -84,9 +96,14 @@ impl Gallery {
             settings,
             paths,
             files,
+            shares: None,
+            clipboard: None,
             items: Vec::new(),
+            cloud: Vec::new(),
             shown: Vec::new(),
+            section: Section::default(),
             category: Category::All,
+            deleting: HashSet::new(),
             sort: SortOrder::default(),
             view: ViewMode::default(),
             query: String::new(),
@@ -107,12 +124,54 @@ impl Gallery {
         gallery
     }
 
+    /// Lists every link in `shares` and copies them through `clipboard`.
+    pub fn with_shares(
+        mut self,
+        shares: Option<Entity<Shares>>,
+        clipboard: Rc<dyn ClipboardSink>,
+        cx: &mut Context<Self>,
+    ) -> Self {
+        if let Some(shares) = &shares {
+            self._subscriptions
+                .push(cx.subscribe(shares, |this, _, _: &SharesChanged, cx| this.sync(cx)));
+            self._subscriptions
+                .push(cx.subscribe(shares, |this, _, e: &ShareDeleted, cx| {
+                    this.on_deleted(e, cx)
+                }));
+        }
+        self.shares = shares;
+        self.clipboard = Some(clipboard);
+        self.sync(cx);
+        self
+    }
+
     pub fn shown(&self) -> &[Item] {
         &self.shown
     }
 
     pub fn count(&self, category: Category) -> usize {
         model::count(&self.items, category)
+    }
+
+    pub fn count_in(&self, section: Section, category: Category) -> usize {
+        model::count(self.section_items(section), category)
+    }
+
+    fn section_items(&self, section: Section) -> &[Item] {
+        match section {
+            Section::Local => &self.items,
+            Section::Cloud => &self.cloud,
+        }
+    }
+
+    pub fn section(&self) -> Section {
+        self.section
+    }
+
+    pub fn set_section(&mut self, section: Section, category: Category, cx: &mut Context<Self>) {
+        self.section = section;
+        self.category = category;
+        self.refilter(cx);
     }
 
     pub fn category(&self) -> Category {
@@ -185,15 +244,29 @@ impl Gallery {
     }
 
     fn sync(&mut self, cx: &mut Context<Self>) {
-        self.items = model::local(&self.paths, self.history.read(cx).entries());
-        let items = &self.items;
+        let records = match &self.shares {
+            Some(shares) => shares.read(cx).all().to_vec(),
+            None => Vec::new(),
+        };
+        let entries = self.history.read(cx).entries();
+        self.items = model::local(&self.paths, entries);
+        shared::attach(&mut self.items, &records, OffsetDateTime::now_utc());
+        self.cloud = shared::cloud(&records, &self.items, entries);
+        self.deleting
+            .retain(|id| records.iter().any(|r| &r.id == id));
+        let (items, cloud) = (&self.items, &self.cloud);
         self.thumbs
-            .retain(|file| items.iter().any(|i| i.file.as_path() == file));
+            .retain(|file| items.iter().chain(cloud).any(|i| i.file.as_path() == file));
         self.refilter(cx);
     }
 
     fn refilter(&mut self, cx: &mut Context<Self>) {
-        self.shown = model::visible(&self.items, self.category, &self.query, self.sort);
+        self.shown = model::visible(
+            self.section_items(self.section),
+            self.category,
+            &self.query,
+            self.sort,
+        );
         if self.selected_index().is_none() {
             self.selected = None;
         }
@@ -254,7 +327,7 @@ impl Gallery {
     }
 
     pub(super) fn item(&self, id: Uuid) -> Option<&Item> {
-        self.items.iter().find(|i| i.id == id)
+        self.items.iter().chain(&self.cloud).find(|i| i.id == id)
     }
 
     pub fn open(&mut self, id: Uuid, cx: &mut Context<Self>) {
@@ -316,7 +389,7 @@ impl Gallery {
 
     /// Moves the capture, its sidecar and its base to the Trash, then drops it from the index.
     pub fn trash(&mut self, id: Uuid, cx: &mut Context<Self>) -> FileResult {
-        let Some(item) = self.item(id).cloned() else {
+        let Some(item) = self.items.iter().find(|i| i.id == id).cloned() else {
             return Ok(());
         };
         let result = if item.kind == MediaKind::Video {
@@ -348,7 +421,9 @@ impl Gallery {
     }
 
     pub(super) fn confirm_trash(&self, id: Uuid, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(item) = self.item(id) else { return };
+        let Some(item) = self.items.iter().find(|i| i.id == id) else {
+            return;
+        };
         let title = item.name.clone();
         let this = cx.entity().downgrade();
         window.open_alert_dialog(cx, move |dialog, _, _| {

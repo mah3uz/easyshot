@@ -1,4 +1,6 @@
-use super::model::{self, ART_PAD, Item, MediaKind, SortOrder, TITLE_HEIGHT};
+use super::menu::item_menu;
+use super::model::{self, ART_PAD, Item, MediaKind, Section, SortOrder, TITLE_HEIGHT};
+use super::shared;
 use super::thumbs::Thumb;
 use super::view::Gallery;
 use crate::strings::fl;
@@ -17,9 +19,13 @@ use gpui::{
 };
 use gpui_component::{
     Icon, Selectable,
-    menu::{ContextMenuExt, DropdownMenu, PopupMenu, PopupMenuItem},
+    menu::{ContextMenuExt, DropdownMenu},
 };
+use time::OffsetDateTime;
 use uuid::Uuid;
+
+/// Below this preview size the cloud mark is the glyph alone.
+const MARK_TEXT_MIN: f32 = 96.;
 
 const LIST_ROW: f32 = 30.;
 const LIST_ART: f32 = 24.;
@@ -98,57 +104,6 @@ pub fn kind_title(kind: MediaKind) -> String {
     }
 }
 
-fn item_menu(
-    mut menu: PopupMenu,
-    view: &WeakEntity<Gallery>,
-    id: Uuid,
-    kind: MediaKind,
-) -> PopupMenu {
-    let act = |label: String,
-               icon: IconName,
-               f: fn(&mut Gallery, Uuid, &mut Window, &mut Context<Gallery>)| {
-        let view = view.clone();
-        PopupMenuItem::new(label)
-            .icon(Icon::new(icon))
-            .on_click(move |_, window, cx| {
-                let _ = view.update(cx, |this, cx| f(this, id, window, cx));
-            })
-    };
-    menu = menu
-        .item(act(
-            fl!("gallery-menu-open"),
-            IconName::SquareArrowOutUpRight,
-            |g, id, _, cx| g.open(id, cx),
-        ))
-        .item(
-            act(
-                fl!("gallery-menu-edit"),
-                IconName::Pencil,
-                |g, id, _, cx| g.edit(id, cx),
-            )
-            .disabled(kind != MediaKind::Screenshot),
-        )
-        .when(kind == MediaKind::Video, |menu| {
-            menu.item(act(
-                fl!("gallery-menu-open-studio"),
-                IconName::Film,
-                |g, id, _, cx| g.open_studio(id, cx),
-            ))
-        })
-        .item(act(
-            fl!("gallery-menu-reveal"),
-            IconName::FolderOpen,
-            |g, id, _, cx| g.show_in_folder(id, cx),
-        ))
-        .separator()
-        .item(act(
-            fl!("gallery-menu-trash"),
-            IconName::Trash,
-            |g, id, window, cx| g.confirm_trash(id, window, cx),
-        ));
-    menu
-}
-
 fn click(
     view: &WeakEntity<Gallery>,
     id: Uuid,
@@ -165,7 +120,7 @@ fn click(
     });
 }
 
-fn art(t: &Tokens, item: &Item, thumb: Option<&Thumb>, size: f32) -> AnyElement {
+fn art(t: &Tokens, item: &Item, thumb: Option<&Thumb>, size: f32, busy: bool) -> AnyElement {
     let grid = size >= model::SIZE_MIN as f32;
     let badge = if grid {
         (size * 0.16).clamp(18., 28.)
@@ -223,6 +178,16 @@ fn art(t: &Tokens, item: &Item, thumb: Option<&Thumb>, size: f32) -> AnyElement 
                     .child(model::duration_text(secs)),
             )
         })
+        .when_some(item.share.as_ref().filter(|_| grid), |d, record| {
+            let now = OffsetDateTime::now_utc();
+            d.child(shared::mark(
+                item.id,
+                record,
+                busy,
+                size >= MARK_TEXT_MIN,
+                now,
+            ))
+        })
         .into_any_element()
 }
 
@@ -233,15 +198,19 @@ fn cell(gallery: &Gallery, item: &Item, size: f32, cx: &mut Context<Gallery>) ->
     let view = cx.entity().downgrade();
     let menu_view = view.clone();
     let button_view = view.clone();
-    let kind = item.kind;
-    let help = fl!("gallery-item-help", title = item.name.clone());
+    let help = if item.local {
+        fl!("gallery-item-help", title = item.name.clone())
+    } else {
+        fl!("gallery-item-help-unavailable", title = item.name.clone())
+    };
+    let busy = gallery.is_deleting(id);
     let actions = MenuButton::new(
         SharedString::from(format!("actions-{id}")),
         IconName::CircleEllipsis,
         fl!("gallery-menu-a11y", title = item.name.clone()),
     )
     .size(px(20.))
-    .dropdown_menu(move |menu, _, _| item_menu(menu, &button_view, id, kind));
+    .dropdown_menu(move |menu, _, cx| item_menu(menu, &button_view, id, cx));
     div()
         .id(SharedString::from(format!("cell-{id}")))
         .accessible(Role::GridCell, item.name.clone())
@@ -260,7 +229,7 @@ fn cell(gallery: &Gallery, item: &Item, size: f32, cx: &mut Context<Gallery>) ->
                 .p(px(ART_PAD))
                 .rounded(px(8.))
                 .when(on, |d| d.bg(t.hover_fill))
-                .child(art(&t, item, gallery.thumbs.get(&item.file), size))
+                .child(art(&t, item, gallery.thumbs.get(&item.file), size, busy))
                 .when(on, |d| {
                     d.child(div().absolute().top(px(3.)).right(px(3.)).child(actions))
                 }),
@@ -299,7 +268,7 @@ fn cell(gallery: &Gallery, item: &Item, size: f32, cx: &mut Context<Gallery>) ->
                 ),
         )
         .on_click(move |event, window, cx| click(&view, id, event, window, cx))
-        .context_menu(move |menu, _, _| item_menu(menu, &menu_view, id, kind))
+        .context_menu(move |menu, _, cx| item_menu(menu, &menu_view, id, cx))
         .into_any_element()
 }
 
@@ -448,7 +417,13 @@ pub fn list_row(
         .text_size(px(13.))
         .when(on, |d| d.bg(t.accent))
         .when(!on && index % 2 == 1, |d| d.bg(t.bordered_fill))
-        .child(art(&t, item, gallery.thumbs.get(&item.file), LIST_ART))
+        .child(art(
+            &t,
+            item,
+            gallery.thumbs.get(&item.file),
+            LIST_ART,
+            false,
+        ))
         .child(
             div()
                 .flex_1()
@@ -462,7 +437,14 @@ pub fn list_row(
                         .flex_none()
                         .text_color(secondary)
                         .child(item.extension_suffix()),
-                ),
+                )
+                .when_some(item.share.as_ref(), |d, record| {
+                    d.child(shared::list_mark(
+                        record,
+                        secondary,
+                        OffsetDateTime::now_utc(),
+                    ))
+                }),
         )
         .child(
             div()
@@ -486,21 +468,27 @@ pub fn list_row(
                 }),
         )
         .on_click(move |event, window, cx| click(&view, id, event, window, cx))
-        .context_menu(move |menu, _, _| item_menu(menu, &menu_view, id, kind))
+        .context_menu(move |menu, _, cx| item_menu(menu, &menu_view, id, cx))
         .into_any_element()
 }
 
-pub fn empty_state(t: &Tokens, no_search: bool) -> impl IntoElement {
-    let (title, body) = if no_search {
-        (
+pub fn empty_state(t: &Tokens, no_search: bool, section: Section) -> impl IntoElement {
+    let (title, body, icon) = match (no_search, section) {
+        (true, Section::Local) => (
             fl!("gallery-empty-local-title"),
             fl!("gallery-empty-local-body"),
-        )
-    } else {
-        (
+            IconName::Images,
+        ),
+        (true, Section::Cloud) => (
+            fl!("gallery-empty-cloud-title"),
+            fl!("gallery-empty-cloud-body"),
+            IconName::Cloud,
+        ),
+        (false, _) => (
             fl!("gallery-empty-search-title"),
             fl!("gallery-empty-search-body"),
-        )
+            IconName::Images,
+        ),
     };
     div()
         .size_full()
@@ -509,11 +497,7 @@ pub fn empty_state(t: &Tokens, no_search: bool) -> impl IntoElement {
         .items_center()
         .justify_center()
         .gap(px(6.))
-        .child(
-            Icon::new(IconName::Images)
-                .size(px(40.))
-                .text_color(t.text_tertiary),
-        )
+        .child(Icon::new(icon).size(px(40.)).text_color(t.text_tertiary))
         .child(
             div()
                 .pt(px(6.))

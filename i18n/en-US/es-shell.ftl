@@ -510,15 +510,37 @@ gallery-status-count =
        *[other] { $count } items
     }
 gallery-item-help = { $title } — Double-click to open. Right-click for actions.
+gallery-item-help-unavailable = { $title } — Local source unavailable for editing.
+gallery-share-expires-days = Expires in { $days ->
+        [one] { $days } day
+       *[other] { $days } days
+    }
+gallery-share-expires-hours = Expires in { $hours ->
+        [one] { $hours } hour
+       *[other] { $hours } hours
+    }
+gallery-share-left-days = { $days ->
+        [one] { $days } day left
+       *[other] { $days } days left
+    }
+gallery-share-left-hours = { $hours ->
+        [one] { $hours } hour left
+       *[other] { $hours } hours left
+    }
+gallery-share-expired = Expired
+gallery-share-live = Shared
+gallery-share-a11y = Cloud share: { $state }
 gallery-menu-open = Open
 gallery-menu-edit = Edit
 gallery-menu-open-studio = Open in Studio
 gallery-menu-reveal = Show in Folder
 gallery-menu-copy-link = Copy Link
 gallery-menu-link-copied = Link Copied
-gallery-menu-open-cloud = Open Cloud
+gallery-menu-open-link = Open Link
+gallery-menu-copy-file-link = Copy File Link
 gallery-menu-trash = Move to Trash…
 gallery-menu-delete-cloud = Delete Cloud Share…
+gallery-menu-remove-expired = Remove Expired Link
 gallery-menu-a11y = Actions for { $title }
 gallery-trash-alert-title = Move this capture to Trash?
 gallery-trash-alert-message = “{ $title }” and its local source and edit files will move to Trash. Close its editor first. Existing cloud shares stay online.
@@ -531,6 +553,7 @@ gallery-banner-error = { $error } Refresh to review remaining items; local files
 gallery-error-missing = This file was moved or deleted. Refresh the gallery.
 gallery-error-open-link = Couldn’t open the link. Try again or copy it.
 gallery-error-copy-link = Couldn’t copy the link. Try again.
+gallery-error-delete-share = Couldn’t delete the cloud share. { $error }
 gallery-error-storage-mismatch = This link belongs to different cloud storage. Select its original R2 settings in Settings > Sharing, then retry.
 gallery-empty-local-title = No saved media yet
 gallery-empty-local-body = Save a screenshot or finish a recording, then refresh.

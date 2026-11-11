@@ -74,6 +74,10 @@ impl EventEmitter<HomeEvent> for HomeWindow {}
 
 impl HomeWindow {
     pub fn new(deps: HomeDeps, window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let (shares, clipboard) = (
+            deps.settings.shares.clone(),
+            deps.settings.clipboard.clone(),
+        );
         let gallery = cx.new(|cx| {
             Gallery::new(
                 deps.history,
@@ -83,6 +87,7 @@ impl HomeWindow {
                 window,
                 cx,
             )
+            .with_shares(shares, clipboard, cx)
         });
         let settings = cx.new(|cx| SettingsWindow::new(deps.settings, window, cx));
         Self {

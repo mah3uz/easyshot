@@ -1,5 +1,6 @@
 use super::cells::{self, MenuButton};
-use super::model::{self, Category, SortOrder, Step, ViewMode};
+use super::model::{self, Category, Section, SortOrder, Step, ViewMode};
+use super::shared;
 use super::view::Gallery;
 use crate::strings::fl;
 use es_ui::{
@@ -19,11 +20,26 @@ use gpui_component::{
     input::Input,
     menu::{DropdownMenu, PopupMenuItem},
 };
+use time::OffsetDateTime;
 
 pub const SIDEBAR_WIDTH: f32 = 210.;
 const TOOLBAR_HEIGHT: f32 = 52.;
 const SEARCH_WIDTH: f32 = 200.;
 const SIDEBAR_ROW: f32 = 28.;
+
+fn section_title(section: Section) -> String {
+    match section {
+        Section::Local => fl!("gallery-section-local"),
+        Section::Cloud => fl!("gallery-section-cloud"),
+    }
+}
+
+fn section_icon(section: Section) -> IconName {
+    match section {
+        Section::Local => IconName::HardDrive,
+        Section::Cloud => IconName::Cloud,
+    }
+}
 
 pub fn category_title(category: Category) -> String {
     match category {
@@ -33,8 +49,9 @@ pub fn category_title(category: Category) -> String {
     }
 }
 
-fn category_icon(category: Category) -> IconName {
+fn category_icon(section: Section, category: Category) -> IconName {
     match category {
+        Category::All if section == Section::Cloud => IconName::Cloud,
         Category::All => IconName::Folder,
         Category::Screenshots => IconName::Image,
         Category::Videos => IconName::Film,
@@ -80,19 +97,42 @@ impl Gallery {
         let Some(id) = self.selected else { return };
         match key {
             "enter" | "space" => self.open(id, cx),
+            "delete" if self.section == Section::Cloud => self.delete_key(id, window, cx),
             "delete" => self.confirm_trash(id, window, cx),
             _ => return,
         }
         cx.stop_propagation();
     }
 
-    fn sidebar(&self, t: &Tokens, cx: &mut Context<Self>) -> AnyElement {
-        let rows = Category::ALL.into_iter().map(|category| {
+    fn sidebar_rows(
+        &self,
+        section: Section,
+        t: &Tokens,
+        cx: &mut Context<Self>,
+    ) -> impl Iterator<Item = AnyElement> {
+        let header = div()
+            .px(px(8.))
+            .pb(px(6.))
+            .when(section == Section::Cloud, |d| d.pt(px(16.)))
+            .typeset(t.type_scale.section_header)
+            .text_color(t.text_secondary)
+            .child(section_title(section))
+            .into_any_element();
+        let rows = Category::ALL.into_iter().map(move |category| {
             let title = category_title(category);
-            let on = self.category == category;
-            let a11y = fl!("gallery-sidebar-a11y-local", title = title.clone());
+            let on = self.section == section && self.category == category;
+            let (a11y, key) = match section {
+                Section::Local => (
+                    fl!("gallery-sidebar-a11y-local", title = title.clone()),
+                    "category",
+                ),
+                Section::Cloud => (
+                    fl!("gallery-sidebar-a11y-cloud", title = title.clone()),
+                    "cloud",
+                ),
+            };
             div()
-                .id(SharedString::from(format!("category-{category:?}")))
+                .id(SharedString::from(format!("{key}-{category:?}")))
                 .accessible(Role::Tab, a11y)
                 .aria_selected(on)
                 .flex()
@@ -106,7 +146,7 @@ impl Gallery {
                 .when(on, |d| d.bg(t.hover_fill))
                 .when(!on, |d| d.hover(|s| s.bg(t.bordered_fill)))
                 .child(
-                    Icon::new(category_icon(category))
+                    Icon::new(category_icon(section, category))
                         .size(px(15.))
                         .text_color(t.accent),
                 )
@@ -115,10 +155,19 @@ impl Gallery {
                     div()
                         .text_size(px(11.))
                         .text_color(t.text_secondary)
-                        .child(self.count(category).to_string()),
+                        .child(self.count_in(section, category).to_string()),
                 )
-                .on_click(cx.listener(move |this, _, _, cx| this.set_category(category, cx)))
+                .on_click(
+                    cx.listener(move |this, _, _, cx| this.set_section(section, category, cx)),
+                )
+                .into_any_element()
         });
+        std::iter::once(header).chain(rows.collect::<Vec<_>>())
+    }
+
+    fn sidebar(&self, t: &Tokens, cx: &mut Context<Self>) -> AnyElement {
+        let local: Vec<AnyElement> = self.sidebar_rows(Section::Local, t, cx).collect();
+        let cloud: Vec<AnyElement> = self.sidebar_rows(Section::Cloud, t, cx).collect();
         div()
             .flex()
             .flex_col()
@@ -131,15 +180,8 @@ impl Gallery {
             .px(px(10.))
             .pt(px(16.))
             .gap(px(2.))
-            .child(
-                div()
-                    .px(px(8.))
-                    .pb(px(6.))
-                    .typeset(t.type_scale.section_header)
-                    .text_color(t.text_secondary)
-                    .child(fl!("gallery-section-local")),
-            )
-            .children(rows)
+            .children(local)
+            .children(cloud)
             .into_any_element()
     }
 
@@ -222,10 +264,11 @@ impl Gallery {
     }
 
     fn status(&self, t: &Tokens) -> impl IntoElement {
-        let selected = self
-            .selected
-            .and_then(|id| self.item(id))
-            .map(|i| i.name.clone());
+        let selected = self.selected.and_then(|id| self.item(id));
+        let share = selected
+            .and_then(|i| i.share.as_ref())
+            .map(|r| shared::label(r, OffsetDateTime::now_utc(), false));
+        let selected = selected.map(|i| i.name.clone());
         let crumb = |text: String| div().truncate().child(text);
         let chevron = || {
             Icon::new(IconName::ChevronRight)
@@ -244,11 +287,15 @@ impl Gallery {
             .bg(t.inspector)
             .text_size(px(11.))
             .text_color(t.text_secondary)
-            .child(Icon::new(IconName::HardDrive).size(px(12.)))
-            .child(crumb(fl!("gallery-section-local")))
+            .child(Icon::new(section_icon(self.section)).size(px(12.)))
+            .child(crumb(section_title(self.section)))
             .child(chevron())
             .child(crumb(category_title(self.category)))
             .when_some(selected, |d, name| d.child(chevron()).child(crumb(name)))
+            .when_some(share, |d, label| {
+                d.child(Icon::new(IconName::Cloud).size(px(12.)).ml(px(6.)))
+                    .child(div().flex_none().child(label))
+            })
             .child(div().flex_1())
             .child(fl!("gallery-status-count", count = self.shown.len()))
     }
@@ -295,7 +342,8 @@ impl Gallery {
 
     fn content(&mut self, t: &Tokens, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         if self.shown.is_empty() {
-            return cells::empty_state(t, self.query.trim().is_empty()).into_any_element();
+            return cells::empty_state(t, self.query.trim().is_empty(), self.section)
+                .into_any_element();
         }
         match self.view {
             ViewMode::Icons => {

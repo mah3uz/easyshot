@@ -1191,3 +1191,17 @@ A toast follows the upload. The link is copied as soon as the upload starts (**L
 Press **Share** in the editor's footer, beside **Copy**, or the key you bound to **Share Image** in Settings › Shortcuts. The same popover opens above the button. When you press **Share** in it, the image is sent as you see it, with your annotations and background, rendered the way **Export** renders it; the button turns while the image is made. The link belongs to the capture you opened, so its card shows the cloud mark. The same toast follows the upload.
 
 An expired free link stays in your list of shares; it is never offered again as a live link.
+
+### Your shares in the gallery
+
+An item you have shared shows a small cloud mark on its preview: how long a free link has left (**3 days left**, **5 hours left**), the name of the bucket it went to, or **Expired**. Previews smaller than 96 pixels show the mark alone. The list view says the same after the name (**Expires in 3 days**), and so does the status bar when the item is selected.
+
+Right-click the item, or use its actions button, for the link:
+
+- **Copy Link** copies the share page's address, and **Copy File Link** the address of the file itself.
+- **Open Link** opens the share page in your browser.
+- **Delete Cloud Share…** asks first, then deletes the shared copy, so the link stops working. Your file stays on your computer. While it is being deleted the mark says **Deleting…**; if it fails, a banner says why.
+
+An expired link offers only **Remove Expired Link**, which drops it from the list without contacting the service. Anyone else opening an expired or deleted link sees a plain "Page not found".
+
+**Cloud Shares** in the sidebar lists every link you have made, live and expired, newest first, under All Media, Screenshots and Videos. It keeps a link even when its file has been moved or deleted: the item shows a plain placeholder with the link's title, and Open, Edit and Show in Folder are greyed out. Delete in the Cloud Shares view deletes the selected link (asking first) or removes an expired one. The gallery updates on its own when a share finishes, expires or is deleted.

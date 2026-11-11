@@ -1,13 +1,16 @@
 mod cells;
 pub mod files;
+mod menu;
 pub mod model;
 mod render;
+pub mod shared;
 mod size;
 pub mod thumbs;
 mod view;
 
 pub use files::{DesktopFiles, FileResult, GalleryFiles};
-pub use model::{Category, Item, MediaKind, SortOrder, Step, ViewMode};
+pub use model::{Category, Item, MediaKind, Section, SortOrder, Step, ViewMode};
+pub use shared::ShareAction;
 pub use view::{Gallery, GalleryEvent};
 
 use crate::strings::fl;

@@ -314,6 +314,7 @@ fn open_home(w: &Rc<Wiring>, cx: &mut App) -> Result<Rc<dyn WindowHandle>> {
                 }
             }
             GalleryEvent::OpenStudio => super::coming_soon::coming_soon(Feature::VideoStudio, cx),
+            GalleryEvent::OpenUrl(url) => cx.open_url(url),
         })
         .detach();
     }
