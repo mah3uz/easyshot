@@ -45,11 +45,11 @@ pub trait InstallTokens {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Event {
-    /// The link works from now on; the page shows "uploading" until the share is complete.
+    /// The links are known; a bucket page answers only once its upload is done.
     Reserved {
         page_url: String,
         media_url: String,
-        expires_at: OffsetDateTime,
+        expires_at: Option<OffsetDateTime>,
     },
     Progress {
         sent: u64,
@@ -298,7 +298,7 @@ impl Free {
         on_event(Event::Reserved {
             page_url: created.page_url.clone(),
             media_url: created.media_url.clone(),
-            expires_at: parse_time(&created.expires_at)?,
+            expires_at: Some(parse_time(&created.expires_at)?),
         });
         let total = size + poster.map_or(0, |(_, len)| len);
         let mut file = File::open(&req.media.path)?;
@@ -397,7 +397,7 @@ impl Free {
     }
 }
 
-fn stop_if(cancel: &AtomicBool) -> Result<(), ShareError> {
+pub(crate) fn stop_if(cancel: &AtomicBool) -> Result<(), ShareError> {
     match cancel.load(Ordering::Relaxed) {
         true => Err(ShareError::Cancelled),
         false => Ok(()),
@@ -425,6 +425,6 @@ fn parse_time(text: &str) -> Result<OffsetDateTime, ShareError> {
 }
 
 #[cfg(test)]
-mod fake;
+pub(crate) mod fake;
 #[cfg(test)]
 mod tests;

@@ -157,8 +157,8 @@ A poster is uploaded to `s/{d}d/{id}/poster.upload` and only `complete` copies i
 The app writes to the user's S3-compatible bucket, signed with SigV4:
 `{prefix}s/{id}/media.{ext}`, `{prefix}s/{id}/poster.jpg` (video), and `{prefix}s/{id}/index.html`
 (the share page, filled as below, `ready` state, no `expires` block). `id` is 22 random base64url
-characters. The page link is `{public_base_url}/s/{id}/index.html`; the file link is the media URL.
-There is no expiry; the app deletes the three objects on Delete share.
+characters. The page link is `{public_base_url}/{prefix}s/{id}/index.html`; the file link is the
+media URL. There is no expiry; the app deletes the three objects on Delete share.
 
 ## The share page template
 

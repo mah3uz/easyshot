@@ -92,6 +92,44 @@ impl Http {
         reply(req.send(SendBody::from_reader(body)))
     }
 
+    /// Sends only the given headers and a User-Agent; `url` is absolute.
+    pub(crate) fn send(
+        &self,
+        method: &str,
+        url: &str,
+        headers: &[(&str, &str)],
+        body: Option<(u64, &mut dyn Read)>,
+    ) -> Result<Reply, ShareError> {
+        let mut req = ureq::http::Request::builder()
+            .method(method)
+            .uri(url)
+            .header("User-Agent", &self.user_agent);
+        for (name, value) in headers {
+            req = req.header(*name, *value);
+        }
+        let result = match body {
+            Some((len, body)) => {
+                let req = req
+                    .header("Content-Length", len.to_string())
+                    .body(SendBody::from_reader(body))
+                    .map_err(|e| ShareError::Protocol(e.to_string()))?;
+                let req = self
+                    .agent
+                    .configure_request(req)
+                    .timeout_send_body(Some(send_time(len)))
+                    .build();
+                self.agent.run(req)
+            }
+            None => {
+                let req = req
+                    .body(())
+                    .map_err(|e| ShareError::Protocol(e.to_string()))?;
+                self.agent.run(req)
+            }
+        };
+        reply(result)
+    }
+
     fn url(&self, path: &str) -> String {
         format!("{}{path}", self.base)
     }
@@ -111,6 +149,11 @@ impl Http {
     }
 }
 
+// One 25 MiB part gets 600 s; a larger single body gets as long at the same rate.
+fn send_time(len: u64) -> Duration {
+    Duration::from_secs((len / (25 * 1024 * 1024 / 600)).max(600))
+}
+
 fn reply(
     result: Result<ureq::http::Response<ureq::Body>, ureq::Error>,
 ) -> Result<Reply, ShareError> {
@@ -126,6 +169,10 @@ fn reply(
 }
 
 impl Reply {
+    pub(crate) fn body(&self) -> &[u8] {
+        &self.body
+    }
+
     pub(crate) fn expect<T: DeserializeOwned>(&self, status: u16) -> Result<T, ShareError> {
         if self.status != status {
             return Err(self.error());

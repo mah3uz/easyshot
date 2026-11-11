@@ -20,6 +20,15 @@ pub enum Code {
     Full,
 }
 
+/// What an own-bucket request found wrong, for the app to name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BucketFault {
+    Credentials,
+    Bucket,
+    PublicUrl,
+    Network,
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum ShareError {
     #[error("share service refused the request: {code:?}")]
@@ -33,6 +42,9 @@ pub enum ShareError {
     Cancelled,
     #[error(transparent)]
     Io(#[from] io::Error),
+    /// `detail` is for logs: a status and the S3 error code, never a key or a signature.
+    #[error("bucket: {fault:?} ({detail})")]
+    Bucket { fault: BucketFault, detail: String },
     #[error("unexpected response: {0}")]
     Protocol(String),
 }

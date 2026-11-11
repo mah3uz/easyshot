@@ -4,13 +4,13 @@ use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-const KEEP_BODY: usize = 64 * 1024;
+const KEEP_BODY: usize = 256 * 1024;
 
 #[derive(Debug, Clone)]
-pub(super) struct Seen {
+pub(crate) struct Seen {
     pub method: String,
     pub path: String,
-    headers: Vec<(String, String)>,
+    pub headers: Vec<(String, String)>,
     pub body: Vec<u8>,
     pub body_len: usize,
 }
@@ -33,14 +33,15 @@ impl Seen {
     }
 }
 
-pub(super) enum Answer {
+pub(crate) enum Answer {
     Reply(u16, Option<Value>),
+    Bytes(u16, Vec<u8>),
     Drop,
 }
 
 type Handler = dyn Fn(&Seen) -> Answer + Send + Sync;
 
-pub(super) struct Fake {
+pub(crate) struct Fake {
     pub base: String,
     seen: Arc<Mutex<Vec<Seen>>>,
 }
@@ -78,10 +79,13 @@ fn serve(stream: TcpStream, log: &Mutex<Vec<Seen>>, handler: &Handler) {
         log.lock().expect("log").push(seen.clone());
         let (status, body) = match handler(&seen) {
             Answer::Drop => return,
-            Answer::Reply(status, body) => (status, body),
+            Answer::Reply(status, body) => (
+                status,
+                body.map(|b| b.to_string().into_bytes()).unwrap_or_default(),
+            ),
+            Answer::Bytes(status, body) => (status, body),
         };
         let mut head = format!("HTTP/1.1 {status} X\r\n");
-        let body = body.map(|b| b.to_string()).unwrap_or_default();
         if status != 204 {
             head.push_str(&format!(
                 "Content-Type: application/json\r\nContent-Length: {}\r\n",
@@ -89,8 +93,7 @@ fn serve(stream: TcpStream, log: &Mutex<Vec<Seen>>, handler: &Handler) {
             ));
         }
         head.push_str("\r\n");
-        if writer.write_all(head.as_bytes()).is_err() || writer.write_all(body.as_bytes()).is_err()
-        {
+        if writer.write_all(head.as_bytes()).is_err() || writer.write_all(&body).is_err() {
             return;
         }
     }
