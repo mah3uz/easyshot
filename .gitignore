@@ -1,5 +1,6 @@
 # Local agent workspace: plans, status, research, reviews (not part of the repo)
 /.claude/
+/.impeccable/
 
 # Rust build output
 /target/
