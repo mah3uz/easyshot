@@ -21,7 +21,7 @@
     "STORAGE_STOP_BYTES": "8589934592",
     "INSTALLS_PER_IP_DAY": "5",
     "POW_DIFFICULTY": "20",
-    "MIN_APP_VERSION": "0.1.0",
+    "MIN_APP_VERSION": "0.2.0",
     "MEDIA_ORIGIN": "https://m.easyshot.site",
     "PAGE_ORIGIN": "https://share.easyshot.site"
   }
