@@ -18,10 +18,13 @@ use serde_json::{Value, json};
 use std::io::Write;
 use std::time::Duration;
 
-const INSTRUCTIONS: &str = "Screenshots, OCR and screen recordings of the user's desktop through \
-    the easyshot daemon. The user must have turned agent access on and may be asked to allow each \
-    session; if a call fails with access_off or access_denied, tell the user and do not retry on \
-    your own. Call list_outputs or list_windows to find targets.";
+const INSTRUCTIONS: &str = "Screenshots, OCR and screen recordings of the user's real desktop through \
+    the easyshot daemon. Call list_windows or list_outputs first, and prefer a window target: it \
+    is captured, read and recorded without focusing it, and works on covered windows and windows \
+    on other workspaces. Use ocr for exact text, which is cheaper than an image, and set temp on \
+    capture for repeated checks so the user's gallery stays clean. Pass any error hint to the user \
+    as it is. Turning access on, consent and scope are the user's decisions: on access_off or \
+    access_denied ask the user and do not retry on your own.";
 
 #[derive(Clone)]
 pub(super) struct Server {

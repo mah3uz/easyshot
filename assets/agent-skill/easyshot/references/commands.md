@@ -22,6 +22,36 @@ easyshot agent annotate /tmp/shot.png --ops /tmp/ops.json --out /tmp/marked.png 
 `allowed_outputs`, `allowed_windows`, `redact_secrets`, `keep_captures`, `log_limit`. You may read them. Changing
 them is the user's decision.
 
+## Capture, OCR and record flags
+
+- `capture`: `--out PATH` (absolute `.png`, folder exists) also writes a copy; `--delay SECONDS` (0 to 60) waits first, for a menu; `--ui` shows the card; `--temp` skips the gallery.
+- `ocr`: one of `--output`, `--geometry`, `--window`, `--fullscreen` or `--file PATH` (PNG or JPEG); `--lang eng+deu`. The answer holds `text`, `lines` (position, `confidence`), `qr` and `source`. Text needs Tesseract; without it and with no QR code the command exits 6 with an install hint.
+- `record start`: `--audio system|mic|both|none`, `--fps 30|60`, `--keystrokes`, `--max-seconds N` (1 to 600, default 120). A recording ends by itself after that and when access ends; `stop` still returns its path. `stop` and `discard` answer `not_found` (exit 5) when none of yours runs.
+
+## Export options
+
+```
+easyshot agent export /tmp/demo.webm --format gif --size 480p --trim 2..8 --out /tmp/demo.gif --json
+easyshot agent export /path/to/video.mp4 --format webm --quality small --json
+```
+
+`--format mp4|webm|gif`, `--size original|1080p|720p|480p` (never enlarges), `--quality high|balanced|small`, `--trim A..B` seconds (`..10` and `2.5..` work), `--look natural|vivid|muted|mono`, `--brightness AMOUNT` (-0.3 to 0.3), `--out PATH`, `--force` to replace a file. Needs `ffmpeg` and `ffprobe`. The answer holds `path`, `format`, `width`, `height`, `duration_ms`, `bytes`.
+
+## Annotate
+
+```
+easyshot agent annotate /tmp/shot.png --ops /tmp/ops.json --out /tmp/marked.png --json
+```
+
+Runs without the daemon or agent access; refuses an existing `--out` unless `--force`. A bad op exits 4 and the message names its index and field.
+
+```json
+{"version":1,"ops":[
+  {"op":"arrow","from":[120,400],"to":[520,310],"color":"#eb5757"},
+  {"op":"counter","x":100,"y":415}
+]}
+```
+
 ## Annotate ops
 
 The ops file is `{"version":1,"ops":[...],"background":{...}}`; `background` is optional and

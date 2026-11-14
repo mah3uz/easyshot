@@ -48,7 +48,7 @@ static TOOLS: [ToolDef; 8] = [
     ToolDef {
         name: "list_outputs",
         title: "List outputs",
-        description: "List the monitors: name, position, size and scale.",
+        description: "List the monitors: name, position, size and scale. Use it to pick an output target.",
         read_only: true,
         destructive: false,
         schema: empty_schema,
@@ -58,7 +58,8 @@ static TOOLS: [ToolDef; 8] = [
         name: "list_windows",
         title: "List windows",
         description: "List the open windows on every workspace: id, app id, title, geometry, \
-                      output and whether a screen shows it.",
+                      output and visible (false on a workspace no screen shows). Pick a window \
+                      by id for the other tools; it works even when hidden.",
         read_only: true,
         destructive: false,
         schema: empty_schema,
@@ -67,9 +68,11 @@ static TOOLS: [ToolDef; 8] = [
     ToolDef {
         name: CAPTURE,
         title: "Capture a screenshot",
-        description: "Take a screenshot of one target. Secrets found on screen are hidden before \
-                      the image is returned. The reply carries a downscaled preview image and the \
-                      saved file's path and full size.",
+        description: "Look at the screen: a screenshot of the smallest target that answers the \
+                      question, preferably a window, which needs no focus change. It is quiet \
+                      (no card or notification) and kept in the user's gallery unless temp is \
+                      set. Secrets found on screen are hidden. The reply carries a downscaled \
+                      preview image and the saved file's path and full size.",
         read_only: false,
         destructive: false,
         schema: capture_schema,
@@ -78,8 +81,9 @@ static TOOLS: [ToolDef; 8] = [
     ToolDef {
         name: "ocr",
         title: "Read text and QR codes",
-        description: "Read the text and QR codes on a target, or in a PNG or JPEG file given as \
-                      file. Returns the text and the lines with their positions.",
+        description: "Read exact text, error messages and QR codes on a target, or in a PNG or \
+                      JPEG file given as file; cheaper than looking at an image. Returns the \
+                      text and the lines with their positions.",
         read_only: false,
         destructive: false,
         schema: ocr_schema,
@@ -88,8 +92,9 @@ static TOOLS: [ToolDef; 8] = [
     ToolDef {
         name: "record_start",
         title: "Start a screen recording",
-        description: "Start recording one target and return the recording's id. It stops by \
-                      itself after max_seconds. Call record_stop to get the video.",
+        description: "Record motion, an animation or a flow. The user sees a control bar and a \
+                      tray indicator. Returns the recording's id; it stops by itself after \
+                      max_seconds. Always call record_stop to get the video.",
         read_only: false,
         destructive: false,
         schema: record_start_schema,
@@ -98,7 +103,7 @@ static TOOLS: [ToolDef; 8] = [
     ToolDef {
         name: "record_stop",
         title: "Stop a screen recording",
-        description: "Stop a recording and return where the video was saved.",
+        description: "Stop the recording you started and return where the video was saved. Call it also when a step in between failed.",
         read_only: false,
         destructive: false,
         schema: record_stop_schema,
@@ -108,7 +113,7 @@ static TOOLS: [ToolDef; 8] = [
         name: "export",
         title: "Export a recording",
         description: "Re-encode a recording as MP4, WebM or GIF, optionally trimmed, scaled or \
-                      colour-graded. Returns the new file's path.",
+                      colour-graded; use gif at 480p for a README. Returns the new file's path.",
         read_only: false,
         destructive: true,
         schema: export_schema,
@@ -117,9 +122,9 @@ static TOOLS: [ToolDef; 8] = [
     ToolDef {
         name: ANNOTATE,
         title: "Annotate an image",
-        description: "Draw arrows, boxes, text, numbered badges, highlights, blur and pixelation \
-                      on a PNG or JPEG file and write the result as a new PNG, optionally on a \
-                      background. It reads and writes only the files named, needs no access to \
+        description: "Point something out to the user: draw arrows, boxes, text, numbered badges, \
+                      highlights, blur and pixelation on a PNG or JPEG file (such as a capture) \
+                      and write the result as a new PNG, optionally on a background. It reads and writes only the files named, needs no access to \
                       the screen, and never replaces a file unless force is set. The reply \
                       carries a downscaled preview image and the file's path and size. \
                       Coordinates are pixels of the image, from its top left corner.",
