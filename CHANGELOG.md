@@ -14,6 +14,8 @@
 ### Bug fixes
 
 - On sway, a window shot of a covered window shows that window, not what covers it.
+- A window shot taken right after the window opens, moves or resizes no longer fails on Hyprland.
+- A window shot of a window on another workspace reports its output's scale instead of 1.
 
 ## 0.2.0 - 2026-11-12T02:13:11+06:00
 

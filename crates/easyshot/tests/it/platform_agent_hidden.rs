@@ -304,7 +304,7 @@ fn scene() -> Option<Scene> {
     let red = open("esh-red", "#ff0000", &shown, "");
     move_to(&red, HIDDEN);
     assert_eq!(shown_workspace(), shown);
-    // A window that was just moved is still resizing; a still capture takes one frame and does not retry.
+    // A window that was just moved is still resizing, and the tests compare its size with the capture's.
     sleep(Duration::from_secs(2));
     let entry = until(30, || listed(root.path(), "esh-red")).expect("hidden window never listed");
     assert_eq!(entry["visible"], Value::Bool(false), "{entry}");
@@ -342,6 +342,7 @@ fn platform_hypr_agent_captures_and_reads_a_window_on_a_hidden_workspace_without
         "{pw}x{ph} against {w}x{h}"
     );
     assert_eq!(reply["window"]["id"].as_str(), Some(scene.id.as_str()));
+    assert_eq!(reply["scale"].as_f64(), Some(1.5), "{reply}");
     scene.unchanged("capturing");
 
     let (code, reply) = agent(root, &["ocr", "--window", &scene.id]);
@@ -379,8 +380,29 @@ fn platform_hypr_agent_captures_and_reads_a_window_on_a_hidden_workspace_without
     scene.unchanged("capturing a covered window");
 }
 
+// Hyprland fails a frame of a window that opened and moved a moment ago, with new constraints still coming.
 #[test]
-#[ignore = "test mode installs no window recorder, so a hidden window cannot be recorded in the harness"]
+fn platform_hypr_agent_captures_a_window_right_after_it_moves() {
+    let Some(scene) = scene() else { return };
+    let root = scene.path();
+    for round in 0..3 {
+        let class = format!("esh-moved-{round}");
+        let window = open(&class, "#ff0000", &scene.shown, "");
+        move_to(&window, HIDDEN);
+        let entry = until(30, || listed(root, &class)).expect("moved window never listed");
+        let id = entry["id"].as_str().unwrap();
+        let (code, reply) = agent(root, &["capture", "--window", id]);
+        assert_eq!(code, 0, "round {round}: {reply}\n{}", scene.log());
+        let (red_share, _) = share_of(reply["path"].as_str().unwrap(), [255, 0, 0]);
+        assert!(
+            red_share > 0.9,
+            "{red_share} of the capture is red: {reply}"
+        );
+        assert_eq!(reply["scale"].as_f64(), Some(1.5), "{reply}");
+    }
+}
+
+#[test]
 fn platform_hypr_agent_records_a_window_on_a_hidden_workspace_without_moving_anything() {
     let Some(scene) = scene() else { return };
     let root = scene.path();

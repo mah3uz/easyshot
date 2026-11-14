@@ -1,6 +1,7 @@
 use crate::Error;
 use crate::output::{swaps_axes, transform_from_wl};
 use crate::shm::{ShmBuffer, pick_format, supported, to_bgra};
+use crate::stream_retry::{AfterFailure, Retries};
 use crate::worker::State;
 use es_geom::Rect;
 use es_model::platform::{CaptureOpts, Frame, OutputId, Transform};
@@ -14,7 +15,7 @@ use wayland_protocols::ext::image_capture_source::v1::client::{
     ext_output_image_capture_source_manager_v1::ExtOutputImageCaptureSourceManagerV1,
 };
 use wayland_protocols::ext::image_copy_capture::v1::client::{
-    ext_image_copy_capture_frame_v1::{self, ExtImageCopyCaptureFrameV1},
+    ext_image_copy_capture_frame_v1::{self, ExtImageCopyCaptureFrameV1, FailureReason},
     ext_image_copy_capture_manager_v1::{ExtImageCopyCaptureManagerV1, Options},
     ext_image_copy_capture_session_v1::{self, ExtImageCopyCaptureSessionV1},
 };
@@ -67,6 +68,10 @@ pub(crate) struct Job {
     prefer_alpha: bool,
     size: (u32, u32),
     formats: Vec<Format>,
+    constraints: Option<((u32, u32), Format)>,
+    generation: u32,
+    attached: u32,
+    retries: Retries,
     wlr_buffer: Option<(Format, u32)>,
     y_invert: bool,
     buffer: Option<ShmBuffer>,
@@ -83,6 +88,10 @@ impl Job {
             transform,
             size: (0, 0),
             formats: Vec::new(),
+            constraints: None,
+            generation: 0,
+            attached: 0,
+            retries: Retries::default(),
             wlr_buffer: None,
             y_invert: false,
             buffer: None,
@@ -311,20 +320,45 @@ impl State {
         if j.buffer.is_some() {
             return Ok(());
         }
-        let Some(Objects::Ext { session, frame, .. }) = &mut j.objects else {
+        let (Some(Objects::Ext { session, frame, .. }), Some((size, format))) =
+            (&mut j.objects, j.constraints)
+        else {
             return Ok(());
         };
-        let format =
-            pick_format(&j.formats, j.prefer_alpha).ok_or(Error::Unsupported("shm format"))?;
-        let (w, h) = j.size;
-        let buf = ShmBuffer::new(&shm, qh, j.size, w.saturating_mul(4), format)?;
+        let (w, h) = size;
+        let buf = ShmBuffer::new(&shm, qh, size, w.saturating_mul(4), format)?;
         let f = session.create_frame(qh, job);
         f.attach_buffer(&buf.buffer);
         f.damage_buffer(0, 0, w as i32, h as i32);
         f.capture();
         *frame = Some(f);
         j.buffer = Some(buf);
+        j.attached = j.generation;
         Ok(())
+    }
+
+    /// Hyprland fails each frame of a resizing window with new constraints; the deadline bounds the retries.
+    fn ext_failed(&mut self, job: u64, reason: WEnum<FailureReason>, qh: &QueueHandle<State>) {
+        let Some(j) = self.jobs.get_mut(&job) else {
+            return;
+        };
+        let newer = j.generation > j.attached;
+        let after = j.retries.failed(reason, newer);
+        let retry = reason == WEnum::Value(FailureReason::BufferConstraints)
+            && matches!(after, AfterFailure::RequestNow | AfterFailure::RetryLater);
+        if !retry {
+            return self.finish(job, Err(Error::CaptureFailed(format!("{reason:?}"))));
+        }
+        if let Some(Objects::Ext { frame, .. }) = &mut j.objects
+            && let Some(f) = frame.take()
+        {
+            f.destroy();
+        }
+        j.buffer = None;
+        // Otherwise the constraints that are due attach the next buffer.
+        if newer && let Err(e) = self.attach_ext_buffer(job, qh) {
+            self.finish(job, Err(e));
+        }
     }
 
     fn copy_wlr_buffer(&mut self, job: u64, qh: &QueueHandle<State>) -> Result<(), Error> {
@@ -382,6 +416,14 @@ impl Dispatch<ExtImageCopyCaptureSessionV1, u64> for State {
                 format: WEnum::Value(f),
             } => j.formats.push(f),
             Event::Done => {
+                let formats = std::mem::take(&mut j.formats);
+                let Some(format) = pick_format(&formats, j.prefer_alpha) else {
+                    return state.finish(job, Err(Error::Unsupported("shm format")));
+                };
+                let constraints = Some((j.size, format));
+                j.retries.constraints(j.constraints != constraints);
+                j.constraints = constraints;
+                j.generation += 1;
                 if let Err(e) = state.attach_ext_buffer(job, qh) {
                     state.finish(job, Err(e));
                 }
@@ -401,7 +443,7 @@ impl Dispatch<ExtImageCopyCaptureFrameV1, u64> for State {
         event: ext_image_copy_capture_frame_v1::Event,
         job: &u64,
         _: &Connection,
-        _: &QueueHandle<Self>,
+        qh: &QueueHandle<Self>,
     ) {
         use ext_image_copy_capture_frame_v1::Event;
         let job = *job;
@@ -412,9 +454,7 @@ impl Dispatch<ExtImageCopyCaptureFrameV1, u64> for State {
                 }
             }
             Event::Ready => state.ready(job),
-            Event::Failed { reason } => {
-                state.finish(job, Err(Error::CaptureFailed(format!("{reason:?}"))))
-            }
+            Event::Failed { reason } => state.ext_failed(job, reason, qh),
             _ => {}
         }
     }

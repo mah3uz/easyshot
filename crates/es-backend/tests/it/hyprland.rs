@@ -209,6 +209,16 @@ fn the_window_list_comes_from_the_clients_reply() {
     assert_eq!(windows.all().len(), 4);
 }
 
+// A window shot's scale is its pixels over this size, also for a window no screen shows.
+#[test]
+fn a_window_on_an_unshown_workspace_still_has_its_size() {
+    let fake = FakeHypr::start(Answer::Recorded).with_events(Vec::new());
+    let windows = HyprWindows::start(fake.ipc(), None).expect("start");
+    let size = windows.size(&WindowId("0xddd4".into()));
+    assert_eq!(size, Some(es_geom::Size::new(1260.0, 1420.0)));
+    assert_eq!(windows.size(&WindowId("0x9999".into())), None);
+}
+
 #[test]
 fn pointer_maps_to_the_output_under_it() {
     let fake = FakeHypr::start(Answer::Recorded);

@@ -5,6 +5,7 @@ use super::json::{
 };
 use crate::error::{Error, Result};
 use crate::traits::WindowList;
+use es_geom::Size;
 use es_model::platform::{WindowEvent, WindowId, WindowInfo};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
@@ -215,6 +216,17 @@ impl WindowList for HyprWindows {
     }
     fn can_focus(&self) -> bool {
         true
+    }
+    fn size(&self, w: &WindowId) -> Option<Size> {
+        let clients: Vec<Client> = self
+            .inner
+            .ipc
+            .json("clients")
+            .inspect_err(|e| tracing::warn!("hyprland: window size: {e}"))
+            .ok()?;
+        let addr = self.inner.address_of(w);
+        let [width, height] = clients.iter().find(|c| address(&c.address) == addr)?.size;
+        Some(Size::new(width, height))
     }
     fn focus(&self, w: &WindowId) -> Result<()> {
         let ipc = &self.inner.ipc;

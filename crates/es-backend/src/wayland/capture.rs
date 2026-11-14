@@ -2,7 +2,7 @@ use crate::error::Result;
 use crate::traits::{Capture, WindowList};
 use es_geom::{Rect, Size};
 use es_model::platform::{
-    CaptureOpts, Frame, OutputEvent, OutputId, OutputInfo, Transform, WindowId,
+    CaptureOpts, Frame, OutputEvent, OutputId, OutputInfo, Transform, WindowId, WindowInfo,
 };
 use es_wayland::Connection;
 use fast_image_resize::images::{Image, ImageRef};
@@ -105,7 +105,8 @@ pub fn fit_window_frame(
     if let Some(up) = output_scale.and_then(|s| scaled_up(&frame, size * s)) {
         frame = up;
     }
-    frame.scale = f64::from(frame.size_px.0) / size.width;
+    // A window still resizing has a size that lags its pixels; its output's scale does not.
+    frame.scale = output_scale.unwrap_or(f64::from(frame.size_px.0) / size.width);
     frame.logical = logical.unwrap_or_else(|| Rect::from_origin_size(frame.logical.origin(), size));
     frame
 }
@@ -153,7 +154,8 @@ impl Capture for WindowGeometry {
 
     fn capture_window(&self, w: &WindowId, o: CaptureOpts) -> Result<Frame> {
         let frame = self.inner.capture_window(w, o)?;
-        let Some(info) = self.windows.snapshot().into_iter().find(|i| i.id == *w) else {
+        let find = |list: Vec<WindowInfo>| list.into_iter().find(|i| i.id == *w);
+        let Some(info) = find(self.windows.snapshot()).or_else(|| find(self.windows.all())) else {
             return Ok(frame);
         };
         let size = info
@@ -217,6 +219,14 @@ mod tests {
         assert_eq!(fitted.scale, 1.5);
     }
 
+    // Pixels over a size read while the window still grows would say 2 on a 1.5 output.
+    #[test]
+    fn a_resizing_window_takes_its_outputs_scale() {
+        let lagging = Rect::new(0.0, 0.0, 632.0, 490.0);
+        let fitted = fit_window_frame(frame(1262, 984, [0; 4]), Some(lagging), None, Some(1.5));
+        assert_eq!((fitted.size_px, fitted.scale), ((1262, 984), 1.5));
+    }
+
     // A window no screen shows has no rectangle; its size still says how many pixels a crop has.
     #[test]
     fn a_hidden_window_is_scaled_by_its_size_and_its_output_scale() {
@@ -228,5 +238,76 @@ mod tests {
 
         let unknown = fit_window_frame(frame(400, 300, [0; 4]), None, None, Some(2.0));
         assert_eq!((unknown.size_px, unknown.scale), ((400, 300), 1.0));
+    }
+
+    struct OneOutput;
+
+    impl Capture for OneOutput {
+        fn outputs(&self) -> Vec<OutputInfo> {
+            vec![OutputInfo {
+                id: OutputId("test".into()),
+                description: String::new(),
+                logical: Rect::new(0.0, 0.0, 1280.0, 720.0),
+                physical: (1920, 1080),
+                scale: 1.5,
+                transform: Transform::Normal,
+                refresh_mhz: 60_000,
+                focused: None,
+            }]
+        }
+        fn output_events(&self) -> async_channel::Receiver<OutputEvent> {
+            async_channel::unbounded().1
+        }
+        fn capture_outputs(&self, _: &[OutputId], _: CaptureOpts) -> Result<Vec<Frame>> {
+            Ok(Vec::new())
+        }
+        fn capture_window(&self, _: &WindowId, _: CaptureOpts) -> Result<Frame> {
+            Ok(frame(600, 450, [0; 4]))
+        }
+    }
+
+    struct HiddenWindow;
+
+    impl WindowList for HiddenWindow {
+        fn snapshot(&self) -> Vec<WindowInfo> {
+            Vec::new()
+        }
+        fn has_geometry(&self) -> bool {
+            true
+        }
+        fn events(&self) -> async_channel::Receiver<es_model::platform::WindowEvent> {
+            async_channel::unbounded().1
+        }
+        fn all(&self) -> Vec<WindowInfo> {
+            vec![WindowInfo {
+                id: WindowId("hidden".into()),
+                app_id: String::new(),
+                title: String::new(),
+                pid: None,
+                logical: None,
+                output: Some(OutputId("test".into())),
+                workspace: Some("9".into()),
+                floating: false,
+                focus_rank: None,
+            }]
+        }
+        fn size(&self, _: &WindowId) -> Option<Size> {
+            Some(Size::new(400.0, 300.0))
+        }
+    }
+
+    // The reply to an agent and the editor read a window shot's scale; a 1.5 output must not say 1.
+    #[test]
+    fn a_window_no_screen_shows_takes_its_outputs_scale() {
+        let geometry = WindowGeometry {
+            inner: Box::new(OneOutput),
+            windows: Arc::new(HiddenWindow),
+        };
+        let shot = geometry
+            .capture_window(&WindowId("hidden".into()), CaptureOpts { cursor: false })
+            .unwrap();
+        assert_eq!(shot.size_px, (600, 450));
+        assert_eq!(shot.scale, 1.5);
+        assert_eq!(shot.logical.size(), Size::new(400.0, 300.0));
     }
 }
