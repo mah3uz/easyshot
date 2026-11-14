@@ -41,18 +41,28 @@ fn xdg(cmd: &mut Command, root: &Path) {
     cmd.env("EASYSHOT_TEST_DIR", root.join("test"));
 }
 
-fn hyprctl(args: &[&str]) -> String {
-    let out = Command::new("hyprctl").args(args).output().unwrap();
-    assert!(out.status.success(), "hyprctl {args:?}");
+fn harness_ctl() -> Command {
+    let mut cmd = Command::new("bash");
+    cmd.arg(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/harness/hypr.sh"
+    ))
+    .arg("ctl");
+    cmd
+}
+
+fn ctl(args: &[&str]) -> String {
+    let out = harness_ctl().args(args).output().unwrap();
+    assert!(out.status.success(), "ctl {args:?}");
     String::from_utf8(out.stdout).unwrap()
 }
 
 fn hypr_json(what: &str) -> Value {
-    serde_json::from_str(&hyprctl(&[what, "-j"])).unwrap()
+    serde_json::from_str(&ctl(&[what, "-j"])).unwrap()
 }
 
 fn dispatch(call: &str) {
-    assert_eq!(hyprctl(&["dispatch", call]).trim(), "ok", "{call}");
+    assert_eq!(ctl(&["dispatch", call]).trim(), "ok", "{call}");
 }
 
 fn json_line(stdout: &str) -> Value {
@@ -106,7 +116,7 @@ fn desktop() -> Desktop {
             .unwrap_or("")
             .to_owned(),
         cursor: {
-            let pos = hyprctl(&["cursorpos"]);
+            let pos = ctl(&["cursorpos"]);
             let (x, y) = pos.trim().split_once(',').unwrap();
             (x.trim().parse().unwrap(), y.trim().parse().unwrap())
         },
@@ -140,7 +150,7 @@ struct Window {
 
 impl Drop for Window {
     fn drop(&mut self) {
-        let _ = Command::new("hyprctl")
+        let _ = harness_ctl()
             .arg("dispatch")
             .arg(format!(
                 "hl.dsp.window.close({{ window = \"address:{}\" }})",
@@ -285,7 +295,7 @@ fn scene() -> Option<Scene> {
     })
     .expect("daemon never answered");
 
-    hyprctl(&[
+    ctl(&[
         "eval",
         &format!("hl.workspace_rule({{ workspace = \"{HIDDEN}\", monitor = \"{OUTPUT}\" }})"),
     ]);
