@@ -113,6 +113,7 @@ fn a_quiet_agent_capture_with_a_redacted_copy_keeps_only_the_redacted_pixels(
         out: Some(out.clone()),
         ui: false,
         redacted: Some(black_copy()),
+        ..Default::default()
     };
     rig.agent_save(cx, options).unwrap();
     assert!(is_color(&out, [0, 0, 0, 255]), "the --out file");
@@ -141,6 +142,7 @@ fn with_the_interface_the_user_keeps_the_original_and_the_agent_gets_the_redacte
         out: Some(out.clone()),
         ui: true,
         redacted: Some(black_copy()),
+        ..Default::default()
     };
     let saved = rig.agent_save(cx, options).unwrap();
     assert_eq!(saved.path, out);
@@ -163,4 +165,38 @@ fn with_the_interface_the_user_keeps_the_original_and_the_agent_gets_the_redacte
     for entry in library {
         assert!(is_color(&entry.file, [0xFF, 0x80, 0, 255]), "the original");
     }
+}
+
+#[gpui::test]
+fn a_temp_capture_stays_out_of_the_gallery_and_lands_in_the_agent_cache(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    let options = es_app::agent_capture::Options {
+        temp: true,
+        ui: true,
+        redacted: Some(black_copy()),
+        ..Default::default()
+    };
+    let saved = rig.agent_save(cx, options).unwrap();
+    assert_eq!(saved.path.parent().unwrap(), rig.deps.paths.agent_dir());
+    assert!(is_color(&saved.path, [0, 0, 0, 255]), "the covered pixels");
+    assert_eq!((saved.width, saved.height), (4, 2));
+    assert_eq!(rig.history_len(cx), 0, "no history entry");
+    assert_eq!(rig.deck_len(cx), 0, "--ui is ignored");
+    assert!(rig.toast_titles().is_empty());
+}
+
+#[gpui::test]
+fn a_temp_capture_still_writes_the_out_copy(cx: &mut TestAppContext) {
+    let rig = rig(cx);
+    let out = rig.save_dir.join("shot.png");
+    std::fs::create_dir_all(&rig.save_dir).unwrap();
+    let options = es_app::agent_capture::Options {
+        out: Some(out.clone()),
+        temp: true,
+        ..Default::default()
+    };
+    let saved = rig.agent_save(cx, options).unwrap();
+    assert!(out.exists());
+    assert_ne!(saved.path, out);
+    assert_eq!(rig.history_len(cx), 0);
 }

@@ -907,12 +907,18 @@ Commands:
   as an id, then as an exact app id, then as an exact title; a name that fits several windows
   is refused with the candidates listed, so name one by its id. The capture is a still frame
   taken at once, cropped to the target, with no selector. It is quiet: no deck card, no
-  notification and no after-capture step except saving. It is always kept in the library, so
+  notification and no after-capture step except saving. It is kept in the library, so
   you can review what an agent captured in the gallery, and is saved to your folder too when
-  auto-save is on. Secrets in it are hidden (see Hiding secrets below).
+  auto-save is on, unless `--temp` or the setting `keep_captures` says otherwise. Secrets in it are hidden (see Hiding secrets below).
   - `--out PATH` also writes the PNG to an absolute or relative `.png` path whose folder
     exists. This is an extra copy; the library still gets the capture.
   - `--delay SECONDS` waits 0 to 60 seconds first.
+  - `--temp` keeps this one capture out of the library and history, for repeated or bulk
+    checks. The PNG is written to `$XDG_CACHE_HOME/easyshot/agent/` (`~/.cache/easyshot/agent/`
+    by default) and that is the `path` in the answer. Only the newest 200 files stay there, and
+    easyshot empties the folder when it starts. `--out` still writes its extra copy. `--ui` is
+    ignored with `--temp`, since there is no library entry to show. `--temp` never keeps a
+    capture that `keep_captures` is off for. Secrets are hidden in the file as in any capture.
   - `--ui` also shows the deck card and notification and runs the after-capture steps, as for
     a capture you make yourself. (`--no-ui` from earlier versions is still accepted and does
     nothing.)
@@ -1089,15 +1095,18 @@ ones below exits with status 7 and says how to turn it on. These always work:
   turns it off and ends every grant.
 - `agent status` shows whether access is on, the consent setting, the grant in force and
   when it ends, the outputs and windows agents may capture, whether secrets are hidden, and
-  how many recent actions are logged. `--json` gives the same as one object.
+  whether captures are kept in the gallery, and how many recent actions are logged. `--json` gives the same as one object.
 - `agent config get <key>` and `agent config set <key> <value>` read and change one setting
   of the `[agent]` section of `config.toml`: `enabled` (`true` or `false`), `consent`,
   `allowed_outputs` and `allowed_windows` (comma-separated output names and app ids; empty
-  means all), `redact_secrets` (`true` or `false`) and `log_limit` (1 to 10000). Setting
+  means all), `redact_secrets` (`true` or `false`), `keep_captures` (`true` or `false`; `false` keeps every
+  agent capture out of your library and history, as with `--temp`, and the default is
+  `true`) and `log_limit` (1 to 10000). Setting
   `enabled` to `true`, `consent` to `always-allow`, or a scope that allows more than before
   shows the same dialog first; Cancel exits with status 8 and changes nothing.
 
-Settings › Agents has the same settings, and changes there need no extra click.
+Settings › Agents has the same settings, and changes there need no extra click. "Keep agent
+captures in the gallery" there is `keep_captures`.
 
 Only your own user can send agent commands: easyshot asks the session bus which user sent
 each one and refuses any other user with status 8. Nothing is ever sent over the network.

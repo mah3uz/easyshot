@@ -352,6 +352,11 @@ const READERS: &[(&str, &str, &str)] = &[
         "cfg.redact_secrets",
     ),
     (
+        "agent.keep_captures",
+        "crates/easyshot/src/daemon/agent_capture.rs",
+        "keeps(",
+    ),
+    (
         "agent.log_limit",
         "crates/easyshot/src/daemon/agent_gate.rs",
         "log_limit()",

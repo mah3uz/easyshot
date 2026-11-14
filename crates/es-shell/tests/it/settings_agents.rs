@@ -196,6 +196,8 @@ fn each_control_writes_its_own_agent_setting() {
     assert_eq!(agent_cfg(&mut fx).consent, Consent::AlwaysAsk);
     edit_view(&mut fx, |v, cx| v.set_agent_redact(false, cx));
     assert!(!agent_cfg(&mut fx).redact_secrets);
+    edit_view(&mut fx, |v, cx| v.set_agent_keep_captures(false, cx));
+    assert!(!agent_cfg(&mut fx).keep_captures);
 
     type_into(&mut fx, true, "DP-1, HDMI-A-1, DP-1");
     assert_eq!(agent_cfg(&mut fx).allowed_outputs, ["DP-1", "HDMI-A-1"]);

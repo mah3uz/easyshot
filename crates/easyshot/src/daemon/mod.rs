@@ -562,6 +562,9 @@ fn start(
     if let Err(e) = es_store::temp::purge(paths, std::time::SystemTime::now()) {
         tracing::warn!(error = %e, "temporary files not purged");
     }
+    if let Err(e) = es_store::agent_captures::clear(paths) {
+        tracing::warn!(error = %e, "agent captures not cleared");
+    }
     let recovered = recovery::run(paths, &deck, &recordings, cx);
     reopen_recovered(&wiring, recovered, cx);
     if first_launch_pending(paths)

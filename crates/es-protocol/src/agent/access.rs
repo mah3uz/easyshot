@@ -15,16 +15,18 @@ pub enum AgentKey {
     AllowedWindows,
     RedactSecrets,
     LogLimit,
+    KeepCaptures,
 }
 
 impl AgentKey {
-    pub const ALL: [AgentKey; 6] = [
+    pub const ALL: [AgentKey; 7] = [
         AgentKey::Enabled,
         AgentKey::Consent,
         AgentKey::AllowedOutputs,
         AgentKey::AllowedWindows,
         AgentKey::RedactSecrets,
         AgentKey::LogLimit,
+        AgentKey::KeepCaptures,
     ];
 
     pub fn name(self) -> &'static str {
@@ -35,6 +37,7 @@ impl AgentKey {
             AgentKey::AllowedWindows => "allowed_windows",
             AgentKey::RedactSecrets => "redact_secrets",
             AgentKey::LogLimit => "log_limit",
+            AgentKey::KeepCaptures => "keep_captures",
         }
     }
 
@@ -177,7 +180,13 @@ pub struct AccessStatus {
     /// Empty means every window.
     pub allowed_windows: Vec<String>,
     pub redact_secrets: bool,
+    #[serde(default = "default_keep")]
+    pub keep_captures: bool,
     pub recent_actions: usize,
+}
+
+fn default_keep() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

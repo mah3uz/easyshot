@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### New
+- `easyshot agent capture --temp` (MCP `temp`) keeps one agent capture out of your gallery, and Settings › Agents has "Keep agent captures in the gallery" to turn them all off; those files go to `~/.cache/easyshot/agent/`, which keeps the newest 200 and is emptied at start.
+
 ### Improvements
 - Agents can capture, read and record a covered window or one on another workspace without moving your focus, and `agent list windows` lists every workspace's windows with `visible`.
 - Agent captures no longer show a card or notification; agents can ask for one with `--ui`, and `--out` now writes an extra copy while the capture still goes to the library.

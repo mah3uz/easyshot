@@ -62,5 +62,6 @@ pub fn print_status(s: &AccessStatus, out: &mut dyn Write) {
     let _ = writeln!(out, "outputs\t{}", list(&s.allowed_outputs));
     let _ = writeln!(out, "windows\t{}", list(&s.allowed_windows));
     let _ = writeln!(out, "redact secrets\t{}", on(s.redact_secrets));
+    let _ = writeln!(out, "keep captures\t{}", on(s.keep_captures));
     let _ = writeln!(out, "recent actions\t{}", s.recent_actions);
 }

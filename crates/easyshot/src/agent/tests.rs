@@ -247,7 +247,7 @@ fn access_commands_build_their_typed_routes() {
 
 #[test]
 fn status_text_names_each_setting_on_its_own_line() {
-    const STATUS: &str = r#"{"ok":true,"kind":"access","access":{"enabled":true,"consent":"once-per-session","grant":{"span":"hour","expires":"2026-11-03T10:00:00Z"},"allowed_outputs":["DP-1"],"allowed_windows":[],"redact_secrets":true,"recent_actions":3}}"#;
+    const STATUS: &str = r#"{"ok":true,"kind":"access","access":{"enabled":true,"consent":"once-per-session","grant":{"span":"hour","expires":"2026-11-03T10:00:00Z"},"allowed_outputs":["DP-1"],"allowed_windows":[],"redact_secrets":true,"keep_captures":false,"recent_actions":3}}"#;
     let bus = PrivateBus::start();
     let dir = tempfile::tempdir().unwrap();
     let server = serve(&bus, 1, JobStatus::Ok, STATUS);
@@ -256,7 +256,7 @@ fn status_text_names_each_setting_on_its_own_line() {
     assert_eq!(
         out,
         "agent access\ton\nconsent\tonce-per-session\ngrant\thour until 2026-11-03T10:00:00Z\n\
-         outputs\tDP-1\nwindows\tall\nredact secrets\ton\nrecent actions\t3\n"
+         outputs\tDP-1\nwindows\tall\nredact secrets\ton\nkeep captures\toff\nrecent actions\t3\n"
     );
     server.finish();
 }

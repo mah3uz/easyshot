@@ -8,6 +8,7 @@ const MAX_OUT: usize = 4096;
 const OUT_ARG: &str = "out";
 const DELAY_ARG: &str = "delay";
 const UI_ARG: &str = "ui";
+const TEMP_ARG: &str = "temp";
 
 /// What one `agent capture` asks for.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -17,10 +18,12 @@ pub struct CaptureSpec {
     pub out: Option<PathBuf>,
     pub delay: u8,
     pub ui: bool,
+    /// Keep this capture out of the user's gallery.
+    pub temp: bool,
 }
 
 impl CaptureSpec {
-    pub const ARGS: [&'static str; 3] = [OUT_ARG, DELAY_ARG, UI_ARG];
+    pub const ARGS: [&'static str; 4] = [OUT_ARG, DELAY_ARG, UI_ARG, TEMP_ARG];
 
     pub const fn new(target: AgentTarget) -> CaptureSpec {
         CaptureSpec {
@@ -28,6 +31,7 @@ impl CaptureSpec {
             out: None,
             delay: 0,
             ui: false,
+            temp: false,
         }
     }
 
@@ -41,6 +45,7 @@ impl CaptureSpec {
         }
         put(DELAY_ARG, ArgValue::Int(i64::from(self.delay)));
         put(UI_ARG, ArgValue::Bool(self.ui));
+        put(TEMP_ARG, ArgValue::Bool(self.temp));
     }
 
     pub fn from_args(args: &RouteArgs) -> Result<CaptureSpec, String> {
@@ -62,11 +67,17 @@ impl CaptureSpec {
             Some(ArgValue::Bool(b)) => *b,
             Some(_) => return Err(format!("{UI_ARG} must be true or false")),
         };
+        let temp = match args.0.get(TEMP_ARG) {
+            None => false,
+            Some(ArgValue::Bool(b)) => *b,
+            Some(_) => return Err(format!("{TEMP_ARG} must be true or false")),
+        };
         Ok(CaptureSpec {
             target: AgentTarget::from_args(args)?,
             out,
             delay,
             ui,
+            temp,
         })
     }
 }
@@ -106,6 +117,7 @@ mod tests {
             out: Some(PathBuf::from("/tmp/shot.PNG")),
             delay: 60,
             ui: true,
+            temp: true,
         };
         assert_eq!(round_trip(&spec).unwrap(), spec);
         let plain = CaptureSpec::new(AgentTarget::Output(OutputName::new("DP-1").unwrap()));
@@ -147,6 +159,7 @@ mod tests {
         assert!(with(DELAY_ARG, ArgValue::Int(-1)).is_err());
         assert!(with(DELAY_ARG, text("3")).is_err());
         assert!(with(UI_ARG, text("true")).is_err());
+        assert!(with(TEMP_ARG, text("true")).is_err());
         assert!(with(DELAY_ARG, ArgValue::Int(i64::from(MAX_DELAY_SECONDS))).is_ok());
     }
 

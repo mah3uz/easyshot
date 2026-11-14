@@ -157,10 +157,19 @@ async fn run(
     let acquired = started.elapsed();
     let (redacted, redaction) = redact(deps, redactor, &shot.frame, cx).await?;
     let redacted_at = started.elapsed();
+    let keep = cx.update(|cx| {
+        deps.pipeline
+            .settings
+            .read(cx)
+            .config()
+            .agent
+            .keeps(spec.temp)
+    });
     let options = Options {
         out: spec.out,
         ui: spec.ui,
         redacted,
+        temp: !keep,
     };
     let saved = cx
         .update(|cx| save(&deps.pipeline, options, shot.kind, shot.frame, cx))

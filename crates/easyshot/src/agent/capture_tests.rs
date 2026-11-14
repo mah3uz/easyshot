@@ -110,6 +110,12 @@ fn a_capture_is_quiet_unless_the_agent_asks_for_the_card() {
 }
 
 #[test]
+fn temp_reaches_the_spec_and_is_off_by_default() {
+    assert!(!spec(&["agent", "capture", "--fullscreen"]).temp);
+    assert!(spec(&["agent", "capture", "--fullscreen", "--temp"]).temp);
+}
+
+#[test]
 fn the_old_no_ui_flag_still_parses_for_scripts_and_changes_nothing() {
     let old = spec(&["agent", "capture", "--fullscreen", "--no-ui"]);
     assert!(!old.ui);

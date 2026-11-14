@@ -12,13 +12,14 @@ easyshot agent list outputs --json
 easyshot agent list windows --json
 easyshot agent capture --output DP-1 --no-wait --json
 easyshot agent capture --fullscreen --out /tmp/screen.png --json
+easyshot agent capture --window firefox --temp --json   # not kept in the gallery
 easyshot agent record start --fullscreen --audio none --fps 30 --keystrokes --json
 easyshot agent export /tmp/demo.mp4 --look mono --brightness 0.1 --force --json
 easyshot agent annotate /tmp/shot.png --ops /tmp/ops.json --out /tmp/marked.png --force --json
 ```
 
 `agent config get` reads one setting of the user's `[agent]` section: `enabled`, `consent`,
-`allowed_outputs`, `allowed_windows`, `redact_secrets`, `log_limit`. You may read them. Changing
+`allowed_outputs`, `allowed_windows`, `redact_secrets`, `keep_captures`, `log_limit`. You may read them. Changing
 them is the user's decision.
 
 ## Annotate ops

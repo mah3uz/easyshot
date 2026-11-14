@@ -260,6 +260,7 @@ mod tests {
             out: Some("/tmp/a.png".into()),
             delay: 5,
             ui: true,
+            temp: true,
         };
         let route = Route::Agent(AgentRoute::Capture(spec));
         assert_eq!(Route::parse(&route.as_str(), &route.args()).unwrap(), route);

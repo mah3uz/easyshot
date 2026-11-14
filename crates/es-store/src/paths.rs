@@ -156,6 +156,10 @@ impl Paths {
         self.cache.join("video-copies")
     }
 
+    pub fn agent_dir(&self) -> PathBuf {
+        self.cache.join("agent")
+    }
+
     pub fn ensure_all(&self) -> Result<()> {
         [
             self.config_dir().to_path_buf(),
@@ -171,6 +175,7 @@ impl Paths {
             self.unstaged_dir(),
             self.share_dir(),
             self.video_copies_dir(),
+            self.agent_dir(),
         ]
         .iter()
         .try_for_each(|d| ensure_private_dir(d))

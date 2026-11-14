@@ -140,6 +140,10 @@ impl SettingsWindow {
         self.edit(move |c| c.agent.redact_secrets = on, cx);
     }
 
+    pub fn set_agent_keep_captures(&mut self, on: bool, cx: &mut Context<Self>) {
+        self.edit(move |c| c.agent.keep_captures = on, cx);
+    }
+
     /// The allowed-outputs and allowed-windows fields.
     pub fn agent_scope_fields(&self) -> (Entity<InputState>, Entity<InputState>) {
         (self.agents.outputs.clone(), self.agents.windows.clone())
@@ -150,6 +154,7 @@ impl SettingsWindow {
         let a = &c.agent;
         let on = a.enabled;
         let redact = a.redact_secrets;
+        let keep = a.keep_captures;
         let grant = self
             .agents
             .access
@@ -248,6 +253,19 @@ impl SettingsWindow {
                             fl!("agents-redact"),
                             redact,
                             cx.listener(|this, on: &bool, _, cx| this.set_agent_redact(*on, cx)),
+                        ),
+                        cx,
+                    ),
+                    row(
+                        fl!("agents-keep-captures"),
+                        Some(fl!("agents-keep-captures-help").into()),
+                        switch(
+                            "agents-keep-captures",
+                            fl!("agents-keep-captures"),
+                            keep,
+                            cx.listener(|this, on: &bool, _, cx| {
+                                this.set_agent_keep_captures(*on, cx)
+                            }),
                         ),
                         cx,
                     ),

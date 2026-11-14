@@ -70,6 +70,7 @@ easyshot agent capture --fullscreen --delay 3 --json
 - `--out PATH` also writes the PNG to an absolute path ending `.png` whose folder exists.
 - `--delay SECONDS` (0 to 60) waits first, for a menu the user opens or you open.
 - A capture is quiet: no deck card or notification, and it is kept in the user's library. `--ui` also shows the card and notification.
+- Use `--temp` for repeated or bulk checks: the capture is not kept in the user's gallery and the PNG goes to `~/.cache/easyshot/agent/` (newest 200 kept). The user may have turned keeping off for all agent captures (`keep_captures`).
 - Capturing the screen shows the user's real content. Capture the smallest target that answers
   the question, and prefer one window to a whole output.
 

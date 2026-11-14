@@ -47,6 +47,9 @@ pub struct CaptureArgs {
     ui: bool,
     #[arg(long, hide = true)]
     no_ui: bool,
+    /// Do not keep this capture in the gallery; the file goes to the agent cache folder
+    #[arg(long)]
+    temp: bool,
     /// Wait for the capture to finish (the default)
     #[arg(long, conflicts_with = "no_wait")]
     wait: bool,
@@ -71,6 +74,7 @@ impl CaptureArgs {
             out: self.out.clone(),
             delay: self.delay,
             ui: self.ui,
+            temp: self.temp,
         }
     }
 

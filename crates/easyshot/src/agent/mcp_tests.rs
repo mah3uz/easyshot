@@ -131,6 +131,16 @@ fn a_capture_is_quiet_unless_the_agent_asks_for_the_card_with_ui() {
     assert!(ui(json!({"fullscreen": true, "ui": true})));
 }
 
+#[test]
+fn temp_true_becomes_the_temp_flag_and_is_off_by_default() {
+    let temp = |arguments: Value| match route_of("capture", &arguments).unwrap().0 {
+        AgentRoute::Capture(spec) => spec.temp,
+        other => panic!("not a capture: {other:?}"),
+    };
+    assert!(!temp(json!({"fullscreen": true})));
+    assert!(temp(json!({"fullscreen": true, "temp": true})));
+}
+
 fn fake_daemon(
     endpoint: Endpoint,
     jobs: usize,

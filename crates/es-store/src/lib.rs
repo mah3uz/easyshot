@@ -1,4 +1,5 @@
 pub mod agent;
+pub mod agent_captures;
 pub mod atomic;
 pub mod binds;
 pub mod bundle;

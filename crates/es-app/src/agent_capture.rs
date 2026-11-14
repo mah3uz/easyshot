@@ -5,6 +5,7 @@ use es_model::CaptureKind as StoredKind;
 use es_model::capture::{CaptureVariant, Step, after_capture_plan};
 use es_model::platform::Frame;
 use es_render::encode::{PngProfile, encode_png};
+use es_store::agent_captures;
 use es_store::atomic::write_atomic;
 use es_store::temp::{self, TempKind};
 use gpui::{App, Task};
@@ -21,6 +22,9 @@ pub struct Options {
     /// `frame` everywhere; with it, `frame` stays the user's copy and this goes to `out` or a
     /// private temporary file.
     pub redacted: Option<Arc<Frame>>,
+    /// Keep the capture out of the library, history and deck: the file goes to the agent cache
+    /// folder and `ui` is ignored.
+    pub temp: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -40,6 +44,9 @@ pub fn save(
     frame: Arc<Frame>,
     cx: &mut App,
 ) -> Task<Result<Saved>> {
+    if options.temp {
+        return save_temp(deps, options, frame, cx);
+    }
     let (frame, agent_copy) = match (options.redacted.take(), options.ui) {
         (Some(redacted), false) => (redacted, None),
         (redacted, _) => (frame, redacted),
@@ -135,6 +142,35 @@ pub fn save(
             output,
         })
     })
+}
+
+fn save_temp(
+    deps: &Rc<PipelineDeps>,
+    options: Options,
+    frame: Arc<Frame>,
+    cx: &mut App,
+) -> Task<Result<Saved>> {
+    let frame = options.redacted.unwrap_or(frame);
+    let (scale, output) = (frame.scale, frame.output.as_ref().map(|o| o.0.clone()));
+    let (paths, out) = (deps.paths.clone(), options.out);
+    let written = run_cpu(cx, move || {
+        let image = pipeline::frame_rgba(&frame)?;
+        let png = encode_png(&pipeline::pixmap(&image)?, PngProfile::Fast)
+            .map_err(|e| Error::Internal(e.to_string()))?;
+        if let Some(out) = &out {
+            write_atomic(out, &png)?;
+        }
+        let path = agent_captures::write(&paths, &png)?;
+        let (width, height) = png_size(&png);
+        Ok::<_, Error>(Saved {
+            path,
+            width,
+            height,
+            scale,
+            output,
+        })
+    });
+    cx.spawn(async move |_| written.await?)
 }
 
 fn png_size(png: &[u8]) -> (u32, u32) {

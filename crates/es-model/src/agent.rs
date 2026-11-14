@@ -45,6 +45,7 @@ pub struct AgentCfg {
     pub allowed_windows: Vec<String>,
     pub redact_secrets: bool,
     pub log_limit: u32,
+    pub keep_captures: bool,
 }
 
 impl Default for AgentCfg {
@@ -56,6 +57,7 @@ impl Default for AgentCfg {
             allowed_windows: Vec::new(),
             redact_secrets: true,
             log_limit: 200,
+            keep_captures: true,
         }
     }
 }
@@ -64,6 +66,11 @@ impl AgentCfg {
     /// A hand-edited limit outside the range still keeps the log bounded.
     pub fn log_limit(&self) -> usize {
         self.log_limit.clamp(1, MAX_LOG_LIMIT) as usize
+    }
+
+    /// `temp` can only drop a capture; it never keeps one the user's setting drops.
+    pub fn keeps(&self, temp: bool) -> bool {
+        self.keep_captures && !temp
     }
 }
 
@@ -128,6 +135,28 @@ mod tests {
         assert_eq!(c.consent, Consent::OncePerSession);
         assert!(c.allowed_outputs.is_empty() && c.allowed_windows.is_empty());
         assert!(c.redact_secrets);
+        assert!(
+            c.keep_captures,
+            "agent captures reach the gallery unless the user opts out"
+        );
+        assert!(
+            !toml::from_str::<AgentCfg>("keep_captures = false")
+                .unwrap()
+                .keep_captures
+        );
+    }
+
+    #[test]
+    fn a_temp_capture_is_dropped_but_never_kept_against_the_users_setting() {
+        let on = AgentCfg::default();
+        let off = AgentCfg {
+            keep_captures: false,
+            ..AgentCfg::default()
+        };
+        assert!(on.keeps(false));
+        assert!(!on.keeps(true));
+        assert!(!off.keeps(false));
+        assert!(!off.keeps(true));
     }
 
     #[test]

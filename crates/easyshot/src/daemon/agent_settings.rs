@@ -13,6 +13,7 @@ pub fn get(cfg: &AgentCfg, key: AgentKey) -> String {
         AgentKey::AllowedWindows => cfg.allowed_windows.join(","),
         AgentKey::RedactSecrets => cfg.redact_secrets.to_string(),
         AgentKey::LogLimit => cfg.log_limit.to_string(),
+        AgentKey::KeepCaptures => cfg.keep_captures.to_string(),
     }
 }
 
@@ -22,6 +23,7 @@ pub fn set(cfg: &mut AgentCfg, key: AgentKey, value: &str) -> Result<(), String>
     match key {
         AgentKey::Enabled => cfg.enabled = flag(value)?,
         AgentKey::RedactSecrets => cfg.redact_secrets = flag(value)?,
+        AgentKey::KeepCaptures => cfg.keep_captures = flag(value)?,
         AgentKey::Consent => {
             cfg.consent = Consent::from_name(value).ok_or_else(|| {
                 let names: Vec<&str> = Consent::ALL.iter().map(|c| c.name()).collect();
@@ -88,6 +90,7 @@ mod tests {
             (AgentKey::AllowedWindows, "firefox,org.gnome.Nautilus"),
             (AgentKey::RedactSecrets, "false"),
             (AgentKey::LogLimit, "50"),
+            (AgentKey::KeepCaptures, "false"),
         ] {
             set(&mut cfg, key, value).unwrap();
             assert_eq!(get(&cfg, key), value, "{key:?}");
@@ -114,6 +117,7 @@ mod tests {
         let mut cfg = AgentCfg::default();
         for (key, value) in [
             (AgentKey::Enabled, "yes"),
+            (AgentKey::KeepCaptures, "no"),
             (AgentKey::Consent, "never"),
             (AgentKey::AllowedOutputs, "DP-1,../x"),
             (AgentKey::LogLimit, "0"),

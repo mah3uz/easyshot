@@ -161,7 +161,8 @@ fn capture_schema() -> Value {
             "include_image": {"type": "boolean", "default": true, "description": "Attach the downscaled preview image (long edge at most 1280 px)."},
             "out": {"type": "string", "description": "Also write the PNG to this absolute path; its folder must exist."},
             "delay": {"type": "integer", "minimum": 0, "maximum": MAX_DELAY_SECONDS, "default": 0, "description": "Seconds to wait before the capture."},
-            "ui": {"type": "boolean", "default": false, "description": "Also show the user the capture card and notification. Off by default."}
+            "ui": {"type": "boolean", "default": false, "description": "Also show the user the capture card and notification. Off by default."},
+            "temp": {"type": "boolean", "default": false, "description": "Do not keep this capture in the user's gallery; use it for repeated or bulk checks."}
         }),
     )
 }
@@ -313,6 +314,9 @@ fn capture_argv(args: &JsonObject) -> Result<Vec<String>, String> {
     option(&mut argv, "delay", number(args, "delay")?);
     if flag(args, "ui")? {
         argv.push("--ui".to_owned());
+    }
+    if flag(args, "temp")? {
+        argv.push("--temp".to_owned());
     }
     Ok(argv)
 }

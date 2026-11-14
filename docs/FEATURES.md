@@ -287,7 +287,7 @@ More in the manual: [Recording](MANUAL.md#recording).
 - Explains options whose names say little in a tooltip (overlay layouts, codecs, containers, agent consent), and names each key field's clear button in one.
 - Shows the version, the website, the source and the issue tracker on About, and Show Onboarding Again.
 - Sets the editor's arrow-key steps and its zoom anchor in `config.toml`.
-- Controls agent access, consent, scope and secret hiding on Agents.
+- Controls agent access, consent, scope, secret hiding and whether captures are kept in the gallery on Agents.
 - Says on Sharing where shares go (easyshot Free, or your bucket once it is filled in), sets how long free links last while Free is in use, keeps bucket keys in your keyring or a private file, and tests the bucket connection.
 
 More in the manual: [Settings](MANUAL.md#settings).
@@ -334,7 +334,8 @@ More in the manual: [Command line](MANUAL.md#command-line).
 - Takes a screenshot of an output, an area, a window or the focused output and prints the PNG path.
 - Writes the screenshot to a path you name with `--out`.
 - Waits 0 to 60 seconds first with `--delay`.
-- Captures quietly, with no deck card or notification, unless asked with `--ui`; the capture is always kept in the library.
+- Captures quietly, with no deck card or notification, unless asked with `--ui`; the capture is kept in the library unless you turn that off.
+- Keeps a capture out of your gallery with `--temp`, or all agent captures with "Keep agent captures in the gallery" on Agents; those files go to a cache folder that keeps the newest 200 and is emptied at start.
 - Waits for the result, or returns at once with `--no-wait`.
 - Covers secrets such as keys, passwords, emails and card numbers in agent screenshots.
 - Re-encodes a recording as MP4, WebM or GIF with size, quality, trim, look and brightness options.

@@ -225,6 +225,7 @@ impl Gate {
             allowed_outputs: cfg.allowed_outputs,
             allowed_windows: cfg.allowed_windows,
             redact_secrets: cfg.redact_secrets,
+            keep_captures: cfg.keep_captures,
             recent_actions: access.log().len(),
         }
     }
