@@ -7,7 +7,7 @@ use es_app::share::{
     DeckMarks, DeckOrigin, LiveTargets, PopoverHost, ShareFlow, ShareHooks, ShareOrigin, Shares,
     SystemKeyring,
 };
-use es_app::share::{FileOrigin, WindowPopover};
+use es_app::share::WindowPopover;
 use es_editor::{EditorWindow, ShareRequested};
 use es_overlays::deck::view::DeckSurface;
 use es_protocol::{Route, SettingsPage};
