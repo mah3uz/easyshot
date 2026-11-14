@@ -1241,6 +1241,12 @@ daemon if it is not running. Register it with your client:
 
 The server runs for as long as the agent session does.
 
+If you upgrade easyshot during an agent session, the running server stays the version it
+started as: its tools still work, but it does not know the tools and options the new version
+added. From then on each of its replies ends with a note telling the agent so and asking it to
+have you reconnect the easyshot MCP server (in Claude Code, from `/mcp`) or restart the agent
+session; the server that starts then is the new version.
+
 ## Files
 
 | What | Where |

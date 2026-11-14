@@ -362,6 +362,7 @@ More in the manual: [Command line](MANUAL.md#command-line).
 - Updates installed skills when easyshot starts after an upgrade, unless you edited them, and tells you in `doctor` and `agent status` when one is out of date.
 - Runs a Model Context Protocol server with `easyshot agent mcp`, with tools to list, capture, read text, record, export and annotate.
 - Returns MCP screenshots scaled to 1280 pixels on the long edge, with secrets covered.
+- Tells the agent when easyshot was upgraded under a running MCP server, so it asks you to reconnect it for the new tools.
 
 More in the manual: [Agent use](MANUAL.md#agent-use), [Annotating an image](MANUAL.md#annotating-an-image), [Hiding secrets](MANUAL.md#hiding-secrets), [Turning agent access on](MANUAL.md#turning-agent-access-on), [Consent](MANUAL.md#consent), [Scope](MANUAL.md#scope), [The log](MANUAL.md#the-log), [The skill for your agent](MANUAL.md#the-skill-for-your-agent) and [The MCP server for your agent](MANUAL.md#the-mcp-server-for-your-agent).
 

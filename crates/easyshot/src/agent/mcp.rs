@@ -16,6 +16,9 @@ use rmcp::transport::IntoTransport;
 use rmcp::{ErrorData as McpError, RoleServer, ServerHandler, ServiceExt};
 use serde_json::{Value, json};
 use std::io::Write;
+use std::os::unix::ffi::OsStrExt;
+use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 
 const INSTRUCTIONS: &str = "Screenshots, OCR and screen recordings of the user's real desktop through \
@@ -26,11 +29,18 @@ const INSTRUCTIONS: &str = "Screenshots, OCR and screen recordings of the user's
     as it is. Turning access on, consent and scope are the user's decisions: on access_off or \
     access_denied ask the user and do not retry on your own.";
 
+const UPDATED: &str = "easyshot was updated while this MCP server was running, so these tools \
+    are the old version's. Ask the user to reconnect the easyshot MCP server or restart the agent \
+    session to get the new tools.";
+
+type ExeLink = Arc<dyn Fn() -> std::io::Result<PathBuf> + Send + Sync>;
+
 #[derive(Clone)]
 pub(super) struct Server {
     endpoint: Endpoint,
     spawn_daemon: bool,
     wait: Duration,
+    exe: ExeLink,
 }
 
 impl Server {
@@ -39,7 +49,14 @@ impl Server {
             endpoint,
             spawn_daemon,
             wait,
+            exe: Arc::new(|| std::fs::read_link("/proc/self/exe")),
         }
+    }
+
+    #[cfg(test)]
+    pub(super) fn with_exe(mut self, exe: ExeLink) -> Server {
+        self.exe = exe;
+        self
     }
 
     async fn call(&self, def: &ToolDef, args: JsonObject) -> CallToolResult {
@@ -112,15 +129,25 @@ impl ServerHandler for Server {
         request: CallToolRequestParams,
         _context: RequestContext<RoleServer>,
     ) -> Result<CallToolResponse, McpError> {
+        let stale = replaced((self.exe)());
         let Some(def) = mcp_tools::find(&request.name) else {
-            return Err(McpError::invalid_params(
-                format!("unknown tool {}", request.name),
-                None,
-            ));
+            let mut message = format!("unknown tool {}", request.name);
+            if stale {
+                message = format!("{message}. {UPDATED}");
+            }
+            return Err(McpError::invalid_params(message, None));
         };
         let args = request.arguments.unwrap_or_default();
-        Ok(self.call(def, args).await.into())
+        let mut result = self.call(def, args).await;
+        if stale {
+            result.content.push(ContentBlock::text(UPDATED));
+        }
+        Ok(result.into())
     }
+}
+
+pub(super) fn replaced(exe: std::io::Result<PathBuf>) -> bool {
+    exe.is_ok_and(|path| path.as_os_str().as_bytes().ends_with(b" (deleted)"))
 }
 
 pub(super) fn prepare(def: &ToolDef, args: &JsonObject) -> Result<(AgentCall, bool), String> {
