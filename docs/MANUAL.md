@@ -1102,8 +1102,8 @@ ones below exits with status 7 and says how to turn it on. These always work:
   means all), `redact_secrets` (`true` or `false`), `keep_captures` (`true` or `false`; `false` keeps every
   agent capture out of your library and history, as with `--temp`, and the default is
   `true`) and `log_limit` (1 to 10000). Setting
-  `enabled` to `true`, `consent` to `always-allow`, or a scope that allows more than before
-  shows the same dialog first; Cancel exits with status 8 and changes nothing.
+  `enabled` to `true`, `consent` to `always-allow`, a scope that allows more than before,
+  `redact_secrets` to `false`, or `log_limit` to a smaller number shows the same dialog first; Cancel exits with status 8 and changes nothing.
 
 Settings › Agents has the same settings, and changes there need no extra click. "Keep agent
 captures in the gallery" there is `keep_captures`.

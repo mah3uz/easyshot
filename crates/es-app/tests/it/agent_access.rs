@@ -313,3 +313,37 @@ fn a_change_loosens_access_only_when_it_gives_agents_more() {
     assert_eq!(Loosening::between(&more, &base), None);
     assert_eq!(Loosening::between(&base, &base), None);
 }
+
+#[test]
+fn hiding_secrets_less_or_the_log_shorter_is_the_users_call() {
+    use es_app::agent_access::Loosening;
+    use es_model::AgentCfg;
+    let base = AgentCfg {
+        redact_secrets: true,
+        log_limit: 200,
+        keep_captures: true,
+        ..AgentCfg::default()
+    };
+    let with = |f: fn(&mut AgentCfg)| {
+        let mut c = base.clone();
+        f(&mut c);
+        c
+    };
+    let plain = with(|c| c.redact_secrets = false);
+    assert_eq!(
+        Loosening::between(&base, &plain),
+        Some(Loosening::ShowSecrets)
+    );
+    assert_eq!(Loosening::between(&plain, &base), None);
+    let short = with(|c| c.log_limit = 10);
+    assert_eq!(
+        Loosening::between(&base, &short),
+        Some(Loosening::ShorterLog)
+    );
+    assert_eq!(Loosening::between(&short, &base), None);
+    let long = with(|c| c.log_limit = 500);
+    assert_eq!(Loosening::between(&base, &long), None);
+    let drop = with(|c| c.keep_captures = false);
+    assert_eq!(Loosening::between(&base, &drop), None);
+    assert_eq!(Loosening::between(&drop, &base), None);
+}

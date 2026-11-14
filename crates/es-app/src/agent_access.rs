@@ -46,6 +46,8 @@ pub enum Loosening {
     TurnOn,
     AlwaysAllow,
     WiderScope,
+    ShowSecrets,
+    ShorterLog,
 }
 
 impl Loosening {
@@ -61,6 +63,10 @@ impl Loosening {
             || wider(&now.allowed_windows, &next.allowed_windows)
         {
             Some(Loosening::WiderScope)
+        } else if now.redact_secrets && !next.redact_secrets {
+            Some(Loosening::ShowSecrets)
+        } else if next.log_limit() < now.log_limit() {
+            Some(Loosening::ShorterLog)
         } else {
             None
         }

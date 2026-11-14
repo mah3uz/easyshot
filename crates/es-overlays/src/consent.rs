@@ -122,6 +122,8 @@ impl ConsentDialog {
                 Loosening::TurnOn => fl!("consent-change-on-title"),
                 Loosening::AlwaysAllow => fl!("consent-change-always-title"),
                 Loosening::WiderScope => fl!("consent-change-scope-title"),
+                Loosening::ShowSecrets => fl!("consent-change-secrets-title"),
+                Loosening::ShorterLog => fl!("consent-change-log-title"),
             },
         }
     }
@@ -173,6 +175,8 @@ impl ConsentDialog {
                     Loosening::TurnOn => fl!("consent-change-on"),
                     Loosening::AlwaysAllow => fl!("consent-change-always"),
                     Loosening::WiderScope => fl!("consent-change-scope"),
+                    Loosening::ShowSecrets => fl!("consent-change-secrets"),
+                    Loosening::ShorterLog => fl!("consent-change-log"),
                 };
                 (program(r.pid, &r.comm), wants, fl!("consent-change-note"))
             }

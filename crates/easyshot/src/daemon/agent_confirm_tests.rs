@@ -56,6 +56,59 @@ fn agent_enable_waits_for_the_click_and_cancel_exits_eight(cx: &mut TestAppConte
 }
 
 #[gpui::test]
+fn unblurring_secrets_waits_for_the_click_and_cancel_keeps_them_blurred(cx: &mut TestAppContext) {
+    let rig = GateRig::new(
+        AgentCfg {
+            enabled: true,
+            ..AgentCfg::default()
+        },
+        cx,
+    );
+    let redacting = |rig: &GateRig, cx: &TestAppContext| {
+        cx.read(|cx| rig.settings.read(cx).config().agent.redact_secrets)
+    };
+    assert!(redacting(&rig, cx));
+    rig.prompt.hold.set(true);
+    let src = sources();
+    let (jobs, finished) = Jobs::new();
+    rig.gate.callers().borrow_mut().insert(
+        JOB,
+        Caller {
+            uid: Some(ME),
+            pid: Some(BUS_PID),
+        },
+    );
+    let handler = handler(src.sources.clone(), jobs, rig.gate.clone());
+    let route = manage(ManageRoute::ConfigSet(
+        AgentKey::RedactSecrets,
+        "false".into(),
+    ));
+    cx.update(|cx| handler(JOB, route, Origin::DBus, cx));
+    cx.run_until_parked();
+    assert!(
+        finished.try_recv().is_err(),
+        "the command waits for the click"
+    );
+    assert!(redacting(&rig, cx), "nothing changes before the click");
+    assert_eq!(
+        rig.prompt.confirmed.borrow()[0].change,
+        Loosening::ShowSecrets
+    );
+    rig.prompt
+        .held
+        .borrow_mut()
+        .pop()
+        .unwrap()
+        .send(false)
+        .unwrap();
+    cx.run_until_parked();
+    let done = finished.try_recv().expect("cancel answers the command");
+    let reply = AgentReply::from_json(done.detail.as_deref().unwrap()).unwrap();
+    assert_eq!(reply.exit_code(), 8);
+    assert!(redacting(&rig, cx), "cancel leaves secrets blurred");
+}
+
+#[gpui::test]
 fn agent_enable_turns_access_on_once_allowed(cx: &mut TestAppContext) {
     let rig = GateRig::new(AgentCfg::default(), cx);
     let src = sources();
@@ -96,7 +149,13 @@ fn only_changes_that_give_agents_more_ask_first(cx: &mut TestAppContext) {
         (set(AgentKey::AllowedWindows, ""), wider),
         (set(AgentKey::AllowedWindows, "firefox,kitty"), wider),
         (set(AgentKey::Consent, "always-ask"), None),
-        (set(AgentKey::LogLimit, "20"), None),
+        (
+            set(AgentKey::RedactSecrets, "false"),
+            Some(Loosening::ShowSecrets),
+        ),
+        (set(AgentKey::LogLimit, "20"), Some(Loosening::ShorterLog)),
+        (set(AgentKey::KeepCaptures, "false"), None),
+        (set(AgentKey::LogLimit, "500"), None),
         (manage(ManageRoute::Disable), None),
     ];
     for (route, expected) in cases {
