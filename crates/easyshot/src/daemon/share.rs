@@ -3,11 +3,11 @@ use es_app::deck::{Deck, DeckItem};
 use es_app::history::History;
 use es_app::platform_ui::{ClipboardSink, LayerShellSurfaces, SharePopoverSurface};
 use es_app::settings_model::SettingsModel;
+use es_app::share::WindowPopover;
 use es_app::share::{
     DeckMarks, DeckOrigin, LiveTargets, PopoverHost, ShareFlow, ShareHooks, ShareOrigin, Shares,
     SystemKeyring,
 };
-use es_app::share::WindowPopover;
 use es_editor::{EditorWindow, ShareRequested};
 use es_overlays::deck::view::DeckSurface;
 use es_protocol::{Route, SettingsPage};
