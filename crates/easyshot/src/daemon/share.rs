@@ -3,6 +3,8 @@ use es_app::deck::{Deck, DeckItem};
 use es_app::history::History;
 use es_app::platform_ui::{ClipboardSink, LayerShellSurfaces, SharePopoverSurface};
 use es_app::settings_model::SettingsModel;
+#[cfg(feature = "player")]
+use es_app::share::FileOrigin;
 use es_app::share::WindowPopover;
 use es_app::share::{
     DeckMarks, DeckOrigin, LiveTargets, PopoverHost, ShareFlow, ShareHooks, ShareOrigin, Shares,
