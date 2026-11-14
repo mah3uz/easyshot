@@ -30,7 +30,7 @@ provides=('easyshot')
 conflicts=('easyshot')
 options=('!strip' '!debug')
 source=("https://github.com/$_repo/releases/download/v$pkgver/$_pkgname-$pkgver-x86_64-unknown-linux-gnu.tar.gz")
-sha256sums=('SKIP')
+sha256sums=('7dc60ba732d26b005e2f1e334c3917b6b5a7c1c672899886cd21697e3e84f7be')
 
 package() {
   cd "$_pkgname-$pkgver-x86_64-unknown-linux-gnu"
