@@ -9,7 +9,6 @@
 - `easyshot agent config set` now asks you first before agents get unblurred secrets (`redact_secrets` to `false`) or a shorter log (a lower `log_limit`).
 - Installed agent skills are updated when easyshot starts after an upgrade, unless you edited them; `easyshot doctor` and `agent status` say when one is out of date or edited.
 - Agents can capture, read and record a covered window or one on another workspace without moving your focus, and `agent list windows` lists every workspace's windows with `visible`.
-- After you upgrade easyshot, a running MCP server tells the agent that its tools are the old version's and to have you reconnect it, instead of quietly lacking the new options.
 - Agent captures no longer show a card or notification; agents can ask for one with `--ui`, and `--out` now writes an extra copy while the capture still goes to the library.
 
 ### Bug fixes

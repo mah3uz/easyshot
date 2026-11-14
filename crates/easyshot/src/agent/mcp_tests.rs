@@ -8,9 +8,7 @@ use es_desktop::dbus::{Callbacks, Endpoint, Incoming, Service};
 use es_protocol::agent::{AgentRoute, AgentTarget, WindowSelector};
 use es_protocol::{JobStatus, Route};
 use serde_json::{Value, json};
-use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, DuplexStream, ReadHalf, WriteHalf};
@@ -218,11 +216,8 @@ impl Client {
 }
 
 fn start_client(endpoint: Endpoint) -> (Client, tokio::task::JoinHandle<Result<(), String>>) {
-    start_server(Server::new(endpoint, false, Duration::from_millis(300)))
-}
-
-fn start_server(server: Server) -> (Client, tokio::task::JoinHandle<Result<(), String>>) {
     let (near, far) = tokio::io::duplex(1 << 22);
+    let server = Server::new(endpoint, false, Duration::from_millis(300));
     let task = tokio::spawn(run_on(server, far));
     let (read, write) = tokio::io::split(near);
     let client = Client {
@@ -477,84 +472,4 @@ fn a_refusal_is_the_message_and_its_hint_only_when_there_is_one() {
         text(&hinted),
         "not_found: no window matches. Open the window first."
     );
-}
-
-#[test]
-fn the_server_counts_as_replaced_only_when_its_binary_was_unlinked() {
-    let link = |path: &str| Ok(PathBuf::from(path));
-    assert!(super::mcp::replaced(link("/usr/bin/easyshot (deleted)")));
-    assert!(!super::mcp::replaced(link("/usr/bin/easyshot")));
-    assert!(!super::mcp::replaced(link("/opt/(deleted)/easyshot")));
-    assert!(!super::mcp::replaced(Err(std::io::Error::other(
-        "no /proc"
-    ))));
-}
-
-fn mentions_update(text: &str) -> bool {
-    text.contains("easyshot was updated") && text.contains("reconnect the easyshot MCP server")
-}
-
-fn texts(result: &Value) -> Vec<String> {
-    result["content"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .filter_map(|c| c["text"].as_str().map(str::to_owned))
-        .collect()
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn after_an_upgrade_every_tool_reply_tells_the_agent_its_tools_are_stale() {
-    let bus = PrivateBus::start();
-    let dir = tempfile::tempdir().unwrap();
-    let endpoint = env(&bus, dir.path()).endpoint;
-    let (daemon, stop) = fake_daemon(endpoint.clone(), 2, |_| (JobStatus::Ok, OUTPUTS.to_owned()));
-    let upgraded = Arc::new(AtomicBool::new(false));
-    let seen = upgraded.clone();
-    let server =
-        Server::new(endpoint, false, Duration::from_millis(300)).with_exe(Arc::new(move || {
-            Ok(PathBuf::from(if seen.load(Ordering::SeqCst) {
-                "/usr/bin/easyshot (deleted)"
-            } else {
-                "/usr/bin/easyshot"
-            }))
-        }));
-    let (mut client, _task) = start_server(server);
-    initialised(&mut client).await;
-
-    let before = client.call("list_outputs", json!({})).await;
-    assert!(
-        !texts(&before).iter().any(|t| mentions_update(t)),
-        "{before}"
-    );
-
-    upgraded.store(true, Ordering::SeqCst);
-    let after = client.call("list_outputs", json!({})).await;
-    assert_eq!(after["isError"], false, "{after}");
-    assert!(texts(&after).iter().any(|t| mentions_update(t)), "{after}");
-    assert_eq!(after["structuredContent"]["kind"], "outputs");
-
-    let new_option = client
-        .call(
-            "capture",
-            json!({"fullscreen": true, "an_option_from_later": true}),
-        )
-        .await;
-    assert_eq!(new_option["isError"], true, "{new_option}");
-    assert!(
-        texts(&new_option).iter().any(|t| mentions_update(t)),
-        "{new_option}"
-    );
-
-    let new_tool = client
-        .request(
-            "tools/call",
-            json!({"name": "a_tool_from_later", "arguments": {}}),
-        )
-        .await;
-    let message = new_tool["error"]["message"].as_str().unwrap_or_default();
-    assert!(mentions_update(message), "{new_tool}");
-
-    stop.send(()).unwrap();
-    daemon.join().unwrap();
 }

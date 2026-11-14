@@ -127,6 +127,5 @@ decisions are the user's: enabling access, consent, `allowed_outputs`, `allowed_
 | 6 | `unsupported` | Desktop or tool (Tesseract, ffmpeg) missing: relay the hint. |
 | 7 | `access_off` | Ask the user to turn access on. |
 | 8 | `access_denied` | Ask the user; no retry loop. |
-| | MCP note "easyshot was updated" | The MCP tools are the old version's: ask the user to reconnect the easyshot MCP server or restart the session. |
 
 Every flag, export option, annotate op and JSON shape: open `references/commands.md`.
