@@ -212,6 +212,7 @@ player-brightness = Brightness
 player-volume-system = System sound
 player-volume-mic = Microphone
 player-open-failed = This video cannot be played: { $reason }
+player-missing-plugins = GStreamer plugins are missing. Install { $packages } (Arch: sudo pacman -S { $packages }).
 
 consent-title = A program wants to use easyshot
 consent-program = { $program } (process { $pid })

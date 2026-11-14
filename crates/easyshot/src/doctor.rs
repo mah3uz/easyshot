@@ -27,6 +27,39 @@ pub fn standalone_report(
     report.to_string()
 }
 
+/// Adds the GStreamer elements that `has` lacks to the missing tools, each with the package to install.
+pub fn with_gstreamer(raw: &str, has: &dyn Fn(&str) -> bool) -> String {
+    let features = [
+        ("playing videos", es_record::gst_plugins::playback_gaps(has)),
+        (
+            "recording a window",
+            es_record::gst_plugins::window_recording_gaps(has),
+        ),
+    ];
+    let Ok(Value::Object(mut obj)) = serde_json::from_str::<Value>(raw) else {
+        return raw.to_owned();
+    };
+    let mut seen: Vec<&str> = Vec::new();
+    let mut found = Vec::new();
+    for (feature, gaps) in &features {
+        for gap in gaps {
+            if !seen.contains(&gap.element) {
+                seen.push(gap.element);
+                found.push(json!({
+                    "tool": format!("GStreamer {} ({feature})", gap.element),
+                    "package": gap.package,
+                }));
+            }
+        }
+    }
+    if let Some(Value::Array(missing)) = obj.get_mut("missing_tools") {
+        missing.extend(found);
+    } else {
+        obj.insert("missing_tools".into(), Value::Array(found));
+    }
+    Value::Object(obj).to_string()
+}
+
 pub fn with_input(raw: &str, input: Value) -> String {
     match serde_json::from_str::<Value>(raw) {
         Ok(Value::Object(mut obj)) => {
@@ -274,4 +307,32 @@ pub fn write_report_bundle(
     let path = dest_dir.join(format!("easyshot-doctor-{now}.tar"));
     write_bundle(&path, now, &entries).with_context(|| format!("writing {}", path.display()))?;
     Ok(path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn doctor_tells_the_user_which_package_brings_back_video_playback() {
+        let raw = json!({"missing_tools": [{"tool": "wf-recorder", "package": "wf-recorder"}]});
+        let raw = with_gstreamer(&raw.to_string(), &|e| e != "videobalance");
+        let v: Value = serde_json::from_str(&raw).unwrap();
+        let missing = v["missing_tools"].as_array().unwrap();
+        assert_eq!(missing.len(), 2);
+        assert_eq!(missing[0]["tool"], "wf-recorder");
+        assert_eq!(missing[1]["package"], "gst-plugins-good");
+        let shown = crate::doctor_summary::render(&raw, false);
+        assert!(
+            shown.contains("videobalance") && shown.contains("gst-plugins-good"),
+            "{shown}"
+        );
+    }
+
+    #[test]
+    fn doctor_adds_nothing_when_every_element_is_present() {
+        let raw = with_gstreamer(&json!({}).to_string(), &|_| true);
+        let v: Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(v["missing_tools"], json!([]));
+    }
 }

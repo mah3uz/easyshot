@@ -13,8 +13,11 @@ and keeps a history.
   compositor with layer-shell and a capture protocol should work for basic capture.
   river, labwc and COSMIC have not been tried; KDE and GNOME are not supported.
 - ffmpeg for exporting and trimming recordings and for video thumbnails.
-- For a window recording made from the window's own frames: GStreamer's good plugins and an
-  H.264 encoder (x264 from the ugly plugins, or NVENC or VA-API from the bad plugins). Without
+- To play videos in the trim viewer: GStreamer's good plugins (`gst-plugins-good`) and the
+  `gst-libav` H.264 decoder.
+- For a window recording made from the window's own frames: GStreamer's good plugins, the bad
+  plugins' H.264 parser (`gst-plugins-bad-libs`) and an H.264 encoder (x264 from
+  `gst-plugins-ugly`, or NVENC or VA-API from the bad plugins). Without
   one, window recordings record the window's area on screen; `easyshot doctor` says which
   applies.
 - Tesseract for reading text (OCR). Without it, OCR still reads QR codes; when the region
@@ -1311,6 +1314,14 @@ If the pointer disappears when you press Space in the editor and comes back when
 the mouse, your compositor is hiding it because you pressed a key. On Hyprland that is
 `cursor:hide_on_key_press`; on sway it is `seat * hide_cursor when-typing enable`. Turn it
 off to see the hand while you pan.
+
+### Videos do not play
+
+If the trim viewer says "This video cannot be played: GStreamer plugins are missing", install
+the packages it names. On Arch Linux: `sudo pacman -S gst-plugins-good gst-libav`. Other
+distributions call them GStreamer's good plugins and its libav plugin. `easyshot doctor` lists
+every missing GStreamer element with the package that provides it. Window recording also
+needs `gst-plugins-bad-libs` and an H.264 encoder (`gst-plugins-ugly` for x264).
 
 ### Sharing fails
 

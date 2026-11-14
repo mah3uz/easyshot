@@ -13,6 +13,7 @@
 
 ### Bug fixes
 
+- The trim viewer says which GStreamer packages to install when videos cannot be played, and `easyshot doctor` lists the missing ones; the Arch packages now depend on `gst-plugins-good` and `gst-libav`.
 - On sway, a window shot of a covered window shows that window, not what covers it.
 - A window shot taken right after the window opens, moves or resizes no longer fails on Hyprland.
 - A window shot of a window on another workspace reports its output's scale instead of 1.

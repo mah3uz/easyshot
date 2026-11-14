@@ -6,6 +6,7 @@ use std::path::PathBuf;
 pub mod audio;
 pub mod clip;
 pub mod gsr;
+pub mod gst_plugins;
 pub mod input;
 pub mod mute;
 pub mod process;

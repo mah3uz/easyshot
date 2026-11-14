@@ -36,6 +36,7 @@ fn callbacks(backend: &Arc<Backend>) -> Callbacks {
     Callbacks::new(Arc::new(move || {
         let doctor =
             crate::doctor::with_input(&backend.doctor_json(), crate::doctor_tools::input_here());
+        let doctor = crate::doctor::with_gstreamer(&doctor, &es_record::gst_plugins::in_registry);
         Box::pin(async move { doctor })
     }))
 }

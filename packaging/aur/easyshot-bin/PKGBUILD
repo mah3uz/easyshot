@@ -4,7 +4,7 @@ pkgname=easyshot-bin
 _pkgname=easyshot
 _repo=mah3uz/easyshot
 pkgver=0.2.0
-pkgrel=1
+pkgrel=2
 pkgdesc='Screenshot, annotation and screen-recording app for Linux/Wayland (prebuilt)'
 install=easyshot.install
 arch=('x86_64')
@@ -13,12 +13,14 @@ license=('MIT')
 depends=(
   'glibc' 'gcc-libs' 'wayland' 'libxkbcommon' 'libxkbcommon-x11' 'libxcb'
   'vulkan-icd-loader' 'fontconfig' 'freetype2' 'dbus' 'alsa-lib' 'hicolor-icon-theme'
-  'gstreamer' 'gst-plugins-base-libs'
+  'gstreamer' 'gst-plugins-base-libs' 'gst-plugins-good' 'gst-libav'
 )
 optdepends=(
   'gpu-screen-recorder: fastest screen recording'
   'wf-recorder: screen recording on wlroots compositors'
   'ffmpeg: video export and trimming'
+  'gst-plugins-bad-libs: recording a window from its own picture (H.264 parser, NVENC encoder)'
+  'gst-plugins-ugly: recording a window from its own picture (x264 encoder)'
   'tesseract: text capture (OCR) and smart redaction'
   'tesseract-data-eng: English text recognition'
   'xdg-desktop-portal: screen-cast recording and file dialogs'

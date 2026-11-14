@@ -1,3 +1,5 @@
+use crate::capture::strings::fl;
+use es_record::gst_plugins::{self, Gap};
 use gstreamer as gst;
 use gstreamer::prelude::*;
 use gstreamer_app as gst_app;
@@ -63,6 +65,17 @@ pub struct Engine {
     balance: gst::Element,
     latest: Latest,
     signals: async_channel::Receiver<Signal>,
+}
+
+/// The plain install message for what the player lacks, or `None` when it has everything.
+fn install_message(gaps: &[Gap]) -> Option<String> {
+    if gaps.is_empty() {
+        return None;
+    }
+    Some(fl!(
+        "player-missing-plugins",
+        packages = gst_plugins::packages(gaps).join(" ")
+    ))
 }
 
 fn make(factory: &str) -> Result<gst::Element, String> {
@@ -175,6 +188,17 @@ impl Engine {
         levels: &[f64],
     ) -> Result<Self, String> {
         gst::init().map_err(|e| e.to_string())?;
+        let gaps = gst_plugins::playback_gaps(&gst_plugins::in_registry);
+        if let Some(message) = install_message(&gaps) {
+            for gap in &gaps {
+                tracing::warn!(
+                    element = gap.element,
+                    package = gap.package,
+                    "GStreamer element missing"
+                );
+            }
+            return Err(message);
+        }
         let uri = gst::glib::filename_to_uri(video, None).map_err(|e| e.to_string())?;
         let playbin = gst::Pipeline::new();
         let source = gst::ElementFactory::make("uridecodebin")
@@ -353,5 +377,23 @@ impl Engine {
 impl Drop for Engine {
     fn drop(&mut self) {
         let _ = self.playbin.set_state(gst::State::Null);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_missing_plugin_tells_the_user_what_to_install_not_an_element_name() {
+        let gaps = gst_plugins::playback_gaps(&|e| e != "videobalance");
+        let message = install_message(&gaps).unwrap();
+        assert!(message.contains("gst-plugins-good"), "{message}");
+        assert!(!message.contains("videobalance"), "{message}");
+    }
+
+    #[test]
+    fn nothing_missing_gives_no_message() {
+        assert_eq!(install_message(&[]), None);
     }
 }

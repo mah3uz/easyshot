@@ -211,6 +211,11 @@ fn first_frame(source: &mut dyn FrameSource) -> Result<VideoFrame> {
     }
 }
 
+#[cfg(test)]
+pub(crate) fn required_elements() -> impl Iterator<Item = &'static str> {
+    ELEMENTS.into_iter().chain(audio::ELEMENTS)
+}
+
 impl Recorder for WindowRecorder {
     fn name(&self) -> &'static str {
         "window"

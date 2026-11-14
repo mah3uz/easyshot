@@ -115,11 +115,15 @@ fn main() -> ExitCode {
         standalone_report: Box::new(|| {
             let probe = es_backend::Probe::gather()?;
             let config = es_store::Paths::from_xdg().map(|p| p.config_file())?;
-            Ok(doctor::standalone_report(
+            let raw = doctor::standalone_report(
                 &probe,
                 &doctor_tools::SystemToolRunner,
                 &config,
                 doctor_tools::input_here(),
+            );
+            Ok(doctor::with_gstreamer(
+                &raw,
+                &es_record::gst_plugins::in_registry,
             ))
         }),
         skill_notes: Box::new(|| {
