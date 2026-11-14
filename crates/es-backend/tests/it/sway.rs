@@ -147,14 +147,14 @@ fn sway_rects_are_logical_at_scale_one_and_a_half() {
     };
     let ws = windows.snapshot();
     assert_eq!(ws.len(), 2, "the scratchpad and containers are not windows");
-    let tiled = find(&ws, "5");
+    let tiled = find(&ws, "318879107658909f610dcaefc3da81c6");
     // A 1920x1080 output at scale 1.5 is 1280x720 logical.
     assert_eq!(tiled.logical, Some(Rect::new(0.0, 0.0, 1280.0, 720.0)));
     assert_eq!(tiled.app_id, "term-a");
     assert_eq!(tiled.output, Some(OutputId("HEADLESS-1".into())));
     assert_eq!(tiled.workspace.as_deref(), Some("1"));
     assert!(!tiled.floating);
-    let floating = find(&ws, "6");
+    let floating = find(&ws, "02abdeb54c23384b1188aa6059bdef1f");
     assert_eq!(floating.logical, Some(Rect::new(100.0, 50.0, 700.0, 450.0)));
     assert!(floating.floating);
     assert!(windows.has_geometry());
@@ -173,10 +173,10 @@ fn sway_content_rect_excludes_borders_and_hidden_windows_have_none() {
     };
     let ws = windows.snapshot();
     assert_eq!(
-        find(&ws, "5").logical,
+        find(&ws, "318879107658909f610dcaefc3da81c6").logical,
         Some(Rect::new(12.0, 22.0, 408.0, 318.0))
     );
-    assert_eq!(find(&ws, "6").logical, None);
+    assert_eq!(find(&ws, "02abdeb54c23384b1188aa6059bdef1f").logical, None);
 }
 
 fn con(id: u64, app: &str, visible: bool) -> Value {
@@ -210,7 +210,14 @@ fn sway_full_list_has_other_workspaces_and_leaves_out_the_scratchpad() {
     let all = windows.all();
     let mut ids: Vec<_> = all.iter().map(|w| w.id.0.as_str()).collect();
     ids.sort_unstable();
-    assert_eq!(ids, ["41", "5", "6"]);
+    assert_eq!(
+        ids,
+        [
+            "02abdeb54c23384b1188aa6059bdef1f",
+            "318879107658909f610dcaefc3da81c6",
+            "41"
+        ]
+    );
     let mail = find(&all, "41");
     assert_eq!(mail.workspace.as_deref(), Some("2"));
     assert_eq!(mail.logical, None);
@@ -234,6 +241,36 @@ fn sway_focus_runs_con_id_focus_and_reports_a_failure() {
     assert!(windows.focus(&WindowId("not-a-number".into())).is_err());
 }
 
+// Window capture finds a window by this identifier; a con id would match no toplevel.
+#[test]
+fn sway_names_a_window_by_its_foreign_toplevel_identifier_and_focuses_it_by_con_id() {
+    let mut t = tree_with_other_workspace_and_scratchpad();
+    t["nodes"][1]["nodes"][1]["nodes"][0]["foreign_toplevel_identifier"] =
+        Value::from("ec6343ae58326e4fffd959672365ad9f");
+    let fake = FakeSway::start(&t.to_string());
+    let Ok(windows) = (wlroots::WINDOWS.build)(&fake.probe()) else {
+        panic!("build failed");
+    };
+    let all = windows.all();
+    let mail = find(&all, "ec6343ae58326e4fffd959672365ad9f");
+    assert_eq!(mail.app_id, "mail");
+    assert!(all.iter().all(|w| w.id.0 != "41"), "{all:?}");
+    assert_eq!(mail.logical, None);
+    assert_eq!(
+        windows.size(&mail.id),
+        Some(es_geom::Size::new(800.0, 600.0)),
+        "a hidden window's shot is sized by its layout"
+    );
+    windows.focus(&mail.id).unwrap();
+    assert_eq!(fake.shared.lock().unwrap().commands, ["[con_id=41] focus"]);
+
+    let rx = windows.events();
+    fake.push_window_event(
+        r#"{"change":"focus","container":{"id":41,"foreign_toplevel_identifier":"ec6343ae58326e4fffd959672365ad9f"}}"#,
+    );
+    assert_eq!(recv(&rx), WindowEvent::Focused(mail.id.clone()));
+}
+
 #[test]
 fn sway_focus_order_follows_the_focus_lists() {
     let mut t = tree();
@@ -242,13 +279,25 @@ fn sway_focus_order_follows_the_focus_lists() {
         panic!("build failed");
     };
     let ws = windows.snapshot();
-    assert_eq!(find(&ws, "5").focus_rank, Some(0));
-    assert_eq!(find(&ws, "6").focus_rank, Some(1));
+    assert_eq!(
+        find(&ws, "318879107658909f610dcaefc3da81c6").focus_rank,
+        Some(0)
+    );
+    assert_eq!(
+        find(&ws, "02abdeb54c23384b1188aa6059bdef1f").focus_rank,
+        Some(1)
+    );
     workspace(&mut t)["focus"] = serde_json::json!([6, 5]);
     fake.set_tree(&t);
     let ws = windows.snapshot();
-    assert_eq!(find(&ws, "6").focus_rank, Some(0));
-    assert_eq!(find(&ws, "5").focus_rank, Some(1));
+    assert_eq!(
+        find(&ws, "02abdeb54c23384b1188aa6059bdef1f").focus_rank,
+        Some(0)
+    );
+    assert_eq!(
+        find(&ws, "318879107658909f610dcaefc3da81c6").focus_rank,
+        Some(1)
+    );
 }
 
 #[test]
@@ -267,12 +316,17 @@ fn sway_window_events_map_to_window_events() {
     fake.set_tree(&full);
     fake.push_window_event(lines[4]);
     match recv(&rx) {
-        WindowEvent::Opened(w) => assert_eq!(w.id, WindowId("6".into())),
+        WindowEvent::Opened(w) => {
+            assert_eq!(w.id, WindowId("02abdeb54c23384b1188aa6059bdef1f".into()))
+        }
         other => panic!("expected Opened, got {other:?}"),
     }
 
     fake.push_window_event(lines[6]);
-    assert_eq!(recv(&rx), WindowEvent::Focused(WindowId("6".into())));
+    assert_eq!(
+        recv(&rx),
+        WindowEvent::Focused(WindowId("02abdeb54c23384b1188aa6059bdef1f".into()))
+    );
 
     let mut renamed = full.clone();
     workspace(&mut renamed)["floating_nodes"][0]["name"] = Value::from("renamed");
@@ -285,7 +339,10 @@ fn sway_window_events_map_to_window_events() {
 
     fake.set_tree(&without);
     fake.push_window_event(r#"{"change":"close","container":{"id":6}}"#);
-    assert_eq!(recv(&rx), WindowEvent::Closed(WindowId("6".into())));
+    assert_eq!(
+        recv(&rx),
+        WindowEvent::Closed(WindowId("02abdeb54c23384b1188aa6059bdef1f".into()))
+    );
     assert!(rx.try_recv().is_err(), "nothing else was reported");
 }
 

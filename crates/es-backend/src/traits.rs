@@ -1,5 +1,5 @@
 use crate::error::Result;
-use es_geom::Point;
+use es_geom::{Point, Size};
 use es_model::platform::{
     CaptureOpts, ClipItem, Frame, OutputEvent, OutputId, OutputInfo, WindowEvent, WindowId,
     WindowInfo,
@@ -39,6 +39,10 @@ pub trait WindowList: Send + Sync {
     }
     fn can_focus(&self) -> bool {
         false
+    }
+    /// The window's logical size, also while no screen shows it.
+    fn size(&self, _w: &WindowId) -> Option<Size> {
+        None
     }
     /// Gives the window focus, which also brings its workspace to an output.
     fn focus(&self, _w: &WindowId) -> Result<()> {
@@ -114,6 +118,9 @@ impl<T: WindowList + ?Sized> WindowList for Arc<T> {
     }
     fn can_focus(&self) -> bool {
         (**self).can_focus()
+    }
+    fn size(&self, w: &WindowId) -> Option<Size> {
+        (**self).size(w)
     }
     fn focus(&self, w: &WindowId) -> Result<()> {
         (**self).focus(w)

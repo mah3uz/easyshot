@@ -16,6 +16,7 @@ es-record.workspace = true
 es-protocol.workspace = true
 es-geom.workspace = true
 es-model.workspace = true
+fast_image_resize.workspace = true
 tokio.workspace = true
 futures.workspace = true
 async-channel.workspace = true

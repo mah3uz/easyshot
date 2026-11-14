@@ -6,7 +6,7 @@ use crate::error::{BackendError, Error, Result};
 use crate::include_scan;
 use crate::probe::{Probe, Provider};
 use crate::traits::{BindHelper, BindSyntax, PointerQuery, Trigger, WindowList};
-use es_geom::Point;
+use es_geom::{Point, Size};
 use es_model::platform::{OutputId, WindowEvent, WindowId, WindowInfo};
 use es_protocol::Route;
 use ipc::{EVENT_BIT, GET_CONFIG, GET_OUTPUTS, GET_TREE, Ipc, RUN_COMMAND};
@@ -142,8 +142,20 @@ impl WindowList for SwayWindows {
     fn can_focus(&self) -> bool {
         true
     }
+    fn size(&self, w: &WindowId) -> Option<Size> {
+        let root: tree::Node = self
+            .ipc
+            .json(GET_TREE, b"")
+            .inspect_err(|e| tracing::warn!("sway tree: {e}"))
+            .ok()?;
+        tree::find(&root, w).and_then(tree::Node::size)
+    }
     fn focus(&self, w: &WindowId) -> Result<()> {
-        let id: u64 = w.0.parse().map_err(|_| Error::NotFound(w.0.clone()))?;
+        let root: tree::Node = self.ipc.json(GET_TREE, b"")?;
+        let id = tree::find(&root, w)
+            .map(tree::Node::con_id)
+            .or_else(|| w.0.parse().ok())
+            .ok_or_else(|| Error::NotFound(w.0.clone()))?;
         let outcomes: Vec<Outcome> = self
             .ipc
             .json(RUN_COMMAND, tree::focus_command(id).as_bytes())?;

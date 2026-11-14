@@ -1,9 +1,12 @@
 use crate::error::Result;
 use crate::traits::{Capture, WindowList};
+use es_geom::{Rect, Size};
 use es_model::platform::{
-    CaptureOpts, Frame, OutputEvent, OutputId, OutputInfo, Transform, WindowId, WindowInfo,
+    CaptureOpts, Frame, OutputEvent, OutputId, OutputInfo, Transform, WindowId,
 };
 use es_wayland::Connection;
+use fast_image_resize::images::{Image, ImageRef};
+use fast_image_resize::{FilterType, PixelType, ResizeAlg, ResizeOptions, Resizer};
 use std::sync::Arc;
 
 pub(super) struct WaylandCapture {
@@ -84,12 +87,50 @@ pub fn normalise_frame(mut frame: Frame) -> Frame {
     frame
 }
 
-pub fn fit_window_frame(mut frame: Frame, window: &WindowInfo) -> Frame {
-    if let Some(rect) = window.logical.filter(|r| r.width() > 0.0) {
-        frame.scale = f64::from(frame.size_px.0) / rect.width();
-        frame.logical = rect;
+/// A window shot has the size a crop of the screen would give: wlroots renders a window capture at
+/// scale 1, which on a scaled output holds fewer pixels, so it is scaled up.
+pub fn fit_window_frame(
+    mut frame: Frame,
+    logical: Option<Rect>,
+    size: Option<Size>,
+    output_scale: Option<f64>,
+) -> Frame {
+    let Some(size) = logical
+        .map(|r| r.size())
+        .or(size)
+        .filter(|s| s.width > 0.0 && s.height > 0.0)
+    else {
+        return frame;
+    };
+    if let Some(up) = output_scale.and_then(|s| scaled_up(&frame, size * s)) {
+        frame = up;
     }
+    frame.scale = f64::from(frame.size_px.0) / size.width;
+    frame.logical = logical.unwrap_or_else(|| Rect::from_origin_size(frame.logical.origin(), size));
     frame
+}
+
+fn scaled_up(frame: &Frame, want: Size) -> Option<Frame> {
+    let want = want.round();
+    if want.width <= f64::from(frame.size_px.0) + 1.0 || want.width > f64::from(u16::MAX) {
+        return None;
+    }
+    let (w, h) = (want.width as u32, want.height as u32);
+    let (sw, sh) = frame.size_px;
+    let src = ImageRef::new(sw, sh, &frame.bgra, PixelType::U8x4)
+        .inspect_err(|e| tracing::warn!("window frame of {sw}x{sh}: {e}"))
+        .ok()?;
+    let mut dst = Image::new(w, h, PixelType::U8x4);
+    let options = ResizeOptions::new().resize_alg(ResizeAlg::Convolution(FilterType::CatmullRom));
+    Resizer::new()
+        .resize(&src, &mut dst, &options)
+        .inspect_err(|e| tracing::warn!("window frame scaled to {w}x{h}: {e}"))
+        .ok()?;
+    Some(Frame {
+        size_px: (w, h),
+        bgra: dst.into_vec().into(),
+        ..frame.clone()
+    })
 }
 
 pub struct WindowGeometry {
@@ -112,9 +153,80 @@ impl Capture for WindowGeometry {
 
     fn capture_window(&self, w: &WindowId, o: CaptureOpts) -> Result<Frame> {
         let frame = self.inner.capture_window(w, o)?;
-        Ok(match self.windows.snapshot().iter().find(|i| i.id == *w) {
-            Some(info) => fit_window_frame(frame, info),
-            None => frame,
-        })
+        let Some(info) = self.windows.snapshot().into_iter().find(|i| i.id == *w) else {
+            return Ok(frame);
+        };
+        let size = info
+            .logical
+            .is_none()
+            .then(|| self.windows.size(w))
+            .flatten();
+        let scale = info.output.and_then(|id| {
+            let outputs = self.inner.outputs();
+            outputs.iter().find(|o| o.id == id).map(|o| o.scale)
+        });
+        Ok(fit_window_frame(frame, info.logical, size, scale))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used)]
+    use super::*;
+    use std::time::Instant;
+
+    fn frame(w: u32, h: u32, bgra: [u8; 4]) -> Frame {
+        Frame {
+            output: None,
+            size_px: (w, h),
+            logical: Rect::new(0.0, 0.0, f64::from(w), f64::from(h)),
+            scale: 1.0,
+            bgra: bgra.repeat((w * h) as usize).into(),
+            transform: Transform::Normal,
+            captured_at: Instant::now(),
+        }
+    }
+
+    // A window shot is as large as the screen shows it, the same as a crop of that window.
+    #[test]
+    fn a_window_captured_at_scale_one_is_scaled_up_to_its_output_scale() {
+        let shown = Rect::new(100.0, 50.0, 500.0, 350.0);
+        let fitted = fit_window_frame(
+            frame(400, 300, [1, 2, 3, 255]),
+            Some(shown),
+            None,
+            Some(1.5),
+        );
+        assert_eq!(fitted.size_px, (600, 450));
+        assert_eq!(fitted.bgra.len(), 600 * 450 * 4);
+        assert!(
+            fitted.bgra.chunks(4).all(|p| p == [1, 2, 3, 255]),
+            "the window's pixels"
+        );
+        assert_eq!(fitted.scale, 1.5);
+        assert_eq!(fitted.logical, shown);
+    }
+
+    #[test]
+    fn a_window_captured_at_the_output_scale_keeps_its_pixels() {
+        let shown = Rect::new(0.0, 0.0, 400.0, 300.0);
+        let captured = frame(600, 450, [9, 9, 9, 255]);
+        let fitted = fit_window_frame(captured.clone(), Some(shown), None, Some(1.5));
+        assert_eq!(fitted.size_px, (600, 450));
+        assert!(Arc::ptr_eq(&fitted.bgra, &captured.bgra), "not resampled");
+        assert_eq!(fitted.scale, 1.5);
+    }
+
+    // A window no screen shows has no rectangle; its size still says how many pixels a crop has.
+    #[test]
+    fn a_hidden_window_is_scaled_by_its_size_and_its_output_scale() {
+        let size = Some(Size::new(400.0, 300.0));
+        let fitted = fit_window_frame(frame(400, 300, [0; 4]), None, size, Some(2.0));
+        assert_eq!(fitted.size_px, (800, 600));
+        assert_eq!(fitted.scale, 2.0);
+        assert_eq!(fitted.logical.size(), Size::new(400.0, 300.0));
+
+        let unknown = fit_window_frame(frame(400, 300, [0; 4]), None, None, Some(2.0));
+        assert_eq!((unknown.size_px, unknown.scale), ((400, 300), 1.0));
     }
 }

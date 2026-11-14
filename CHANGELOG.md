@@ -6,6 +6,10 @@
 - Agents can capture, read and record a covered window or one on another workspace without moving your focus, and `agent list windows` lists every workspace's windows with `visible`.
 - Agent captures no longer show a card or notification; agents can ask for one with `--ui`, and `--out` now writes an extra copy while the capture still goes to the library.
 
+### Bug fixes
+
+- On sway, a window shot of a covered window shows that window, not what covers it.
+
 ## 0.2.0 - 2026-11-12T02:13:11+06:00
 
 ### New

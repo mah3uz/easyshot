@@ -143,6 +143,9 @@ impl WindowList for TestWindows {
     fn can_focus(&self) -> bool {
         self.inner.can_focus()
     }
+    fn size(&self, w: &WindowId) -> Option<es_geom::Size> {
+        self.inner.size(w)
+    }
     fn focus(&self, w: &WindowId) -> Result<()> {
         if !self.all().iter().any(|known| &known.id == w) {
             return Err(Error::NotFound(w.0.clone()));

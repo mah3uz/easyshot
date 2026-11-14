@@ -2073,6 +2073,7 @@ dependencies = [
  "es-protocol",
  "es-record",
  "es-wayland",
+ "fast_image_resize",
  "futures",
  "serde",
  "serde_json",
