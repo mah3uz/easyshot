@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Improvements
+- Agent captures no longer show a card or notification; agents can ask for one with `--ui`, and `--out` now writes an extra copy while the capture still goes to the library.
+
 ## 0.2.0 - 2026-11-12T02:13:11+06:00
 
 ### New

@@ -90,17 +90,31 @@ fn options_reach_the_spec_and_a_relative_out_becomes_absolute() {
         out.to_str().unwrap(),
         "--delay",
         "60",
-        "--no-ui",
+        "--ui",
     ]);
     assert_eq!(
-        (given.out.as_deref(), given.delay, given.no_ui),
+        (given.out.as_deref(), given.delay, given.ui),
         (Some(out.as_path()), 60, true)
     );
     let relative = spec(&["agent", "capture", "--fullscreen", "--out", "rel.png"]);
     let path = relative.out.unwrap();
     assert!(path.is_absolute() && path.ends_with("rel.png"), "{path:?}");
     let plain = spec(&["agent", "capture", "--fullscreen"]);
-    assert_eq!((plain.out, plain.delay, plain.no_ui), (None, 0, false));
+    assert_eq!((plain.out, plain.delay, plain.ui), (None, 0, false));
+}
+
+#[test]
+fn a_capture_is_quiet_unless_the_agent_asks_for_the_card() {
+    assert!(!spec(&["agent", "capture", "--fullscreen"]).ui);
+    assert!(spec(&["agent", "capture", "--fullscreen", "--ui"]).ui);
+}
+
+#[test]
+fn the_old_no_ui_flag_still_parses_for_scripts_and_changes_nothing() {
+    let old = spec(&["agent", "capture", "--fullscreen", "--no-ui"]);
+    assert!(!old.ui);
+    assert_eq!(old, spec(&["agent", "capture", "--fullscreen"]));
+    assert!(parse(&["agent", "capture", "--fullscreen", "--ui", "--no-ui"]).is_err());
 }
 
 #[test]

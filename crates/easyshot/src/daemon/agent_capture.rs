@@ -156,7 +156,7 @@ async fn run(
     let (redacted, redaction) = redact(deps, redactor, &shot.frame, cx).await?;
     let options = Options {
         out: spec.out,
-        ui: !spec.no_ui,
+        ui: spec.ui,
         redacted,
     };
     let saved = cx

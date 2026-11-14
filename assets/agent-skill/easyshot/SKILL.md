@@ -69,7 +69,7 @@ easyshot agent capture --fullscreen --delay 3 --json
 - `--geometry "x,y WxH"` is in logical pixels, inside one output.
 - `--out PATH` also writes the PNG to an absolute path ending `.png` whose folder exists.
 - `--delay SECONDS` (0 to 60) waits first, for a menu the user opens or you open.
-- `--no-ui` keeps the deck card and notification away; with `--out` nothing goes to the library.
+- A capture is quiet: no deck card or notification, and it is kept in the user's library. `--ui` also shows the card and notification.
 - Capturing the screen shows the user's real content. Capture the smallest target that answers
   the question, and prefer one window to a whole output.
 

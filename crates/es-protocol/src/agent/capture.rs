@@ -7,7 +7,7 @@ pub const MAX_DELAY_SECONDS: u8 = 60;
 const MAX_OUT: usize = 4096;
 const OUT_ARG: &str = "out";
 const DELAY_ARG: &str = "delay";
-const NO_UI_ARG: &str = "no_ui";
+const UI_ARG: &str = "ui";
 
 /// What one `agent capture` asks for.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -16,18 +16,18 @@ pub struct CaptureSpec {
     /// An absolute path to a `.png` file whose folder exists.
     pub out: Option<PathBuf>,
     pub delay: u8,
-    pub no_ui: bool,
+    pub ui: bool,
 }
 
 impl CaptureSpec {
-    pub const ARGS: [&'static str; 3] = [OUT_ARG, DELAY_ARG, NO_UI_ARG];
+    pub const ARGS: [&'static str; 3] = [OUT_ARG, DELAY_ARG, UI_ARG];
 
     pub const fn new(target: AgentTarget) -> CaptureSpec {
         CaptureSpec {
             target,
             out: None,
             delay: 0,
-            no_ui: false,
+            ui: false,
         }
     }
 
@@ -40,7 +40,7 @@ impl CaptureSpec {
             put(OUT_ARG, ArgValue::Str(out.to_string_lossy().into_owned()));
         }
         put(DELAY_ARG, ArgValue::Int(i64::from(self.delay)));
-        put(NO_UI_ARG, ArgValue::Bool(self.no_ui));
+        put(UI_ARG, ArgValue::Bool(self.ui));
     }
 
     pub fn from_args(args: &RouteArgs) -> Result<CaptureSpec, String> {
@@ -57,16 +57,16 @@ impl CaptureSpec {
                 .ok_or_else(|| format!("{DELAY_ARG} is from 0 to {MAX_DELAY_SECONDS} seconds"))?,
             Some(_) => return Err(format!("{DELAY_ARG} must be a whole number")),
         };
-        let no_ui = match args.0.get(NO_UI_ARG) {
+        let ui = match args.0.get(UI_ARG) {
             None => false,
             Some(ArgValue::Bool(b)) => *b,
-            Some(_) => return Err(format!("{NO_UI_ARG} must be true or false")),
+            Some(_) => return Err(format!("{UI_ARG} must be true or false")),
         };
         Ok(CaptureSpec {
             target: AgentTarget::from_args(args)?,
             out,
             delay,
-            no_ui,
+            ui,
         })
     }
 }
@@ -105,7 +105,7 @@ mod tests {
             target: AgentTarget::Geometry(Geometry::parse("0,0 64x48").unwrap()),
             out: Some(PathBuf::from("/tmp/shot.PNG")),
             delay: 60,
-            no_ui: true,
+            ui: true,
         };
         assert_eq!(round_trip(&spec).unwrap(), spec);
         let plain = CaptureSpec::new(AgentTarget::Output(OutputName::new("DP-1").unwrap()));
@@ -146,14 +146,14 @@ mod tests {
         assert!(with(DELAY_ARG, ArgValue::Int(i64::from(MAX_DELAY_SECONDS) + 1)).is_err());
         assert!(with(DELAY_ARG, ArgValue::Int(-1)).is_err());
         assert!(with(DELAY_ARG, text("3")).is_err());
-        assert!(with(NO_UI_ARG, text("true")).is_err());
+        assert!(with(UI_ARG, text("true")).is_err());
         assert!(with(DELAY_ARG, ArgValue::Int(i64::from(MAX_DELAY_SECONDS))).is_ok());
     }
 
     #[test]
     fn exactly_one_target_is_still_required() {
         let mut args = RouteArgs::default();
-        args.0.insert(NO_UI_ARG.to_owned(), ArgValue::Bool(true));
+        args.0.insert(UI_ARG.to_owned(), ArgValue::Bool(true));
         assert!(CaptureSpec::from_args(&args).is_err());
         AgentTarget::Fullscreen.write_args(&mut args);
         AgentTarget::Output(OutputName::new("DP-1").unwrap()).write_args(&mut args);

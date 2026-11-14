@@ -32,7 +32,7 @@ pub struct Saved {
     pub output: Option<String>,
 }
 
-/// With `out` and no UI the file is all there is: no library entry, no deck card.
+/// The capture always goes into the library; `out` is an extra copy for the agent.
 pub fn save(
     deps: &Rc<PipelineDeps>,
     mut options: Options,
@@ -45,26 +45,6 @@ pub fn save(
         (redacted, _) => (frame, redacted),
     };
     let (scale, output) = (frame.scale, frame.output.as_ref().map(|o| o.0.clone()));
-    if let (Some(out), false) = (&options.out, options.ui) {
-        let out = out.clone();
-        let encoded = run_cpu(cx, move || {
-            let image = pipeline::frame_rgba(&frame)?;
-            let png = encode_png(&pipeline::pixmap(&image)?, PngProfile::Fast)
-                .map_err(|e| Error::Internal(e.to_string()))?;
-            write_atomic(&out, &png)?;
-            Ok::<_, Error>((out, png_size(&png)))
-        });
-        return cx.spawn(async move |_| {
-            let (path, (width, height)) = encoded.await??;
-            Ok(Saved {
-                path,
-                width,
-                height,
-                scale,
-                output,
-            })
-        });
-    }
     let mut config = deps.settings.read(cx).config().clone();
     let plan = after_capture_plan(CaptureVariant::Normal, &config);
     if !options.ui {

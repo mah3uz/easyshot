@@ -333,7 +333,7 @@ More in the manual: [Command line](MANUAL.md#command-line).
 - Takes a screenshot of an output, an area, a window or the focused output and prints the PNG path.
 - Writes the screenshot to a path you name with `--out`.
 - Waits 0 to 60 seconds first with `--delay`.
-- Shows no deck card or notification with `--no-ui`.
+- Captures quietly, with no deck card or notification, unless asked with `--ui`; the capture is always kept in the library.
 - Waits for the result, or returns at once with `--no-wait`.
 - Covers secrets such as keys, passwords, emails and card numbers in agent screenshots.
 - Re-encodes a recording as MP4, WebM or GIF with size, quality, trim, look and brightness options.

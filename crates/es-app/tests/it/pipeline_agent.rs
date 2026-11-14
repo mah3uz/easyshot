@@ -25,7 +25,9 @@ impl Rig {
 }
 
 #[gpui::test]
-fn an_agent_capture_to_a_file_only_writes_that_file_and_nothing_else(cx: &mut TestAppContext) {
+fn an_agent_copy_with_out_is_extra_because_the_user_reviews_captures_in_the_gallery(
+    cx: &mut TestAppContext,
+) {
     let rig = rig(cx);
     let out = rig.save_dir.join("shot.png");
     std::fs::create_dir_all(&rig.save_dir).unwrap();
@@ -38,8 +40,13 @@ fn an_agent_capture_to_a_file_only_writes_that_file_and_nothing_else(cx: &mut Te
     assert_eq!(saved.path, out);
     assert_eq!((saved.width, saved.height), (4, 2));
     assert_eq!(image::open(&out).unwrap().to_rgba8().dimensions(), (4, 2));
-    assert_eq!(rig.history_len(cx), 0, "no library entry");
-    assert_eq!(rig.deck_len(cx), 0);
+    assert_eq!(rig.history_len(cx), 1, "the library entry is still made");
+    assert!(
+        rig.history
+            .read_with(cx, |h, _| h.entries().iter().all(|e| e.file != out)),
+        "the library file is not the agent's copy"
+    );
+    assert_eq!(rig.deck_len(cx), 0, "nothing is shown on screen");
     assert!(rig.toast_titles().is_empty());
     assert_eq!(files(&rig.save_dir), [out], "nothing else was saved");
 }
@@ -53,7 +60,7 @@ fn a_quiet_agent_capture_is_kept_in_the_library_even_when_cards_wait_to_be_saved
     let saved = rig
         .agent_save(cx, es_app::agent_capture::Options::default())
         .unwrap();
-    assert_eq!(rig.history_len(cx), 1);
+    assert_eq!(rig.history_len(cx), 1, "the user reviews it in the gallery");
     assert!(saved.path.exists());
     assert!(
         rig.history
@@ -119,7 +126,7 @@ fn a_quiet_agent_capture_with_a_redacted_copy_keeps_only_the_redacted_pixels(
         is_color(&saved.path, [0, 0, 0, 255]),
         "the library copy made for the agent"
     );
-    assert_eq!(rig.history_len(cx), 1);
+    assert_eq!(rig.history_len(cx), 2, "one library entry per capture");
 }
 
 #[gpui::test]

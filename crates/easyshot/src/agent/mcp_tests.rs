@@ -120,6 +120,17 @@ fn bad_arguments_are_refused_before_the_daemon_is_asked() {
     }
 }
 
+#[test]
+fn a_capture_is_quiet_unless_the_agent_asks_for_the_card_with_ui() {
+    let ui = |arguments: Value| match route_of("capture", &arguments).unwrap().0 {
+        AgentRoute::Capture(spec) => spec.ui,
+        other => panic!("not a capture: {other:?}"),
+    };
+    assert!(!ui(json!({"fullscreen": true})));
+    assert!(!ui(json!({"fullscreen": true, "ui": false})));
+    assert!(ui(json!({"fullscreen": true, "ui": true})));
+}
+
 fn fake_daemon(
     endpoint: Endpoint,
     jobs: usize,

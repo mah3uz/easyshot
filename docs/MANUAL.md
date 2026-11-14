@@ -900,14 +900,16 @@ Commands:
   `--window <id|app_id|title>` or `--fullscreen` (the focused output). A window name is tried
   as an id, then as an exact app id, then as an exact title; a name that fits several windows
   is refused with the candidates listed, so name one by its id. The capture is a still frame
-  taken at once, cropped to the target, with no selector. It is kept in the library like any
-  other capture, and is saved to your folder too when auto-save is on. Secrets in it are
-  hidden (see Hiding secrets below).
+  taken at once, cropped to the target, with no selector. It is quiet: no deck card, no
+  notification and no after-capture step except saving. It is always kept in the library, so
+  you can review what an agent captured in the gallery, and is saved to your folder too when
+  auto-save is on. Secrets in it are hidden (see Hiding secrets below).
   - `--out PATH` also writes the PNG to an absolute or relative `.png` path whose folder
-    exists.
+    exists. This is an extra copy; the library still gets the capture.
   - `--delay SECONDS` waits 0 to 60 seconds first.
-  - `--no-ui` shows no deck card or notification and runs no after-capture step except the
-    save. With `--out` as well, the file is all that is written: nothing goes to the library.
+  - `--ui` also shows the deck card and notification and runs the after-capture steps, as for
+    a capture you make yourself. (`--no-ui` from earlier versions is still accepted and does
+    nothing.)
   - `--wait` (the default) returns when the capture is done; `--no-wait` returns once the
     daemon has accepted it.
 - `agent export VIDEO` re-encodes a recording with the same options as the trim viewer's
@@ -1061,7 +1063,7 @@ in it. Before `agent capture` hands over the file, easyshot reads the image with
 and pixelates what looks like a secret: API keys and tokens, passwords and other labelled
 values, emails, links, IP addresses, phone numbers and card numbers, the same text Smart
 Redaction covers in the editor. The `--out` file and the file in the library that the answer
-points to are the covered image. When the capture also goes to the deck (without `--no-ui`),
+points to are the covered image. When the capture also goes to the deck (with `--ui`),
 the deck card and your library copy keep the original, and the agent's file is a covered copy
 kept apart from them. The answer says what happened in `redaction`: `{"applied":true,"regions":2}`,
 `{"applied":false,"reason":"off"}` when you turned the setting off, or

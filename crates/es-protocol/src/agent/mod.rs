@@ -259,7 +259,7 @@ mod tests {
             target: AgentTarget::Window(WindowSelector::any("foot").unwrap()),
             out: Some("/tmp/a.png".into()),
             delay: 5,
-            no_ui: true,
+            ui: true,
         };
         let route = Route::Agent(AgentRoute::Capture(spec));
         assert_eq!(Route::parse(&route.as_str(), &route.args()).unwrap(), route);

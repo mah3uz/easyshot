@@ -42,8 +42,10 @@ pub struct CaptureArgs {
         value_parser = clap::value_parser!(u8).range(0..=i64::from(MAX_DELAY_SECONDS))
     )]
     delay: u8,
-    /// Show no deck card or notification; with --out the file is all that is written
-    #[arg(long)]
+    /// Also show the capture card and notification
+    #[arg(long, conflicts_with = "no_ui")]
+    ui: bool,
+    #[arg(long, hide = true)]
     no_ui: bool,
     /// Wait for the capture to finish (the default)
     #[arg(long, conflicts_with = "no_wait")]
@@ -68,7 +70,7 @@ impl CaptureArgs {
             target,
             out: self.out.clone(),
             delay: self.delay,
-            no_ui: self.no_ui,
+            ui: self.ui,
         }
     }
 

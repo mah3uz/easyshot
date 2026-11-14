@@ -220,7 +220,7 @@ fn platform_agent_captures_by_geometry_output_window_and_fullscreen() {
         (w, h)
     };
 
-    let (code, reply) = capture(root, &["--geometry", "100,50 320x200", "--no-ui"]);
+    let (code, reply) = capture(root, &["--geometry", "100,50 320x200"]);
     assert_eq!(code, 0, "{reply}");
     assert_eq!(
         (reply["kind"].as_str(), reply["output"].as_str()),
@@ -230,17 +230,17 @@ fn platform_agent_captures_by_geometry_output_window_and_fullscreen() {
     assert_eq!(size(&reply), (480, 300), "logical 320x200 at scale 1.5");
     assert!(reply.get("window").is_none());
     assert_eq!(library_images(root).len(), 1, "{:?}", library_images(root));
-    assert!(entries(root, "deck").is_empty(), "no deck card for --no-ui");
+    assert!(entries(root, "deck").is_empty(), "no deck card by default");
 
-    let (code, reply) = capture(root, &["--output", "HEADLESS-1", "--no-ui"]);
+    let (code, reply) = capture(root, &["--output", "HEADLESS-1"]);
     assert_eq!(code, 0, "{reply}");
     assert_eq!(size(&reply), (1920, 1080));
-    let (code, reply) = capture(root, &["--fullscreen", "--no-ui"]);
+    let (code, reply) = capture(root, &["--fullscreen"]);
     assert_eq!(code, 0, "{reply}");
     assert_eq!(size(&reply), (1920, 1080));
     assert!(entries(root, "deck").is_empty());
 
-    let (code, reply) = capture(root, &["--fullscreen"]);
+    let (code, reply) = capture(root, &["--fullscreen", "--ui"]);
     assert_eq!(code, 0, "{reply}");
     assert!(
         !entries(root, "deck").is_empty(),
@@ -252,41 +252,35 @@ fn platform_agent_captures_by_geometry_output_window_and_fullscreen() {
     let library = library_images(root).len();
     let (code, reply) = capture(
         root,
-        &[
-            "--geometry",
-            "0,0 64x48",
-            "--no-ui",
-            "--out",
-            out.to_str().unwrap(),
-        ],
+        &["--geometry", "0,0 64x48", "--out", out.to_str().unwrap()],
     );
     assert_eq!(code, 0, "{reply}");
     assert_eq!(reply["path"].as_str(), out.to_str());
     assert_eq!(image::image_dimensions(&out).unwrap(), (96, 72));
     assert_eq!(
         library_images(root).len(),
-        library,
-        "--out with --no-ui writes only the file"
+        library + 1,
+        "--out is an extra copy; the library still gets the capture"
     );
 
     let started = Instant::now();
-    let (code, _) = capture(root, &["--fullscreen", "--no-ui", "--delay", "1"]);
+    let (code, _) = capture(root, &["--fullscreen", "--delay", "1"]);
     assert_eq!(code, 0);
     assert!(started.elapsed() >= Duration::from_secs(1));
 
-    let (code, reply) = capture(root, &["--output", "NOPE-9", "--no-ui"]);
+    let (code, reply) = capture(root, &["--output", "NOPE-9"]);
     assert_eq!(
         (code, reply["error"]["code"].as_str()),
         (5, Some("not_found")),
         "{reply}"
     );
-    let (code, reply) = capture(root, &["--geometry", "5000,5000 10x10", "--no-ui"]);
+    let (code, reply) = capture(root, &["--geometry", "5000,5000 10x10"]);
     assert_eq!(
         (code, reply["error"]["code"].as_str()),
         (5, Some("not_found")),
         "{reply}"
     );
-    let (code, reply) = capture(root, &["--window", "no such window", "--no-ui"]);
+    let (code, reply) = capture(root, &["--window", "no such window"]);
     assert_eq!(
         (code, reply["error"]["code"].as_str()),
         (5, Some("not_found")),
@@ -319,7 +313,7 @@ fn platform_agent_captures_by_geometry_output_window_and_fullscreen() {
     let windows = json_line(&text)["windows"].as_array().unwrap().clone();
     let target = &windows[0];
     let id = target["id"].as_str().unwrap();
-    let (code, reply) = capture(root, &["--window", id, "--no-ui"]);
+    let (code, reply) = capture(root, &["--window", id]);
     assert_eq!(code, 0, "{reply}");
     assert_eq!(reply["window"]["id"].as_str(), Some(id));
     let (w, h) = size(&reply);
@@ -335,7 +329,7 @@ fn platform_agent_captures_by_geometry_output_window_and_fullscreen() {
         .filter(|w| w["app_id"].as_str() == Some(shared))
         .collect();
     assert_eq!(editors.len(), 2, "two editor windows: {windows:?}");
-    let (code, reply) = capture(root, &["--window", shared, "--no-ui"]);
+    let (code, reply) = capture(root, &["--window", shared]);
     assert_eq!(
         (code, reply["error"]["code"].as_str()),
         (4, Some("invalid_arguments")),
