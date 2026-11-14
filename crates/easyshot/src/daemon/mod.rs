@@ -559,12 +559,7 @@ fn start(
     tasks.extend(bus::platform_sources(backend, &tray_feed, &events_tx, cx));
     let bridge = bus::Bridge::start(backend, events_tx, dispatcher, jobs, finished, cx)?;
 
-    if let Err(e) = es_store::temp::purge(paths, std::time::SystemTime::now()) {
-        tracing::warn!(error = %e, "temporary files not purged");
-    }
-    if let Err(e) = es_store::agent_captures::clear(paths) {
-        tracing::warn!(error = %e, "agent captures not cleared");
-    }
+    recovery::sweep(paths);
     let recovered = recovery::run(paths, &deck, &recordings, cx);
     reopen_recovered(&wiring, recovered, cx);
     if first_launch_pending(paths)

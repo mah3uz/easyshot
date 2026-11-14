@@ -12,7 +12,7 @@ easyshot agent list outputs --json
 easyshot agent list windows --json
 easyshot agent capture --output DP-1 --no-wait --json
 easyshot agent capture --fullscreen --out /tmp/screen.png --json
-easyshot agent capture --window firefox --temp --json   # not kept in the gallery
+easyshot agent capture --window firefox --temp --json
 easyshot agent record start --fullscreen --audio none --fps 30 --keystrokes --json
 easyshot agent export /tmp/demo.mp4 --look mono --brightness 0.1 --force --json
 easyshot agent annotate /tmp/shot.png --ops /tmp/ops.json --out /tmp/marked.png --force --json
