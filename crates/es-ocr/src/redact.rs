@@ -6,6 +6,8 @@ use regex::Regex;
 
 use crate::Word;
 
+mod name;
+
 /// What a hidden region held, so a summary can say what was found.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Kind {
@@ -44,7 +46,7 @@ const RULES: [(&str, Kind, Accept); 9] = [
         any,
     ),
     (
-        r"(?i)\b(?:sk|pk|rk|ghp|gho|ghu|github_pat|xox[baprs]?|AKIA|ASIA|AIza|ya29)[A-Za-z0-9_-]{8,}\b",
+        r"\b(?:sk-|[spr]k_(?:live|test)_|gh[pou]_|github_pat_|xox[baprs]?|AKIA|ASIA|AIza|ya29)[A-Za-z0-9_-]{8,}\b",
         Kind::Key,
         any,
     ),
@@ -102,7 +104,7 @@ fn is_opaque_token(value: &str) -> bool {
     }
     let len = value.chars().count();
     let separators = value.chars().filter(|c| matches!(c, '-' | '_')).count();
-    len >= 24 && separators <= 6.max(len / 8)
+    len >= 24 && separators <= 6.max(len / 8) && !name::is_code_name(value)
 }
 
 fn luhn(digits: &[u32]) -> bool {
@@ -374,6 +376,69 @@ mod tests {
         );
         assert!(matches("x abcdefghijklmnopqrstuvwxyz y").is_empty());
         assert!(matches("update index.min.js and archive.tar.gz today").is_empty());
+    }
+
+    #[test]
+    fn code_names_stay_readable_for_an_agent_reading_code() {
+        for line in [
+            "    ext_foreign_toplevel_image_capture_source_manager_v1::ExtForeignToplevelImageCaptureSourceManagerV1,",
+            "    ext_image_capture_source_v1::ExtImageCaptureSourceV1,",
+            "    ext_image_copy_capture_session_v1::{self, ExtImageCopyCaptureSessionV1},",
+            "    zwlr_screencopy_manager_v1::ZwlrScreencopyManagerV1,",
+            "document.getElementsByClassName(name); useLayoutEffect(() => {});",
+            "export CARGO_TARGET_DIR=target/x86_64-unknown-linux-gnu",
+            "def __init_subclass__(cls, **kwargs):",
+            "#[serde(skip_serializing_if = \"Option::is_none\")]",
+            "let ghost_window = pkg_config_probe(asian_locale_v2);",
+        ] {
+            assert!(matches(line).is_empty(), "{line}: {:?}", matches(line));
+        }
+    }
+
+    #[test]
+    fn every_key_format_is_still_hidden() {
+        let b62 = "u8jzPde0IgxLd6GncfBAepfJBd0Kh8oOOL8dKLzd";
+        let b62_36 = "ESQedUStPKR0CsTy4Qwb8DwkNhFdnXsiVpzz";
+        let keys = [
+            format!("sk-proj-{b62}"),
+            format!(
+                "sk-ant-api03-{}",
+                "CfrL1spNxnyVmihA_2O76UMFxFkM_R5Kjp1vRt-1"
+            ),
+            format!("sk_live_{}", "c9QeWJKY40uvSwMFLZDe1f8r"),
+            format!("pk_test_{}", "c9QeWJKY40uvSwMFLZDe1f8r"),
+            format!("rk_live_{}", "c9QeWJKY40uvSwMFLZDe1f8r"),
+            format!("ghp_{b62_36}"),
+            format!("gho_{b62_36}"),
+            format!("ghu_{b62_36}"),
+            format!(
+                "github_pat_{}_{}",
+                "63FfkCzJr4i0B3JrTAwR4y",
+                "9ojfljoQoaF1LlqsajAIxNKu8iS2G8NPRVdD53X83RZJzzzzgEOzdmenCkh"
+            ),
+            format!(
+                "xoxb-{}-{}-{}",
+                "4782450400", "0883873716786", "c9QeWJKY40uvSwMFLZDe1f8r"
+            ),
+            format!("AKIA{}", "VDGAJ8GXBENYJQWX"),
+            format!("ASIA{}", "VDGAJ8GXBENYJQWX"),
+            format!("AIza{}", "8po-799NksnRH9ucAUsdMlHUvTCQCyEZDz_"),
+            "b008f86bebb2737f6a6f0fb23c6f5da2cec25540".to_owned(),
+            "4e4fb440034d6608697a8d41bed440e50454f31af3176813e02ea68ef786e4d3".to_owned(),
+            "Y4OjE2jBMptUsGr7CmY-uCu3ZR1zTOlUcR64cXQLioD".to_owned(),
+            "4gfqrc5XlrWi0B26R08qzjI6GKFSufrd".to_owned(),
+            "L1ERBFQFOEQH3AV90RIC7PHKQDLMTT7N".to_owned(),
+            "3f2504e0-4f89-11d3-9a0c-0305e82c3301".to_owned(),
+        ];
+        for key in &keys {
+            assert_eq!(matches(&format!("value {key} here")), [key.as_str()]);
+        }
+        assert_eq!(matches(&format!("Bearer ya29.{b62}")), [b62]);
+        let jwt = format!(
+            "{}.{}.{}",
+            "eyJhbGciOiJSUzI1NiJ9", "eyJzdWIiOiJ1c2VyLTQyIn0", b62
+        );
+        assert_eq!(matches(&format!("auth {jwt} ok")), [jwt.as_str()]);
     }
 
     #[test]

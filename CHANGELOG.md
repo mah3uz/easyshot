@@ -18,6 +18,7 @@
 - On sway, a window shot of a covered window shows that window, not what covers it.
 - A window shot taken right after the window opens, moves or resizes no longer fails on Hyprland.
 - A window shot of a window on another workspace reports its output's scale instead of 1.
+- Hiding secrets no longer blurs ordinary code names, such as `ext_image_copy_capture_session_v1` or `skip_serializing_if`, in screenshots of code.
 
 ## 0.2.0 - 2026-11-12T02:13:11+06:00
 
