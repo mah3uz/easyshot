@@ -9,6 +9,7 @@ pub mod platform;
 pub mod recording;
 pub mod shape;
 pub mod share;
+pub mod skill;
 pub mod state;
 pub mod style;
 pub mod swatch;
@@ -40,6 +41,7 @@ pub use shape::{
 pub use share::{
     BucketKeys, ShareDelete, ShareKind, ShareRecord, ShareSource, ShareState, ShareTarget, Shares,
 };
+pub use skill::{SkillInstall, SkillInstalls};
 pub use state::{LastRegion, LastTarget, Recovery, State};
 pub use style::StylePreset;
 pub use swatch::Swatch;

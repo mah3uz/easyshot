@@ -2,7 +2,7 @@ use es_model::{
     AgentRecord, AnnotationDocument, AudioTrack, BucketKeys, Envelope, FontFamily, FormatKind,
     GradientLibrary, Header, LastRegion, LastTarget, Migrated, PresetLibrary, RecordingCapture,
     RecordingInput, RecordingProject, Recovery, ShapeKind, ShareDelete, ShareKind, ShareSource,
-    ShareState, ShareTarget, Shares, State, StylePreset, Tool, migrate,
+    ShareState, ShareTarget, Shares, SkillInstalls, State, StylePreset, Tool, migrate,
 };
 use serde::{Serialize, de::DeserializeOwned};
 use std::path::PathBuf;
@@ -337,6 +337,13 @@ fn bucket_keys_v1() {
     let k: BucketKeys = load_v1(FormatKind::BucketKeys);
     assert_eq!(k.access_key_id, "AKIAEXAMPLEKEY");
     assert_eq!(k.secret_access_key, "example-secret-not-real");
+}
+
+#[test]
+fn skill_installs_v1() {
+    let s: SkillInstalls = load_v1(FormatKind::SkillInstalls);
+    assert_eq!(s.installs.len(), 1);
+    assert!(!s.installs[0].stale);
 }
 
 #[test]

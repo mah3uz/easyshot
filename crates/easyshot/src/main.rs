@@ -122,6 +122,11 @@ fn main() -> ExitCode {
                 doctor_tools::input_here(),
             ))
         }),
+        skill_notes: Box::new(|| {
+            let record = es_store::Paths::from_xdg().map(|p| p.skill_installs_file());
+            let home = std::env::var_os("HOME").map(std::path::PathBuf::from);
+            record.map_or_else(|_| Vec::new(), |r| agent::skill_notes(&r, home.as_deref()))
+        }),
         log_dir: es_store::Paths::from_xdg().ok().map(|p| p.log_dir()),
         bundle_dir: std::env::current_dir().unwrap_or_default(),
         now: SystemTime::now()

@@ -21,6 +21,7 @@ pub mod presets;
 pub mod recording;
 pub mod retention;
 pub mod shares;
+pub mod skills;
 pub mod state;
 pub mod temp;
 pub mod thumbs;

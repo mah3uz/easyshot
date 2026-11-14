@@ -37,6 +37,13 @@ pub fn with_input(raw: &str, input: Value) -> String {
     }
 }
 
+pub fn with_skill(raw: &str, notes: &[crate::agent::SkillNote]) -> String {
+    match serde_json::from_str::<Value>(raw) {
+        Ok(value) if value.is_object() => crate::agent::with_notes(value, notes).to_string(),
+        _ => raw.to_owned(),
+    }
+}
+
 pub fn pretty(raw: &str) -> String {
     serde_json::from_str::<Value>(raw)
         .and_then(|v| serde_json::to_string_pretty(&v))
@@ -99,6 +106,7 @@ pub fn render_text(raw: &str) -> String {
     }
     render_services_and_tools(&v, &mut out);
     render_input(&v, &mut out);
+    render_skill(&v, &mut out);
     render_config(&v, &mut out);
     let missing = v["missing_tools"].as_array().map_or(&[][..], Vec::as_slice);
     if !missing.is_empty() {
@@ -188,6 +196,25 @@ pub(crate) fn render_input(v: &Value, out: &mut String) {
         }
         let what = i["records"].as_str().unwrap_or("-");
         let _ = writeln!(out, "  {}", fl!("doctor-input-records", what = what));
+    }
+}
+
+pub(crate) fn render_skill(v: &Value, out: &mut String) {
+    for note in v["skill"].as_array().into_iter().flatten() {
+        let key = if note["state"] == "edited" {
+            fl!(
+                "doctor-skill-edited",
+                path = note["dir"].as_str().unwrap_or("-"),
+                fix = note["fix"].as_str().unwrap_or("-")
+            )
+        } else {
+            fl!(
+                "doctor-skill-outdated",
+                path = note["dir"].as_str().unwrap_or("-"),
+                fix = note["fix"].as_str().unwrap_or("-")
+            )
+        };
+        let _ = writeln!(out, "\n{key}");
     }
 }
 

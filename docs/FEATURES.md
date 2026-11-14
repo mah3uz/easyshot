@@ -359,6 +359,7 @@ More in the manual: [Command line](MANUAL.md#command-line).
 - Logs each agent request with its time, command, target, result and program.
 - Installs a skill that teaches agents how to use easyshot, for Claude Code, Codex, Gemini CLI and Cursor.
 - Installs the skill for your user or a project, and removes or prints it.
+- Updates installed skills when easyshot starts after an upgrade, unless you edited them, and tells you in `doctor` and `agent status` when one is out of date.
 - Runs a Model Context Protocol server with `easyshot agent mcp`, with tools to list, capture, read text, record, export and annotate.
 - Returns MCP screenshots scaled to 1280 pixels on the long edge, with secrets covered.
 

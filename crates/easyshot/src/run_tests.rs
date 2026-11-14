@@ -83,6 +83,7 @@ pub(crate) fn env(bus: &PrivateBus, dir: &Path) -> Env {
                 crate::doctor_tools::input(es_model::recording::InputAccess::Denied),
             ))
         }),
+        skill_notes: Box::new(Vec::new),
         log_dir: None,
         bundle_dir: dir.to_owned(),
         now: 1_700_000_000,

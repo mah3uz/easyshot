@@ -23,6 +23,8 @@ pub fn reopen_recovered(wiring: &super::Wiring, recovered: Vec<Recovered>, cx: &
 
 /// Restores deck cards, finishes interrupted recordings and collects editor journals for reopening.
 pub fn sweep(paths: &Paths) {
+    let record = paths.skill_installs_file();
+    std::thread::spawn(move || crate::agent::refresh_installs(&record));
     if let Err(e) = es_store::temp::purge(paths, std::time::SystemTime::now()) {
         tracing::warn!(error = %e, "temporary files not purged");
     }

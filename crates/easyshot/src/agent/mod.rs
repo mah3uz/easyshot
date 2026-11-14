@@ -14,6 +14,7 @@ mod record;
 mod run;
 mod skill;
 mod skill_install;
+mod skill_refresh;
 #[cfg(test)]
 mod tests;
 
@@ -25,6 +26,7 @@ pub use ocr::OcrArgs;
 pub use record::RecordCommand;
 pub use run::{run, usage_error};
 pub use skill::{SkillCall, SkillCommand, run_skill};
+pub use skill_refresh::{SkillNote, notes as skill_notes, refresh_installs, with_notes};
 
 use clap::{Args, Subcommand, ValueEnum};
 use es_protocol::AgentRoute;

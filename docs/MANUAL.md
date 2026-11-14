@@ -1179,6 +1179,14 @@ easyshot agent skill install
 These commands work with agent access off and do not talk to the daemon. Start a new agent
 session afterwards, since clients read their skills when they start.
 
+easyshot remembers each folder it installed the skill into, in
+`$XDG_STATE_HOME/easyshot/skill-installs.json`. When the daemon starts it brings those copies
+up to date with the skill in the version you run, unless you edited them: an edited copy is
+left alone. `easyshot doctor` and `easyshot agent status` (and their `--json`) say when a copy
+is out of date or was edited; for an edited copy, `easyshot agent skill install --force`
+replaces it. A copy installed before easyshot recorded installs is reported as out of date
+and never replaced for you: run `easyshot agent skill install` once.
+
 Where each client looks: Claude Code reads `~/.claude/skills/` and the project's
 `.claude/skills/`; Codex reads `~/.agents/skills/` and `.agents/skills/` in the project and
 its parents up to the repository root; Gemini CLI reads `~/.agents/skills/` or
@@ -1240,6 +1248,7 @@ The server runs for as long as the agent session does.
 | Recordings | `$XDG_DATA_HOME/easyshot/recordings/` |
 | Logs and crash reports | `$XDG_STATE_HOME/easyshot/log/`, `crash/` |
 | Agent grant and log | `$XDG_STATE_HOME/easyshot/agent.json` |
+| Folders the agent skill was installed into | `$XDG_STATE_HOME/easyshot/skill-installs.json` |
 | Your shares and their delete rights | `$XDG_DATA_HOME/easyshot/shares.json` |
 | Free-service install token | `$XDG_STATE_HOME/easyshot/share-install-token` |
 | Bucket keys, only when no keyring runs | `$XDG_DATA_HOME/easyshot/bucket-keys.json` |

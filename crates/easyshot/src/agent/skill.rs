@@ -103,13 +103,24 @@ impl SkillCommand {
 pub fn run_skill(call: &SkillCall, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let home = std::env::var_os("HOME").map(PathBuf::from);
     let cwd = std::env::current_dir().ok();
-    execute(call, home.as_deref(), cwd.as_deref(), out, err)
+    let record = es_store::Paths::from_xdg()
+        .ok()
+        .map(|p| p.skill_installs_file());
+    execute(
+        call,
+        home.as_deref(),
+        cwd.as_deref(),
+        record.as_deref(),
+        out,
+        err,
+    )
 }
 
 pub(super) fn execute(
     call: &SkillCall,
     home: Option<&Path>,
     cwd: Option<&Path>,
+    record: Option<&Path>,
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
@@ -120,10 +131,10 @@ pub(super) fn execute(
             clients,
             force,
         } => base(*scope, home, cwd)
-            .and_then(|b| install::install(b, *clients, *force))
+            .and_then(|b| install::install(b, *clients, *force, record))
             .map(|e| ("install", e)),
         SkillAction::Uninstall { scope, clients } => base(*scope, home, cwd)
-            .and_then(|b| install::uninstall(b, *clients))
+            .and_then(|b| install::uninstall(b, *clients, record))
             .map(|e| ("uninstall", e)),
     };
     match result {

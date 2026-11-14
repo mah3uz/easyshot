@@ -275,6 +275,7 @@ es-record calls). Videos, posters and exports are written by GStreamer and ffmpe
 | Editor style preset | `$XDG_CONFIG_HOME/easyshot/annotation-style.json` |
 | Background presets | `$XDG_CONFIG_HOME/easyshot/background-presets.json` |
 | User gradients | `$XDG_CONFIG_HOME/easyshot/gradients.json` |
+| Skill installs, the folders `agent skill install` wrote and a hash of what it wrote; the daemon refreshes unedited copies at start | `$XDG_STATE_HOME/easyshot/skill-installs.json` |
 | Shares | `$XDG_DATA_HOME/easyshot/shares.json`, the links easyshot made with their delete rights; 0600 |
 | Share install token | `$XDG_STATE_HOME/easyshot/share-install-token`, plain text, 0600 |
 | Bucket keys, the file fallback when no keyring is available | `$XDG_DATA_HOME/easyshot/bucket-keys.json`, 0600 (not in config, which is often synced as dotfiles) |

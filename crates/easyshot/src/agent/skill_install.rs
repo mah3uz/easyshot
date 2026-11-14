@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, bail};
+use es_store::skills::{self, Removed, Written};
 use serde_json::{Value, json};
 use std::fs;
 use std::os::unix::fs::symlink;
@@ -41,7 +42,7 @@ impl Entry {
     }
 }
 
-fn shared_dir(base: &Path) -> PathBuf {
+pub(super) fn shared_dir(base: &Path) -> PathBuf {
     base.join(".agents/skills/easyshot")
 }
 
@@ -62,45 +63,23 @@ fn same(path: &Path, text: &str) -> bool {
 }
 
 fn write_files(dir: &Path) -> Result<&'static str> {
-    let existed = dir.exists();
-    let mut changed = false;
-    for (name, text) in FILES {
-        let path = dir.join(name);
-        if same(&path, text) {
-            continue;
-        }
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).with_context(|| format!("cannot create {parent:?}"))?;
-        }
-        fs::write(&path, text).with_context(|| format!("cannot write {path:?}"))?;
-        changed = true;
-    }
-    Ok(match (existed, changed) {
-        (false, _) => "created",
-        (true, true) => "updated",
-        (true, false) => "unchanged",
+    let written =
+        skills::write_set(dir, &FILES).with_context(|| format!("cannot write {dir:?}"))?;
+    Ok(match written {
+        Written::Created => "created",
+        Written::Updated => "updated",
+        Written::Unchanged => "unchanged",
     })
 }
 
 fn remove_files(dir: &Path) -> Result<&'static str> {
-    if !dir.is_dir() {
-        return Ok("absent");
-    }
-    let mut kept = false;
-    for (name, text) in FILES {
-        let path = dir.join(name);
-        if !exists(&path) {
-            continue;
-        }
-        if same(&path, text) {
-            fs::remove_file(&path).with_context(|| format!("cannot remove {path:?}"))?;
-        } else {
-            kept = true;
-        }
-    }
-    let _ = fs::remove_dir(dir.join("references"));
-    let _ = fs::remove_dir(dir);
-    Ok(if kept { "kept" } else { "removed" })
+    let removed =
+        skills::remove_set(dir, &FILES).with_context(|| format!("cannot remove from {dir:?}"))?;
+    Ok(match removed {
+        Removed::Absent => "absent",
+        Removed::Kept => "kept",
+        Removed::Removed => "removed",
+    })
 }
 
 fn ours(dir: &Path) -> bool {
@@ -140,7 +119,12 @@ fn copy_to_claude(dir: &Path, force: bool) -> Result<&'static str> {
     write_files(dir)
 }
 
-pub fn install(base: &Path, clients: Clients, force: bool) -> Result<Vec<Entry>> {
+pub fn install(
+    base: &Path,
+    clients: Clients,
+    force: bool,
+    record: Option<&Path>,
+) -> Result<Vec<Entry>> {
     let (shared, claude) = (shared_dir(base), claude_dir(base));
     if clients == Clients::All && exists(&claude) && !is_link(&claude) && !force {
         bail!("{claude:?} exists and is not a link; pass --force to replace it");
@@ -166,10 +150,16 @@ pub fn install(base: &Path, clients: Clients, force: bool) -> Result<Vec<Entry>>
             what: "files",
         }),
     }
+    for entry in entries.iter().filter(|e| e.what == "files") {
+        if let Some(file) = record {
+            skills::record(file, &entry.path, &FILES)
+                .with_context(|| format!("installed, but cannot record {:?}", entry.path))?;
+        }
+    }
     Ok(entries)
 }
 
-pub fn uninstall(base: &Path, clients: Clients) -> Result<Vec<Entry>> {
+pub fn uninstall(base: &Path, clients: Clients, record: Option<&Path>) -> Result<Vec<Entry>> {
     let (shared, claude) = (shared_dir(base), claude_dir(base));
     let mut entries = Vec::new();
     if clients != Clients::Claude {
@@ -198,6 +188,12 @@ pub fn uninstall(base: &Path, clients: Clients) -> Result<Vec<Entry>> {
             }
         };
         entries.push(entry);
+    }
+    for entry in entries.iter().filter(|e| e.what == "files") {
+        if let Some(file) = record {
+            skills::forget(file, &entry.path)
+                .with_context(|| format!("cannot update the record for {:?}", entry.path))?;
+        }
     }
     Ok(entries)
 }

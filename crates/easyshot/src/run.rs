@@ -20,6 +20,7 @@ pub struct Env {
     pub spawn_daemon: bool,
     pub wait: Duration,
     pub standalone_report: Box<dyn Fn() -> Result<String>>,
+    pub skill_notes: Box<dyn Fn() -> Vec<crate::agent::SkillNote>>,
     pub log_dir: Option<PathBuf>,
     pub bundle_dir: PathBuf,
     pub now: u64,
@@ -161,6 +162,7 @@ async fn doctor(
             }
         },
     };
+    let raw = doctor::with_skill(&raw, &(env.skill_notes)());
     let shown = if json {
         format!("{}\n", doctor::pretty(&raw))
     } else if raw_text {

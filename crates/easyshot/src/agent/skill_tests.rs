@@ -169,7 +169,7 @@ fn every_flag_the_skill_mentions_exists_in_the_agent_cli() {
 
 fn run(call: &SkillCall, home: &Path, cwd: &Path) -> (i32, String, String) {
     let (mut out, mut err) = (Vec::new(), Vec::new());
-    let code = execute(call, Some(home), Some(cwd), &mut out, &mut err);
+    let code = execute(call, Some(home), Some(cwd), None, &mut out, &mut err);
     (
         code,
         String::from_utf8(out).unwrap(),
@@ -395,10 +395,13 @@ fn show_prints_the_skill_with_no_home_needed() {
         json,
     };
     let (mut out, mut err) = (Vec::new(), Vec::new());
-    assert_eq!(execute(&call(false), None, None, &mut out, &mut err), 0);
+    assert_eq!(
+        execute(&call(false), None, None, None, &mut out, &mut err),
+        0
+    );
     assert_eq!(String::from_utf8(out).unwrap(), skill_md());
     let mut out = Vec::new();
-    execute(&call(true), None, None, &mut out, &mut err);
+    execute(&call(true), None, None, None, &mut out, &mut err);
     let body: Value = serde_json::from_slice(&out).unwrap();
     assert_eq!(body["text"], skill_md());
 }

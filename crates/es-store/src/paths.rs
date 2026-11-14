@@ -124,6 +124,10 @@ impl Paths {
         self.state.join("agent.json")
     }
 
+    pub fn skill_installs_file(&self) -> PathBuf {
+        self.state.join("skill-installs.json")
+    }
+
     pub fn log_dir(&self) -> PathBuf {
         self.state.join("log")
     }

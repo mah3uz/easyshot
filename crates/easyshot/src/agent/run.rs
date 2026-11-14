@@ -1,8 +1,9 @@
-use super::AgentCall;
+use super::{AgentCall, SkillNote, with_notes};
 use crate::run::{Env, launch};
 use es_desktop::dbus::{Client, ClientError, Endpoint, Launch};
+use es_protocol::AgentRoute;
 use es_protocol::JobStatus;
-use es_protocol::agent::{AgentReply, ErrorCode, ReplyKind};
+use es_protocol::agent::{AgentReply, ErrorCode, ManageRoute, ReplyKind};
 use std::ffi::OsString;
 use std::future::Future;
 use std::io::Write;
@@ -15,7 +16,13 @@ pub async fn run(
     err: &mut dyn Write,
 ) -> i32 {
     let reply = ask(call, env, cancel).await;
-    print(call.json, &reply, out, err);
+    let notes =
+        if matches!(call.route, AgentRoute::Manage(ManageRoute::Status)) && reply.error.is_none() {
+            (env.skill_notes)()
+        } else {
+            Vec::new()
+        };
+    print(call.json, &reply, &notes, out, err);
     i32::from(reply.exit_code())
 }
 
@@ -81,9 +88,17 @@ pub(super) fn client_failure(kind: ReplyKind, e: &ClientError) -> AgentReply {
     AgentReply::failed(kind, code, message).hinted(hint)
 }
 
-fn print(json: bool, reply: &AgentReply, out: &mut dyn Write, err: &mut dyn Write) {
+pub(super) fn print(
+    json: bool,
+    reply: &AgentReply,
+    notes: &[SkillNote],
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) {
     if json {
-        let _ = writeln!(out, "{}", reply.to_json());
+        let body = serde_json::from_str(&reply.to_json())
+            .map_or_else(|_| reply.to_json(), |v| with_notes(v, notes).to_string());
+        let _ = writeln!(out, "{body}");
         return;
     }
     if let Some(e) = &reply.error {
@@ -130,6 +145,9 @@ fn print(json: bool, reply: &AgentReply, out: &mut dyn Write, err: &mut dyn Writ
     }
     if let Some(access) = &reply.access {
         super::access::print_status(access, out);
+    }
+    for note in notes {
+        let _ = writeln!(out, "{}", note.line());
     }
     if let Some(config) = &reply.config {
         let _ = writeln!(out, "{}", config.value);

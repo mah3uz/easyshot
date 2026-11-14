@@ -1,4 +1,4 @@
-use crate::doctor::{render_config, render_input};
+use crate::doctor::{render_config, render_input, render_skill};
 use crate::strings::fl;
 use serde_json::Value;
 use std::fmt::Write as _;
@@ -210,6 +210,7 @@ pub fn render(raw: &str, styled: bool) -> String {
         }
     }
     render_input(&v, &mut out);
+    render_skill(&v, &mut out);
     render_config(&v, &mut out);
     let errors = v["errors"].as_array().map_or(&[][..], Vec::as_slice);
     if !errors.is_empty() {
