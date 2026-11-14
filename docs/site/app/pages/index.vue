@@ -137,6 +137,7 @@ const shareTargets = [
 const agentSafety = [
   'Off until you turn it on, in Settings › Agents or with <code>easyshot agent enable</code>',
   'A dialog asks you first: once per session by default, or every time',
+  'Turning off secret hiding from the command line asks you too',
   'Answers only your own user, and nothing goes over the network',
   'A tray badge shows while access is granted, with a one-click Revoke',
   'An agent’s recording stops, and is kept, when its access ends',
@@ -418,7 +419,9 @@ useHead({
           <h2 class="text-[clamp(32px,4.4vw,50px)] leading-[1.05]">Let your agent<br />see your screen.</h2>
           <p class="text-lg text-fg-2">
             <code>easyshot agent</code> (or <code>easyshot ai</code>) lets AI agents and scripts list your windows, take
-            screenshots with secrets covered, read text and QR codes, annotate, and record and export short demos. Every
+            screenshots with secrets covered, read text and QR codes, annotate, and record and export short demos. They
+            capture any window, even a covered one or one on another workspace, without moving your focus or showing a
+            card. Every
             command can answer in JSON, with a clear exit code for each kind of error.
           </p>
           <ul class="grid gap-3 pt-2">
