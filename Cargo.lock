@@ -1820,7 +1820,7 @@ checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
 name = "easyshot"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -2008,7 +2008,7 @@ dependencies = [
 
 [[package]]
 name = "es-anno"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "es-geom",
  "es-model",
@@ -2023,7 +2023,7 @@ dependencies = [
 
 [[package]]
 name = "es-app"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-channel",
  "bitflags 2.13.2",
@@ -2063,7 +2063,7 @@ dependencies = [
 
 [[package]]
 name = "es-backend"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-channel",
  "bitflags 2.13.2",
@@ -2086,7 +2086,7 @@ dependencies = [
 
 [[package]]
 name = "es-desktop"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "ashpd",
  "async-channel",
@@ -2112,7 +2112,7 @@ dependencies = [
 
 [[package]]
 name = "es-editor"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-channel",
  "es-anno",
@@ -2149,7 +2149,7 @@ dependencies = [
 
 [[package]]
 name = "es-geom"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "i_overlay",
  "kurbo 0.13.1",
@@ -2161,7 +2161,7 @@ dependencies = [
 
 [[package]]
 name = "es-model"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bitflags 2.13.2",
  "es-geom",
@@ -2176,7 +2176,7 @@ dependencies = [
 
 [[package]]
 name = "es-ocr"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "es-geom",
  "image",
@@ -2190,7 +2190,7 @@ dependencies = [
 
 [[package]]
 name = "es-overlays"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-channel",
  "es-app",
@@ -2229,7 +2229,7 @@ dependencies = [
 
 [[package]]
 name = "es-protocol"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bitflags 2.13.2",
  "rustix",
@@ -2241,7 +2241,7 @@ dependencies = [
 
 [[package]]
 name = "es-record"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-channel",
  "es-geom",
@@ -2265,7 +2265,7 @@ dependencies = [
 
 [[package]]
 name = "es-render"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "es-anno",
  "es-geom",
@@ -2285,7 +2285,7 @@ dependencies = [
 
 [[package]]
 name = "es-scroll"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "es-geom",
  "rayon",
@@ -2295,7 +2295,7 @@ dependencies = [
 
 [[package]]
 name = "es-share"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "base64 0.23.1",
  "es-model",
@@ -2314,7 +2314,7 @@ dependencies = [
 
 [[package]]
 name = "es-shell"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-channel",
  "chrono",
@@ -2346,7 +2346,7 @@ dependencies = [
 
 [[package]]
 name = "es-store"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "directories",
  "es-model",
@@ -2369,7 +2369,7 @@ dependencies = [
 
 [[package]]
 name = "es-testkit"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "es-geom",
  "gpui-pre",
@@ -2380,7 +2380,7 @@ dependencies = [
 
 [[package]]
 name = "es-text"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "cosmic-text",
  "es-geom",
@@ -2391,7 +2391,7 @@ dependencies = [
 
 [[package]]
 name = "es-ui"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "es-geom",
  "es-model",
@@ -2413,7 +2413,7 @@ dependencies = [
 
 [[package]]
 name = "es-wayland"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-channel",
  "es-geom",

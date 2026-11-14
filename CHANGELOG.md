@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.0 - 2026-11-14T18:32:24+06:00
+
 ### New
 - `easyshot agent capture --temp` (MCP `temp`) keeps one agent capture out of your gallery, and Settings › Agents has "Keep agent captures in the gallery" to turn them all off; those files go to `~/.cache/easyshot/agent/`, which keeps the newest 200 and is emptied at start.
 

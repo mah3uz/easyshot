@@ -3,8 +3,8 @@
 pkgname=easyshot-bin
 _pkgname=easyshot
 _repo=mah3uz/easyshot
-pkgver=0.2.0
-pkgrel=2
+pkgver=0.3.0
+pkgrel=1
 pkgdesc='Screenshot, annotation and screen-recording app for Linux/Wayland (prebuilt)'
 install=easyshot.install
 arch=('x86_64')
@@ -30,7 +30,7 @@ provides=('easyshot')
 conflicts=('easyshot')
 options=('!strip' '!debug')
 source=("https://github.com/$_repo/releases/download/v$pkgver/$_pkgname-$pkgver-x86_64-unknown-linux-gnu.tar.gz")
-sha256sums=('a380c29f0f0e08aba2b3d2debfcd985b068ea8f1daaa7b19652194ec8f9b8f95')
+sha256sums=('SKIP')
 
 package() {
   cd "$_pkgname-$pkgver-x86_64-unknown-linux-gnu"
