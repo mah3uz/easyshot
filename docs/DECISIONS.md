@@ -14,6 +14,12 @@ fails if two gpui copies appear. `vendor/gpui-pre/` and `vendor/gpui-pre-linux/`
 as-is from crates.io and our patches are git commits on top, so the patch set is the diff.
 Alternatives rejected: not recorded.
 
+### One version for every crate
+Every crate takes its version from `[workspace.package]` in the root `Cargo.toml`, and a release
+bumps that one line. Why: the crates ship only inside the one `easyshot` binary, so a separate
+version per crate meant nothing and made the build output show an old number. Rejected: the
+binary crate alone carrying the release version while the internal crates stayed at 0.1.0.
+
 ### Layered crates with enforced direction
 Layers 0 to 3, with `just layers` failing on an upward edge or on a GUI, tokio, zbus,
 wayland or ashpd dependency where it does not belong. Why: duplicated

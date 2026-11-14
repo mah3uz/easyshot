@@ -3,8 +3,8 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 # The features the package is built with
 shipped_features := "easyshot/sound,easyshot/player,easyshot/evdev-input"
 
-# The released version: the easyshot binary crate's, as the internal crates keep their own
-version := `sed -n 's/^version = "\(.*\)"/\1/p' crates/easyshot/Cargo.toml | head -1`
+# The released version, shared by every crate through [workspace.package]
+version := `sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1`
 
 # List recipes
 default:
@@ -68,7 +68,7 @@ release ver:
 
     echo "==> version $v (last release: $last)"
     if [[ $v != "$current" ]]; then
-        sed -i "0,/^version = \".*\"/s//version = \"$v\"/" crates/easyshot/Cargo.toml
+        sed -i "0,/^version = \".*\"/s//version = \"$v\"/" Cargo.toml
         cargo update -w --offline -q
     fi
     for p in easyshot easyshot-bin; do

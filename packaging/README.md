@@ -40,8 +40,8 @@ run `just release X.Y.Z`. It is the whole release.
    SSH, that wrangler is logged in (in `docs/site`), that the minisign key
    `~/.minisign/easyshot.key` (or `$MINISIGN_KEY`) exists, and that the two `easyshot.install`
    files are the same. Then it runs `just check`.
-2. It sets the version in `crates/easyshot/Cargo.toml` and `Cargo.lock` (only the easyshot
-   crate's; nothing to do when it is already there), sets `pkgver=X.Y.Z` and `pkgrel=1` in both
+2. It sets the version in `Cargo.toml` (`[workspace.package]`, shared by every crate) and
+   `Cargo.lock` (nothing to do when it is already there), sets `pkgver=X.Y.Z` and `pkgrel=1` in both
    PKGBUILDs with their checksums back to `SKIP`, moves the `Unreleased` entries under
    `## X.Y.Z - <local time with its UTC offset, to the second>`, sets the same time on the
    metainfo's `<release version="X.Y.Z">` (adding it first when missing), and commits that as
