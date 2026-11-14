@@ -2,6 +2,7 @@ use gstreamer as gst;
 
 const CORE: &str = "gstreamer";
 const BASE: &str = "gst-plugins-base-libs";
+const BASE_EXTRA: &str = "gst-plugins-base";
 const GOOD: &str = "gst-plugins-good";
 const BAD: &str = "gst-plugins-bad-libs";
 const UGLY: &str = "gst-plugins-ugly";
@@ -46,7 +47,7 @@ const WINDOW_RECORDING: &[Need] = &[
     need(&["audioresample"], BASE),
     need(&["audiotestsrc"], BASE),
     need(&["audiomixer"], BASE),
-    need(&["opusenc"], BASE),
+    need(&["opusenc"], BASE_EXTRA),
     need(&["nvh264enc", "vah264enc", "x264enc"], UGLY),
 ];
 

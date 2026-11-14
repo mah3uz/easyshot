@@ -17,7 +17,8 @@ and keeps a history.
   `gst-libav` H.264 decoder.
 - For a window recording made from the window's own frames: GStreamer's good plugins, the bad
   plugins' H.264 parser (`gst-plugins-bad-libs`) and an H.264 encoder (x264 from
-  `gst-plugins-ugly`, or NVENC or VA-API from the bad plugins). Without
+  `gst-plugins-ugly`, or NVENC or VA-API from the bad plugins), plus the Opus encoder
+  (`gst-plugins-base`) for its sound. Without
   one, window recordings record the window's area on screen; `easyshot doctor` says which
   applies.
 - Tesseract for reading text (OCR). Without it, OCR still reads QR codes; when the region
@@ -1321,7 +1322,8 @@ If the trim viewer says "This video cannot be played: GStreamer plugins are miss
 the packages it names. On Arch Linux: `sudo pacman -S gst-plugins-good gst-libav`. Other
 distributions call them GStreamer's good plugins and its libav plugin. `easyshot doctor` lists
 every missing GStreamer element with the package that provides it. Window recording also
-needs `gst-plugins-bad-libs` and an H.264 encoder (`gst-plugins-ugly` for x264).
+needs `gst-plugins-bad-libs`, an H.264 encoder (`gst-plugins-ugly` for x264) and, for its
+sound, `gst-plugins-base`.
 
 ### Sharing fails
 
