@@ -26,7 +26,7 @@ use gpui::{App, AsyncApp, Task};
 use std::path::Path;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 pub type CaptureRunner = Rc<dyn Fn(CaptureSpec, Scope, &mut App) -> Task<AgentReply>>;
 
@@ -152,8 +152,11 @@ async fn run(
             .timer(Duration::from_secs(u64::from(spec.delay)))
             .await;
     }
+    let started = Instant::now();
     let shot = acquire(deps, &spec.target, scope, cx).await?;
+    let acquired = started.elapsed();
     let (redacted, redaction) = redact(deps, redactor, &shot.frame, cx).await?;
+    let redacted_at = started.elapsed();
     let options = Options {
         out: spec.out,
         ui: spec.ui,
@@ -163,6 +166,14 @@ async fn run(
         .update(|cx| save(&deps.pipeline, options, shot.kind, shot.frame, cx))
         .await
         .map_err(fail_of)?;
+    let done = started.elapsed();
+    tracing::debug!(
+        acquire_ms = acquired.as_millis() as u64,
+        redact_ms = (redacted_at - acquired).as_millis() as u64,
+        save_ms = (done - redacted_at).as_millis() as u64,
+        total_ms = done.as_millis() as u64,
+        "agent capture timing"
+    );
     Ok(reply(saved, shot.window.as_ref(), redaction))
 }
 
