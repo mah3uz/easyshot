@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 use std::ffi::OsString;
 
 const OUTPUTS: &str = r#"{"ok":true,"kind":"outputs","outputs":[{"name":"HEADLESS-1","x":0,"y":0,"width":1280,"height":720,"scale":1.5,"focused":true}]}"#;
-const WINDOWS: &str = r#"{"ok":true,"kind":"windows","windows":[{"id":"4","app_id":"foot","title":"a\tb","x":0,"y":0,"width":640,"height":360,"output":"HEADLESS-1","focused":true},{"id":"5"}]}"#;
+const WINDOWS: &str = r#"{"ok":true,"kind":"windows","windows":[{"id":"4","app_id":"foot","title":"a\tb","x":0,"y":0,"width":640,"height":360,"output":"HEADLESS-1","focused":true},{"id":"5"},{"id":"6","output":"HEADLESS-1","visible":false}]}"#;
 
 fn call(args: &[&str]) -> AgentCall {
     let cli = Cli::try_parse_from(std::iter::once("easyshot").chain(args.iter().copied()))
@@ -85,7 +85,7 @@ fn window_text_keeps_one_line_per_window() {
     assert_eq!(code, 0);
     assert_eq!(
         out,
-        "4\tfoot\t0,0 640x360\tHEADLESS-1  focused\ta b\n5\t-\t-\t-\t\n"
+        "4\tfoot\t0,0 640x360\tHEADLESS-1  focused\ta b\n5\t-\t-\t-\t\n6\t-\t-\tHEADLESS-1  hidden\t\n"
     );
     server.finish();
 }

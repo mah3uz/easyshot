@@ -115,6 +115,13 @@ pub struct WindowEntry {
     pub output: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub focused: Option<bool>,
+    /// On a workspace a screen shows, though other windows may cover it.
+    #[serde(default = "on_screen")]
+    pub visible: bool,
+}
+
+fn on_screen() -> bool {
+    true
 }
 
 /// What a capture made; the size is in pixels.
@@ -396,9 +403,10 @@ mod tests {
             height: None,
             output: None,
             focused: None,
+            visible: true,
         });
         reply.capture = Some(Box::new(info));
-        assert_eq!(value(&reply)["window"], json!({"id": "7"}));
+        assert_eq!(value(&reply)["window"], json!({"id": "7", "visible": true}));
         assert_eq!(AgentReply::from_json(&reply.to_json()).unwrap(), reply);
     }
 
@@ -440,12 +448,21 @@ mod tests {
             y: None,
             width: None,
             height: None,
-            output: None,
+            output: Some("DP-1".into()),
             focused: None,
+            visible: false,
         }]);
         assert_eq!(
             value(&reply),
-            json!({"ok": true, "kind": "windows", "windows": [{"id": "7", "app_id": "foot"}]})
+            json!({"ok": true, "kind": "windows", "windows": [
+                {"id": "7", "app_id": "foot", "output": "DP-1", "visible": false}
+            ]})
+        );
+        assert_eq!(AgentReply::from_json(&reply.to_json()).unwrap(), reply);
+        let old = AgentReply::from_json(r#"{"ok":true,"kind":"windows","windows":[{"id":"7"}]}"#);
+        assert!(
+            old.unwrap().windows.unwrap()[0].visible,
+            "a daemon that listed only shown windows"
         );
     }
 

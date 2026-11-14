@@ -128,13 +128,14 @@ struct Rig {
 fn rig_for(agent: AgentCfg, cx: &mut TestAppContext) -> Rig {
     let unreachable: crate::daemon::recording::FocusWindow =
         Rc::new(|_, _| Task::ready(Err(es_app::errors::Error::WindowUnreachable)));
-    rig_with(agent, sources(), unreachable, cx)
+    rig_with(agent, sources(), unreachable, None, cx)
 }
 
 fn rig_with(
     agent: AgentCfg,
     sources: Sources,
     focus_window: crate::daemon::recording::FocusWindow,
+    window_recorder: Option<FakeRecorder>,
     cx: &mut TestAppContext,
 ) -> Rig {
     let gate = GateRig::new(agent, cx);
@@ -150,7 +151,7 @@ fn rig_with(
             paths: paths.clone(),
             deck: cx.new(|_| Deck::new(DeckPolicy::default())),
             recorder: Rc::new(|_| Ok(Arc::new(FakeRecorder::default()))),
-            window_recorder: None,
+            window_recorder: window_recorder.map(|w| Arc::new(w) as Arc<dyn es_record::Recorder>),
             recorder_missing: false,
             outputs: Rc::new(outputs),
             ui: Rc::new(FakeUi),
@@ -581,5 +582,5 @@ async fn audio_and_options_reach_the_recording(cx: &mut TestAppContext) {
     assert_eq!(started["ok"], true, "{started}");
 }
 
-#[path = "agent_record_focus_tests.rs"]
-mod focus;
+#[path = "agent_record_hidden_tests.rs"]
+mod hidden;

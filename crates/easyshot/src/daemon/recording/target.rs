@@ -1,10 +1,17 @@
 use super::Start;
 use es_app::errors::{Error, Result};
+use es_geom::Rect;
 use es_model::platform::OutputInfo;
 use es_overlays::record::{Recorded, RecordingTarget};
 use es_record::RecordSource;
 
-pub fn resolve(start: &Start, outputs: &[OutputInfo]) -> Result<(Recorded, RecordSource)> {
+/// Only the window recorder, which records the window alone, takes a window no screen shows; it
+/// has no area on screen for the bar to keep clear of or for clicks to land in.
+pub fn resolve(
+    start: &Start,
+    outputs: &[OutputInfo],
+    window_recorder: bool,
+) -> Result<(Recorded, RecordSource)> {
     match &start.request.target {
         RecordingTarget::Area => {
             let (output, area) = start
@@ -27,7 +34,11 @@ pub fn resolve(start: &Start, outputs: &[OutputInfo]) -> Result<(Recorded, Recor
             RecordSource::Output(id.clone()),
         )),
         RecordingTarget::Window(w) => {
-            let area = w.logical.ok_or(Error::Unsupported)?;
+            let area = match w.logical {
+                Some(area) => area,
+                None if window_recorder => Rect::ZERO,
+                None => return Err(Error::Unsupported),
+            };
             Ok((Recorded::Area(area), RecordSource::Window(w.clone())))
         }
     }

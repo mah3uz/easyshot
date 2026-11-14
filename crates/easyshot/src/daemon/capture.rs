@@ -159,6 +159,11 @@ pub(super) fn cut(
         .ok_or_else(|| Error::NotFound(format!("the area on {}", output.0)))
 }
 
+/// The window's own frame; a window no screen shows has no rectangle on an output to cut instead.
+pub(super) fn window_alone(capture: &dyn Capture, id: &WindowId) -> Result<Frame> {
+    capture.capture_window(id, NO_CURSOR).map_err(backend_error)
+}
+
 /// A fresh frame of `target`; `None` when it was a window that has closed since.
 pub(super) fn shoot(
     capture: &dyn Capture,

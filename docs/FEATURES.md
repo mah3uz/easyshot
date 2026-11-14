@@ -329,7 +329,8 @@ More in the manual: [Command line](MANUAL.md#command-line).
 ## Agent use
 
 - Gives AI agents and scripts `easyshot agent` (also `easyshot ai`).
-- Lists your outputs and your open windows.
+- Lists your outputs and your open windows on every workspace, saying which ones a screen shows.
+- Captures, reads and records a covered window or one on another workspace without moving your focus.
 - Takes a screenshot of an output, an area, a window or the focused output and prints the PNG path.
 - Writes the screenshot to a path you name with `--out`.
 - Waits 0 to 60 seconds first with `--delay`.

@@ -39,7 +39,7 @@ pub fn sources(backend: &Arc<Backend>) -> Sources {
     Sources {
         caps: backend.caps(),
         outputs: Arc::new(move || outputs.capture.outputs()),
-        windows: Arc::new(move || windows.windows.snapshot()),
+        windows: Arc::new(move || windows.windows.all()),
     }
 }
 
@@ -184,6 +184,7 @@ pub(super) fn window_entry(w: &WindowInfo) -> WindowEntry {
         height: rect.map(|r| extent(r.height())),
         output: w.output.as_ref().map(|o| o.0.clone()),
         focused: w.focus_rank.map(|rank| rank == 0),
+        visible: w.logical.is_some(),
     }
 }
 

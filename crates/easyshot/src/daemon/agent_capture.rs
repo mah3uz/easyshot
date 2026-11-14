@@ -2,7 +2,7 @@ use super::gate::{self as agent_gate, scope::Scope};
 use super::hints;
 use super::redact::{Redactor, inspect};
 use super::window_entry;
-use crate::daemon::capture::{Direct, cut, shoot};
+use crate::daemon::capture::{Direct, cut, shoot, window_alone};
 use crate::daemon::recording::Recordings;
 use es_app::agent_access::AgentAccessHandle;
 use es_app::agent_capture::{Options, Saved, save};
@@ -270,13 +270,17 @@ pub(super) async fn acquire(
     }
     let (backend, target, scope) = (deps.backend.clone(), target.clone(), scope.clone());
     cx.background_executor()
-        .spawn(async move { grab(&*backend.capture, &*backend.windows, &target, &scope) })
+        .spawn(async move {
+            let caps = backend.caps();
+            grab(&*backend.capture, &*backend.windows, caps, &target, &scope)
+        })
         .await
 }
 
 pub(super) fn grab(
     capture: &dyn Capture,
     windows: &dyn WindowList,
+    caps: Caps,
     target: &AgentTarget,
     scope: &Scope,
 ) -> Result<Shot, Fail> {
@@ -342,9 +346,12 @@ pub(super) fn grab(
             })
         }
         AgentTarget::Window(selector) => {
-            let info = resolve_window(&windows.snapshot(), selector)?;
+            let info = resolve_window(&windows.all(), selector)?;
             if !scope.allows_window(&info) {
                 return Err(outside(&format!("window {}", describe(&info))));
+            }
+            if info.logical.is_none() {
+                return off_screen(capture, caps, info);
             }
             let last = LastTarget::Window {
                 id: info.id.0.clone(),
@@ -365,6 +372,30 @@ pub(super) fn grab(
             }
         }
     }
+}
+
+/// Never cut from its output, which shows some other window, and never brought forward.
+fn off_screen(capture: &dyn Capture, caps: Caps, info: WindowInfo) -> Result<Shot, Fail> {
+    if !caps.contains(Caps::CAPTURE_WINDOW) {
+        return Err(not_on_screen("capture"));
+    }
+    let frame = window_alone(capture, &info.id).map_err(|e| match e {
+        Error::Unsupported => not_on_screen("capture"),
+        other => fail_of(other),
+    })?;
+    Ok(Shot {
+        frame: Arc::new(frame),
+        kind: StoredKind::Window,
+        window: Some(info),
+    })
+}
+
+pub(super) fn not_on_screen(verb: &str) -> Fail {
+    Fail::new(
+        ErrorCode::Unsupported,
+        format!("this desktop can {verb} a window only while a screen shows it"),
+    )
+    .hint(hints::window_off_screen())
 }
 
 fn output_names(outputs: &[es_model::platform::OutputInfo]) -> Vec<String> {

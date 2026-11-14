@@ -892,9 +892,15 @@ Commands:
 
 - `agent list outputs` lists your outputs: name, description, position and size in logical
   pixels, scale, and whether it is focused.
-- `agent list windows` lists the open windows: id, app id, title, position and size in
-  logical pixels, output, and `focused`, which is true for the window that has or last had
-  focus. What your compositor does not report is left out rather than guessed.
+- `agent list windows` lists the open windows on every workspace: id, app id, title, position
+  and size in logical pixels, output, `focused`, which is true for the window that has or last
+  had focus, and `visible`, which is false for a window on a workspace no screen shows (the
+  text list marks it `hidden`; it has no position or size). What your compositor does not
+  report is left out rather than guessed.
+- `--window` in `agent capture`, `agent ocr` and `agent record start` works on a window that is
+  covered or on a workspace no screen shows, without moving your focus, switching workspace or
+  moving the pointer. Where your desktop can capture a window only while it is on screen, such a
+  window gets `unsupported` (exit 6) and a hint instead.
 - `agent capture` takes a screenshot and prints the path of the PNG. Give exactly one target:
   `--output NAME`, `--geometry "x,y WxH"` (logical pixels, within one output),
   `--window <id|app_id|title>` or `--fullscreen` (the focused output). A window name is tried
@@ -953,8 +959,7 @@ Commands:
 
 - `agent record start` starts recording one target and prints the recording's id. Give exactly
   one of `--output NAME`, `--geometry "x,y WxH"`, `--window <id|app_id|title>` or
-  `--fullscreen`. A window on another workspace is switched to first, as in the recording
-  panel; if easyshot cannot reach it the command fails with `failed` and a hint. It records as you would from the capture bar, with the control bar and the
+  `--fullscreen`. It records as you would from the capture bar, with the control bar and the
   tray indicator showing, so you can see that a recording is running and stop it yourself. It
   never touches a recording you started: if one is running the command exits 4.
   - `--audio system|mic|both|none` (default: your recording settings), `--fps 30|60`

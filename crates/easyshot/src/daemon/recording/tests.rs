@@ -576,7 +576,7 @@ fn an_area_reaches_the_recorder_in_global_logical_points_on_an_offset_output() {
     };
     let chosen = Rect::new(3000.0, 400.0, 3800.0, 1000.0);
     let start = Start::new(area(), Some((dp2.id.clone(), chosen)));
-    let (_, source) = target::resolve(&start, &[dp2]).unwrap();
+    let (_, source) = target::resolve(&start, &[dp2], false).unwrap();
     let es_record::RecordSource::Region { logical, .. } = source else {
         panic!("expected a region");
     };

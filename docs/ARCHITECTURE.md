@@ -199,7 +199,8 @@ records the chosen and rejected providers (with the reason) for logs and `easysh
 providers and the probed tools, never set by hand. `Caps::FOCUS_WINDOW` comes from the
 window list provider, which can also list every window on every workspace; recording a
 window on a workspace no output shows focuses it first and waits up to a second for an output
-to show it.
+to show it. Agent requests never focus: they capture and record such a window alone, with
+`Caps::CAPTURE_WINDOW` and `Caps::RECORD_WINDOW`, or answer `unsupported`.
 
 The recorder providers are gpu-screen-recorder, then wf-recorder. Separately,
 `Backend::window_recorder` is es-record's `WindowRecorder` fed by `es-wayland`'s

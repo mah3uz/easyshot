@@ -57,7 +57,8 @@ static TOOLS: [ToolDef; 8] = [
     ToolDef {
         name: "list_windows",
         title: "List windows",
-        description: "List the open windows: id, app id, title, geometry and output.",
+        description: "List the open windows on every workspace: id, app id, title, geometry, \
+                      output and whether a screen shows it.",
         read_only: true,
         destructive: false,
         schema: empty_schema,

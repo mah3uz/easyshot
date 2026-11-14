@@ -120,6 +120,7 @@ fn no_limit_allows_everything_and_lists_show_only_what_is_allowed() {
                 height: None,
                 output: Some("DP-1".into()),
                 focused: None,
+                visible: true,
             })
             .collect(),
     );

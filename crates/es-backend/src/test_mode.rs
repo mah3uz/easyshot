@@ -193,7 +193,7 @@ impl Capture for TestCapture {
         self.inner.capture_outputs(ids, o)
     }
     fn capture_window(&self, w: &WindowId, o: CaptureOpts) -> Result<Frame> {
-        if !self.windows.snapshot().iter().any(|i| i.id == *w) {
+        if !self.windows.all().iter().any(|i| i.id == *w) {
             return Err(Error::NotFound(w.0.clone()));
         }
         self.inner.capture_window(w, o)

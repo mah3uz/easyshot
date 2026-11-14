@@ -123,9 +123,9 @@ fn list_windows_leaves_out_what_the_compositor_did_not_say(cx: &mut TestAppConte
             "kind": "windows",
             "windows": [
                 {"id": "0xa1", "app_id": "foot", "title": "~/src", "x": 10, "y": 20,
-                 "width": 800, "height": 600, "output": "DP-1", "focused": true},
-                {"id": "0xb2", "focused": false},
-                {"id": "0xc3", "app_id": "mpv", "title": "clip"}
+                 "width": 800, "height": 600, "output": "DP-1", "focused": true, "visible": true},
+                {"id": "0xb2", "focused": false, "visible": false},
+                {"id": "0xc3", "app_id": "mpv", "title": "clip", "visible": false}
             ]
         })
     );

@@ -100,7 +100,7 @@ fn desk() -> Windows {
 }
 
 fn shot(target: &AgentTarget) -> Result<Shot, Fail> {
-    grab(&Screens, &desk(), target, &Scope::default())
+    grab(&Screens, &desk(), Caps::all(), target, &Scope::default())
 }
 
 fn selector(text: &str) -> WindowSelector {
@@ -363,8 +363,9 @@ fn a_window_or_output_outside_the_scope_is_refused_where_the_capture_resolves_it
     };
     let by_id = |id: &str| AgentTarget::Window(WindowSelector::id(id).unwrap());
     let mpv = only(&["mpv"], &[]);
-    assert!(grab(&Screens, &desk(), &by_id("3"), &mpv).is_ok());
-    let Err(Fail(code, message, hint)) = grab(&Screens, &desk(), &by_id("4"), &mpv) else {
+    assert!(grab(&Screens, &desk(), Caps::all(), &by_id("3"), &mpv).is_ok());
+    let Err(Fail(code, message, hint)) = grab(&Screens, &desk(), Caps::all(), &by_id("4"), &mpv)
+    else {
         panic!("a firefox window the gate never saw was captured outside the scope");
     };
     assert_eq!(code, ErrorCode::AccessDenied, "{message}");
@@ -377,7 +378,9 @@ fn a_window_or_output_outside_the_scope_is_refused_where_the_capture_resolves_it
         AgentTarget::Output(OutputName::new(&Screens.outputs()[0].id.0).unwrap()),
         by_id("3"),
     ] {
-        let refused = grab(&Screens, &desk(), &target, &other).err().map(|f| f.0);
+        let refused = grab(&Screens, &desk(), Caps::all(), &target, &other)
+            .err()
+            .map(|f| f.0);
         assert_eq!(refused, Some(ErrorCode::AccessDenied), "{target:?}");
     }
 }
@@ -524,3 +527,6 @@ fn the_agent_capture_path_itself_is_refused_while_the_user_picks(cx: &mut TestAp
     assert_eq!((code, code.exit_code()), (ErrorCode::InvalidArguments, 4));
     assert!(message.contains("busy"), "{message}");
 }
+
+#[path = "agent_capture_hidden_tests.rs"]
+mod hidden;

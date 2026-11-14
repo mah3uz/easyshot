@@ -97,6 +97,14 @@ impl WindowList for FakeWindows {
     fn events(&self) -> async_channel::Receiver<WindowEvent> {
         WINDOW_EVENTS.with(|c| c.1.clone())
     }
+    fn all(&self) -> Vec<WindowInfo> {
+        let mut all = self.snapshot();
+        all.extend([
+            window("mine-away", Some(TEST_OUT)),
+            window("users-away", Some(USER_OUT)),
+        ]);
+        all
+    }
 }
 
 struct RealClipboard;
@@ -198,7 +206,7 @@ fn only_the_test_output_is_visible_or_capturable() {
 fn only_windows_on_the_test_output_are_listed_or_captured() {
     let b = isolated(scratch("windows"));
     assert_eq!(ids(&b.windows.snapshot()), ["mine"]);
-    for hidden in ["users", "unknown"] {
+    for hidden in ["users", "unknown", "users-away"] {
         assert!(
             b.capture
                 .capture_window(&WindowId(hidden.into()), NO_CURSOR)
@@ -206,11 +214,14 @@ fn only_windows_on_the_test_output_are_listed_or_captured() {
             "{hidden} must not be capturable"
         );
     }
-    assert!(
-        b.capture
-            .capture_window(&WindowId("mine".into()), NO_CURSOR)
-            .is_ok()
-    );
+    for mine in ["mine", "mine-away"] {
+        assert!(
+            b.capture
+                .capture_window(&WindowId(mine.into()), NO_CURSOR)
+                .is_ok(),
+            "{mine} is on the test output, shown or not"
+        );
+    }
 }
 
 fn next<T>(rx: &async_channel::Receiver<T>) -> T {

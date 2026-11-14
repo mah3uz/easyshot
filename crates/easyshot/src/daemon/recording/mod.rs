@@ -22,7 +22,7 @@ use es_app::toast::{IconName, Toast, show_toast};
 use es_desktop::RecordingTrayState;
 use es_geom::Rect;
 use es_model::CaptureKind as StoredKind;
-use es_model::platform::{OutputId, OutputInfo, WindowInfo};
+use es_model::platform::{OutputId, OutputInfo};
 use es_overlays::record::{
     ControlBar, ControlEvent, Phase, Recorded, RecordingRequest, RecordingTarget,
 };
@@ -161,10 +161,6 @@ impl Recordings {
         self.0.active.borrow().is_some()
     }
 
-    pub fn focus_window(&self, w: &WindowInfo, cx: &mut App) -> Task<Result<WindowInfo>> {
-        (self.0.deps.focus_window)(w, cx)
-    }
-
     /// Recording, or between asking to start and the recorder running.
     pub fn is_busy(&self) -> bool {
         self.is_recording() || self.0.starting.get()
@@ -293,7 +289,7 @@ impl Recordings {
     fn begin(&self, mut start: Start, cx: &mut App) -> Result<Session> {
         let deps = &self.0.deps;
         let outputs = (deps.outputs)();
-        let (recorded, source) = resolve(&start, &outputs)?;
+        let (recorded, source) = resolve(&start, &outputs, deps.window_recorder.is_some())?;
         let mut cfg = deps.settings.read(cx).config().recording.clone();
         start.options.apply(&mut cfg);
         let (recorder, dim) = match (&source, &deps.window_recorder) {

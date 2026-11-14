@@ -111,10 +111,10 @@ fn print(json: bool, reply: &AgentReply, out: &mut dyn Write, err: &mut dyn Writ
             (Some(x), Some(y), Some(width), Some(height)) => format!("{x},{y} {width}x{height}"),
             _ => "-".to_owned(),
         };
-        let focused = if w.focused == Some(true) {
-            "  focused"
-        } else {
-            ""
+        let focused = match (w.focused == Some(true), w.visible) {
+            (true, _) => "  focused",
+            (false, false) => "  hidden",
+            _ => "",
         };
         let _ = writeln!(
             out,
