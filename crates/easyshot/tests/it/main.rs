@@ -2,6 +2,7 @@ mod completion;
 mod mcp_binary;
 mod platform_agent;
 mod platform_agent_hidden;
+mod platform_agent_sway_windows;
 mod platform_bar;
 mod platform_daemon;
 mod platform_previous;
